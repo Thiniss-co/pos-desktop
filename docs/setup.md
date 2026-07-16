@@ -17,7 +17,8 @@ npm run dev
 
 Runs `electron-vite dev` — starts the Vite dev server for the renderer with HMR and launches
 Electron pointed at it. This is a long-running process; stop it with Ctrl+C. Do not run it as part
-of an automated verification step.
+of an automated verification step. Run GUI verification from an external Ubuntu terminal, where
+Electron is not affected by the agent shell's `ELECTRON_RUN_AS_NODE` setting.
 
 ## Verification Commands
 
@@ -28,7 +29,7 @@ npm run format         # prettier --write . — MUTATES files; only run when exp
 ```
 
 `npm run test` **does not exist yet**. No test runner is configured in `package.json` as of this
-writing. Adding one (and the first tests) is scoped to Phase 1 — see
+writing. Adding one (and the first tests) remains open Phase 1 scope — see
 [phases/01-foundation-structure.md](phases/01-foundation-structure.md) and
 [../.ai/guidelines/testing-and-verification.md](../.ai/guidelines/testing-and-verification.md).
 
@@ -67,20 +68,26 @@ host/port for local backend development is not documented in this frontend repos
 against the backend project's own setup docs before wiring the API client; do not guess a
 default in this repo's code.
 
-## Linux Electron Sandbox Note
+## Linux Electron Sandbox Prerequisite
 
-On Linux, Electron's `chrome-sandbox` helper binary must be owned by root with the setuid bit set.
-If `npm run dev` (or a packaged AppImage/deb) fails with a sandbox-related permission error:
+With `sandbox: true`, Electron's `chrome-sandbox` helper binary **must** be owned by root with the
+setuid bit set. Verify this prerequisite after `npm install` (which can reset it) and before
+running `npm run dev` or a packaged build:
+
+```bash
+stat -c '%U:%G %a %n' node_modules/electron/dist/chrome-sandbox
+```
+
+The required result is `root:root 4755 node_modules/electron/dist/chrome-sandbox`. If Electron
+reports a sandbox permission error:
 
 ```txt
 The SUID sandbox helper binary was found, but is not configured correctly.
 ```
 
-this is almost always a local machine/environment issue, not an app bug. Typical causes and fixes
-(apply locally, do not bake a workaround into app code or CI):
+this is almost always a local machine/environment issue, not an app bug. Fix it locally; do not
+bake a workaround into app code or CI:
 
 - `node_modules/electron/dist/chrome-sandbox` ownership/permissions are wrong — fix with
   `sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox`.
-- As a last-resort **local development only** workaround, Electron can be launched with
-  `--no-sandbox`. This must never be shipped in a packaged build or used as a permanent fix — it
-  disables a real security boundary.
+- Do not use `--no-sandbox`; it disables a required security boundary.

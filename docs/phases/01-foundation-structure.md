@@ -6,6 +6,16 @@ Turn the stock `electron-vite` Vue+TS scaffold into the app's real architectural
 layout, routing, state management, a secure typed IPC bridge, and a local database foundation —
 with no POS domain screens yet.
 
+## Electron Foundation Status
+
+Electron foundation gates 1A–1D are complete: the preload exposes only the typed
+`window.posApi` surface; `contextIsolation`, `nodeIntegration`, `sandbox`, `webSecurity`, and
+`allowRunningInsecureContent` are explicit; navigation, popups, and permissions default to deny;
+and a runtime CSP distinguishes development HMR from production.
+
+The remaining Phase 1 scope below is still open, including router/Pinia setup, Zod IPC validation,
+SQLite scaffolding, shared IPC types, and a test runner.
+
 ## Scope
 
 - `vue-router` and `pinia` added as dependencies and wired into `src/renderer/src/main.ts`.
@@ -49,7 +59,7 @@ with no POS domain screens yet.
 ```bash
 npm run typecheck
 npm run lint
-npm run test          # newly added in this phase
+npm run test          # not available yet; test runner remains open Phase 1 scope
 npm run dev            # manual smoke: app launches, placeholder route renders, no console errors
 ```
 
