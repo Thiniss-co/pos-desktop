@@ -24,8 +24,8 @@ Priority order for coverage as functionality lands:
 2. **IPC contract handlers** — payload validation (accepts valid, rejects invalid), typed
    result/error shape.
 3. **Sync queue state machine** — transitions in `offline-sync-contract.md`
-   (`pending → syncing → synced`, `failed` retry/backoff, `conflict` quarantine, `paused` on
-   license denial).
+   (`pending → uploading → synced`, `retryable_error` backoff, `conflict` review, and terminal
+   `rejected` records).
 4. **Route guards** — auth/device/license-gated routes redirect correctly when unauthenticated,
    unbound, or license-denied.
 5. **Pricing/tax/discount logic** in cart/checkout services.
@@ -45,8 +45,8 @@ an unhandled exception into a component).
 ## Sync Queue Tests
 
 Cover each transition in `offline-sync-contract.md`, including: idempotency-key retry-after-loss
-behavior, invoice-before-refund ordering, stale-price and oversell quarantine, and license-denial
-pausing the whole queue rather than one item.
+behavior, invoice-before-refund ordering, stale-price and oversell terminal rejection, and
+license-denial pausing the worker without inventing a persisted per-item pause state.
 
 ## Route Guard Tests
 
@@ -62,7 +62,9 @@ Use when a change touches something a unit test can't reasonably cover:
 - [ ] App launches (`npm run dev`) without console errors.
 - [ ] Barcode scan input is captured correctly on the active checkout screen.
 - [ ] Offline banner reflects actual connectivity state when toggling network.
-- [ ] Sync indicator reflects queue state (pending count, paused reason if applicable).
+- [ ] Sync indicator reflects queue state (pending count, uploading state, worker-pause reason if
+      applicable).
 - [ ] Receipt print (or the print bridge stub, pre-hardware) is invoked correctly after checkout.
 - [ ] No DevTools warning about `contextIsolation`/`nodeIntegration`/insecure preload.
-- [ ] No network call is made to `/api/v1/admin/*` (check DevTools Network tab).
+- [ ] No network call is made outside `/api/v1/desktop/*`, including `/api/v1/admin/*` or
+      `/api/v1/auth/*` (check DevTools Network tab).

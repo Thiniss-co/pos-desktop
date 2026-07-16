@@ -52,7 +52,7 @@ src/renderer/src/
 │   ├── pos/            # cart, product search, checkout
 │   ├── shifts/         # shift open/close/pause, cash drawer
 │   ├── refunds/        # refund flow
-│   ├── sync/            # sync queue UI/state, conflict/quarantine views
+│   ├── sync/            # sync queue UI/state, conflict/rejection review views
 │   └── license/         # license/subscription status, grace warnings
 │       each module/: pages/ | components/ | store.ts | service.ts | types.ts
 ├── shared/

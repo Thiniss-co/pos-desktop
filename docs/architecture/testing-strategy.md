@@ -4,13 +4,12 @@ Rules: [.ai/guidelines/testing-and-verification.md](../../.ai/guidelines/testing
 
 ## Current State (evidence)
 
-`package.json` defines `typecheck` (split node/web via `tsc`/`vue-tsc`) and `lint` (`eslint`), plus
-`format` (mutating, not a check) and packaging scripts. **No test script or test runner is
-configured.** No test files exist in the repository. This is a tracked gap —
-see [../phases/01-foundation-structure.md](../phases/01-foundation-structure.md) and
-[../phases/06-hardening-testing-packaging.md](../phases/06-hardening-testing-packaging.md).
+`package.json` defines `typecheck` (split node/web via `tsc`/`vue-tsc`), `lint` (`eslint`),
+`test`/`test:watch` (Vitest), the Electron-ABI `smoke:database` command, plus packaging scripts.
+Foundation tests cover envelope parsing, error normalization, route confinement, device identity,
+queue policy, IPC serialization, router decisions, and named preload gateways.
 
-## Layers (target, once a runner is added)
+## Layers
 
 ```mermaid
 flowchart TB
@@ -22,11 +21,10 @@ flowchart TB
     Unit --> IPC --> Component --> Smoke
 ```
 
-Automated layers (unit, IPC, component) run in CI/local via whichever runner is adopted in Phase 1
-(decision not yet made in this repo — evaluate against `electron-vite`/Vite compatibility, e.g.
-Vitest, when that phase starts). Hardware-dependent behavior (real barcode scanner, real receipt
-printer) stays in the manual smoke checklist — it cannot be meaningfully automated without physical
-hardware or a fake hardware harness that doesn't currently exist.
+Automated layers run in CI/local through Vitest. Main/shared tests use Node, renderer tests use
+happy-dom, and the native SQLite boundary is validated only through Electron's Node runtime.
+Hardware-dependent behavior (real barcode scanner, real receipt printer) stays in the manual smoke
+checklist.
 
 ## What Must Be Covered Before Considering a Feature Done
 
@@ -34,7 +32,7 @@ hardware or a fake hardware harness that doesn't currently exist.
 |---|---|
 | API client | Envelope parsing (success/error/malformed), each documented error `code` |
 | IPC handlers | Valid payload accepted, invalid payload rejected before reaching main logic |
-| Sync queue | Every state transition in `offline-sync-contract.md`, including quarantine/pause paths |
+| Sync queue | Every state transition in `offline-sync-contract.md`, including conflict/rejection review and worker-pause paths |
 | Route guards | Unauthenticated, unbound-token, device-mismatch, license-denied redirects |
 | Pricing/tax/discount | Core calculation paths in cart/checkout services |
 

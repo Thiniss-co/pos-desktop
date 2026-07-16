@@ -102,14 +102,12 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> pending
-    pending --> syncing
-    syncing --> synced
-    syncing --> failed: transient error
-    failed --> pending: retry/backoff
-    syncing --> conflict: IDEMPOTENCY_CONFLICT / data conflict
-    conflict --> [*]: quarantined, needs resolution
-    syncing --> paused: license/subscription denied
-    paused --> pending: license resolved
+    pending --> uploading
+    uploading --> synced
+    uploading --> retryable_error: transient error
+    retryable_error --> pending: retry/backoff
+    uploading --> conflict: IDEMPOTENCY_CONFLICT / data conflict
+    uploading --> rejected: terminal 422 business/validation rejection
 ```
 
 Full state/ordering rules:
@@ -118,8 +116,7 @@ Full state/ordering rules:
 
 ## Current vs. Target
 
-The diagrams above describe the **target** architecture. As of Phase 0, only the Electron
-main/preload/renderer scaffold exists (`src/main/index.ts`, `src/preload/index.ts`,
-`src/renderer/src/App.vue`) with no modules, stores, database, or API client yet. See
-[../phases/01-foundation-structure.md](../phases/01-foundation-structure.md) for what Phase 1
-actually builds.
+The diagrams above describe the target flow. Phase 1 now supplies the hardened process boundary,
+startup shell, local metadata/queue foundation, and constrained main-side client; it does not wire
+activation, login, bootstrap refresh, or a sync worker. See
+[../phases/01-foundation-structure.md](../phases/01-foundation-structure.md).

@@ -11,7 +11,7 @@ ordering) and printing/reprinting receipts through a secure printing bridge.
   an immutable local refund record with sync-status fields, referencing its parent invoice's
   `local_uuid`/`remote_uuid`.
 - Sync queue extended to respect invoice-before-refund ordering (a refund whose invoice hasn't
-  synced stays `pending`, not `failed`) per
+  synced stays `pending`, not `retryable_error`) per
   [.ai/guidelines/offline-sync-contract.md](../../.ai/guidelines/offline-sync-contract.md).
 - `POST /api/v1/desktop/refunds/upload` integration.
 - `window.posApi.print.receipt(payload)` implemented against a real or configured printer,

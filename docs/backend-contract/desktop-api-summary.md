@@ -24,6 +24,7 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 |---|---|---|
 | `/api/v1/desktop/*` | Desktop/company app | Yes — only namespace this app may call |
 | `/api/v1/admin/*` | Platform super-admin | **Never** |
+| `/api/v1/auth/*` | Platform/browser authentication | **Never** |
 
 ## Endpoints Known By Name
 
@@ -34,7 +35,7 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 | `GET /api/v1/desktop/auth/me` | Protected | Current session/user |
 | `POST /api/v1/desktop/auth/logout` | Protected | End session |
 | `GET /api/v1/desktop/bootstrap` | Protected | Initial/refresh data snapshot (catalog, tax, permissions, etc. — exact shape `TODO`) |
-| `POST /api/v1/desktop/heartbeat` | Protected | Liveness/connectivity check (exact payload/response `TODO`) |
+| `POST /api/v1/desktop/device/heartbeat` | Protected | Liveness/connectivity check (exact payload/response `TODO`) |
 | `POST /api/v1/desktop/license/validate` | Protected | License/subscription check |
 | `POST /api/v1/desktop/invoices/upload` | Protected | Upload a completed local sale/invoice |
 | `POST /api/v1/desktop/refunds/upload` | Protected | Upload a refund (must follow its invoice — see sync contract) |
@@ -44,6 +45,14 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 
 Total route count (174) and full route list are backend-side facts not enumerated here — import
 the OpenAPI spec rather than hand-transcribing routes as they're needed.
+
+## License and Entitlement Cadence
+
+When online, license validation is required at application start, after login, and at least every
+12 hours. Entitlements refresh at application start, after login, after a 403 response, and at
+least every 15 minutes. After 72 hours offline without a successful license check, the backend's
+license decision controls `canSell` and `canSync`; the app must surface that decision rather than
+guess it locally. No foundation-phase timer is started from this documentation.
 
 ## Protected Request Headers
 
@@ -56,8 +65,9 @@ Required on every endpoint except the two public ones listed above.
 
 ## Next Step to Remove `TODO`s
 
-Import the published OpenAPI foundation into this repository (location/process not yet decided —
-likely `docs/backend-contract/openapi/` plus a generated-types step) and replace the `TODO`
-markers above with confirmed shapes. Do not hand-guess a request/response shape in application
-code before that happens — use the `TODO` marker convention from
+Resolve the documented [OpenAPI import blocker](openapi-import-blocker.md), validate the upstream
+OpenAPI 3.1 document, then import it into this repository (location/process not yet decided —
+likely `docs/backend-contract/openapi/` plus a generated-types step). Replace the `TODO` markers
+above with confirmed shapes only after that step. Do not hand-guess a request/response shape in
+application code before that happens — use the `TODO` marker convention from
 [.ai/guidelines/backend-api-contract.md](../../.ai/guidelines/backend-api-contract.md).

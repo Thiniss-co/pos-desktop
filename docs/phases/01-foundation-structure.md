@@ -8,13 +8,16 @@ with no POS domain screens yet.
 
 ## Electron Foundation Status
 
-Electron foundation gates 1A–1D are complete: the preload exposes only the typed
-`window.posApi` surface; `contextIsolation`, `nodeIntegration`, `sandbox`, `webSecurity`, and
+Phase 1 is complete: the preload exposes only the typed `window.posApi` foundation surface;
+`contextIsolation`, `nodeIntegration`, `sandbox`, `webSecurity`, and
 `allowRunningInsecureContent` are explicit; navigation, popups, and permissions default to deny;
-and a runtime CSP distinguishes development HMR from production.
+and a runtime CSP distinguishes development HMR from production. Router/Pinia, shared contracts,
+Zod IPC validation, main-owned SQLite/migrations/repositories, secure storage, a constrained
+desktop API client, and Vitest now provide the application shell.
 
-The remaining Phase 1 scope below is still open, including router/Pinia setup, Zod IPC validation,
-SQLite scaffolding, shared IPC types, and a test runner.
+The shell deliberately reports fresh-install truth only: local identity is unregistered, no session
+exists, bootstrap is incomplete, and sync counts are zero. Activation, login, bootstrap fetch,
+and sync execution remain later-phase work.
 
 ## Scope
 
@@ -22,7 +25,7 @@ SQLite scaffolding, shared IPC types, and a test runner.
 - `src/renderer/src/modules/` and `src/renderer/src/shared/` directory structure created per
   [.ai/guidelines/desktop-architecture.md](../../.ai/guidelines/desktop-architecture.md) and
   [.ai/guidelines/vue-structure.md](../../.ai/guidelines/vue-structure.md).
-- Preload rewritten to expose `window.posApi` (narrow, typed) instead of the current blanket
+- Preload rewritten to expose `window.posApi` (narrow, typed) instead of the former blanket
   `electronAPI` exposure — see
   [../architecture/secure-preload-ipc.md](../architecture/secure-preload-ipc.md).
 - `webPreferences.sandbox` flipped to `true` (or the specific blocking dependency documented).
@@ -59,7 +62,7 @@ SQLite scaffolding, shared IPC types, and a test runner.
 ```bash
 npm run typecheck
 npm run lint
-npm run test          # not available yet; test runner remains open Phase 1 scope
+npm run test          # Vitest foundation contracts, IPC, queue policy, router and gateway tests
 npm run dev            # manual smoke: app launches, placeholder route renders, no console errors
 ```
 

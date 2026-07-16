@@ -1,6 +1,9 @@
 node_modules
 dist
 out
+.vitest
+*.sqlite*
 .DS_Store
 .eslintcache
 *.log*
+!.env.example

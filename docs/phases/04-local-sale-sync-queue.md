@@ -15,13 +15,13 @@ per the documented state machine.
   machine in
   [.ai/guidelines/offline-sync-contract.md](../../.ai/guidelines/offline-sync-contract.md) and
   [../architecture/offline-sync-architecture.md](../architecture/offline-sync-architecture.md):
-  `pending → syncing → synced`, `failed` retry/backoff, `conflict` quarantine, `paused` on license
-  denial.
+  `pending → uploading → synced`, `retryable_error` retry/backoff, `conflict` review, and terminal
+  `rejected` records. License or token denial pauses the worker operationally, not a persisted item.
 - Idempotency key generation at sale-creation time.
 - `POST /api/v1/desktop/invoices/upload` integration.
-- Sync indicator (shell-level) now reflecting real queue state (pending count, syncing, paused +
-  reason).
-- Quarantine review UI (minimal — list of conflicted items with enough detail to act on).
+- Sync indicator (shell-level) now reflecting real queue state (pending count, uploading, worker
+  pause + reason).
+- Conflict/rejection review UI (minimal — list of affected items with enough detail to act on).
 
 ## Out of Scope
 
@@ -34,9 +34,10 @@ per the documented state machine.
 - A completed sale survives app restart and eventually syncs once online, verified against the
   real backend invoice-upload endpoint.
 - Simulated conflict (e.g. resending a completed sale's idempotency key with a different payload,
-  if feasible in a test/staging environment) correctly quarantines rather than duplicating or
-  crashing.
-- Simulated license denial pauses the entire queue, verified via the sync indicator.
+  if feasible in a test/staging environment) preserves the conflict for review rather than
+  duplicating or crashing.
+- Stale-price or stock 422s become terminal `rejected` records with recovery guidance.
+- Simulated license denial pauses the worker, verified via the sync indicator.
 
 ## Verification Commands
 
@@ -53,7 +54,8 @@ npm run dev                  # manual: complete a sale offline, go online, confi
   `.ai/guidelines/offline-sync-contract.md`.
 - A sale completed with no network connection is not lost and syncs automatically once
   connectivity returns.
-- License-denial pause is queue-wide, not per-item, verified manually or via test.
+- License-denial pause is worker-wide, not a persisted per-item state, verified manually or via
+  test.
 
 ## Next Phase
 

@@ -29,12 +29,8 @@ imported anywhere in this repo.
 
 - Do not do `contextBridge.exposeInMainWorld('ipcRenderer', ipcRenderer)`.
 - Do not expose `electronAPI.ipcRenderer` (from `@electron-toolkit/preload`) as a generic
-  invoke/on passthrough for arbitrary channel names. The current preload
-  (`src/preload/index.ts`) exposes the full `electronAPI` object via
-  `contextBridge.exposeInMainWorld('electron', electronAPI)`, which includes a generic
-  `ipcRenderer.invoke/on/send`. **This must be replaced in Phase 1** with a narrow, named
-  `window.posApi` surface (see `ipc-contracts.md`) — treat the current state as a known gap, not a
-  pattern to extend.
+  invoke/on passthrough for arbitrary channel names. The template bridge was removed in Phase 1;
+  maintain the narrow, named `window.posApi` surface described in `ipc-contracts.md`.
 
 ## 6. Typed Preload Bridge Only
 
@@ -78,12 +74,12 @@ handles or OS-level print API access.
 
 ## Current State vs. Target (evidence-based)
 
-| Requirement | Current state (scaffold) | Target |
+| Requirement | Current state | Status |
 |---|---|---|
-| `contextIsolation` | Not explicitly set → Electron default `true` | Keep explicit `true` once webPreferences is touched |
-| `nodeIntegration` | Not explicitly set → Electron default `false` | Keep explicit `false` |
-| `sandbox` | `false` (`src/main/index.ts:16`) | `true`, unless a documented exception is added |
-| `remote` module | Not present | Keep absent |
-| `ipcRenderer` exposure | `electronAPI` (includes generic `ipcRenderer`) exposed as `window.electron` (`src/preload/index.ts:13`) | Replace with narrow `window.posApi` (Phase 1) |
-| Payload validation | None yet (no IPC handlers beyond the template `ping`) | Zod validation on every handler (Phase 1+) |
-| CSP | None set | Add once renderer content grows |
+| `contextIsolation` | Explicit `true` | Hardened |
+| `nodeIntegration` | Explicit `false` | Hardened |
+| `sandbox` | Explicit `true` | Hardened; Linux helper prerequisite documented |
+| `remote` module | Not present | Hardened |
+| `ipcRenderer` exposure | Five named frozen `window.posApi` methods only | Hardened |
+| Payload validation | Every foundation handler validates a Zod input schema | Hardened |
+| CSP | Runtime dev/prod header plus template meta CSP | Hardened |

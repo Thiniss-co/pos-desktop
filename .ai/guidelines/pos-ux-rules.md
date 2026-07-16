@@ -32,8 +32,9 @@ back-office user. Optimize for speed and error-recovery over information density
 ## Sync Indicator
 
 - A separate indicator (can be adjacent to the offline banner) shows sync queue state: count of
-  pending items, whether sync is actively running, and whether sync is `paused` (see
-  `offline-sync-contract.md`) with a reason (e.g. license denial) surfaced on hover/click.
+  pending items, whether the worker is actively uploading, and whether the worker is operationally
+  paused (see `offline-sync-contract.md`) with a reason (e.g. license denial) surfaced on
+  hover/click.
 
 ## License/Grace Warning
 

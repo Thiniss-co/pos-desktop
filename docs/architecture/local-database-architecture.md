@@ -1,23 +1,17 @@
 # Local Database Architecture
 
-Rules: [.ai/guidelines/local-database.md](../../.ai/guidelines/local-database.md). This doc covers
-the intended shape; no database layer exists in the repository yet (Phase 1+).
+Rules: [.ai/guidelines/local-database.md](../../.ai/guidelines/local-database.md). Phase 1 provides
+the connection owner, ordered migrator, and `0001_foundation` metadata/queue schema; sales and
+catalog entity tables remain later-phase work.
 
 ## Location
 
 ```txt
 src/main/database/
 ├── connection.ts        # opens/owns the single SQLite connection
-├── migrations/
-│   ├── 0001_init.sql (or .ts)
-│   ├── 0002_...
-│   └── runner.ts         # applies pending migrations in order at startup
-└── repositories/
-    ├── sale.repository.ts
-    ├── shift.repository.ts
-    ├── catalog.repository.ts
-    ├── refund.repository.ts
-    └── sync-queue.repository.ts
+├── migrator.ts           # applies ordered migrations in a transaction
+├── migrations/0001_foundation.ts
+└── ../repositories/      # typed settings, identity, metadata, secret and queue repositories
 ```
 
 ## Startup Sequence
@@ -46,7 +40,7 @@ Every syncable table includes, at minimum:
 ```sql
 local_uuid      TEXT PRIMARY KEY,
 remote_uuid     TEXT NULL,
-sync_status     TEXT NOT NULL DEFAULT 'pending', -- pending|syncing|synced|failed|conflict|paused
+sync_status     TEXT NOT NULL DEFAULT 'pending', -- pending|uploading|synced|retryable_error|conflict|rejected
 sync_attempts   INTEGER NOT NULL DEFAULT 0,
 last_sync_error TEXT NULL,
 created_at      TEXT NOT NULL,

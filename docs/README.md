@@ -18,9 +18,8 @@ follow, see [.ai/guidelines/](../.ai/guidelines/README.md) and the root [CLAUDE.
 
 ## Current Project State (as of this writing)
 
-This repository is the stock `electron-vite` Vue 3 + TypeScript template — Electron main/preload
-entry points and a minimal Vue renderer exist, but no POS domain code (modules, stores, local
-database, API client, sync queue) has been implemented yet. Phase 0 (this documentation) is
-complete; Phase 1 (foundation structure) has not started. See
-[phases/00-ai-rules-and-docs.md](phases/00-ai-rules-and-docs.md) and
+Phase 1’s application foundation is complete: hardened Electron boundaries, a narrow typed
+`window.posApi`, Router/Pinia startup shell, main-owned configuration/HTTP/identity/secure storage,
+SQLite migrations and repositories, and a test/packaging baseline. Activation, login, bootstrap
+fetching, sync work, and all POS workflows remain Phase 2+ work. See
 [phases/01-foundation-structure.md](phases/01-foundation-structure.md).

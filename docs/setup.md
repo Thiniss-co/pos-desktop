@@ -7,7 +7,12 @@ npm install
 ```
 
 `postinstall` runs `electron-builder install-app-deps` automatically (rebuilds native modules
-against the installed Electron version).
+against the installed Electron version). `better-sqlite3` is rebuilt for Electron, not host Node;
+run `npm run postinstall` again after an install if the Electron-ABI smoke reports a mismatch.
+
+The resolved foundation versions are Electron 39.8.10, Vue 3.5.39, Vite 7.3.6,
+electron-vite 5.0.0, TypeScript 5.9.3, electron-builder 26.15.3, Pinia 4.0.2,
+Vue Router 5.2.0, Zod 4.4.3, better-sqlite3 12.11.1, and Vitest 4.1.10.
 
 ## Development
 
@@ -25,13 +30,13 @@ Electron is not affected by the agent shell's `ELECTRON_RUN_AS_NODE` setting.
 ```bash
 npm run typecheck   # tsc -p tsconfig.node.json (main/preload) + vue-tsc -p tsconfig.web.json (renderer), no emit
 npm run lint          # eslint --cache . — reports only, does not auto-fix
+npm run test          # Vitest unit tests (main/shared in Node; renderer in happy-dom)
+npm run smoke:database # real migrator via Electron's Node runtime and a disposable SQLite database
 npm run format         # prettier --write . — MUTATES files; only run when explicitly formatting
 ```
 
-`npm run test` **does not exist yet**. No test runner is configured in `package.json` as of this
-writing. Adding one (and the first tests) remains open Phase 1 scope — see
-[phases/01-foundation-structure.md](phases/01-foundation-structure.md) and
-[../.ai/guidelines/testing-and-verification.md](../.ai/guidelines/testing-and-verification.md).
+Vitest never imports the Electron-ABI `better-sqlite3` driver from host Node unit tests; use the
+dedicated Electron smoke command above for that boundary.
 
 ## Build / Package
 
@@ -50,23 +55,27 @@ update server before any real release build; do not treat the placeholder as a w
 
 ## Environment Variables
 
-No `.env` / `.env.example` file exists in this repository yet. When backend integration lands
-(Phase 2), at minimum expect:
+Copy [.env.example](../.env.example) only when configuring a local backend origin. The main process
+reads `MAIN_VITE_POS_API_ORIGIN`; its absence intentionally leaves the foundation in the
+`not_configured` state and causes no request. HTTP is accepted only for loopback development hosts;
+all other origins must use HTTPS.
 
 | Variable | Purpose | Status |
 |---|---|---|
-| Desktop API base URL (e.g. `VITE_API_BASE_URL` or a build-time config) | Base URL for `/api/v1/desktop/*` requests | Not yet defined — introduce in Phase 1/2 alongside the central API client; do not hardcode a URL in source |
+| `MAIN_VITE_POS_API_ORIGIN` | Main-only base origin for `/api/v1/desktop/*` | Optional foundation configuration; no Phase 2 call is wired |
 
-Do not hardcode a production or staging backend URL anywhere in the codebase — it must come from
-environment/build configuration, added when the API client is introduced.
+Do not hardcode a production or staging backend URL anywhere in the codebase. `.env*` files are
+excluded from packaging; `.env.example` contains no secret.
 
-## Backend API Base URL
+## Secure Storage and CSP
 
-The desktop app talks only to `/api/v1/desktop/*` on the configured backend host (see
-[backend-contract/desktop-api-summary.md](backend-contract/desktop-api-summary.md)). The actual
-host/port for local backend development is not documented in this frontend repository — confirm it
-against the backend project's own setup docs before wiring the API client; do not guess a
-default in this repo's code.
+Desktop secrets remain in the main process. The safe-storage wrapper fails closed when encryption
+is unavailable and reports Linux's `basic_text` backend so it is never mistaken for hardware-backed
+encryption. Tokens never cross `window.posApi`.
+
+The main process applies a restrictive runtime CSP: development derives the allowed Vite HTTP and
+WebSocket origins from `ELECTRON_RENDERER_URL`, while production permits only local application
+resources. The template meta CSP remains a second, intersecting policy.
 
 ## Linux Electron Sandbox Prerequisite
 

@@ -16,13 +16,13 @@ rather than guessing meaning for an unfamiliar code.
 | `DESKTOP_TOKEN_DEVICE_MISMATCH` | Auth | Token bound to a different device than `X-Device-UUID` — force logout on this device |
 | `DESKTOP_CONTEXT_REQUIRED` | Auth/request shape | Required desktop context (likely a header) missing from the request — client bug if seen, since the central client should always attach it |
 | `DESKTOP_ACCESS_FORBIDDEN` | Authorization | Authenticated, but desktop access itself is forbidden for this account |
-| `IDEMPOTENCY_CONFLICT` | Sync | Idempotency key reused with a different payload — quarantine (`conflict` state), do not auto-retry |
+| `IDEMPOTENCY_CONFLICT` | Sync | Idempotency key reused with a different payload — preserve both payloads for `conflict` review, do not auto-retry |
 | `SHIFT_ALREADY_OPEN` | Shift state | Attempted to open a shift while one is already open — reconcile local shift state with backend |
 | `SHIFT_NOT_OPEN` | Shift state | Attempted an action requiring an open shift when none is open |
 | `SHIFT_CLOSED` | Shift state | Attempted an action on a shift that's already closed |
 | `SHIFT_PAUSED` | Shift state | Attempted an action blocked while the shift is paused |
 | `SHIFT_NOT_PAUSED` | Shift state | Attempted to resume/act-as-paused on a shift that isn't paused |
-| `VALIDATION_FAILED` | Request shape | Check `errors` for field-level detail; surface next to the relevant form field |
+| `VALIDATION_FAILED` | Request shape | Check `errors` for field-level detail; stale price or stock 422s are terminal `rejected` records with staff recovery guidance |
 | `ROUTE_NOT_FOUND` | Request shape | Client called a route that doesn't exist — treat as a client bug (wrong URL/method), not a user-facing recoverable state |
 
 ## Handling Principle

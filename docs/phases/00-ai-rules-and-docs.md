@@ -36,7 +36,7 @@ on this Electron/Vue POS desktop app safely and consistently, phase by phase.
 ## Verification Commands
 
 ```bash
-git diff --check     # not applicable — repository has no .git; documented as skipped
+git diff --check     # repository integrity check
 npm run typecheck     # safe, read-only in effect
 npm run lint           # safe, read-only in effect (no --fix)
 npm run test            # does not exist — documented as a gap, not run

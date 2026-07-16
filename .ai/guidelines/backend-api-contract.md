@@ -6,9 +6,8 @@ enforce in code.
 ## Desktop Routes Only
 
 - The only backend namespace this app may call is `/api/v1/desktop/*`.
-- `/api/v1/admin/*` is a different application's namespace (platform super-admin). It must never
-  appear in this codebase — not in the API client, not in a fixture, not in a comment suggesting
-  it as an option.
+- `/api/v1/admin/*` and `/api/v1/auth/*` are different application namespaces. They must never be
+  called by this app; only their desktop-scoped counterparts under `/api/v1/desktop/*` are valid.
 - If a feature seems to need admin-only data, that is a signal the desktop contract is missing an
   endpoint — flag it (see `docs/backend-contract/desktop-api-summary.md` TODOs), do not reach for
   the admin route.

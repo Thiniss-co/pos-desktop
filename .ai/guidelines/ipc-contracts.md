@@ -3,9 +3,9 @@
 ## Preload Exposes `window.posApi`
 
 The single renderer-facing surface is `window.posApi`, assembled in `src/preload/index.ts` via
-`contextBridge.exposeInMainWorld('posApi', posApi)`. It replaces the current template's blanket
-`window.electron` (`electronAPI`) exposure — see `electron-security.md` for why. Shape (target,
-grows per phase):
+`contextBridge.exposeInMainWorld('posApi', posApi)`. It replaced the template's blanket
+`window.electron` (`electronAPI`) exposure — see `electron-security.md` for why. The surface grows
+only through named capabilities in later phases:
 
 ```ts
 interface PosApi {
@@ -74,7 +74,7 @@ attack surface enumerable and reviewable.
 
 ## Current State (evidence)
 
-Today only the template's `ipcMain.on('ping', ...)` handler exists (`src/main/index.ts:53`), with
-no corresponding renderer call and no validation — it is unused scaffolding. `window.posApi` does
-not exist yet; `window.electron`/`window.api` (template defaults) are exposed instead. Introducing
-`window.posApi` and removing the blanket `electronAPI` exposure is Phase 1 scope.
+The foundation exposes exactly five named read capabilities: runtime info, device identity summary,
+session summary, bootstrap status, and sync status. Each has a shared channel constant, an
+`ipcMain.handle` handler with a Zod input schema, and a structured-clone-safe `IpcResult` response.
+The template `ping` handler and generic `window.electron` bridge are removed.

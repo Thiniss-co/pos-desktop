@@ -29,7 +29,7 @@ fallback, not as the primary input method.
 The app shell (not each individual page) renders:
 
 - **Offline banner** — connectivity/backend-reachability state.
-- **Sync indicator** — pending count / syncing / paused (+ reason).
+- **Sync indicator** — pending count / uploading / worker paused (+ reason).
 - **License/grace warning** — shown when the backend reports a non-normal license state.
 
 These are shell-level components so no individual page can accidentally omit them.

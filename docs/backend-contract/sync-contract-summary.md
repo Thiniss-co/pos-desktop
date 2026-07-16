@@ -1,7 +1,7 @@
 # Sync Contract Summary
 
 Summarized from "offline sync contract is documented" in the backend's confirmed desktop MVP
-status. Full client-side behavior rules (state machine, quarantine, pause):
+status. Full client-side behavior rules (state machine, review, worker pause):
 [.ai/guidelines/offline-sync-contract.md](../../.ai/guidelines/offline-sync-contract.md) and
 [../architecture/offline-sync-architecture.md](../architecture/offline-sync-architecture.md).
 
@@ -20,8 +20,8 @@ status. Full client-side behavior rules (state machine, quarantine, pause):
 
 | Code | Meaning |
 |---|---|
-| `IDEMPOTENCY_CONFLICT` | The idempotency key was reused with a different payload than originally sent — treat as `conflict`, quarantine, do not auto-retry |
-| `VALIDATION_FAILED` | Payload rejected — check `errors` for field-level detail |
+| `IDEMPOTENCY_CONFLICT` | The idempotency key was reused with a different payload than originally sent — treat as `conflict`, preserve both sides for review, do not auto-retry |
+| `VALIDATION_FAILED` | Payload rejected — check `errors` for field-level detail; stale price or stock 422s become terminal `rejected` records with recovery guidance |
 | `FEATURE_NOT_ENABLED` | Feature/endpoint not enabled for this tenant/license — may indicate a pause condition depending on which endpoint |
 | `SHIFT_ALREADY_OPEN` / `SHIFT_NOT_OPEN` / `SHIFT_CLOSED` / `SHIFT_PAUSED` / `SHIFT_NOT_PAUSED` | Shift-state conflicts — a queued shift-related sync may need to reconcile local shift state against these before retrying |
 
@@ -39,7 +39,7 @@ than relying on the backend to queue them itself.
 - Exact idempotency key mechanism expected by the backend (header name vs. body field, format).
 - Exact response shape/fields for a stale-price or oversell condition on invoice upload.
 - Whether the backend exposes a batch/bulk sync endpoint or only per-record upload.
-- Heartbeat (`POST /api/v1/desktop/heartbeat`) payload/response and its relationship (if any) to
+- Heartbeat (`POST /api/v1/desktop/device/heartbeat`) payload/response and its relationship (if any) to
   sync scheduling.
 
 Confirm against the backend's offline sync contract document / OpenAPI import before finalizing

@@ -31,38 +31,40 @@ polling from the renderer side.
 ```mermaid
 stateDiagram-v2
     [*] --> pending: record created locally
-    pending --> syncing: worker picks it up
-    syncing --> synced: backend accepts (2xx + success envelope)
-    syncing --> failed: transient error (network, 5xx)
-    failed --> pending: retry after backoff
-    syncing --> conflict: IDEMPOTENCY_CONFLICT or data conflict\n(stale price / oversell)
-    conflict --> [*]: quarantined — requires explicit resolution
-    syncing --> paused: license/subscription denied
-    paused --> pending: all paused items, once license resolved
+    pending --> uploading: worker picks it up
+    uploading --> synced: backend accepts (2xx + success envelope)
+    uploading --> retryable_error: transient error (network, 5xx)
+    retryable_error --> pending: retry after backoff
+    uploading --> conflict: IDEMPOTENCY_CONFLICT or data conflict
+    uploading --> rejected: terminal stale-price, stock, or validation 422
 ```
 
-`conflict` and `paused` are terminal-until-human-or-external-resolution states — the worker does
-not silently retry out of them.
+`conflict` and `rejected` are terminal persisted states — the worker does not silently retry them.
+License or token denial pauses the worker operationally without adding a persisted per-item state.
 
 ## Ordering Rules
 
 - The worker processes `pending` items respecting dependency order: a refund with an unsynced
-  parent invoice stays `pending` (skipped, not `failed`) until the invoice reaches `synced`.
+  parent invoice stays `pending` (skipped, not `retryable_error`) until the invoice reaches `synced`.
 - Idempotency keys are assigned at record-creation time (in the repository, not the worker), so a
   retry after a lost response reuses the same key safely.
 
-## Quarantine Handling
+## Conflict and Rejection Handling
 
 `conflict` items are surfaced in a dedicated UI (sync/queue screen) with enough detail (local
 payload, backend-reported reason/code) for a human decision — the worker never guesses a
 resolution. This keeps financial data (a completed sale, a refund) from ever being silently
 dropped or silently overwritten.
 
+Stale-price and oversell responses are terminal `rejected` records after a 422 response. Preserve
+the immutable local payload and guide staff to refresh data, reconcile the sale or inventory, and
+create a corrective follow-up rather than editing the original queue item.
+
 ## License-Denial Pause
 
 A `FEATURE_NOT_ENABLED`, license-invalid, or subscription-denied response on any sync attempt
-pauses the **entire** queue (`paused`), not just the one item — the worker stops attempting further
-syncs until a license re-check succeeds, at which point all `paused` items return to `pending`.
+pauses the **worker**, not just the one item — the worker stops attempting further syncs until a
+license re-check succeeds. Existing queue records retain their persisted state.
 
 ## Renderer Visibility
 

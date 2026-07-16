@@ -45,7 +45,7 @@ Every syncable entity carries at minimum:
 |---|---|
 | `local_uuid` | Stable local identity |
 | `remote_uuid` | Nullable; set once synced |
-| `sync_status` | `pending \| syncing \| synced \| failed \| conflict \| paused` (see `offline-sync-contract.md`) |
+| `sync_status` | `pending \| uploading \| synced \| retryable_error \| conflict \| rejected` (see `offline-sync-contract.md`) |
 | `sync_attempts` | Retry count, for backoff/diagnostics |
 | `last_sync_error` | Nullable, last failure/conflict detail (code + message), for support/diagnostics |
 | `created_at` / `updated_at` | Local timestamps |

@@ -1,26 +1,15 @@
 <script setup lang="ts">
-import Versions from './components/Versions.vue'
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import AppLayout from './app/layouts/AppLayout.vue'
+import PublicLayout from './app/layouts/PublicLayout.vue'
 
-const ipcHandle = (): void => window.posApi.system.ping()
+const route = useRoute()
+const layout = computed(() => (route.meta.layout === 'app' ? AppLayout : PublicLayout))
 </script>
 
 <template>
-  <img alt="logo" class="logo" src="./assets/electron.svg" />
-  <div class="creator">Powered by electron-vite</div>
-  <div class="text">
-    Build an Electron app with
-    <span class="vue">Vue</span>
-    and
-    <span class="ts">TypeScript</span>
-  </div>
-  <p class="tip">Please try pressing <code>F12</code> to open the devTool</p>
-  <div class="actions">
-    <div class="action">
-      <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">Documentation</a>
-    </div>
-    <div class="action">
-      <a target="_blank" rel="noreferrer" @click="ipcHandle">Send IPC test</a>
-    </div>
-  </div>
-  <Versions />
+  <component :is="layout">
+    <RouterView />
+  </component>
 </template>

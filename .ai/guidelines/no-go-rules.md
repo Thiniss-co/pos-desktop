@@ -7,7 +7,7 @@ must treat every item below as a hard stop, not a judgment call.
 |---|---|---|
 | 1 | Backend changes of any kind (this is a separate Laravel repo) | Out of scope; backend contract is frozen for desktop MVP |
 | 2 | Converting this app to Nuxt | Nuxt is reserved for a future, separate web admin panel |
-| 3 | Calling `/api/v1/admin/*` from this app | Platform super-admin namespace; desktop must only use `/api/v1/desktop/*` |
+| 3 | Calling `/api/v1/admin/*` or `/api/v1/auth/*` from this app | Platform/admin auth namespaces; desktop must only use `/api/v1/desktop/*` |
 | 4 | Direct SQLite access from the renderer | Breaks main/renderer isolation; see `electron-security.md`, `local-database.md` |
 | 5 | Storing desktop tokens in `localStorage`/`sessionStorage` | Renderer-accessible storage is not safe for auth tokens in an Electron app |
 | 6 | Exposing raw `ipcRenderer` (or a generic invoke passthrough) to the renderer | Turns the preload bridge into an unbounded attack surface; see `ipc-contracts.md` |
