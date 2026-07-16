@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { registerIpcHandlers } from '../ipc/registerIpcHandlers'
 import { createMainWindow } from './createMainWindow'
 
 export function bootstrapApp(): void {
@@ -17,8 +18,7 @@ export function bootstrapApp(): void {
       optimizer.watchWindowShortcuts(window)
     })
 
-    // IPC test
-    ipcMain.on('ping', () => console.log('pong'))
+    registerIpcHandlers()
 
     createMainWindow()
 
