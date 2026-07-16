@@ -1,8 +1,7 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
+import type { PosApi } from './posApi'
 
 declare global {
   interface Window {
-    electron: ElectronAPI
-    api: unknown
+    posApi: PosApi
   }
 }
