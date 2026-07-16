@@ -19,7 +19,7 @@ const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
       <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">Documentation</a>
     </div>
     <div class="action">
-      <a target="_blank" rel="noreferrer" @click="ipcHandle">Send IPC</a>
+      <a target="_blank" rel="noreferrer" @click="ipcHandle">Send IPC test</a>
     </div>
   </div>
   <Versions />
