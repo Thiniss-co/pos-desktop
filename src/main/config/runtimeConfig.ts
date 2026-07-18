@@ -35,7 +35,7 @@ function normalizeApiOrigin(value: string): URL {
   return new URL(url.origin)
 }
 
-export function loadRuntimeConfig(environment: NodeJS.ProcessEnv = process.env): RuntimeConfig {
+export function loadRuntimeConfig(environment: unknown = import.meta.env): RuntimeConfig {
   const source = runtimeConfigSourceSchema.parse(environment)
   const configuredOrigin = source.MAIN_VITE_POS_API_ORIGIN
 

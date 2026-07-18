@@ -1,3 +1,5 @@
 export interface AccessDisplayState {
-  readonly reason: string
+  readonly category: string
+  readonly message: string
+  readonly traceId: string | null
 }

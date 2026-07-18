@@ -60,4 +60,10 @@ export class SqliteDeviceIdentityRepository {
         timestamp
       )
   }
+
+  markRegisteredWithBackend(registeredAt: string): void {
+    this.database
+      .prepare('UPDATE device_identity SET registered_at = ?, updated_at = ? WHERE id = 1')
+      .run(registeredAt, registeredAt)
+  }
 }

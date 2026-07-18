@@ -14,8 +14,28 @@ const expectedTables = [
   'license_state_metadata',
   'bootstrap_state',
   'sync_queue',
-  'sync_conflicts'
+  'sync_conflicts',
+  'device_registration',
+  'bootstrap_company',
+  'bootstrap_branch',
+  'bootstrap_warehouse',
+  'bootstrap_subscription',
+  'bootstrap_features',
+  'bootstrap_limits',
+  'bootstrap_permissions',
+  'bootstrap_role',
+  'categories',
+  'products',
+  'product_barcodes',
+  'product_prices',
+  'stock_items',
+  'taxes',
+  'payment_methods',
+  'customers'
 ]
+
+const expectedBootstrapStateColumns = ['snapshot_version', 'server_time', 'counts_json']
+const expectedLicenseMetadataColumns = ['details_json']
 
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'pos-desktop-database-smoke-'))
 const database = openDatabase({ databasePath: join(temporaryDirectory, 'foundation.sqlite') })
@@ -36,6 +56,44 @@ try {
     if (!tableNames.has(tableName)) {
       throw new Error(`Database smoke test is missing ${tableName}`)
     }
+  }
+
+  function columnNames(table: string): Set<string> {
+    return new Set(
+      (database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+        (column) => column.name
+      )
+    )
+  }
+
+  const bootstrapStateColumns = columnNames('bootstrap_state')
+  for (const columnName of expectedBootstrapStateColumns) {
+    if (!bootstrapStateColumns.has(columnName)) {
+      throw new Error(`Database smoke test is missing bootstrap_state.${columnName}`)
+    }
+  }
+
+  const licenseMetadataColumns = columnNames('license_state_metadata')
+  for (const columnName of expectedLicenseMetadataColumns) {
+    if (!licenseMetadataColumns.has(columnName)) {
+      throw new Error(`Database smoke test is missing license_state_metadata.${columnName}`)
+    }
+  }
+
+  // Exercise a representative write/read against a Phase 2 table to prove the schema is usable,
+  // not just present.
+  database
+    .prepare(
+      'INSERT INTO device_registration (id, server_device_id, status, last_seen_at, updated_at) VALUES (1, ?, ?, ?, ?)'
+    )
+    .run('smoke-server-device-id', 'active', null, new Date().toISOString())
+
+  const registration = database
+    .prepare('SELECT server_device_id, status FROM device_registration WHERE id = 1')
+    .get() as { server_device_id: string; status: string } | undefined
+
+  if (registration?.server_device_id !== 'smoke-server-device-id') {
+    throw new Error('Database smoke test could not round-trip device_registration')
   }
 
   console.log('Electron SQLite migration smoke test passed')

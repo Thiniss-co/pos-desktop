@@ -1,5 +1,13 @@
 # Phase 2 — Activation, Login, Bootstrap
 
+**Status: implemented.** Device registration, login, encrypted token/JWT persistence, one-shot
+license validation, and full bootstrap persistence (migration `0002_activation_auth_bootstrap`)
+are wired end-to-end against the real backend contract, confirmed from the Laravel source (see
+[../backend-contract/auth-device-contract.md](../backend-contract/auth-device-contract.md) and
+[../backend-contract/bootstrap-license-contract.md](../backend-contract/bootstrap-license-contract.md)).
+Deferred: license/entitlement timers, incremental bootstrap, and everything listed under Out of
+Scope below — those remain for later phases.
+
 ## Goal
 
 Implement the app's entry flow against the real backend contract: device registration, login,
@@ -50,6 +58,9 @@ npm run lint
 npm run test           # including new auth/bootstrap unit tests
 npm run dev              # manual: register device, log in, confirm bootstrap persists, relaunch offline
 ```
+
+For activation request diagnostics, see the opt-in `POS_API_TRACE` instructions in
+[setup.md](../setup.md#diagnostics).
 
 ## Done Criteria
 

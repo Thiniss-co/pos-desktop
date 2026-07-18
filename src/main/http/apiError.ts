@@ -22,6 +22,8 @@ function createPublicError(
 function categoryForBackendCode(code: string): PublicAppError['category'] {
   if (
     code === 'UNAUTHENTICATED' ||
+    code === 'INVALID_CREDENTIALS' ||
+    code === 'USER_INACTIVE' ||
     code === 'DESKTOP_LOGIN_FORBIDDEN' ||
     code === 'DESKTOP_TOKEN_NOT_BOUND' ||
     code === 'DESKTOP_TOKEN_DEVICE_MISMATCH'
@@ -33,18 +35,34 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     code === 'FORBIDDEN' ||
     code === 'PERMISSION_DENIED' ||
     code === 'FEATURE_PERMISSION_DENIED' ||
+    code === 'FEATURE_NOT_ENABLED' ||
+    code === 'LOYALTY_FEATURE_NOT_ENABLED' ||
+    code === 'ACCOUNTING_FEATURE_NOT_ENABLED' ||
     code === 'DESKTOP_CONTEXT_REQUIRED' ||
-    code === 'DESKTOP_ACCESS_FORBIDDEN'
+    code === 'DESKTOP_ACCESS_FORBIDDEN' ||
+    code === 'DESKTOP_SHIFT_ACCESS_DENIED'
   ) {
     return 'authorization'
   }
 
-  if (code === 'VALIDATION_FAILED') {
+  if (code === 'VALIDATION_ERROR') {
     return 'validation'
   }
 
-  if (code === 'IDEMPOTENCY_CONFLICT') {
+  if (
+    code === 'IDEMPOTENCY_CONFLICT' ||
+    code === 'CONFLICT' ||
+    code === 'DESKTOP_SHIFT_ALREADY_OPEN' ||
+    code === 'DESKTOP_SHIFT_NOT_OPEN' ||
+    code === 'DESKTOP_SHIFT_ALREADY_PAUSED' ||
+    code === 'DESKTOP_SHIFT_NOT_PAUSED' ||
+    code === 'DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND'
+  ) {
     return 'conflict'
+  }
+
+  if (code === 'TOO_MANY_REQUESTS' || code === 'SERVER_ERROR' || code === 'SERVICE_UNAVAILABLE') {
+    return 'transport'
   }
 
   return 'rejected'
@@ -61,7 +79,7 @@ export function normalizeApiEnvelopeError(envelope: ApiErrorEnvelope): PublicApp
   return createPublicError(
     category,
     safeMessage(envelope.message, 'The desktop service rejected the request'),
-    false,
+    category === 'transport',
     {
       backendCode: isKnownApiErrorCode(envelope.code) ? envelope.code : undefined,
       fieldErrors: Object.keys(envelope.errors).length > 0 ? envelope.errors : undefined,
@@ -102,24 +120,57 @@ export function normalizeHttpError(status: number, envelope?: ApiErrorEnvelope):
   )
 }
 
-export function normalizeTransportError(error: unknown): PublicAppError {
-  const name = error instanceof Error ? error.name : ''
+export type TransportErrorClassification =
+  'timeout' | 'dns' | 'connection_refused' | 'tls' | 'offline' | 'unknown'
+
+export function classifyTransportError(error: unknown): TransportErrorClassification {
+  const name = error instanceof Error ? error.name.toLowerCase() : ''
   const message = error instanceof Error ? error.message.toLowerCase() : ''
 
-  if (name === 'AbortError' || message.includes('timeout')) {
-    return createPublicError('transport', 'The request timed out', true)
+  if (name === 'aborterror' || message.includes('timeout')) {
+    return 'timeout'
+  }
+
+  if (message.includes('enotfound') || message.includes('getaddrinfo')) {
+    return 'dns'
   }
 
   if (
-    message.includes('enotfound') ||
-    message.includes('getaddrinfo') ||
-    message.includes('network') ||
-    message.includes('offline')
+    message.includes('econnrefused') ||
+    message.includes('fetch failed') ||
+    message.includes('econnreset') ||
+    message.includes('connect ')
   ) {
+    return 'connection_refused'
+  }
+
+  if (message.includes('certificate') || message.includes('tls') || message.includes('ssl')) {
+    return 'tls'
+  }
+
+  if (message.includes('network') || message.includes('offline')) {
+    return 'offline'
+  }
+
+  return 'unknown'
+}
+
+export function normalizeTransportError(error: unknown): PublicAppError {
+  const classification = classifyTransportError(error)
+
+  if (classification === 'timeout') {
+    return createPublicError('transport', 'The request timed out', true)
+  }
+
+  if (classification === 'dns' || classification === 'offline') {
     return createPublicError('transport', 'The desktop service is unreachable', true)
   }
 
-  if (message.includes('certificate') || message.includes('tls')) {
+  if (classification === 'connection_refused') {
+    return createPublicError('transport', 'The desktop service refused the connection', true)
+  }
+
+  if (classification === 'tls') {
     return createPublicError(
       'transport',
       'A secure connection to the desktop service could not be established',
@@ -130,10 +181,17 @@ export function normalizeTransportError(error: unknown): PublicAppError {
   return createPublicError('transport', 'The desktop service request failed', true)
 }
 
+export function backendNotConfiguredError(): PublicAppError {
+  return createPublicError('configuration', 'The desktop backend is not configured', false)
+}
+
 export function redactSensitiveText(value: string): string {
   return value
     .replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]')
-    .replace(/(token|password|secret)=([^\s&]+)/gi, '$1=[REDACTED]')
+    .replace(
+      /\b(authorization|cookie|token|password|secret|company_code|activation_code|fingerprint(?:_hash)?)\b\s*[:=]\s*([^\s,&}\]]+)/gi,
+      '$1=[REDACTED]'
+    )
 }
 
 export function isPublicAppError(value: unknown): value is PublicAppError {

@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { PublicAppError } from '@shared/contracts/api.contract'
+import { useAccessStore } from '@renderer/modules/access/store'
 import { StartupService } from './startup.service'
 import type { StartupError, StartupSnapshot, StartupState } from './types'
 
@@ -33,31 +34,41 @@ export const useStartupStore = defineStore('startup', () => {
 
   const isReady = computed(() => state.value === 'ready')
 
+  async function evaluate(service: StartupService): Promise<void> {
+    state.value = 'starting'
+    error.value = null
+
+    try {
+      const nextSnapshot = await service.getSnapshot()
+      snapshot.value = nextSnapshot
+      state.value = determineStartupState(nextSnapshot)
+    } catch (cause) {
+      const detail = isPublicAppError(cause) ? cause : undefined
+      state.value = detail?.category === 'authorization' ? 'access_blocked' : 'fatal_error'
+      error.value = {
+        message: detail?.message ?? 'The application could not be initialized',
+        detail
+      }
+
+      if (state.value === 'access_blocked') {
+        useAccessStore().setFromError(detail)
+      }
+    } finally {
+      isInitialized.value = true
+    }
+  }
+
   async function initialize(service = new StartupService()): Promise<void> {
     if (initialization) {
       return initialization
     }
 
-    initialization = (async () => {
-      state.value = 'starting'
-      error.value = null
+    initialization = evaluate(service)
+    return initialization
+  }
 
-      try {
-        const nextSnapshot = await service.getSnapshot()
-        snapshot.value = nextSnapshot
-        state.value = determineStartupState(nextSnapshot)
-      } catch (cause) {
-        const detail = isPublicAppError(cause) ? cause : undefined
-        state.value = detail?.category === 'authorization' ? 'access_blocked' : 'fatal_error'
-        error.value = {
-          message: detail?.message ?? 'The application could not be initialized',
-          detail
-        }
-      } finally {
-        isInitialized.value = true
-      }
-    })()
-
+  async function refresh(service = new StartupService()): Promise<void> {
+    initialization = evaluate(service)
     return initialization
   }
 
@@ -67,7 +78,8 @@ export const useStartupStore = defineStore('startup', () => {
     error,
     isInitialized,
     isReady,
-    initialize
+    initialize,
+    refresh
   }
 })
 

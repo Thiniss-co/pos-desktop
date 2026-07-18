@@ -12,11 +12,14 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 - Desktop API contract documented; OpenAPI foundation published (not yet imported into this repo —
   `TODO`).
 - Offline sync contract documented (see [sync-contract-summary.md](sync-contract-summary.md)).
-- Device-bound authentication implemented.
-- Bootstrap implemented.
-- Invoice/refund upload implemented.
-- Shift/cash-drawer APIs implemented.
-- License validation implemented.
+- Device-bound authentication implemented; consumed end-to-end by this app in Phase 2 (see
+  [auth-device-contract.md](auth-device-contract.md)).
+- Bootstrap implemented; consumed end-to-end by this app in Phase 2 (full shape confirmed, see
+  [bootstrap-license-contract.md](bootstrap-license-contract.md)).
+- Invoice/refund upload implemented (not yet consumed — Phase 4+).
+- Shift/cash-drawer APIs implemented (not yet consumed — Phase 3+).
+- License validation implemented; consumed end-to-end by this app in Phase 2 (one-shot manual
+  validate only — no timers yet, see [bootstrap-license-contract.md](bootstrap-license-contract.md)).
 
 ## Route Namespaces
 
@@ -34,9 +37,9 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 | `POST /api/v1/desktop/auth/login` | Public | Login |
 | `GET /api/v1/desktop/auth/me` | Protected | Current session/user |
 | `POST /api/v1/desktop/auth/logout` | Protected | End session |
-| `GET /api/v1/desktop/bootstrap` | Protected | Initial/refresh data snapshot (catalog, tax, permissions, etc. — exact shape `TODO`) |
-| `POST /api/v1/desktop/device/heartbeat` | Protected | Liveness/connectivity check (exact payload/response `TODO`) |
-| `POST /api/v1/desktop/license/validate` | Protected | License/subscription check |
+| `GET /api/v1/desktop/bootstrap` | Protected | Initial/refresh data snapshot — full shape confirmed from Laravel source during Phase 2, see [bootstrap-license-contract.md](bootstrap-license-contract.md) |
+| `POST /api/v1/desktop/device/heartbeat` | Protected | Liveness/connectivity check (exact payload/response `TODO` — not called until a later phase's heartbeat timer) |
+| `POST /api/v1/desktop/license/validate` | Protected | License/subscription check — confirmed shape, see [bootstrap-license-contract.md](bootstrap-license-contract.md) |
 | `POST /api/v1/desktop/invoices/upload` | Protected | Upload a completed local sale/invoice |
 | `POST /api/v1/desktop/refunds/upload` | Protected | Upload a refund (must follow its invoice — see sync contract) |
 | Shift endpoints | Protected | Open/pause/resume/close shift — exact route names `TODO` |

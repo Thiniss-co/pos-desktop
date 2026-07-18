@@ -1,4 +1,4 @@
-import type { BootstrapStatus } from '@shared/contracts/bootstrap.contract'
+import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
 export class BootstrapService {
@@ -6,5 +6,9 @@ export class BootstrapService {
 
   async getStatus(): Promise<BootstrapStatus> {
     return unwrapIpcResult(await this.gateway.getStatus())
+  }
+
+  async refresh(): Promise<BootstrapResult> {
+    return unwrapIpcResult(await this.gateway.refresh())
   }
 }

@@ -62,10 +62,24 @@ all other origins must use HTTPS.
 
 | Variable | Purpose | Status |
 |---|---|---|
-| `MAIN_VITE_POS_API_ORIGIN` | Main-only base origin for `/api/v1/desktop/*` | Optional foundation configuration; no Phase 2 call is wired |
+| `MAIN_VITE_POS_API_ORIGIN` | Main-only base origin for `/api/v1/desktop/*` | Optional; required for activation, login, and bootstrap calls |
+| `POS_API_TRACE` | Main-process opt-in HTTP diagnostics (`1` enables) | Development diagnostics only; off by default |
 
 Do not hardcode a production or staging backend URL anywhere in the codebase. `.env*` files are
 excluded from packaging; `.env.example` contains no secret.
+
+## Diagnostics
+
+To trace desktop API requests while running the app from an external terminal:
+
+```bash
+POS_API_TRACE=1 npm run dev
+```
+
+The main process writes one sanitized start line and one terminal line per request to stderr. Lines
+contain only the method, origin and path, elapsed time, response status/content type, backend code,
+backend trace ID, failure classification, and validation field names. They never contain request or
+response bodies, credentials, tokens, activation/company-code values, fingerprint data, or headers.
 
 ## Secure Storage and CSP
 

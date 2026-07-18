@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ipcFailure, ipcSuccess, type IpcResult } from '@shared/contracts/ipc.contract'
-import { isPublicAppError } from '../http/apiError'
+import { isPublicAppError, redactSensitiveText } from '../http/apiError'
 
 const invalidRequestError = {
   category: 'validation',
@@ -28,6 +28,15 @@ export async function handleIpcRequest<TInput, TOutput>(
   try {
     return ipcSuccess(await handler(parsedInput.data))
   } catch (error) {
-    return ipcFailure(isPublicAppError(error) ? error : unexpectedError)
+    if (isPublicAppError(error)) {
+      return ipcFailure(error)
+    }
+
+    // Never send this detail to the renderer — it may contain internal shapes, paths, or
+    // stack frames. Logging it main-side is the only diagnostic trail for unexpected failures.
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error('[ipc] unexpected error:', redactSensitiveText(detail))
+
+    return ipcFailure(unexpectedError)
   }
 }

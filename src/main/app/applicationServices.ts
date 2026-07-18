@@ -8,13 +8,19 @@ import { runMigrations } from '../database/migrator'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import { AppSettingsRepository } from '../repositories/appSettings.repository'
 import { BootstrapStateRepository } from '../repositories/bootstrapState.repository'
+import { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import { SqliteDeviceIdentityRepository } from '../repositories/deviceIdentity.repository'
+import { DeviceRegistrationRepository } from '../repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../repositories/licenseMetadata.repository'
 import { SecureSecretsRepository } from '../repositories/secureSecrets.repository'
 import { SqliteSessionMetadataRepository } from '../repositories/sessionMetadata.repository'
 import { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../repositories/syncQueue.repository'
+import { ActivationService } from '../services/activation.service'
+import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
+import { BootstrapService } from '../services/bootstrap.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
+import { LicenseService } from '../services/license.service'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
 
@@ -29,6 +35,11 @@ export interface ApplicationServices {
   readonly syncQueue: SyncQueueRepository
   readonly syncConflicts: SyncConflictRepository
   readonly apiClient: DesktopApiClient
+  readonly secureStorage: SecureStorageService
+  readonly activation: ActivationService
+  readonly auth: AuthService
+  readonly license: LicenseService
+  readonly bootstrap: BootstrapService
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -46,10 +57,12 @@ export function createApplicationServices(): ApplicationServices {
 
   const appSettings = new AppSettingsRepository(database)
   const deviceIdentityRepository = new SqliteDeviceIdentityRepository(database)
+  const deviceRegistrationRepository = new DeviceRegistrationRepository(database)
   const secureSecrets = new SecureSecretsRepository(database)
   const sessionMetadata = new SqliteSessionMetadataRepository(database)
   const licenseMetadata = new LicenseMetadataRepository(database)
   const bootstrapState = new BootstrapStateRepository(database)
+  const bootstrapSnapshot = new BootstrapSnapshotRepository(database)
   const syncQueue = new SyncQueueRepository(database)
   const syncConflicts = new SyncConflictRepository(database)
   const deviceIdentity = new DeviceIdentityService(deviceIdentityRepository, {
@@ -65,9 +78,25 @@ export function createApplicationServices(): ApplicationServices {
 
   const apiClient = new DesktopApiClient({
     apiOrigin: runtimeConfig.apiOrigin,
-    getAccessToken: () => secureStorage.getSecret('desktop_access_token'),
+    getAccessToken: () => secureStorage.getSecret(DESKTOP_ACCESS_TOKEN_KEY),
     getDeviceUuid: () => deviceIdentity.getOrCreate().deviceUuid
   })
+
+  const activation = new ActivationService(
+    database,
+    deviceIdentityRepository,
+    deviceRegistrationRepository,
+    apiClient
+  )
+  const auth = new AuthService(apiClient, deviceIdentityRepository, sessionMetadata, secureStorage)
+  const license = new LicenseService(apiClient, licenseMetadata, secureStorage)
+  const bootstrap = new BootstrapService(
+    apiClient,
+    deviceIdentityRepository,
+    licenseMetadata,
+    bootstrapState,
+    bootstrapSnapshot
+  )
 
   return {
     runtimeConfig,
@@ -80,6 +109,11 @@ export function createApplicationServices(): ApplicationServices {
     syncQueue,
     syncConflicts,
     apiClient,
+    secureStorage,
+    activation,
+    auth,
+    license,
+    bootstrap,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),

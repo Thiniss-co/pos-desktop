@@ -11,6 +11,15 @@ describe('posApi surface', () => {
     expect(source).toContain('getStatus')
   })
 
+  it('contains the Phase 2 activation, login, license, and bootstrap methods', () => {
+    expect(source).toContain('register')
+    expect(source).toContain('login')
+    expect(source).toContain('refreshSession')
+    expect(source).toContain('logout')
+    expect(source).toContain('validate')
+    expect(source).toContain('refresh')
+  })
+
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)

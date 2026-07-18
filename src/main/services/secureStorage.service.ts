@@ -38,7 +38,15 @@ export class SecureStorageService {
     this.assertEncryptionAvailable()
     const encryptedValue = this.repository.get(key)
 
-    return encryptedValue ? this.safeStorage.decryptString(encryptedValue) : null
+    if (!encryptedValue) {
+      return null
+    }
+
+    try {
+      return this.safeStorage.decryptString(encryptedValue)
+    } catch {
+      return null
+    }
   }
 
   setSecret(key: string, value: string): void {
