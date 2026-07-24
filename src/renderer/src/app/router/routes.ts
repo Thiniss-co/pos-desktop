@@ -3,6 +3,9 @@ import AccessBlockedPage from '@renderer/modules/access/pages/AccessBlockedPage.
 import ActivationPage from '@renderer/modules/activation/pages/ActivationPage.vue'
 import LoginPage from '@renderer/modules/auth/pages/LoginPage.vue'
 import InitializingPage from '@renderer/modules/bootstrap/pages/InitializingPage.vue'
+import CompanyUserCreatePage from '@renderer/modules/companyUsers/pages/CompanyUserCreatePage.vue'
+import CompanyUserEditPage from '@renderer/modules/companyUsers/pages/CompanyUserEditPage.vue'
+import CompanyUsersPage from '@renderer/modules/companyUsers/pages/CompanyUsersPage.vue'
 import PosPage from '@renderer/modules/pos/pages/PosPage.vue'
 import SettingsPage from '@renderer/modules/settings/pages/SettingsPage.vue'
 import SyncPage from '@renderer/modules/sync/pages/SyncPage.vue'
@@ -29,6 +32,24 @@ export const routes: RouteRecordRaw[] = [
   { path: '/pos', name: 'pos', component: PosPage, meta: { layout: 'app' } },
   { path: '/sync', name: 'sync', component: SyncPage, meta: { layout: 'app' } },
   { path: '/settings', name: 'settings', component: SettingsPage, meta: { layout: 'app' } },
+  {
+    path: '/company-users',
+    name: 'company-users',
+    component: CompanyUsersPage,
+    meta: { layout: 'app' }
+  },
+  {
+    path: '/company-users/create',
+    name: 'company-user-create',
+    component: CompanyUserCreatePage,
+    meta: { layout: 'app' }
+  },
+  {
+    path: '/company-users/:uuid',
+    name: 'company-user-edit',
+    component: CompanyUserEditPage,
+    meta: { layout: 'app' }
+  },
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',

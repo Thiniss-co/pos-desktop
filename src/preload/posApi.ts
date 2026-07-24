@@ -3,6 +3,17 @@ import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract'
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
+import type {
+  AssignableRoles,
+  CompanyUser,
+  CompanyUserAccess,
+  CompanyUserList,
+  CreateCompanyUserInput,
+  ListUsersInput,
+  SetEnabledInput,
+  SetRolesInput,
+  UpdateCompanyUserInput
+} from '@shared/contracts/company-users.contract'
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import type { IpcResult } from '@shared/contracts/ipc.contract'
 import type { LicenseStatus } from '@shared/contracts/license.contract'
@@ -33,6 +44,16 @@ export interface PosApi {
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
   }
+  readonly companyUsers: {
+    getAccess(): Promise<IpcResult<CompanyUserAccess>>
+    list(input: ListUsersInput): Promise<IpcResult<CompanyUserList>>
+    get(input: { uuid: string }): Promise<IpcResult<CompanyUser>>
+    create(input: CreateCompanyUserInput): Promise<IpcResult<CompanyUser>>
+    update(input: UpdateCompanyUserInput): Promise<IpcResult<CompanyUser>>
+    setRoles(input: SetRolesInput): Promise<IpcResult<CompanyUser>>
+    setEnabled(input: SetEnabledInput): Promise<IpcResult<CompanyUser>>
+    listAssignableRoles(): Promise<IpcResult<AssignableRoles>>
+  }
 }
 
 export const posApi: PosApi = Object.freeze({
@@ -58,5 +79,19 @@ export const posApi: PosApi = Object.freeze({
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus)
+  }),
+  companyUsers: Object.freeze({
+    getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGetAccess),
+    list: (input: ListUsersInput) => ipcRenderer.invoke(IPC_CHANNELS.companyUsersList, input),
+    get: (input: { uuid: string }) => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGet, input),
+    create: (input: CreateCompanyUserInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.companyUsersCreate, input),
+    update: (input: UpdateCompanyUserInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.companyUsersUpdate, input),
+    setRoles: (input: SetRolesInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.companyUsersSetRoles, input),
+    setEnabled: (input: SetEnabledInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.companyUsersSetEnabled, input),
+    listAssignableRoles: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersListAssignableRoles)
   })
 })

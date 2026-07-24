@@ -9,5 +9,13 @@ export const IPC_CHANNELS = Object.freeze({
   licenseValidate: 'license:validate',
   bootstrapGetStatus: 'bootstrap:get-status',
   bootstrapRefresh: 'bootstrap:refresh',
-  syncGetStatus: 'sync:get-status'
+  syncGetStatus: 'sync:get-status',
+  companyUsersGetAccess: 'company-users:get-access',
+  companyUsersList: 'company-users:list',
+  companyUsersGet: 'company-users:get',
+  companyUsersCreate: 'company-users:create',
+  companyUsersUpdate: 'company-users:update',
+  companyUsersSetRoles: 'company-users:set-roles',
+  companyUsersSetEnabled: 'company-users:set-enabled',
+  companyUsersListAssignableRoles: 'company-users:list-assignable-roles'
 })

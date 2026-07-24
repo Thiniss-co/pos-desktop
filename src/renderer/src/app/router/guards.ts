@@ -22,7 +22,14 @@ function canAccessRoute(state: StartupState, routeName: string | null | undefine
   }
 
   if (state === 'ready') {
-    return routeName === 'pos' || routeName === 'sync' || routeName === 'settings'
+    return (
+      routeName === 'pos' ||
+      routeName === 'sync' ||
+      routeName === 'settings' ||
+      routeName === 'company-users' ||
+      routeName === 'company-user-create' ||
+      routeName === 'company-user-edit'
+    )
   }
 
   return routeName === getStartupRouteName(state)

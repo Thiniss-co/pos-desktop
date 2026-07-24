@@ -45,13 +45,14 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     return 'authorization'
   }
 
-  if (code === 'VALIDATION_ERROR') {
+  if (code === 'VALIDATION_ERROR' || code === 'COMPANY_LIMIT_REACHED') {
     return 'validation'
   }
 
   if (
     code === 'IDEMPOTENCY_CONFLICT' ||
     code === 'CONFLICT' ||
+    code === 'COMPANY_LAST_ADMIN' ||
     code === 'DESKTOP_SHIFT_ALREADY_OPEN' ||
     code === 'DESKTOP_SHIFT_NOT_OPEN' ||
     code === 'DESKTOP_SHIFT_ALREADY_PAUSED' ||

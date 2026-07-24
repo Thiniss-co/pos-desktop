@@ -1,4 +1,4 @@
-export type DesktopApiMethod = 'GET' | 'POST'
+export type DesktopApiMethod = 'GET' | 'POST' | 'PUT'
 
 export interface DesktopApiRoute {
   readonly path: string
@@ -59,6 +59,48 @@ export const DESKTOP_API_ROUTES = Object.freeze({
   refundsUpload: {
     path: '/refunds/upload',
     method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyUsersList: {
+    path: '/company/users',
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyUsersGet: {
+    path: '/company/users',
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyUsersCreate: {
+    path: '/company/users',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyUsersUpdate: {
+    path: '/company/users',
+    method: 'PUT',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyUsersActivate: {
+    path: '/company/users',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyUsersDeactivate: {
+    path: '/company/users',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  companyAssignableRoles: {
+    path: '/company/assignable-roles',
+    method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
   }

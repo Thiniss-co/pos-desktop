@@ -1,5 +1,15 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
+import { useCompanyUsersStore } from '@renderer/modules/companyUsers/store'
+
+const companyUsers = useCompanyUsersStore()
+const { access } = storeToRefs(companyUsers)
+
+onMounted(() => {
+  void companyUsers.loadAccess()
+})
 </script>
 
 <template>
@@ -15,6 +25,9 @@ import { RouterLink } from 'vue-router'
       <RouterLink to="/pos">POS</RouterLink>
       <RouterLink to="/sync">Sync</RouterLink>
       <RouterLink to="/settings">Settings</RouterLink>
+      <RouterLink v-if="access?.canView || access?.canManage" to="/company-users">
+        Company users
+      </RouterLink>
     </nav>
     <main class="app-layout__content">
       <slot />

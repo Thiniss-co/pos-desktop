@@ -205,6 +205,134 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
+.company-users-page__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.company-users-page__capacity,
+.company-users-page__state {
+  margin-top: 24px;
+  color: #49616d;
+  line-height: 1.5;
+}
+
+.company-users-page__filters {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.company-users-page__filters label,
+.company-user-form-page__roles label {
+  display: grid;
+  gap: 6px;
+  color: #49616d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.company-users-page__filters input,
+.company-users-page__filters select {
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #aabcc0;
+  background: #fff;
+}
+
+.company-users-page__filters button,
+.company-users-page__actions button,
+.company-users-page__pagination button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid #172b38;
+  background: #172b38;
+  color: #fff;
+  font-weight: 700;
+}
+
+.company-users-page__table-wrap {
+  margin-top: 24px;
+  overflow-x: auto;
+}
+
+.company-users-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.company-users-page__table th,
+.company-users-page__table td {
+  padding: 13px 10px;
+  border-bottom: 1px solid #d7e0e2;
+  vertical-align: top;
+}
+
+.company-users-page__table th {
+  color: #49616d;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.company-users-page__table td span {
+  display: block;
+  margin-top: 3px;
+  color: #6a7d85;
+  font-size: 0.82rem;
+}
+
+.company-users-page__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.company-users-page__actions a {
+  color: #17635f;
+  font-weight: 700;
+}
+
+.company-users-page__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 12px;
+  margin-top: 18px;
+  color: #49616d;
+  font-size: 0.85rem;
+}
+
+.company-users-page__pagination button:disabled,
+.company-users-page__actions button:disabled {
+  border-color: #8ea0a6;
+  background: #8ea0a6;
+}
+
+.company-user-form-page__roles {
+  display: grid;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #c8d6d9;
+}
+
+.company-user-form-page__roles legend {
+  padding: 0 5px;
+  color: #49616d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.company-user-form-page__roles label {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
 @media (max-width: 640px) {
   .public-layout {
     padding: 16px;
@@ -225,9 +353,15 @@ a:focus-visible {
 
   .app-layout__nav {
     grid-row: 2;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     border-right: 0;
     border-bottom: 1px solid #c8d6d9;
     padding: 8px;
+  }
+
+  .company-users-page__heading,
+  .company-users-page__filters {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

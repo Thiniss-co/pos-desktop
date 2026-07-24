@@ -21,6 +21,11 @@ export interface DesktopApiClientDependencies {
   readonly tracer?: ApiTracer
 }
 
+export interface DesktopApiResponse<T> {
+  readonly data: T
+  readonly meta: Record<string, unknown>
+}
+
 export function resolveDesktopApiUrl(apiOrigin: URL, path: string): URL {
   if (
     !path.startsWith('/') ||
@@ -56,6 +61,10 @@ export class DesktopApiClient {
   }
 
   async request<T>(route: DesktopApiRoute, body?: unknown): Promise<T> {
+    return (await this.requestWithMeta<T>(route, body)).data
+  }
+
+  async requestWithMeta<T>(route: DesktopApiRoute, body?: unknown): Promise<DesktopApiResponse<T>> {
     if (!this.dependencies.apiOrigin) {
       throw backendNotConfiguredError()
     }
@@ -113,7 +122,10 @@ export class DesktopApiClient {
         throw normalizeHttpError(response.status, errorEnvelope)
       }
 
-      return unwrapApiEnvelope<T>(payload)
+      return {
+        data: unwrapApiEnvelope<T>(payload),
+        meta: envelope.meta
+      }
     } catch (error) {
       const publicError = isPublicAppError(error) ? error : normalizeTransportError(error)
 

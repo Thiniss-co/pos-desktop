@@ -293,3 +293,53 @@ export const desktopBootstrapResourceSchema = z
   .passthrough()
 
 export type DesktopBootstrapResource = z.infer<typeof desktopBootstrapResourceSchema>
+
+export const companyUserResourceSchema = z
+  .object({
+    id: z.uuid(),
+    uuid: z.uuid(),
+    name: z.string(),
+    email: z.string(),
+    company_id: z.number().int(),
+    is_active: z.boolean(),
+    roles: z.array(z.string()),
+    created_at: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional()
+  })
+  .passthrough()
+
+export type CompanyUserResource = z.infer<typeof companyUserResourceSchema>
+
+export const assignableRoleResourceSchema = z
+  .object({
+    system_roles: z.array(
+      z
+        .object({
+          key: z.string(),
+          label: z.string(),
+          assignable: z.boolean()
+        })
+        .passthrough()
+    ),
+    company_roles: z.array(
+      z
+        .object({
+          uuid: z.uuid(),
+          name: z.string(),
+          is_active: z.boolean()
+        })
+        .passthrough()
+    )
+  })
+  .passthrough()
+
+export type AssignableRoleResource = z.infer<typeof assignableRoleResourceSchema>
+
+export const paginationMetaResourceSchema = z
+  .object({
+    current_page: z.number().int().positive(),
+    per_page: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+    last_page: z.number().int().positive()
+  })
+  .passthrough()

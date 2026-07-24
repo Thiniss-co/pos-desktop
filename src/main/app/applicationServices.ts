@@ -19,6 +19,7 @@ import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { ActivationService } from '../services/activation.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
 import { BootstrapService } from '../services/bootstrap.service'
+import { CompanyUsersService } from '../services/companyUsers.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { SecureStorageService } from '../services/secureStorage.service'
@@ -40,6 +41,7 @@ export interface ApplicationServices {
   readonly auth: AuthService
   readonly license: LicenseService
   readonly bootstrap: BootstrapService
+  readonly companyUsers: CompanyUsersService
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -97,6 +99,7 @@ export function createApplicationServices(): ApplicationServices {
     bootstrapState,
     bootstrapSnapshot
   )
+  const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
   return {
     runtimeConfig,
@@ -114,6 +117,7 @@ export function createApplicationServices(): ApplicationServices {
     auth,
     license,
     bootstrap,
+    companyUsers,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),

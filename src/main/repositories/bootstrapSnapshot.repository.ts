@@ -263,6 +263,22 @@ export class BootstrapSnapshotRepository {
     }
   }
 
+  getPermissions(): string[] {
+    const rows = this.database
+      .prepare('SELECT permission_name FROM bootstrap_permissions ORDER BY permission_name')
+      .all() as Array<{ permission_name: string }>
+
+    return rows.map((row) => row.permission_name)
+  }
+
+  getLimit(key: string): number | null {
+    const row = this.database
+      .prepare('SELECT limit_value FROM bootstrap_limits WHERE limit_key = ?')
+      .get(key) as { limit_value: number | null } | undefined
+
+    return row?.limit_value ?? null
+  }
+
   private replaceCollection<T>(
     table: string,
     rows: readonly T[],
