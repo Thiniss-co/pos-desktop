@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import { handleIpcRequest } from './handleIpcRequest'
 
 describe('handleIpcRequest', () => {
@@ -29,5 +30,21 @@ describe('handleIpcRequest', () => {
         retryable: false
       }
     })
+  })
+
+  it('passes a public contract-invalid error through to the renderer', async () => {
+    const contractError = publicAppErrorSchema.parse({
+      category: 'unexpected',
+      message:
+        'The service returned unsupported bootstrap data. Please update the desktop application or contact support.',
+      backendCode: 'bootstrap_payload_contract_invalid',
+      retryable: false
+    })
+
+    const result = await handleIpcRequest(undefined, z.undefined(), () => {
+      throw contractError
+    })
+
+    expect(result).toEqual({ ok: false, error: contractError })
   })
 })

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { LicenseStatus } from '@shared/contracts/license.contract'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import { BootstrapService } from './bootstrap.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
@@ -10,6 +11,35 @@ const identity: StoredDeviceIdentity = {
   osVersion: '6.0',
   appVersion: '1.0.0',
   isRegistered: true
+}
+
+function syncEnabledLicense(): LicenseStatus {
+  return {
+    restrictionLevel: 'none' as const,
+    canSell: true,
+    canSync: true,
+    isActive: true,
+    isInGrace: false,
+    isExpired: false,
+    expiresAt: null,
+    warningMessage: null,
+    validatedAt: '2026-01-01T00:00:00Z'
+  }
+}
+
+function loyaltySettings(pointsExpireAfterDays: unknown): Record<string, unknown> {
+  return {
+    enabled: true,
+    earn_enabled: true,
+    redeem_enabled: true,
+    points_per_amount: 1,
+    amount_per_point: 1,
+    minimum_redeem_points: 1,
+    maximum_redeem_percent: 100,
+    points_expire_after_days: pointsExpireAfterDays,
+    points_activate_after_days: 0,
+    allow_partial_redemption: true
+  }
 }
 
 function bootstrapSuccessEnvelope(
@@ -123,17 +153,7 @@ describe('BootstrapService.refresh', () => {
       ),
       { get: () => identity },
       {
-        getStatus: () => ({
-          restrictionLevel: 'none',
-          canSell: true,
-          canSync: true,
-          isActive: true,
-          isInGrace: false,
-          isExpired: false,
-          expiresAt: null,
-          warningMessage: null,
-          validatedAt: '2026-01-01T00:00:00Z'
-        })
+        getStatus: () => syncEnabledLicense()
       },
       {
         markComplete: () => {
@@ -165,32 +185,64 @@ describe('BootstrapService.refresh', () => {
     })
   })
 
-  it('rejects a malformed bootstrap response without persisting or marking complete', async () => {
-    let persisted = false
-    let marked = false
+  it('completes bootstrap when loyalty points never expire', async () => {
+    let markCompleteCalls = 0
 
     const service = new BootstrapService(
-      createApiClient({
-        success: true,
-        message: 'ok',
-        code: 'DESKTOP_BOOTSTRAP_RETRIEVED',
-        data: { server_time: 'not-a-real-shape' },
-        meta: {}
-      }),
+      createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(null) })),
       { get: () => identity },
+      { getStatus: () => syncEnabledLicense() },
       {
-        getStatus: () => ({
-          restrictionLevel: 'none',
-          canSell: true,
-          canSync: true,
-          isActive: true,
-          isInGrace: false,
-          isExpired: false,
-          expiresAt: null,
-          warningMessage: null,
-          validatedAt: '2026-01-01T00:00:00Z'
-        })
+        markComplete: () => {
+          markCompleteCalls += 1
+        }
       },
+      {
+        persistSnapshot: (resource) => {
+          expect(resource.loyalty?.points_expire_after_days).toBeNull()
+
+          return { snapshotVersion: 'x', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+        }
+      }
+    )
+
+    await expect(service.refresh()).resolves.toMatchObject({ isComplete: true })
+    expect(markCompleteCalls).toBe(1)
+  })
+
+  it('preserves a positive loyalty expiry during bootstrap parsing', async () => {
+    let persisted = false
+
+    const service = new BootstrapService(
+      createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(30) })),
+      { get: () => identity },
+      { getStatus: () => syncEnabledLicense() },
+      { markComplete: () => undefined },
+      {
+        persistSnapshot: (resource) => {
+          persisted = true
+          expect(resource.loyalty?.points_expire_after_days).toBe(30)
+
+          return { snapshotVersion: 'x', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+        }
+      }
+    )
+
+    await expect(service.refresh()).resolves.toMatchObject({ isComplete: true })
+    expect(persisted).toBe(true)
+  })
+
+  it('maps an invalid bootstrap payload to a non-retryable public error without partial completion', async () => {
+    let persisted = false
+    let marked = false
+    const originalTraceSetting = process.env.POS_API_TRACE
+    process.env.POS_API_TRACE = '1'
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const service = new BootstrapService(
+      createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings('never') })),
+      { get: () => identity },
+      { getStatus: () => syncEnabledLicense() },
       {
         markComplete: () => {
           marked = true
@@ -204,8 +256,35 @@ describe('BootstrapService.refresh', () => {
       }
     )
 
-    await expect(service.refresh()).rejects.toThrow()
-    expect(persisted).toBe(false)
-    expect(marked).toBe(false)
+    try {
+      await expect(service.refresh()).rejects.toMatchObject({
+        category: 'unexpected',
+        message:
+          'The service returned unsupported bootstrap data. Please update the desktop application or contact support.',
+        backendCode: 'bootstrap_payload_contract_invalid',
+        retryable: false
+      })
+
+      const traceLine = consoleError.mock.calls
+        .map(([line]) => line)
+        .find(
+          (line): line is string =>
+            typeof line === 'string' && line.includes('bootstrap_payload_contract_invalid')
+        )
+
+      expect(traceLine).toBe(
+        '[pos-api] category=bootstrap_payload_contract_invalid field_path=loyalty.points_expire_after_days'
+      )
+      expect(persisted).toBe(false)
+      expect(marked).toBe(false)
+    } finally {
+      consoleError.mockRestore()
+
+      if (originalTraceSetting === undefined) {
+        delete process.env.POS_API_TRACE
+      } else {
+        process.env.POS_API_TRACE = originalTraceSetting
+      }
+    }
   })
 })

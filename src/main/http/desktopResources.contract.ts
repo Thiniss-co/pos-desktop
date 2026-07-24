@@ -266,7 +266,7 @@ export const desktopBootstrapResourceSchema = z
         amount_per_point: z.number(),
         minimum_redeem_points: z.number(),
         maximum_redeem_percent: z.number(),
-        points_expire_after_days: z.number(),
+        points_expire_after_days: z.number().int().min(1).nullable(),
         points_activate_after_days: z.number(),
         allow_partial_redemption: z.boolean()
       })
