@@ -263,6 +263,14 @@ export class BootstrapSnapshotRepository {
     }
   }
 
+  hasPermission(permission: string): boolean {
+    const row = this.database
+      .prepare('SELECT 1 AS present FROM bootstrap_permissions WHERE permission_name = ?')
+      .get(permission) as { readonly present: number } | undefined
+
+    return Boolean(row?.present)
+  }
+
   getPermissions(): string[] {
     const rows = this.database
       .prepare('SELECT permission_name FROM bootstrap_permissions ORDER BY permission_name')

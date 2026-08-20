@@ -1,13 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { PublicAppError } from '@shared/contracts/api.contract'
 import { useAccessStore } from '@renderer/modules/access/store'
+import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
 import { StartupService } from './startup.service'
 import type { StartupError, StartupSnapshot, StartupState } from './types'
-
-function isPublicAppError(value: unknown): value is PublicAppError {
-  return typeof value === 'object' && value !== null && 'message' in value && 'category' in value
-}
 
 function determineStartupState(snapshot: StartupSnapshot): StartupState {
   if (!snapshot.device.isRegistered) {
@@ -43,7 +39,7 @@ export const useStartupStore = defineStore('startup', () => {
       snapshot.value = nextSnapshot
       state.value = determineStartupState(nextSnapshot)
     } catch (cause) {
-      const detail = isPublicAppError(cause) ? cause : undefined
+      const detail = parsePublicAppError(cause) ?? undefined
       state.value = detail?.category === 'authorization' ? 'access_blocked' : 'fatal_error'
       error.value = {
         message: detail?.message ?? 'The application could not be initialized',

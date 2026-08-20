@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { LicenseStatus } from '@shared/contracts/license.contract'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import { BootstrapService } from './bootstrap.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
@@ -13,19 +12,7 @@ const identity: StoredDeviceIdentity = {
   isRegistered: true
 }
 
-function syncEnabledLicense(): LicenseStatus {
-  return {
-    restrictionLevel: 'none' as const,
-    canSell: true,
-    canSync: true,
-    isActive: true,
-    isInGrace: false,
-    isExpired: false,
-    expiresAt: null,
-    warningMessage: null,
-    validatedAt: '2026-01-01T00:00:00Z'
-  }
-}
+const syncAllowed = { assertCanSync: () => undefined }
 
 function loyaltySettings(pointsExpireAfterDays: unknown): Record<string, unknown> {
   return {
@@ -104,7 +91,7 @@ describe('BootstrapService.refresh', () => {
     const service = new BootstrapService(
       createApiClient(bootstrapSuccessEnvelope()),
       { get: () => null },
-      { getStatus: () => null },
+      syncAllowed,
       { markComplete: () => undefined },
       { persistSnapshot: () => ({ snapshotVersion: 'x', serverTime: 'x', counts: {} }) }
     )
@@ -117,17 +104,13 @@ describe('BootstrapService.refresh', () => {
       createApiClient(bootstrapSuccessEnvelope()),
       { get: () => identity },
       {
-        getStatus: () => ({
-          restrictionLevel: 'suspended',
-          canSell: false,
-          canSync: false,
-          isActive: false,
-          isInGrace: false,
-          isExpired: true,
-          expiresAt: null,
-          warningMessage: 'Subscription expired',
-          validatedAt: '2026-01-01T00:00:00Z'
-        })
+        assertCanSync: () => {
+          throw {
+            category: 'authorization',
+            message: 'Subscription expired',
+            retryable: false
+          }
+        }
       },
       { markComplete: () => undefined },
       { persistSnapshot: () => ({ snapshotVersion: 'x', serverTime: 'x', counts: {} }) }
@@ -152,9 +135,7 @@ describe('BootstrapService.refresh', () => {
         })
       ),
       { get: () => identity },
-      {
-        getStatus: () => syncEnabledLicense()
-      },
+      syncAllowed,
       {
         markComplete: () => {
           expect(persistedCalledBefore).toBe(true)
@@ -191,7 +172,7 @@ describe('BootstrapService.refresh', () => {
     const service = new BootstrapService(
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(null) })),
       { get: () => identity },
-      { getStatus: () => syncEnabledLicense() },
+      syncAllowed,
       {
         markComplete: () => {
           markCompleteCalls += 1
@@ -216,7 +197,7 @@ describe('BootstrapService.refresh', () => {
     const service = new BootstrapService(
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(30) })),
       { get: () => identity },
-      { getStatus: () => syncEnabledLicense() },
+      syncAllowed,
       { markComplete: () => undefined },
       {
         persistSnapshot: (resource) => {
@@ -242,7 +223,7 @@ describe('BootstrapService.refresh', () => {
     const service = new BootstrapService(
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings('never') })),
       { get: () => identity },
-      { getStatus: () => syncEnabledLicense() },
+      syncAllowed,
       {
         markComplete: () => {
           marked = true

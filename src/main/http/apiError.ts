@@ -24,6 +24,7 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     code === 'UNAUTHENTICATED' ||
     code === 'INVALID_CREDENTIALS' ||
     code === 'USER_INACTIVE' ||
+    code === 'SESSION_REVOKED' ||
     code === 'DESKTOP_LOGIN_FORBIDDEN' ||
     code === 'DESKTOP_TOKEN_NOT_BOUND' ||
     code === 'DESKTOP_TOKEN_DEVICE_MISMATCH'
@@ -33,6 +34,7 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
 
   if (
     code === 'FORBIDDEN' ||
+    code === 'COMPANY_INACTIVE' ||
     code === 'PERMISSION_DENIED' ||
     code === 'FEATURE_PERMISSION_DENIED' ||
     code === 'FEATURE_NOT_ENABLED' ||
@@ -40,7 +42,8 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     code === 'ACCOUNTING_FEATURE_NOT_ENABLED' ||
     code === 'DESKTOP_CONTEXT_REQUIRED' ||
     code === 'DESKTOP_ACCESS_FORBIDDEN' ||
-    code === 'DESKTOP_SHIFT_ACCESS_DENIED'
+    code === 'DESKTOP_SHIFT_ACCESS_DENIED' ||
+    code === 'ROLE_ASSIGNMENT_FORBIDDEN'
   ) {
     return 'authorization'
   }

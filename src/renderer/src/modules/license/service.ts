@@ -1,4 +1,4 @@
-import type { LicenseStatus } from '@shared/contracts/license.contract'
+import type { CommercialAccessSnapshot, LicenseStatus } from '@shared/contracts/license.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
 export class LicenseService {
@@ -6,5 +6,9 @@ export class LicenseService {
 
   async validate(): Promise<LicenseStatus> {
     return unwrapIpcResult(await this.gateway.validate())
+  }
+
+  async getAccess(): Promise<CommercialAccessSnapshot> {
+    return unwrapIpcResult(await this.gateway.getAccess())
   }
 }

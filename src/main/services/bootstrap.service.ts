@@ -1,7 +1,6 @@
 import { ZodError } from 'zod'
 import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api.contract'
 import { bootstrapResultSchema, type BootstrapResult } from '@shared/contracts/bootstrap.contract'
-import type { LicenseStatus } from '@shared/contracts/license.contract'
 import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
 import { redactSensitiveText } from '../http/apiError'
 import { isApiTraceEnabled } from '../http/apiTrace'
@@ -17,8 +16,8 @@ export interface BootstrapDeviceIdentityRepository {
   get(): StoredDeviceIdentity | null
 }
 
-export interface BootstrapLicenseMetadataReader {
-  getStatus(): LicenseStatus | null
+export interface BootstrapCommercialAccessChecker {
+  assertCanSync(): void
 }
 
 export interface BootstrapStateWriter {
@@ -33,10 +32,10 @@ export interface BootstrapSnapshotWriter {
   persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult
 }
 
-function authorizationError(message: string, warningMessage?: string | null): PublicAppError {
+function authorizationError(message: string): PublicAppError {
   return publicAppErrorSchema.parse({
     category: 'authorization',
-    message: warningMessage ?? message,
+    message,
     retryable: false
   })
 }
@@ -73,7 +72,7 @@ export class BootstrapService {
   constructor(
     private readonly apiClient: DesktopApiClient,
     private readonly deviceIdentityRepository: BootstrapDeviceIdentityRepository,
-    private readonly licenseMetadataRepository: BootstrapLicenseMetadataReader,
+    private readonly commercialAccess: BootstrapCommercialAccessChecker,
     private readonly bootstrapStateRepository: BootstrapStateWriter,
     private readonly bootstrapSnapshotRepository: BootstrapSnapshotWriter
   ) {}
@@ -85,14 +84,7 @@ export class BootstrapService {
       throw authorizationError('This workstation has not completed device activation')
     }
 
-    const license = this.licenseMetadataRepository.getStatus()
-
-    if (!license || !license.canSync) {
-      throw authorizationError(
-        'This workstation is not permitted to synchronize with the backend',
-        license?.warningMessage
-      )
-    }
+    this.commercialAccess.assertCanSync()
 
     const response = await this.apiClient.request(DESKTOP_API_ROUTES.bootstrap)
     let resource: DesktopBootstrapResource

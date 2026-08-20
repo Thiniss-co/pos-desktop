@@ -109,7 +109,19 @@ export const licenseResourceSchema = z
   .object({
     token: z.string(),
     expires_at: z.string(),
-    access: accessDecisionResourceSchema
+    access: accessDecisionResourceSchema,
+    server_time: z.string(),
+    last_validated_at: z.string(),
+    next_validation_due_at: z.string(),
+    max_offline_hours: z.number().int().positive(),
+    subscription: z
+      .object({
+        status: z.string(),
+        expires_at: z.string().nullable(),
+        grace_ends_at: z.string().nullable()
+      })
+      .passthrough()
+      .nullable()
   })
   .passthrough()
 

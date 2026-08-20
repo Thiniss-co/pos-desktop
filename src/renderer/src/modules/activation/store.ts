@@ -28,7 +28,6 @@ export const useDeviceStore = defineStore('device', () => {
     if (isSubmitting.value) {
       return false
     }
-
     isSubmitting.value = true
     error.value = null
     fieldErrors.value = null
@@ -38,6 +37,7 @@ export const useDeviceStore = defineStore('device', () => {
       await load(service)
       return true
     } catch (cause) {
+      console.error('Device activation failed', cause)
       if (isPublicAppError(cause)) {
         error.value = cause.message
         fieldErrors.value = cause.fieldErrors ?? null

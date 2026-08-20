@@ -17,12 +17,10 @@ import type {
   CompanyUsersQuery,
   CompanyUsersRoleState
 } from './types'
+import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
+import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
 
 const deniedCodes = new Set(['PERMISSION_DENIED', 'FEATURE_NOT_ENABLED'])
-
-function isPublicAppError(value: unknown): value is PublicAppError {
-  return typeof value === 'object' && value !== null && 'message' in value && 'category' in value
-}
 
 function messageForError(error: PublicAppError): string {
   if (error.backendCode === 'COMPANY_LIMIT_REACHED') {
@@ -39,6 +37,10 @@ function messageForError(error: PublicAppError): string {
 
   if (error.backendCode === 'FEATURE_NOT_ENABLED') {
     return 'Company user management is not enabled for this subscription.'
+  }
+
+  if (error.backendCode === 'ROLE_ASSIGNMENT_FORBIDDEN') {
+    return 'You are not allowed to assign that role.'
   }
 
   if (error.category === 'transport') {
@@ -85,10 +87,13 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
   function setError(cause: unknown): void {
     fieldErrors.value = null
 
-    if (isPublicAppError(cause)) {
-      clearRemoteAccessWhenDenied(cause)
-      error.value = messageForError(cause)
-      fieldErrors.value = cause.fieldErrors ?? null
+    const publicError = parsePublicAppError(cause)
+
+    if (publicError) {
+      void handleSessionTransition(publicError)
+      clearRemoteAccessWhenDenied(publicError)
+      error.value = messageForError(publicError)
+      fieldErrors.value = publicError.fieldErrors ?? null
       return
     }
 

@@ -108,4 +108,29 @@ describe('useCompanyUsersStore', () => {
       'Your permission to manage company users was removed. Controls are no longer available.'
     )
   })
+
+  it('keeps the displayed user unchanged when the server denies a role assignment', async () => {
+    const denied = publicAppErrorSchema.parse({
+      category: 'authorization',
+      message: 'Role assignment is not allowed.',
+      retryable: false,
+      backendCode: 'ROLE_ASSIGNMENT_FORBIDDEN'
+    })
+    const store = useCompanyUsersStore()
+    const service = serviceFor(
+      { canView: true, canManage: true, userLimit: 5 },
+      { setRoles: async () => ({ ok: false, error: denied }) }
+    )
+
+    await store.initialize(service)
+    const result = await store.setRoles(
+      { uuid: user.uuid, roles: ['company_admin'], companyRoleIds: [] },
+      service
+    )
+
+    expect(result).toBeNull()
+    expect(store.list).toEqual(list)
+    expect(store.selectedUser).toBeNull()
+    expect(store.error).toBe('You are not allowed to assign that role.')
+  })
 })

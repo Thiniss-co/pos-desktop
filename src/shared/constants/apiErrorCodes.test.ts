@@ -5,6 +5,9 @@ describe('API error code normalization', () => {
   it('keeps documented error codes', () => {
     expect(isKnownApiErrorCode('UNAUTHENTICATED')).toBe(true)
     expect(toApiErrorCode('UNAUTHENTICATED')).toBe('UNAUTHENTICATED')
+    expect(isKnownApiErrorCode('SESSION_REVOKED')).toBe(true)
+    expect(isKnownApiErrorCode('COMPANY_INACTIVE')).toBe(true)
+    expect(isKnownApiErrorCode('ROLE_ASSIGNMENT_FORBIDDEN')).toBe(true)
   })
 
   it('maps future backend codes to the safe fallback', () => {

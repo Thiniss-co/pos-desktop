@@ -6,13 +6,16 @@ import {
   type SessionSummary
 } from '@shared/contracts/auth.contract'
 import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
+import { isSessionEndingError } from '@shared/constants/sessionTransitions'
 import { isPublicAppError } from '../http/apiError'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import { desktopSessionResourceSchema } from '../http/desktopResources.contract'
 import type { SessionEstablishInput } from '../repositories/sessionMetadata.repository'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
+import { DESKTOP_LICENSE_JWT_KEY } from './license.service'
+import { DESKTOP_ACCESS_TOKEN_KEY, type SessionService } from './session.service'
 
-export const DESKTOP_ACCESS_TOKEN_KEY = 'desktop_access_token'
+export { DESKTOP_ACCESS_TOKEN_KEY } from './session.service'
 
 export interface AuthDeviceIdentityRepository {
   get(): StoredDeviceIdentity | null
@@ -40,7 +43,8 @@ export class AuthService {
     private readonly apiClient: DesktopApiClient,
     private readonly deviceIdentityRepository: AuthDeviceIdentityRepository,
     private readonly sessionMetadataRepository: AuthSessionMetadataRepository,
-    private readonly secureStorage: AuthSecureStorage
+    private readonly secureStorage: AuthSecureStorage,
+    private readonly session?: Pick<SessionService, 'endSession' | 'getSummary'>
   ) {}
 
   async login(rawInput: LoginInput): Promise<SessionSummary> {
@@ -89,18 +93,21 @@ export class AuthService {
     const token = this.secureStorage.getSecret(DESKTOP_ACCESS_TOKEN_KEY)
 
     if (!token) {
-      this.sessionMetadataRepository.clear()
-      return this.sessionMetadataRepository.getSummary()
+      this.endSession()
+      return this.getSessionSummary()
     }
 
     try {
       await this.apiClient.request(DESKTOP_API_ROUTES.authMe)
       return existing
     } catch (error) {
-      if (isPublicAppError(error) && error.category === 'authentication') {
-        this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
-        this.sessionMetadataRepository.clear()
-        return this.sessionMetadataRepository.getSummary()
+      if (
+        isPublicAppError(error) &&
+        (isSessionEndingError(error.backendCode) ||
+          error.backendCode === 'DESKTOP_TOKEN_DEVICE_MISMATCH')
+      ) {
+        this.endSession()
+        return this.getSessionSummary()
       }
 
       throw error
@@ -111,8 +118,22 @@ export class AuthService {
     try {
       await this.apiClient.request(DESKTOP_API_ROUTES.authLogout)
     } finally {
-      this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
-      this.sessionMetadataRepository.clear()
+      this.secureStorage.deleteSecret(DESKTOP_LICENSE_JWT_KEY)
+      this.endSession()
     }
+  }
+
+  private endSession(): void {
+    if (this.session) {
+      this.session.endSession()
+      return
+    }
+
+    this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
+    this.sessionMetadataRepository.clear()
+  }
+
+  private getSessionSummary(): SessionSummary {
+    return this.session?.getSummary() ?? this.sessionMetadataRepository.getSummary()
   }
 }

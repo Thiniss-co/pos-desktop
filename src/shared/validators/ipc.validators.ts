@@ -18,6 +18,7 @@ export const authLoginInputSchema = loginInputSchema
 export const authRefreshSessionInputSchema = z.undefined()
 export const authLogoutInputSchema = z.undefined()
 export const licenseValidateInputSchema = z.undefined()
+export const licenseGetAccessInputSchema = z.undefined()
 export const bootstrapGetStatusInputSchema = z.undefined()
 export const bootstrapRefreshInputSchema = z.undefined()
 export const syncGetStatusInputSchema = z.undefined()

@@ -1,13 +1,10 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { PublicAppError } from '@shared/contracts/api.contract'
 import { LicenseService } from '@renderer/modules/license/service'
+import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
+import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
 import type { BootstrapDisplayState, BootstrapStage } from './types'
 import { BootstrapService } from './service'
-
-function isPublicAppError(value: unknown): value is PublicAppError {
-  return typeof value === 'object' && value !== null && 'message' in value && 'category' in value
-}
 
 export const useBootstrapStore = defineStore('bootstrap', () => {
   const status = ref<BootstrapDisplayState>(null)
@@ -48,9 +45,12 @@ export const useBootstrapStore = defineStore('bootstrap', () => {
       stage.value = 'complete'
       return true
     } catch (cause) {
-      if (isPublicAppError(cause)) {
-        error.value = cause.message
-        isRetryable.value = cause.retryable
+      void handleSessionTransition(cause)
+      const publicError = parsePublicAppError(cause)
+
+      if (publicError) {
+        error.value = publicError.message
+        isRetryable.value = publicError.retryable
       } else {
         error.value = 'Bootstrap could not be completed'
       }

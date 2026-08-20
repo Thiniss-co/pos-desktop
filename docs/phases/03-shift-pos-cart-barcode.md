@@ -12,7 +12,9 @@ snapshot), with no sale finalization or sync yet.
   variance display) — calling the backend shift/cash-drawer endpoints via
   `window.posApi.shifts.*`, with shift-state error codes
   (`SHIFT_ALREADY_OPEN`, `SHIFT_NOT_OPEN`, `SHIFT_CLOSED`, `SHIFT_PAUSED`, `SHIFT_NOT_PAUSED`)
-  handled explicitly.
+  handled explicitly. The main-process shift service must call
+  `CommercialAccessService.assertCanSell()` before opening a shift; it is never a renderer-side
+  decision.
 - `pos`/`cart` module: product catalog browsing/search reading from local SQLite (offline-first,
   per [.ai/guidelines/pos-ux-rules.md](../../.ai/guidelines/pos-ux-rules.md)), cart line
   add/remove/quantity-adjust, running totals (pricing/tax logic in a service, not the page).
@@ -49,6 +51,10 @@ npm run dev               # manual: open shift, scan/search products, build a ca
 ## Done Criteria
 
 - Shift lifecycle works end-to-end against the backend.
+- Opening a shift is denied by the main-process commercial-access guard when the local license,
+  trusted clock, session, or `pos.sell` permission does not permit selling. Sale finalization
+  (Phase 4) must use the same guard, and any future outbox worker must call `assertCanSync()`
+  before draining queued work.
 - Barcode scanning captured correctly per the manual smoke checklist in
   [.ai/guidelines/testing-and-verification.md](../../.ai/guidelines/testing-and-verification.md).
 - Cart pricing logic has unit test coverage and lives outside `.vue` files.

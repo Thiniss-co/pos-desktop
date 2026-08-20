@@ -17,6 +17,7 @@ describe('posApi surface', () => {
     expect(source).toContain('refreshSession')
     expect(source).toContain('logout')
     expect(source).toContain('validate')
+    expect(source).toContain('getAccess')
     expect(source).toContain('refresh')
   })
 

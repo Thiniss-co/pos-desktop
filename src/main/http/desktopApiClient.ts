@@ -1,5 +1,5 @@
 import type { DesktopApiRoute } from '@shared/constants/apiRoutes'
-import type { ApiErrorEnvelope } from '@shared/contracts/api.contract'
+import type { ApiErrorEnvelope, PublicAppError } from '@shared/contracts/api.contract'
 import {
   backendNotConfiguredError,
   classifyTransportError,
@@ -19,6 +19,7 @@ export interface DesktopApiClientDependencies {
   readonly fetchImplementation?: typeof fetch
   readonly timeoutMs?: number
   readonly tracer?: ApiTracer
+  readonly onAuthenticatedFailure?: (error: PublicAppError) => void
 }
 
 export interface DesktopApiResponse<T> {
@@ -128,6 +129,10 @@ export class DesktopApiClient {
       }
     } catch (error) {
       const publicError = isPublicAppError(error) ? error : normalizeTransportError(error)
+
+      if (route.requiresAuth) {
+        this.dependencies.onAuthenticatedFailure?.(publicError)
+      }
 
       if (!responseTraced) {
         this.tracer.failure({

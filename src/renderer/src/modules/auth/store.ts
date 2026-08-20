@@ -1,13 +1,10 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { PublicAppError } from '@shared/contracts/api.contract'
 import type { LoginInput } from '@shared/contracts/auth.contract'
+import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
+import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
 import type { AuthDisplayState } from './types'
 import { AuthService } from './service'
-
-function isPublicAppError(value: unknown): value is PublicAppError {
-  return typeof value === 'object' && value !== null && 'message' in value && 'category' in value
-}
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<AuthDisplayState>(null)
@@ -19,8 +16,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       session.value = await service.getSessionSummary()
       error.value = null
-    } catch {
-      error.value = 'Session information is unavailable'
+    } catch (cause) {
+      void handleSessionTransition(cause)
+      error.value = parsePublicAppError(cause)?.message ?? 'Session information is unavailable'
     }
   }
 
@@ -37,9 +35,12 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = await service.login(input)
       return true
     } catch (cause) {
-      if (isPublicAppError(cause)) {
-        error.value = cause.message
-        fieldErrors.value = cause.fieldErrors ?? null
+      void handleSessionTransition(cause)
+      const publicError = parsePublicAppError(cause)
+
+      if (publicError) {
+        error.value = publicError.message
+        fieldErrors.value = publicError.fieldErrors ?? null
       } else {
         error.value = 'Sign in failed'
       }
@@ -49,5 +50,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { session, error, fieldErrors, isSubmitting, load, login }
+  function setSessionEndedMessage(message: string): void {
+    fieldErrors.value = null
+    error.value = message
+  }
+
+  return { session, error, fieldErrors, isSubmitting, load, login, setSessionEndedMessage }
 })

@@ -83,6 +83,34 @@ describe('API error normalization', () => {
     ).toMatchObject({ category: 'authentication' })
   })
 
+  it('maps session revocation, company inactivity, and role-assignment denial without activation reset', () => {
+    const sessionRevoked = normalizeApiEnvelopeError({
+      success: false,
+      message: 'Session revoked.',
+      code: 'SESSION_REVOKED',
+      errors: {},
+      meta: {}
+    })
+    const roleDenied = normalizeApiEnvelopeError({
+      success: false,
+      message: 'Role assignment is not allowed.',
+      code: 'ROLE_ASSIGNMENT_FORBIDDEN',
+      errors: {},
+      meta: {}
+    })
+    const companyInactive = normalizeApiEnvelopeError({
+      success: false,
+      message: 'The company is inactive.',
+      code: 'COMPANY_INACTIVE',
+      errors: {},
+      meta: {}
+    })
+
+    expect(sessionRevoked).toMatchObject({ category: 'authentication', retryable: false })
+    expect(companyInactive).toMatchObject({ category: 'authorization', retryable: false })
+    expect(roleDenied).toMatchObject({ category: 'authorization', retryable: false })
+  })
+
   it('maps VALIDATION_ERROR to a validation failure with field errors', () => {
     expect(
       normalizeApiEnvelopeError({

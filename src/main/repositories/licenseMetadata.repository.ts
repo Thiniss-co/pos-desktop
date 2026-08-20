@@ -15,6 +15,8 @@ export interface LicenseMetadata {
   readonly updatedAt: string
 }
 
+export const LICENSE_TRUSTED_TIME_ANCHOR_KEY = 'license.trusted_time_anchor'
+
 export class LicenseMetadataRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
@@ -32,6 +34,33 @@ export class LicenseMetadataRepository {
   }
 
   set(status: LicenseStatus): void {
+    this.persistStatus(status)
+  }
+
+  setValidatedStatus(status: LicenseStatus, trustedTimeAnchor: string): void {
+    this.database.transaction(() => {
+      this.persistStatus(status)
+      this.database
+        .prepare(
+          `
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+          `
+        )
+        .run(LICENSE_TRUSTED_TIME_ANCHOR_KEY, trustedTimeAnchor, new Date().toISOString())
+    })()
+  }
+
+  getTrustedTimeAnchor(): string | null {
+    const row = this.database
+      .prepare('SELECT value FROM app_settings WHERE key = ?')
+      .get(LICENSE_TRUSTED_TIME_ANCHOR_KEY) as { readonly value: string } | undefined
+
+    return row?.value ?? null
+  }
+
+  private persistStatus(status: LicenseStatus): void {
     this.database
       .prepare(
         `
@@ -55,6 +84,11 @@ export class LicenseMetadataRepository {
       return null
     }
 
-    return licenseStatusSchema.parse(JSON.parse(row.details_json))
+    try {
+      const parsed = licenseStatusSchema.safeParse(JSON.parse(row.details_json))
+      return parsed.success ? parsed.data : null
+    } catch {
+      return null
+    }
   }
 }

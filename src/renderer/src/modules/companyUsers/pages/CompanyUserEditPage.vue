@@ -5,7 +5,6 @@ import { useRoute, useRouter } from 'vue-router'
 import type { UpdateCompanyUserInput } from '@shared/contracts/company-users.contract'
 import { useCompanyUsersStore } from '../store'
 
-const systemRoles = new Set(['company_admin', 'manager', 'cashier'])
 const route = useRoute()
 const router = useRouter()
 const companyUsers = useCompanyUsersStore()
@@ -36,7 +35,9 @@ onMounted(async () => {
 
   form.name = user.name
   form.email = user.email
-  form.roles = user.roles.filter((role) => systemRoles.has(role))
+  form.roles = user.roles.filter((role) =>
+    (assignableRoles.value?.systemRoles ?? []).some((assignableRole) => assignableRole.key === role)
+  )
   form.companyRoleIds = (assignableRoles.value?.companyRoles ?? [])
     .filter((role) => user.roles.includes(role.name))
     .map((role) => role.uuid)

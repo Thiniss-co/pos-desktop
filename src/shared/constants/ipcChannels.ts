@@ -7,6 +7,7 @@ export const IPC_CHANNELS = Object.freeze({
   authRefreshSession: 'auth:refresh-session',
   authLogout: 'auth:logout',
   licenseValidate: 'license:validate',
+  licenseGetAccess: 'license:get-access',
   bootstrapGetStatus: 'bootstrap:get-status',
   bootstrapRefresh: 'bootstrap:refresh',
   syncGetStatus: 'sync:get-status',

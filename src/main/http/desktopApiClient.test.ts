@@ -133,4 +133,42 @@ describe('DesktopApiClient diagnostics', () => {
       })
     )
   })
+
+  it('notifies the session owner only for authenticated request failures', async () => {
+    const onAuthenticatedFailure = vi.fn()
+    const client = createClient({
+      getAccessToken: () => 'desktop-token',
+      getDeviceUuid: () => '00000000-0000-4000-8000-000000000001',
+      onAuthenticatedFailure,
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Session revoked.',
+            code: 'SESSION_REVOKED',
+            errors: {},
+            meta: {}
+          }),
+          { status: 401, headers: { 'content-type': 'application/json' } }
+        )
+    })
+    const authenticatedRoute = {
+      path: '/auth/me',
+      method: 'GET' as const,
+      requiresAuth: true,
+      requiresDeviceUuid: true
+    }
+
+    await expect(client.request(authenticatedRoute)).rejects.toMatchObject({
+      backendCode: 'SESSION_REVOKED'
+    })
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      backendCode: 'SESSION_REVOKED'
+    })
+
+    expect(onAuthenticatedFailure).toHaveBeenCalledTimes(1)
+    expect(onAuthenticatedFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ backendCode: 'SESSION_REVOKED' })
+    )
+  })
 })

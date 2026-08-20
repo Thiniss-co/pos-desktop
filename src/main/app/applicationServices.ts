@@ -20,6 +20,7 @@ import { ActivationService } from '../services/activation.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
 import { BootstrapService } from '../services/bootstrap.service'
 import { CompanyUsersService } from '../services/companyUsers.service'
+import { CommercialAccessService } from '../services/commercialAccess.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { SecureStorageService } from '../services/secureStorage.service'
@@ -40,6 +41,7 @@ export interface ApplicationServices {
   readonly activation: ActivationService
   readonly auth: AuthService
   readonly license: LicenseService
+  readonly commercialAccess: CommercialAccessService
   readonly bootstrap: BootstrapService
   readonly companyUsers: CompanyUsersService
   getRuntimeInfo(): RuntimeInfo
@@ -74,14 +76,15 @@ export function createApplicationServices(): ApplicationServices {
     appVersion: app.getVersion()
   })
   const secureStorage = new SecureStorageService(secureSecrets, safeStorage)
-  const session = new SessionService(sessionMetadata)
+  const session = new SessionService(sessionMetadata, secureStorage)
 
   deviceIdentity.getOrCreate()
 
   const apiClient = new DesktopApiClient({
     apiOrigin: runtimeConfig.apiOrigin,
     getAccessToken: () => secureStorage.getSecret(DESKTOP_ACCESS_TOKEN_KEY),
-    getDeviceUuid: () => deviceIdentity.getOrCreate().deviceUuid
+    getDeviceUuid: () => deviceIdentity.getOrCreate().deviceUuid,
+    onAuthenticatedFailure: (error) => session.applyApiFailure(error)
   })
 
   const activation = new ActivationService(
@@ -90,12 +93,24 @@ export function createApplicationServices(): ApplicationServices {
     deviceRegistrationRepository,
     apiClient
   )
-  const auth = new AuthService(apiClient, deviceIdentityRepository, sessionMetadata, secureStorage)
+  const auth = new AuthService(
+    apiClient,
+    deviceIdentityRepository,
+    sessionMetadata,
+    secureStorage,
+    session
+  )
   const license = new LicenseService(apiClient, licenseMetadata, secureStorage)
+  const commercialAccess = new CommercialAccessService(
+    session,
+    licenseMetadata,
+    bootstrapSnapshot,
+    appSettings
+  )
   const bootstrap = new BootstrapService(
     apiClient,
     deviceIdentityRepository,
-    licenseMetadata,
+    commercialAccess,
     bootstrapState,
     bootstrapSnapshot
   )
@@ -116,6 +131,7 @@ export function createApplicationServices(): ApplicationServices {
     activation,
     auth,
     license,
+    commercialAccess,
     bootstrap,
     companyUsers,
     getRuntimeInfo: () =>

@@ -18,7 +18,18 @@ function successfulLicenseService(): LicenseService {
         isExpired: false,
         expiresAt: null,
         warningMessage: null,
-        validatedAt: '2026-01-01T00:00:00Z'
+        validatedAt: '2026-01-01T00:00:00Z',
+        serverTime: '2026-01-01T00:00:00Z',
+        nextValidationDueAt: '2026-01-04T00:00:00Z',
+        maxOfflineHours: 72,
+        subscription: null
+      }
+    }),
+    getAccess: async () => ({
+      ok: true,
+      data: {
+        sell: { allowed: true, reason: null, warning: null },
+        sync: { allowed: true, reason: null, warning: null }
       }
     })
   })
