@@ -110,4 +110,49 @@ describe('ActivationService', () => {
       'Local device identity is not initialized'
     )
   })
+
+  it('surfaces a device-limit denial as an authorization error, not a transport failure, and persists nothing', async () => {
+    // Regression test for the reported activation bug reproduced against the real backend: a
+    // company that has already reached its plan's device limit rejects new registrations with
+    // 403 FORBIDDEN and `errors: null`. Before the envelope schema fix, this was misclassified
+    // as a generic retryable "transport" failure ("The desktop service request failed"),
+    // masking the real, actionable denial reason.
+    const apiClient = new DesktopApiClient({
+      apiOrigin: new URL('https://api.example.test'),
+      getAccessToken: () => null,
+      getDeviceUuid: () => null,
+      fetchImplementation: fakeFetch(
+        {
+          success: false,
+          message: 'The device limit for this plan has been reached.',
+          code: 'FORBIDDEN',
+          errors: null,
+          meta: { trace_id: 'trace-device-limit', access: { can_activate_device: false } }
+        },
+        403
+      )
+    })
+
+    let transactionRan = false
+    const service = new ActivationService(
+      {
+        transaction: (fn) => () => {
+          transactionRan = true
+          fn()
+        }
+      },
+      { get: () => identity, markRegisteredWithBackend: () => undefined },
+      { set: () => undefined },
+      apiClient
+    )
+
+    await expect(
+      service.register({ companyCode: 'ACME', activationCode: 'super-secret-code' })
+    ).rejects.toMatchObject({
+      category: 'authorization',
+      retryable: false,
+      backendCode: 'FORBIDDEN'
+    })
+    expect(transactionRan).toBe(false)
+  })
 })

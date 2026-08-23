@@ -39,7 +39,14 @@ export const apiErrorEnvelopeSchema = z
     success: z.literal(false),
     message: z.string(),
     code: z.string(),
-    errors: fieldErrorsSchema.default({}),
+    // Laravel's ApiResponse::error() sends `errors: null` (not an omitted/undefined field)
+    // whenever there are no field-level validation errors, e.g. INVALID_CREDENTIALS, FORBIDDEN,
+    // TOO_MANY_REQUESTS. Zod's `.default()` only substitutes for `undefined`, so an explicit
+    // `null` must be normalized here, or every such error response fails envelope validation.
+    errors: fieldErrorsSchema
+      .nullable()
+      .default({})
+      .transform((value) => value ?? {}),
     meta: z
       .object({
         trace_id: z.string().optional()

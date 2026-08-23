@@ -32,4 +32,23 @@ describe('apiEnvelopeSchema', () => {
   it('rejects malformed envelopes', () => {
     expect(apiEnvelopeSchema.safeParse({ message: 'Missing fields' }).success).toBe(false)
   })
+
+  it('normalizes an explicit null errors field to an empty object', () => {
+    // Laravel's ApiResponse::error() sends `errors: null` (not an omitted field) for every
+    // non-validation failure — INVALID_CREDENTIALS, FORBIDDEN, TOO_MANY_REQUESTS, etc. This is
+    // the real response shape, not a hypothetical: `zod`'s `.default()` only substitutes for
+    // `undefined`, so this must be handled explicitly or the whole envelope fails to parse.
+    const result = apiEnvelopeSchema.safeParse({
+      success: false,
+      message: 'Invalid company code or activation code.',
+      code: 'INVALID_CREDENTIALS',
+      errors: null,
+      meta: { trace_id: 'trace-null-errors' }
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success && !result.data.success) {
+      expect(result.data.errors).toEqual({})
+    }
+  })
 })

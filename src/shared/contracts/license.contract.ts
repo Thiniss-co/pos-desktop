@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
-const isoDateTimeSchema = z.iso.datetime()
+// Laravel serializes timestamps as ISO-8601 with an explicit offset ("+00:00"), which
+// z.iso.datetime() rejects by default; `offset: true` accepts both that and the "Z" form
+// we write ourselves via Date#toISOString().
+const isoDateTimeSchema = z.iso.datetime({ offset: true })
 
 export const licenseSubscriptionSchema = z
   .object({

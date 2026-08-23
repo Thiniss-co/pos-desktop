@@ -85,6 +85,53 @@ describe('LicenseService', () => {
     expect(trustedTimeAnchor).toBe('2026-01-01T01:00:00.000Z')
   })
 
+  it('accepts a real backend payload whose timestamps carry a UTC offset instead of Z', async () => {
+    const apiClient = new DesktopApiClient({
+      apiOrigin: new URL('https://api.example.test'),
+      getAccessToken: () => 'token',
+      getDeviceUuid: () => 'device-uuid',
+      fetchImplementation: (async () => ({
+        ok: true,
+        status: 200,
+        json: async () => {
+          const envelope = licenseSuccessEnvelope()
+          const data = envelope.data as Record<string, unknown>
+          data.expires_at = '2026-08-26T14:21:41+00:00'
+          data.server_time = '2026-08-23T14:21:41+00:00'
+          data.last_validated_at = '2026-08-23T14:21:41+00:00'
+          data.next_validation_due_at = '2026-08-26T14:21:41+00:00'
+          data.subscription = {
+            status: 'active',
+            expires_at: '2026-09-29T13:07:59+00:00',
+            grace_ends_at: '2026-10-07T13:07:59+00:00'
+          }
+          return envelope
+        }
+      })) as unknown as typeof fetch
+    })
+
+    const secrets = new Map<string, string>()
+    let storedStatus: unknown
+
+    const service = new LicenseService(
+      apiClient,
+      {
+        getTrustedTimeAnchor: () => null,
+        setValidatedStatus: (status) => {
+          storedStatus = status
+        }
+      },
+      { setSecret: (key, value) => secrets.set(key, value) },
+      () => new Date('2026-08-23T14:21:41Z')
+    )
+
+    const status = await service.validate()
+
+    expect(status.serverTime).toBe('2026-08-23T14:21:41+00:00')
+    expect(storedStatus).toEqual(status)
+    expect(secrets.get(DESKTOP_LICENSE_JWT_KEY)).toBe('signed.jwt.value-should-never-leak')
+  })
+
   it('does not advance cached commercial access after an invalid license response', async () => {
     const apiClient = new DesktopApiClient({
       apiOrigin: new URL('https://api.example.test'),

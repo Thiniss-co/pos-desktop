@@ -171,4 +171,58 @@ describe('DesktopApiClient diagnostics', () => {
       expect.objectContaining({ backendCode: 'SESSION_REVOKED' })
     )
   })
+
+  it('preserves a real Laravel domain error instead of collapsing it into a generic transport failure', async () => {
+    // Regression test for the exact activation bug: Laravel's ApiResponse::error() sends
+    // `errors: null` (verified against the live desktop/device/register route) for every
+    // non-validation error. Before the envelope schema normalized that null, this response
+    // failed envelope parsing, was caught as a plain (non-PublicAppError) Error, and fell
+    // through to the transport-failure default: category "transport", message "The desktop
+    // service request failed", retryable true — hiding the real INVALID_CREDENTIALS rejection.
+    const client = createClient({
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Invalid company code or activation code.',
+            code: 'INVALID_CREDENTIALS',
+            errors: null,
+            meta: { trace_id: 'trace-invalid-credentials' }
+          }),
+          { status: 401, headers: { 'content-type': 'application/json' } }
+        )
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'authentication',
+      retryable: false,
+      backendCode: 'INVALID_CREDENTIALS',
+      message: 'Invalid company code or activation code.'
+    })
+  })
+
+  it('preserves a device-limit FORBIDDEN denial instead of collapsing it into a transport failure', async () => {
+    // Same schema bug, hit via the device-registration-limit rejection path (Laravel returns
+    // 403 FORBIDDEN with errors: null when RegisterDeviceAction's device === null).
+    const client = createClient({
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            message: 'The device limit for this plan has been reached.',
+            code: 'FORBIDDEN',
+            errors: null,
+            meta: { trace_id: 'trace-forbidden', access: { can_activate_device: false } }
+          }),
+          { status: 403, headers: { 'content-type': 'application/json' } }
+        )
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'authorization',
+      retryable: false,
+      backendCode: 'FORBIDDEN',
+      message: 'The device limit for this plan has been reached.'
+    })
+  })
 })
