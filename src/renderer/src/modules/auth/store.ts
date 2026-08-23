@@ -50,10 +50,30 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function logout(service = new AuthService()): Promise<void> {
+    if (isSubmitting.value) {
+      return
+    }
+
+    isSubmitting.value = true
+    error.value = null
+    fieldErrors.value = null
+
+    try {
+      await service.logout()
+    } catch {
+      // Main clears the local session before the logout request can fail (e.g. offline), so
+      // the renderer treats logout as complete regardless of whether the API call succeeded.
+    } finally {
+      session.value = { isAuthenticated: false, userName: null, userEmail: null }
+      isSubmitting.value = false
+    }
+  }
+
   function setSessionEndedMessage(message: string): void {
     fieldErrors.value = null
     error.value = message
   }
 
-  return { session, error, fieldErrors, isSubmitting, load, login, setSessionEndedMessage }
+  return { session, error, fieldErrors, isSubmitting, load, login, logout, setSessionEndedMessage }
 })

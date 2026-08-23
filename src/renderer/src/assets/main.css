@@ -170,6 +170,36 @@ body {
   font-weight: 700;
 }
 
+.app-layout__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-layout__user {
+  color: #49616d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.app-layout__logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid #aabcc0;
+  background: #fff;
+  color: #172b38;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.app-layout__logout:disabled {
+  cursor: not-allowed;
+  color: #8ea0a6;
+}
+
 .app-layout__nav {
   display: grid;
   align-content: start;
