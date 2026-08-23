@@ -63,7 +63,7 @@ describe('useBootstrapStore', () => {
     )
 
     expect(succeeded).toBe(false)
-    expect(store.error).toBe(contractError.message)
+    expect(store.error).toBe('Something went wrong. Please try again.')
     expect(store.isRetryable).toBe(false)
   })
 
@@ -81,7 +81,7 @@ describe('useBootstrapStore', () => {
     )
 
     expect(succeeded).toBe(false)
-    expect(store.error).toBe(transportError.message)
+    expect(store.error).toBe('The POS service is temporarily unavailable.')
     expect(store.isRetryable).toBe(true)
   })
 })

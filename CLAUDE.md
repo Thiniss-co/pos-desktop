@@ -38,6 +38,10 @@ This repository is **desktop-frontend-only**.
   `X-Device-UUID: <device_uuid>`.
 - Every response follows the success/error envelope defined in
   [.ai/guidelines/backend-api-contract.md](.ai/guidelines/backend-api-contract.md).
+- Connectivity monitoring and offline localization are documented in
+  [docs/architecture/connectivity.md](docs/architecture/connectivity.md) and
+  [docs/architecture/localization.md](docs/architecture/localization.md). The /up readiness
+  probe is intentionally separate from the desktop API client and remains unauthenticated.
 
 ## 4. Technology Stack (fixed — do not change)
 

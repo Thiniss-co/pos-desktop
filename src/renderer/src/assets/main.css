@@ -22,9 +22,16 @@ body {
 .public-layout__card {
   width: min(100%, 640px);
   padding: 44px;
-  border-left: 10px solid #248480;
+  border-inline-start: 10px solid #248480;
   background: #fbfcfa;
   box-shadow: 18px 18px 0 #c6d5d8;
+}
+
+.public-layout__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .public-layout__eyebrow,
@@ -92,7 +99,7 @@ body {
   color: #172b38;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 0.82rem;
-  text-align: right;
+  text-align: end;
   word-break: break-word;
 }
 
@@ -205,7 +212,7 @@ body {
   align-content: start;
   gap: 4px;
   padding: 22px 14px;
-  border-right: 1px solid #c8d6d9;
+  border-inline-end: 1px solid #c8d6d9;
 }
 
 .app-layout__nav a {
@@ -292,7 +299,7 @@ a:focus-visible {
 .company-users-page__table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
+  text-align: start;
 }
 
 .company-users-page__table th,
@@ -363,6 +370,73 @@ a:focus-visible {
   align-items: center;
 }
 
+.locale-switcher {
+  display: inline-flex;
+  border: 1px solid #aabcc0;
+}
+
+.locale-switcher button {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-inline-end: 1px solid #aabcc0;
+  background: #fff;
+  color: #172b38;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.locale-switcher button:last-child {
+  border-inline-end: 0;
+}
+
+.locale-switcher button[aria-pressed='true'] {
+  background: #dcebe5;
+  color: #17635f;
+}
+
+.locale-switcher button:disabled {
+  cursor: wait;
+}
+
+.connectivity-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.connectivity-banner p {
+  margin: 0;
+}
+
+.connectivity-banner--warning {
+  background: #fff0d8;
+  border-block: 1px solid #bb7d1c;
+  color: #673d00;
+}
+
+.connectivity-banner--warning button {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid currentcolor;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.connectivity-banner--hint,
+.connectivity-banner--restored {
+  margin: 0;
+  background: #dcebe5;
+  color: #17635f;
+}
+
 @media (max-width: 640px) {
   .public-layout {
     padding: 16px;
@@ -384,7 +458,7 @@ a:focus-visible {
   .app-layout__nav {
     grid-row: 2;
     grid-template-columns: repeat(4, 1fr);
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid #c8d6d9;
     padding: 8px;
   }

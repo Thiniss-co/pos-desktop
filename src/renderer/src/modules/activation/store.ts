@@ -2,6 +2,8 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { ActivationInput } from '@shared/contracts/activation.contract'
 import type { PublicAppError } from '@shared/contracts/api.contract'
+import { i18n } from '@renderer/i18n'
+import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 import type { DeviceDisplayState } from './types'
 import { DeviceService } from './service'
 
@@ -20,7 +22,7 @@ export const useDeviceStore = defineStore('device', () => {
       summary.value = await service.getIdentitySummary()
       error.value = null
     } catch {
-      error.value = 'Device information is unavailable'
+      error.value = String(i18n.global.t('activation.deviceInfoUnavailable'))
     }
   }
 
@@ -39,10 +41,10 @@ export const useDeviceStore = defineStore('device', () => {
     } catch (cause) {
       console.error('Device activation failed', cause)
       if (isPublicAppError(cause)) {
-        error.value = cause.message
+        error.value = localizeAppError(cause, i18n.global.t, i18n.global.te)
         fieldErrors.value = cause.fieldErrors ?? null
       } else {
-        error.value = 'Device activation failed'
+        error.value = String(i18n.global.t('activation.activationFailed'))
       }
       return false
     } finally {

@@ -16,6 +16,8 @@ Before changing anything, always look first:
    exist or behave a certain way — read them.
 5. Check whether the change touches Electron security surfaces (`webPreferences`, preload,
    IPC channel list) — those require extra care (see Security Boundaries below).
+6. For connectivity or locale work, read docs/architecture/connectivity.md and
+   docs/architecture/localization.md before changing monitoring, IPC, or renderer behavior.
 
 ## How to Make Changes Safely
 

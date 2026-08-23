@@ -1,7 +1,13 @@
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+</script>
+
 <template>
   <section class="shell-page">
-    <p class="shell-page__label">POS workspace</p>
-    <h2>The counter shell is ready for the next phase.</h2>
-    <p>Catalog, cart, barcode, payment, and receipt workflows remain intentionally unavailable.</p>
+    <p class="shell-page__label">{{ t('pos.label') }}</p>
+    <h2>{{ t('pos.title') }}</h2>
+    <p>{{ t('pos.description') }}</p>
   </section>
 </template>

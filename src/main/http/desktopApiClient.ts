@@ -1,5 +1,6 @@
 import type { DesktopApiRoute } from '@shared/constants/apiRoutes'
 import type { ApiErrorEnvelope, PublicAppError } from '@shared/contracts/api.contract'
+import type { ConnectivityRequestOutcome } from '@shared/contracts/connectivity.contract'
 import {
   backendNotConfiguredError,
   classifyTransportError,
@@ -20,6 +21,7 @@ export interface DesktopApiClientDependencies {
   readonly timeoutMs?: number
   readonly tracer?: ApiTracer
   readonly onAuthenticatedFailure?: (error: PublicAppError) => void
+  readonly onRequestOutcome?: (outcome: ConnectivityRequestOutcome) => void
 }
 
 export interface DesktopApiResponse<T> {
@@ -95,6 +97,7 @@ export class DesktopApiClient {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
     this.abortControllers.add(controller)
     let responseTraced = false
+    let receivedHttpResponse = false
 
     try {
       const response = await this.fetchImplementation(url, {
@@ -103,6 +106,8 @@ export class DesktopApiClient {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal
       })
+      receivedHttpResponse = true
+      this.reportRequestOutcome({ kind: 'http_response', status: response.status })
       const payload: unknown = await response.json()
       const envelope = parseApiEnvelope(payload)
       const errorEnvelope = envelope.success ? undefined : (envelope as ApiErrorEnvelope)
@@ -128,6 +133,10 @@ export class DesktopApiClient {
         meta: envelope.meta
       }
     } catch (error) {
+      if (!receivedHttpResponse) {
+        this.reportRequestOutcome({ kind: 'transport_failure' })
+      }
+
       const publicError = isPublicAppError(error) ? error : normalizeTransportError(error)
 
       if (route.requiresAuth) {
@@ -161,5 +170,13 @@ export class DesktopApiClient {
     }
 
     this.abortControllers.clear()
+  }
+
+  private reportRequestOutcome(outcome: ConnectivityRequestOutcome): void {
+    try {
+      this.dependencies.onRequestOutcome?.(outcome)
+    } catch {
+      // Connectivity feedback must never affect the business request.
+    }
   }
 }

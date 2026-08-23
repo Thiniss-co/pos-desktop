@@ -21,6 +21,16 @@ describe('posApi surface', () => {
     expect(source).toContain('refresh')
   })
 
+  it('contains only the named connectivity and preference methods', () => {
+    expect(source).toContain('connectivity')
+    expect(source).toContain('getState')
+    expect(source).toContain('checkNow')
+    expect(source).toContain('onChanged')
+    expect(source).toContain('preferences')
+    expect(source).toContain('getLocale')
+    expect(source).toContain('setLocale')
+  })
+
   it('contains only named company-user management methods', () => {
     expect(source).toContain('companyUsers')
     expect(source).toContain('listAssignableRoles')
@@ -31,5 +41,9 @@ describe('posApi surface', () => {
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)
+  })
+
+  it('keeps runtime validation out of the sandboxed preload bundle', () => {
+    expect(source).not.toContain('connectivitySnapshotSchema')
   })
 })

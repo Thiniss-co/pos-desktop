@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import type { CompanyUser } from '@shared/contracts/company-users.contract'
 import { useCompanyUsersStore } from '../store'
 
@@ -8,6 +9,7 @@ const companyUsers = useCompanyUsersStore()
 const { access, error, isLoading, isMutating, list, query, remainingUsers } =
   storeToRefs(companyUsers)
 const search = ref(query.value.search ?? '')
+const { t } = useI18n()
 
 onMounted(() => {
   void companyUsers.initialize()
@@ -31,8 +33,8 @@ function changePage(page: number): void {
 
 function confirmEnabledChange(user: CompanyUser): void {
   const description = user.isActive
-    ? `Disable ${user.name}? This prevents sign-in but does not delete the account, device, or business data.`
-    : `Enable ${user.name}? This restores sign-in only if the subscription still has capacity.`
+    ? t('companyUsers.confirmDisable', { name: user.name })
+    : t('companyUsers.confirmEnable', { name: user.name })
 
   if (window.confirm(description)) {
     void companyUsers.setEnabled({ uuid: user.uuid, enabled: !user.isActive })
@@ -44,56 +46,55 @@ function confirmEnabledChange(user: CompanyUser): void {
   <section class="shell-page company-users-page">
     <div class="company-users-page__heading">
       <div>
-        <p class="shell-page__label">Company users</p>
-        <h2>Access is managed online.</h2>
-        <p>Disable prevents sign-in. It does not delete a user, their device, or business data.</p>
+        <p class="shell-page__label">{{ t('companyUsers.label') }}</p>
+        <h2>{{ t('companyUsers.listTitle') }}</h2>
+        <p>{{ t('companyUsers.listDescription') }}</p>
       </div>
       <RouterLink v-if="access?.canManage" class="button-link" to="/company-users/create">
-        Add user
+        {{ t('companyUsers.addUser') }}
       </RouterLink>
     </div>
 
     <p v-if="remainingUsers !== null" class="company-users-page__capacity">
-      Users remaining on this plan: {{ remainingUsers }}. Disabled users still consume the users
-      limit.
+      {{ t('companyUsers.usersRemaining', { count: remainingUsers }) }}
     </p>
 
     <form v-if="access?.canView" class="company-users-page__filters" @submit.prevent="applySearch">
       <label>
-        Search
-        <input v-model="search" type="search" placeholder="Name or email" />
+        {{ t('companyUsers.searchLabel') }}
+        <input v-model="search" type="search" :placeholder="t('companyUsers.searchPlaceholder')" />
       </label>
       <label>
-        Status
+        {{ t('companyUsers.status') }}
         <select
           :value="query.isActive === undefined ? '' : query.isActive ? 'active' : 'disabled'"
           @change="applyStatus"
         >
-          <option value="">All users</option>
-          <option value="active">Enabled</option>
-          <option value="disabled">Disabled</option>
+          <option value="">{{ t('companyUsers.allUsers') }}</option>
+          <option value="active">{{ t('common.enabled') }}</option>
+          <option value="disabled">{{ t('common.disabled') }}</option>
         </select>
       </label>
-      <button type="submit">Search</button>
+      <button type="submit">{{ t('common.search') }}</button>
     </form>
 
-    <p v-if="isLoading" class="company-users-page__state">Loading company users…</p>
+    <p v-if="isLoading" class="company-users-page__state">{{ t('companyUsers.loading') }}</p>
     <p v-else-if="error" class="inline-error" role="alert">{{ error }}</p>
     <p v-else-if="!access?.canView" class="company-users-page__state">
-      You do not currently have permission to view company users.
+      {{ t('companyUsers.noPermissionView') }}
     </p>
     <p v-else-if="list?.users.length === 0" class="company-users-page__state">
-      No company users match this search.
+      {{ t('companyUsers.noResults') }}
     </p>
 
     <div v-else-if="list" class="company-users-page__table-wrap">
       <table class="company-users-page__table">
         <thead>
           <tr>
-            <th>User</th>
-            <th>Roles</th>
-            <th>Status</th>
-            <th v-if="access?.canManage">Actions</th>
+            <th>{{ t('companyUsers.user') }}</th>
+            <th>{{ t('companyUsers.roles') }}</th>
+            <th>{{ t('companyUsers.status') }}</th>
+            <th v-if="access?.canManage">{{ t('companyUsers.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -103,13 +104,13 @@ function confirmEnabledChange(user: CompanyUser): void {
               <span>{{ user.email }}</span>
             </td>
             <td>{{ user.roles.join(', ') }}</td>
-            <td>{{ user.isActive ? 'Enabled' : 'Disabled' }}</td>
+            <td>{{ user.isActive ? t('common.enabled') : t('common.disabled') }}</td>
             <td v-if="access?.canManage" class="company-users-page__actions">
-              <RouterLink :to="{ name: 'company-user-edit', params: { uuid: user.uuid } }"
-                >Edit</RouterLink
-              >
+              <RouterLink :to="{ name: 'company-user-edit', params: { uuid: user.uuid } }">{{
+                t('common.edit')
+              }}</RouterLink>
               <button type="button" :disabled="isMutating" @click="confirmEnabledChange(user)">
-                {{ user.isActive ? 'Disable' : 'Enable' }}
+                {{ user.isActive ? t('common.disable') : t('common.enable') }}
               </button>
             </td>
           </tr>
@@ -122,15 +123,17 @@ function confirmEnabledChange(user: CompanyUser): void {
           :disabled="isLoading || list.page.page <= 1"
           @click="changePage(list.page.page - 1)"
         >
-          Previous
+          {{ t('common.previous') }}
         </button>
-        <span>Page {{ list.page.page }} of {{ list.page.lastPage }}</span>
+        <span>{{
+          t('companyUsers.pageOf', { page: list.page.page, total: list.page.lastPage })
+        }}</span>
         <button
           type="button"
           :disabled="isLoading || list.page.page >= list.page.lastPage"
           @click="changePage(list.page.page + 1)"
         >
-          Next
+          {{ t('common.next') }}
         </button>
       </div>
     </div>

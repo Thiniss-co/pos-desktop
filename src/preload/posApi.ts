@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract'
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
+import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contract'
 import type {
   AssignableRoles,
   CompanyUser,
@@ -17,6 +18,7 @@ import type {
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import type { IpcResult } from '@shared/contracts/ipc.contract'
 import type { CommercialAccessSnapshot, LicenseStatus } from '@shared/contracts/license.contract'
+import type { LocaleCode } from '@shared/contracts/preferences.contract'
 import type { SyncStatus } from '@shared/contracts/sync.contract'
 import type { RuntimeInfo } from '@shared/contracts/system.contract'
 
@@ -44,6 +46,15 @@ export interface PosApi {
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
+  }
+  readonly connectivity: {
+    getState(): Promise<IpcResult<ConnectivitySnapshot>>
+    checkNow(): Promise<IpcResult<ConnectivitySnapshot>>
+    onChanged(listener: (snapshot: ConnectivitySnapshot) => void): () => void
+  }
+  readonly preferences: {
+    getLocale(): Promise<IpcResult<LocaleCode | null>>
+    setLocale(locale: LocaleCode): Promise<IpcResult<LocaleCode>>
   }
   readonly companyUsers: {
     getAccess(): Promise<IpcResult<CompanyUserAccess>>
@@ -81,6 +92,24 @@ export const posApi: PosApi = Object.freeze({
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus)
+  }),
+  connectivity: Object.freeze({
+    getState: () => ipcRenderer.invoke(IPC_CHANNELS.connectivityGetState),
+    checkNow: () => ipcRenderer.invoke(IPC_CHANNELS.connectivityCheckNow),
+    onChanged: (listener: (snapshot: ConnectivitySnapshot) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        // The fixed main-process event validates snapshots before broadcast. Keep this preload
+        // module dependency-free so it remains compatible with Electron's sandboxed preload.
+        listener(payload as ConnectivitySnapshot)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.connectivityChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.connectivityChanged, subscription)
+    }
+  }),
+  preferences: Object.freeze({
+    getLocale: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetLocale),
+    setLocale: (locale: LocaleCode) => ipcRenderer.invoke(IPC_CHANNELS.preferencesSetLocale, locale)
   }),
   companyUsers: Object.freeze({
     getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGetAccess),

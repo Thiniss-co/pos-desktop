@@ -19,36 +19,10 @@ import type {
 } from './types'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
+import { i18n } from '@renderer/i18n'
+import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 
 const deniedCodes = new Set(['PERMISSION_DENIED', 'FEATURE_NOT_ENABLED'])
-
-function messageForError(error: PublicAppError): string {
-  if (error.backendCode === 'COMPANY_LIMIT_REACHED') {
-    return 'This company has reached its plan limit. No changes were saved.'
-  }
-
-  if (error.backendCode === 'COMPANY_LAST_ADMIN') {
-    return 'The last active Company Admin cannot be disabled or demoted. Recovery is available to a web Super Admin.'
-  }
-
-  if (error.backendCode === 'PERMISSION_DENIED') {
-    return 'Your permission to manage company users was removed. Controls are no longer available.'
-  }
-
-  if (error.backendCode === 'FEATURE_NOT_ENABLED') {
-    return 'Company user management is not enabled for this subscription.'
-  }
-
-  if (error.backendCode === 'ROLE_ASSIGNMENT_FORBIDDEN') {
-    return 'You are not allowed to assign that role.'
-  }
-
-  if (error.category === 'transport') {
-    return 'You appear to be offline. No changes were saved.'
-  }
-
-  return error.message
-}
 
 export const useCompanyUsersStore = defineStore('companyUsers', () => {
   const access = ref<CompanyUsersAccessState>(null)
@@ -92,12 +66,12 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
     if (publicError) {
       void handleSessionTransition(publicError)
       clearRemoteAccessWhenDenied(publicError)
-      error.value = messageForError(publicError)
+      error.value = localizeAppError(publicError, i18n.global.t, i18n.global.te)
       fieldErrors.value = publicError.fieldErrors ?? null
       return
     }
 
-    error.value = 'Company user management is unavailable.'
+    error.value = String(i18n.global.t('companyUsers.unavailable'))
   }
 
   async function loadAccess(service = new CompanyUsersService()): Promise<void> {

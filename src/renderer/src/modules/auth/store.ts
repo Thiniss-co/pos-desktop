@@ -3,6 +3,8 @@ import { defineStore } from 'pinia'
 import type { LoginInput } from '@shared/contracts/auth.contract'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
+import { i18n } from '@renderer/i18n'
+import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 import type { AuthDisplayState } from './types'
 import { AuthService } from './service'
 
@@ -18,7 +20,10 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
     } catch (cause) {
       void handleSessionTransition(cause)
-      error.value = parsePublicAppError(cause)?.message ?? 'Session information is unavailable'
+      const publicError = parsePublicAppError(cause)
+      error.value = publicError
+        ? localizeAppError(publicError, i18n.global.t, i18n.global.te)
+        : String(i18n.global.t('auth.sessionUnavailable'))
     }
   }
 
@@ -39,10 +44,10 @@ export const useAuthStore = defineStore('auth', () => {
       const publicError = parsePublicAppError(cause)
 
       if (publicError) {
-        error.value = publicError.message
+        error.value = localizeAppError(publicError, i18n.global.t, i18n.global.te)
         fieldErrors.value = publicError.fieldErrors ?? null
       } else {
-        error.value = 'Sign in failed'
+        error.value = String(i18n.global.t('auth.signInFailed'))
       }
       return false
     } finally {

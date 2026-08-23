@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
 import { useAuthStore } from '../store'
@@ -11,6 +12,7 @@ const startup = useStartupStore()
 const router = useRouter()
 const email = ref('')
 const password = ref('')
+const { t } = useI18n()
 
 onMounted(() => void auth.load())
 
@@ -34,22 +36,22 @@ async function submit(): Promise<void> {
 
 <template>
   <div class="startup-panel">
-    <p class="startup-panel__label">02 / desktop login</p>
-    <h2>Sign in to this workstation.</h2>
-    <p v-if="session?.isAuthenticated">A local session summary is already available.</p>
+    <p class="startup-panel__label">{{ t('auth.label') }}</p>
+    <h2>{{ t('auth.title') }}</h2>
+    <p v-if="session?.isAuthenticated">{{ t('auth.sessionAvailable') }}</p>
     <form class="foundation-form" @submit.prevent="submit">
       <label>
-        Email
+        {{ t('auth.email') }}
         <input
           v-model="email"
           type="email"
           autocomplete="username"
-          placeholder="cashier@example.com"
+          :placeholder="t('auth.emailPlaceholder')"
           required
         />
       </label>
       <label>
-        Password
+        {{ t('auth.password') }}
         <input
           v-model="password"
           type="password"
@@ -64,7 +66,7 @@ async function submit(): Promise<void> {
         >
       </p>
       <button type="submit" :disabled="isSubmitting">
-        {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
+        {{ isSubmitting ? t('auth.signingIn') : t('auth.signIn') }}
       </button>
     </form>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>

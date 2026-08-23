@@ -1,4 +1,4 @@
-import { app, safeStorage } from 'electron'
+import { app, net, powerMonitor, safeStorage } from 'electron'
 import { hostname, platform, release } from 'os'
 import { runtimeInfoSchema, type RuntimeInfo } from '@shared/contracts/system.contract'
 import { loadRuntimeConfig, type RuntimeConfig } from '../config/runtimeConfig'
@@ -25,6 +25,8 @@ import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
+import { ConnectivityService } from '../services/connectivity.service'
+import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
 
 export interface ApplicationServices {
   readonly runtimeConfig: RuntimeConfig
@@ -44,6 +46,7 @@ export interface ApplicationServices {
   readonly commercialAccess: CommercialAccessService
   readonly bootstrap: BootstrapService
   readonly companyUsers: CompanyUsersService
+  readonly connectivity: ConnectivityService
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -77,6 +80,16 @@ export function createApplicationServices(): ApplicationServices {
   })
   const secureStorage = new SecureStorageService(secureSecrets, safeStorage)
   const session = new SessionService(sessionMetadata, secureStorage)
+  const connectivity = new ConnectivityService({
+    apiOrigin: runtimeConfig.apiOrigin,
+    isOnline: () => net.isOnline(),
+    fetchImplementation: (input, init) => net.fetch(input, init),
+    onResume: (listener) => {
+      powerMonitor.on('resume', listener)
+      return () => powerMonitor.off('resume', listener)
+    },
+    onChange: broadcastConnectivityChanged
+  })
 
   deviceIdentity.getOrCreate()
 
@@ -84,7 +97,8 @@ export function createApplicationServices(): ApplicationServices {
     apiOrigin: runtimeConfig.apiOrigin,
     getAccessToken: () => secureStorage.getSecret(DESKTOP_ACCESS_TOKEN_KEY),
     getDeviceUuid: () => deviceIdentity.getOrCreate().deviceUuid,
-    onAuthenticatedFailure: (error) => session.applyApiFailure(error)
+    onAuthenticatedFailure: (error) => session.applyApiFailure(error),
+    onRequestOutcome: (outcome) => connectivity.reportRequestOutcome(outcome)
   })
 
   const activation = new ActivationService(
@@ -134,6 +148,7 @@ export function createApplicationServices(): ApplicationServices {
     commercialAccess,
     bootstrap,
     companyUsers,
+    connectivity,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),
@@ -144,6 +159,7 @@ export function createApplicationServices(): ApplicationServices {
         apiConfiguration: runtimeConfig.apiConfiguration
       }),
     shutdown: () => {
+      connectivity.shutdown()
       apiClient.shutdown()
       closeDatabase(database)
     }

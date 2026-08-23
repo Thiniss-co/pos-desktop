@@ -3,6 +3,8 @@ import { defineStore } from 'pinia'
 import { LicenseService } from '@renderer/modules/license/service'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
+import { i18n } from '@renderer/i18n'
+import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 import type { BootstrapDisplayState, BootstrapStage } from './types'
 import { BootstrapService } from './service'
 
@@ -18,7 +20,7 @@ export const useBootstrapStore = defineStore('bootstrap', () => {
       status.value = await service.getStatus()
       error.value = null
     } catch {
-      error.value = 'Bootstrap status is unavailable'
+      error.value = String(i18n.global.t('bootstrap.statusUnavailable'))
     }
   }
 
@@ -49,10 +51,10 @@ export const useBootstrapStore = defineStore('bootstrap', () => {
       const publicError = parsePublicAppError(cause)
 
       if (publicError) {
-        error.value = publicError.message
+        error.value = localizeAppError(publicError, i18n.global.t, i18n.global.te)
         isRetryable.value = publicError.retryable
       } else {
-        error.value = 'Bootstrap could not be completed'
+        error.value = String(i18n.global.t('bootstrap.failed'))
       }
       stage.value = 'idle'
       return false

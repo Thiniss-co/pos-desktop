@@ -4,6 +4,8 @@ import { registerBootstrapIpcHandlers } from './bootstrap.ipc'
 import { registerCompanyUsersIpcHandlers } from './company-users.ipc'
 import { registerDeviceIpcHandlers } from './device.ipc'
 import { registerLicenseIpcHandlers } from './license.ipc'
+import { registerConnectivityIpcHandlers } from './connectivity.ipc'
+import { registerPreferencesIpcHandlers } from './preferences.ipc'
 import { registerSyncIpcHandlers } from './sync.ipc'
 import { registerSystemIpcHandlers } from './system.ipc'
 
@@ -21,6 +23,8 @@ export function registerIpcHandlers(services: ApplicationServices): void {
   registerBootstrapIpcHandlers(services)
   registerCompanyUsersIpcHandlers(services)
   registerSyncIpcHandlers(services)
+  registerConnectivityIpcHandlers(services)
+  registerPreferencesIpcHandlers(services)
 
   hasRegisteredIpcHandlers = true
 }

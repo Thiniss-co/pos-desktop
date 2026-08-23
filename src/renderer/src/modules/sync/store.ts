@@ -2,6 +2,8 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
+import { i18n } from '@renderer/i18n'
+import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 import type { SyncDisplayState } from './types'
 import { SyncService } from './service'
 
@@ -16,7 +18,9 @@ export const useSyncStore = defineStore('sync', () => {
     } catch (cause) {
       void handleSessionTransition(cause)
       const parsed = publicAppErrorSchema.safeParse(cause)
-      error.value = parsed.success ? parsed.data.message : 'Sync status is unavailable'
+      error.value = parsed.success
+        ? localizeAppError(parsed.data, i18n.global.t, i18n.global.te)
+        : String(i18n.global.t('sync.statusUnavailable'))
     }
   }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { UpdateCompanyUserInput } from '@shared/contracts/company-users.contract'
 import { useCompanyUsersStore } from '../store'
@@ -17,6 +18,7 @@ const form = reactive({
   roles: [] as string[],
   companyRoleIds: [] as string[]
 })
+const { t } = useI18n()
 
 onMounted(async () => {
   const uuid = typeof route.params.uuid === 'string' ? route.params.uuid : ''
@@ -70,20 +72,20 @@ async function submit(): Promise<void> {
 
 <template>
   <section class="shell-page company-user-form-page">
-    <p class="shell-page__label">Company users</p>
-    <h2>Edit company user</h2>
-    <p v-if="isLoading">Loading user…</p>
+    <p class="shell-page__label">{{ t('companyUsers.label') }}</p>
+    <h2>{{ t('companyUsers.editTitle') }}</h2>
+    <p v-if="isLoading">{{ t('companyUsers.loadingUser') }}</p>
     <p v-else-if="!access?.canManage" class="inline-error" role="alert">
-      You do not have permission to edit company users.
+      {{ t('companyUsers.noPermissionEdit') }}
     </p>
 
     <form v-else-if="selectedUser" class="foundation-form" @submit.prevent="submit">
       <label>
-        Name
+        {{ t('companyUsers.name') }}
         <input v-model.trim="form.name" required maxlength="255" autocomplete="name" />
       </label>
       <label>
-        Email
+        {{ t('auth.email') }}
         <input
           v-model.trim="form.email"
           required
@@ -93,7 +95,7 @@ async function submit(): Promise<void> {
         />
       </label>
       <label>
-        New password (optional)
+        {{ t('companyUsers.newPassword') }}
         <input
           v-model="form.password"
           type="password"
@@ -104,7 +106,7 @@ async function submit(): Promise<void> {
       </label>
 
       <fieldset class="company-user-form-page__roles">
-        <legend>System roles</legend>
+        <legend>{{ t('companyUsers.systemRoles') }}</legend>
         <label v-for="role in assignableRoles?.systemRoles" :key="role.key">
           <input
             v-model="form.roles"
@@ -117,7 +119,7 @@ async function submit(): Promise<void> {
       </fieldset>
 
       <fieldset class="company-user-form-page__roles">
-        <legend>Custom company roles</legend>
+        <legend>{{ t('companyUsers.customRoles') }}</legend>
         <label v-for="role in assignableRoles?.companyRoles" :key="role.uuid">
           <input
             v-model="form.companyRoleIds"
@@ -135,7 +137,7 @@ async function submit(): Promise<void> {
         </span>
       </p>
       <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
-      <button type="submit" :disabled="isMutating">Save changes</button>
+      <button type="submit" :disabled="isMutating">{{ t('common.saveChanges') }}</button>
     </form>
   </section>
 </template>

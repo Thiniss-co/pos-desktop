@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
 import { useDeviceStore } from '../store'
@@ -9,6 +10,7 @@ const device = useDeviceStore()
 const { error, fieldErrors, isSubmitting, summary } = storeToRefs(device)
 const startup = useStartupStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const form = reactive({
   companyCode: '',
@@ -42,34 +44,34 @@ async function submit(): Promise<void> {
 
 <template>
   <div class="startup-panel">
-    <p class="startup-panel__label">01 / device activation</p>
-    <h2>Activate this workstation.</h2>
-    <p>Enter your company code and activation code to connect this device to your company.</p>
+    <p class="startup-panel__label">{{ t('activation.label') }}</p>
+    <h2>{{ t('activation.title') }}</h2>
+    <p>{{ t('activation.description') }}</p>
     <dl v-if="summary" class="readiness-list">
       <div>
-        <dt>Workstation</dt>
+        <dt>{{ t('activation.workstation') }}</dt>
         <dd>{{ summary.deviceName }}</dd>
       </div>
       <div>
-        <dt>Local identity</dt>
+        <dt>{{ t('activation.localIdentity') }}</dt>
         <dd>{{ summary.deviceUuid }}</dd>
       </div>
       <div>
-        <dt>Platform</dt>
+        <dt>{{ t('activation.platform') }}</dt>
         <dd>{{ summary.platform }} · {{ summary.osVersion }}</dd>
       </div>
     </dl>
     <form class="foundation-form" @submit.prevent="submit">
       <label>
-        Company code
+        {{ t('activation.companyCode') }}
         <input v-model="form.companyCode" type="text" autocomplete="off" required />
       </label>
       <label>
-        Activation code
+        {{ t('activation.activationCode') }}
         <input v-model="form.activationCode" type="password" autocomplete="off" required />
       </label>
       <label>
-        Device name (optional)
+        {{ t('activation.deviceName') }}
         <input v-model="form.deviceName" type="text" autocomplete="off" />
       </label>
       <p v-if="fieldErrors" class="inline-error">
@@ -78,7 +80,7 @@ async function submit(): Promise<void> {
         >
       </p>
       <button type="submit" :disabled="isSubmitting">
-        {{ isSubmitting ? 'Activating…' : 'Activate device' }}
+        {{ isSubmitting ? t('activation.activating') : t('activation.activate') }}
       </button>
     </form>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>

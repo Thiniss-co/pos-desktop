@@ -30,9 +30,8 @@ npm run build:linux
 npm run build:unpack
 ```
 
-`npm run test` does **not** exist yet in `package.json` as of this writing. Do not invoke it or
-claim it ran. Adding a real test runner/script is tracked as a Phase 1 gap in
-`docs/phases/01-foundation-structure.md`.
+npm run test runs the Vitest unit suite. Run it alongside type checking and linting for changes to
+contracts, IPC, services, stores, or localized UI.
 
 ## Repository Structure
 
@@ -75,6 +74,9 @@ This is currently the stock `electron-vite` Vue+TS template — no POS domain co
   (e.g. a second API client, a second IPC pattern).
 - Every new IPC channel: named, typed request/response, validated on the main side, documented in
   `.ai/guidelines/ipc-contracts.md`-style shape.
+- Connectivity and localization behavior are defined in docs/architecture/connectivity.md and
+  docs/architecture/localization.md; preserve their main-process ownership, offline behavior, and
+  restricted bridge surface.
 
 ## TypeScript Standards
 
@@ -105,8 +107,8 @@ This is currently the stock `electron-vite` Vue+TS template — no POS domain co
 ## Testing Standards
 
 - Run `npm run typecheck` and `npm run lint` before considering any code task done.
-- When a test runner is added (Phase 1), unit-test: API envelope parsing, IPC contract
-  validation, sync-queue state transitions, and route guards, per
+- Unit-test API envelope parsing, IPC contract validation, connectivity transitions, locale
+  resolution, sync-queue state transitions, and route guards, per
   `.ai/guidelines/testing-and-verification.md`.
 - Manual smoke test checklist lives in `.ai/guidelines/testing-and-verification.md` — use it for
   anything a unit test can't cover (barcode input, print bridge, offline banner).

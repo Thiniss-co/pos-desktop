@@ -104,9 +104,7 @@ describe('useCompanyUsersStore', () => {
     expect(store.access).toEqual({ canView: false, canManage: false, userLimit: 5 })
     expect(store.list).toBeNull()
     expect(store.assignableRoles).toBeNull()
-    expect(store.error).toBe(
-      'Your permission to manage company users was removed. Controls are no longer available.'
-    )
+    expect(store.error).toBe('You do not have permission to perform this action.')
   })
 
   it('keeps the displayed user unchanged when the server denies a role assignment', async () => {

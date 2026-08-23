@@ -26,6 +26,7 @@ export function bootstrapApp(): void {
       services = createApplicationServices()
 
       registerIpcHandlers(services)
+      services.connectivity.start()
 
       createMainWindow()
 

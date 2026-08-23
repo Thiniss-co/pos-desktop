@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { activationInputSchema } from '@shared/contracts/activation.contract'
 import { loginInputSchema } from '@shared/contracts/auth.contract'
+import { localeCodeSchema } from '@shared/contracts/preferences.contract'
 import {
   companyUserIdInputSchema,
   createCompanyUserInputSchema,
@@ -22,6 +23,10 @@ export const licenseGetAccessInputSchema = z.undefined()
 export const bootstrapGetStatusInputSchema = z.undefined()
 export const bootstrapRefreshInputSchema = z.undefined()
 export const syncGetStatusInputSchema = z.undefined()
+export const connectivityGetStateInputSchema = z.undefined()
+export const connectivityCheckNowInputSchema = z.undefined()
+export const preferencesGetLocaleInputSchema = z.undefined()
+export const preferencesSetLocaleInputSchema = localeCodeSchema
 export const companyUsersGetAccessInputSchema = z.undefined()
 export const companyUsersListInputSchema = listUsersInputSchema
 export const companyUsersGetInputSchema = companyUserIdInputSchema
