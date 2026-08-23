@@ -95,6 +95,11 @@ export function createApplicationServices(): ApplicationServices {
 
   const apiClient = new DesktopApiClient({
     apiOrigin: runtimeConfig.apiOrigin,
+    // Shares the Chromium net stack with the connectivity probe (see below). Node's global fetch
+    // does not consult the system proxy or OS certificate store, so leaving this on the default
+    // would let the health probe and real API traffic disagree about reachability in exactly the
+    // network environments (corporate proxy, custom root CA) where that distinction matters most.
+    fetchImplementation: (input, init) => net.fetch(input, init),
     getAccessToken: () => secureStorage.getSecret(DESKTOP_ACCESS_TOKEN_KEY),
     getDeviceUuid: () => deviceIdentity.getOrCreate().deviceUuid,
     onAuthenticatedFailure: (error) => session.applyApiFailure(error),

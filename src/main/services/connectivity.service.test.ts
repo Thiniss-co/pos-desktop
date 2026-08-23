@@ -155,4 +155,133 @@ describe('ConnectivityService', () => {
     )
     expect(tracer.finish).toHaveBeenCalledTimes(1)
   })
+
+  it('never probes, schedules, or emits when no API origin is configured', async () => {
+    const fetchImplementation = vi.fn(async () => healthyResponse())
+    const onChange = vi.fn()
+    const service = new ConnectivityService({
+      apiOrigin: null,
+      isOnline: () => true,
+      fetchImplementation: fetchImplementation as typeof fetch,
+      onChange
+    })
+
+    expect(service.getSnapshot()).toMatchObject({ status: 'checking', reason: 'unknown' })
+
+    service.start()
+    await service.checkNow()
+
+    expect(fetchImplementation).not.toHaveBeenCalled()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(service.getSnapshot()).toMatchObject({ status: 'checking', reason: 'unknown' })
+  })
+
+  it('never follows a redirect into looking healthy', async () => {
+    const fetchImplementation = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async () => healthyResponse())
+    const service = createService({ fetchImplementation: fetchImplementation as typeof fetch })
+
+    await service.checkNow()
+
+    const [, init] = fetchImplementation.mock.calls[0] ?? []
+    expect(init?.redirect).toBe('manual')
+  })
+
+  it('treats a 200 response with a malformed body as unhealthy rather than crashing', async () => {
+    const service = createService({
+      fetchImplementation: vi.fn(
+        async () =>
+          new Response('not json', { status: 200, headers: { 'content-type': 'application/json' } })
+      ) as typeof fetch
+    })
+
+    await expect(service.checkNow()).resolves.toMatchObject({
+      status: 'backend_unreachable',
+      reason: 'probe_unhealthy'
+    })
+  })
+
+  it('removes the resume listener it registered, by the same identity, on shutdown', () => {
+    let registered: (() => void) | null = null
+    const removed: Array<() => void> = []
+    const service = createService({
+      onResume: (listener) => {
+        registered = listener
+        return () => {
+          removed.push(listener)
+        }
+      }
+    })
+
+    service.start()
+    expect(registered).not.toBeNull()
+
+    service.shutdown()
+
+    expect(removed).toEqual([registered])
+  })
+
+  it('reports lastBackendReachableAt from a business-request outcome without touching checkedAt', async () => {
+    const service = createService({ isOnline: () => false })
+
+    await service.checkNow()
+    const before = service.getSnapshot()
+    expect(before.status).toBe('offline')
+    expect(before.checkedAt).not.toBeNull()
+    expect(before.lastBackendReachableAt).toBeNull()
+
+    service.reportRequestOutcome({ kind: 'http_response', status: 200 })
+    const after = service.getSnapshot()
+
+    // checkedAt is reserved for the /up probe's own timestamp; a business-request outcome must
+    // not blur that meaning by refreshing it too.
+    expect(after.checkedAt).toBe(before.checkedAt)
+    expect(after.lastBackendReachableAt).not.toBeNull()
+  })
+
+  it('throttles request-driven rechecks the same as a manual retry, instead of bypassing the minimum gap', async () => {
+    const fetchImplementation = vi.fn(
+      async () => new Response('down', { status: 503 })
+    ) as typeof fetch
+    const service = createService({ fetchImplementation, checkNowMinGapMs: 2_000 })
+
+    await service.checkNow()
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+
+    // A burst of transport failures arriving well inside the minimum gap must not each trigger
+    // their own /up probe — only startup, resume, and an explicit user retry may bypass the gap.
+    for (let i = 0; i < 5; i += 1) {
+      service.reportRequestOutcome({ kind: 'transport_failure' })
+    }
+    await Promise.resolve()
+
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+  })
+
+  it('caps the backoff delay after jitter is applied, never exceeding backoffMaxMs', async () => {
+    vi.useFakeTimers()
+    const fetchImplementation = vi.fn(
+      async () => new Response('down', { status: 503 })
+    ) as typeof fetch
+    const service = createService({
+      fetchImplementation,
+      random: () => 1, // maximum jitter multiplier (1.2x)
+      backoffBaseMs: 1_000,
+      backoffMaxMs: 5_000
+    })
+
+    service.start()
+    await vi.runAllTicks() // failure #1 -> next delay 1000 * 1.2 = 1200ms
+
+    await vi.advanceTimersByTimeAsync(1_200) // failure #2 -> next delay 2000 * 1.2 = 2400ms
+    await vi.advanceTimersByTimeAsync(2_400) // failure #3 -> next delay 4000 * 1.2 = 4800ms
+    await vi.advanceTimersByTimeAsync(4_800) // failure #4 -> raw 8000 * 1.2 = 9600ms, capped to 5000ms
+    expect(fetchImplementation).toHaveBeenCalledTimes(4)
+
+    // If the cap were applied before jitter (the pre-fix behavior), this delay would instead be
+    // round(min(8000, 5000) * 1.2) = 6000ms, and the probe would not have fired yet at 5000ms.
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(fetchImplementation).toHaveBeenCalledTimes(5)
+  })
 })

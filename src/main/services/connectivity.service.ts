@@ -61,6 +61,8 @@ export class ConnectivityService {
   private scheduledCheck: ReturnType<typeof setTimeout> | null = null
   private activeAbortController: AbortController | null = null
   private removeResumeListener: (() => void) | null = null
+  // A monotonic clock, immune to a backward wall-clock adjustment (NTP sync, DST, manual clock
+  // change) incorrectly re-opening or extending the retry throttle window.
   private lastProbeStartedAt: number | null = null
   private failureCount = 0
   private generation = 0
@@ -112,20 +114,25 @@ export class ConnectivityService {
     }
 
     if (outcome.kind === 'http_response') {
+      // Only the diagnostic "last reachable" timestamp is refreshed here — `checkedAt` is left to
+      // actual /up probes so it keeps a single, unambiguous meaning ("last time the health probe
+      // ran") rather than blending in unrelated business-request timing.
       this.updateSnapshot({
         ...this.snapshot,
-        checkedAt: nowIsoSecond(),
         lastBackendReachableAt: nowIsoSecond()
       })
 
       if (this.snapshot.status === 'backend_unreachable') {
-        void this.requestCheck(true)
+        // Not `force`: a request-driven recheck still respects the manual-retry throttle, so a
+        // burst of failing business requests cannot drive the probe rate past what the documented
+        // backoff allows. `force` is reserved for startup, resume, and an explicit user retry.
+        void this.requestCheck(false)
       }
 
       return
     }
 
-    void this.requestCheck(true)
+    void this.requestCheck(false)
   }
 
   shutdown(): void {
@@ -153,7 +160,7 @@ export class ConnectivityService {
       return this.inFlight
     }
 
-    const startedAt = Date.now()
+    const startedAt = performance.now()
     if (
       !force &&
       this.lastProbeStartedAt !== null &&
@@ -228,6 +235,10 @@ export class ConnectivityService {
       const response = await this.dependencies.fetchImplementation(url, {
         method: 'GET',
         headers: new Headers({ Accept: 'application/json' }),
+        // A redirected host must never be able to make itself look healthy. 'manual' resolves to
+        // an opaque, non-ok response for a 3xx instead of silently following it, so a redirect is
+        // classified the same as any other unhealthy response below.
+        redirect: 'manual',
         signal: controller.signal
       })
       const payload = await response.json().catch(() => null)
@@ -316,13 +327,11 @@ export class ConnectivityService {
   }
 
   private nextBackoffDelay(): number {
-    const capped = Math.min(
-      this.backoffBaseMs * 2 ** Math.max(this.failureCount - 1, 0),
-      this.backoffMaxMs
-    )
+    const raw = this.backoffBaseMs * 2 ** Math.max(this.failureCount - 1, 0)
     const jitter = 0.8 + this.random() * 0.4
 
-    return Math.round(capped * jitter)
+    // Jitter is applied before the cap, not after, so the delay can never exceed backoffMaxMs.
+    return Math.min(Math.round(raw * jitter), this.backoffMaxMs)
   }
 
   private scheduleNext(delayMs: number): void {

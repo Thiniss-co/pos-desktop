@@ -2,8 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { ActivationInput } from '@shared/contracts/activation.contract'
 import type { PublicAppError } from '@shared/contracts/api.contract'
-import { i18n } from '@renderer/i18n'
-import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
+import { createLocalizedErrorRef } from '@renderer/shared/utils/localizedErrorRef'
 import type { DeviceDisplayState } from './types'
 import { DeviceService } from './service'
 
@@ -13,16 +12,17 @@ function isPublicAppError(value: unknown): value is PublicAppError {
 
 export const useDeviceStore = defineStore('device', () => {
   const summary = ref<DeviceDisplayState>(null)
-  const error = ref<string | null>(null)
+  const errorState = createLocalizedErrorRef()
+  const error = errorState.error
   const fieldErrors = ref<Record<string, string[]> | null>(null)
   const isSubmitting = ref(false)
 
   async function load(service = new DeviceService()): Promise<void> {
     try {
       summary.value = await service.getIdentitySummary()
-      error.value = null
+      errorState.clear()
     } catch {
-      error.value = String(i18n.global.t('activation.deviceInfoUnavailable'))
+      errorState.setFallbackKey('activation.deviceInfoUnavailable')
     }
   }
 
@@ -31,7 +31,7 @@ export const useDeviceStore = defineStore('device', () => {
       return false
     }
     isSubmitting.value = true
-    error.value = null
+    errorState.clear()
     fieldErrors.value = null
 
     try {
@@ -41,10 +41,10 @@ export const useDeviceStore = defineStore('device', () => {
     } catch (cause) {
       console.error('Device activation failed', cause)
       if (isPublicAppError(cause)) {
-        error.value = localizeAppError(cause, i18n.global.t, i18n.global.te)
+        errorState.setDetail(cause)
         fieldErrors.value = cause.fieldErrors ?? null
       } else {
-        error.value = String(i18n.global.t('activation.activationFailed'))
+        errorState.setFallbackKey('activation.activationFailed')
       }
       return false
     } finally {

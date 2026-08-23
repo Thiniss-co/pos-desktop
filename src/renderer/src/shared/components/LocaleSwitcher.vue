@@ -13,7 +13,7 @@ function selectLocale(nextLocale: 'en' | 'ar'): void {
 </script>
 
 <template>
-  <div class="locale-switcher" :aria-label="t('locale.switcherLabel')">
+  <div class="locale-switcher" role="group" :aria-label="t('locale.switcherLabel')">
     <button
       type="button"
       :aria-pressed="locale === 'en'"

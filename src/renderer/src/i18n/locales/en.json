@@ -30,7 +30,7 @@
   },
   "locale": {
     "switcherLabel": "Language",
-    "english": "en",
+    "english": "English",
     "arabic": "العربية"
   },
   "connectivity": {
@@ -72,7 +72,7 @@
     "sessionAvailable": "A local session summary is already available.",
     "email": "Email",
     "password": "Password",
-    "emailPlaceholder": "cashier@example.com",
+    "emailPlaceholder": "cashier{'@'}example.com",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
     "sessionUnavailable": "Session information is unavailable",
@@ -143,7 +143,14 @@
     "customRoles": "Custom company roles",
     "createUser": "Create user",
     "loadingUser": "Loading user…",
-    "unavailable": "Company user management is unavailable."
+    "unavailable": "Company user management is unavailable.",
+    "errors": {
+      "COMPANY_LIMIT_REACHED": "This company has reached its plan limit. No changes were saved.",
+      "COMPANY_LAST_ADMIN": "The last active Company Admin cannot be disabled or demoted. Recovery is available to a web Super Admin.",
+      "PERMISSION_DENIED": "Your permission to manage company users was removed. Controls are no longer available.",
+      "FEATURE_NOT_ENABLED": "Company user management is not enabled for this subscription.",
+      "transport": "You appear to be offline. No changes were saved."
+    }
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

@@ -25,6 +25,15 @@ export const useConnectivityStore = defineStore('connectivity', () => {
   let checkingTimer: ReturnType<typeof setTimeout> | null = null
   let restoredTimer: ReturnType<typeof setTimeout> | null = null
   let initialization: Promise<void> | null = null
+  // The service only pushes a snapshot through `checking` while transitioning out of a settled
+  // state (see connectivity.service.ts), so comparing against the raw previous status would make
+  // both the restored toast and the backend-restored hook unreachable. Track the last status that
+  // was not `checking` instead.
+  let lastSettledStatus: ConnectivitySnapshot['status'] | undefined
+  // Incremented on every applied snapshot, whether pushed or fetched. A `getState()`/`checkNow()`
+  // reply is only applied if no push landed while it was in flight — otherwise an in-flight fetch
+  // that resolves after a later broadcast would silently overwrite the newer state.
+  let sequence = 0
 
   function clearCheckingTimer(): void {
     if (checkingTimer) {
@@ -41,7 +50,9 @@ export const useConnectivityStore = defineStore('connectivity', () => {
   }
 
   function receive(nextSnapshot: ConnectivitySnapshot): void {
-    const previousStatus = snapshot.value?.status
+    sequence += 1
+
+    const previousSettledStatus = lastSettledStatus
     snapshot.value = nextSnapshot
     clearCheckingTimer()
 
@@ -56,7 +67,7 @@ export const useConnectivityStore = defineStore('connectivity', () => {
       isCheckingHintVisible.value = false
     }
 
-    if (previousStatus === 'offline' && nextSnapshot.status === 'online') {
+    if (previousSettledStatus === 'offline' && nextSnapshot.status === 'online') {
       clearRestoredTimer()
       isRestoredToastVisible.value = true
       restoredTimer = setTimeout(() => {
@@ -64,10 +75,28 @@ export const useConnectivityStore = defineStore('connectivity', () => {
       }, RESTORED_TOAST_DURATION_MS)
     }
 
-    if (previousStatus === 'backend_unreachable' && nextSnapshot.status === 'online') {
+    if (
+      previousSettledStatus !== undefined &&
+      previousSettledStatus !== 'online' &&
+      nextSnapshot.status === 'online'
+    ) {
       for (const listener of restoredListeners) {
         listener()
       }
+    }
+
+    if (nextSnapshot.status !== 'checking') {
+      lastSettledStatus = nextSnapshot.status
+    }
+  }
+
+  /** Applies `promise`'s result only if no push has been received since it started. */
+  async function applyIfFresh(promise: Promise<ConnectivitySnapshot>): Promise<void> {
+    const requestedAt = sequence
+    const result = await promise
+
+    if (sequence === requestedAt) {
+      receive(result)
     }
   }
 
@@ -87,8 +116,15 @@ export const useConnectivityStore = defineStore('connectivity', () => {
       removeOnlineListener = () => window.removeEventListener('online', onOnline)
     }
 
-    initialization = service.getState().then(receive)
-    return initialization
+    const promise = applyIfFresh(service.getState()).catch((error: unknown) => {
+      // A failed initial read must not permanently block a later initialize() call (e.g. a
+      // remount) from retrying — only this attempt's promise rejects.
+      initialization = null
+      throw error
+    })
+
+    initialization = promise
+    return promise
   }
 
   async function retry(service = new ConnectivityGatewayService()): Promise<void> {
@@ -99,7 +135,7 @@ export const useConnectivityStore = defineStore('connectivity', () => {
     isRetrying.value = true
 
     try {
-      receive(await service.checkNow())
+      await applyIfFresh(service.checkNow())
     } finally {
       isRetrying.value = false
     }
@@ -119,6 +155,7 @@ export const useConnectivityStore = defineStore('connectivity', () => {
     clearRestoredTimer()
     restoredListeners.clear()
     initialization = null
+    lastSettledStatus = undefined
   }
 
   return {

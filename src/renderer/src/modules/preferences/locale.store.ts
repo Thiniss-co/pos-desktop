@@ -42,6 +42,11 @@ export const useLocaleStore = defineStore('locale', () => {
   const locale = ref<LocaleCode>(FALLBACK_LOCALE)
   const isSaving = ref(false)
   let initialization: Promise<LocaleCode> | null = null
+  // The most recently *requested* locale. A slower, earlier setLocale() call must not apply its
+  // result once a later call has superseded it — otherwise rapid switching (e.g. ar then en
+  // before the first save resolves) can persist and display a locale other than the user's last
+  // choice. Only the call whose requested locale still matches this value on resolution applies.
+  let latestRequestedLocale: LocaleCode | null = null
 
   async function initialize(service = new PreferencesService()): Promise<LocaleCode> {
     if (initialization) {
@@ -61,21 +66,34 @@ export const useLocaleStore = defineStore('locale', () => {
     nextLocale: LocaleCode,
     service = new PreferencesService()
   ): Promise<boolean> {
-    if (isSaving.value || nextLocale === locale.value) {
-      return nextLocale === locale.value
+    if (nextLocale === locale.value && latestRequestedLocale === null) {
+      return true
     }
 
+    latestRequestedLocale = nextLocale
     isSaving.value = true
 
     try {
       const savedLocale = await service.setLocale(nextLocale)
+
+      if (latestRequestedLocale !== nextLocale) {
+        // A newer request superseded this one while it was in flight.
+        return false
+      }
+
       locale.value = savedLocale
       applyLocaleToDocument(savedLocale)
+      latestRequestedLocale = null
       return true
     } catch {
+      if (latestRequestedLocale === nextLocale) {
+        latestRequestedLocale = null
+      }
       return false
     } finally {
-      isSaving.value = false
+      if (latestRequestedLocale === null) {
+        isSaving.value = false
+      }
     }
   }
 

@@ -3,27 +3,30 @@ import { defineStore } from 'pinia'
 import type { LoginInput } from '@shared/contracts/auth.contract'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
-import { i18n } from '@renderer/i18n'
-import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
+import { createLocalizedErrorRef } from '@renderer/shared/utils/localizedErrorRef'
 import type { AuthDisplayState } from './types'
 import { AuthService } from './service'
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<AuthDisplayState>(null)
-  const error = ref<string | null>(null)
+  const errorState = createLocalizedErrorRef()
+  const error = errorState.error
   const fieldErrors = ref<Record<string, string[]> | null>(null)
   const isSubmitting = ref(false)
 
   async function load(service = new AuthService()): Promise<void> {
     try {
       session.value = await service.getSessionSummary()
-      error.value = null
+      errorState.clear()
     } catch (cause) {
       void handleSessionTransition(cause)
       const publicError = parsePublicAppError(cause)
-      error.value = publicError
-        ? localizeAppError(publicError, i18n.global.t, i18n.global.te)
-        : String(i18n.global.t('auth.sessionUnavailable'))
+
+      if (publicError) {
+        errorState.setDetail(publicError)
+      } else {
+        errorState.setFallbackKey('auth.sessionUnavailable')
+      }
     }
   }
 
@@ -33,7 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     isSubmitting.value = true
-    error.value = null
+    errorState.clear()
     fieldErrors.value = null
 
     try {
@@ -44,10 +47,10 @@ export const useAuthStore = defineStore('auth', () => {
       const publicError = parsePublicAppError(cause)
 
       if (publicError) {
-        error.value = localizeAppError(publicError, i18n.global.t, i18n.global.te)
+        errorState.setDetail(publicError)
         fieldErrors.value = publicError.fieldErrors ?? null
       } else {
-        error.value = String(i18n.global.t('auth.signInFailed'))
+        errorState.setFallbackKey('auth.signInFailed')
       }
       return false
     } finally {
@@ -61,7 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     isSubmitting.value = true
-    error.value = null
+    errorState.clear()
     fieldErrors.value = null
 
     try {
@@ -77,7 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setSessionEndedMessage(message: string): void {
     fieldErrors.value = null
-    error.value = message
+    errorState.setMessage(message)
   }
 
   return { session, error, fieldErrors, isSubmitting, load, login, logout, setSessionEndedMessage }

@@ -149,4 +149,24 @@ describe('API error normalization', () => {
       })
     ).toMatchObject({ category: 'authorization', retryable: false })
   })
+
+  it('strips an unrecognized backend code, keeping only the sanitized message', () => {
+    // The renderer's localizeAppError() only ever sees a `backendCode` for a code this app
+    // already knows about (isKnownApiErrorCode). A genuinely unknown code therefore never reaches
+    // the catalog-lookup path — it always falls back to this sanitized message. If a future
+    // backend code is added to apiErrorCodes.ts without a matching en/ar catalog entry, that
+    // (different) case is what localizeAppError.ts's own generic-fallback branch guards against.
+    const publicError = normalizeApiEnvelopeError({
+      success: false,
+      message: 'A future backend code the desktop app does not recognize yet.',
+      code: 'SOME_FUTURE_CODE_NOT_YET_ADDED',
+      errors: {},
+      meta: {}
+    })
+
+    expect(publicError.backendCode).toBeUndefined()
+    expect(publicError.message).toBe(
+      'A future backend code the desktop app does not recognize yet.'
+    )
+  })
 })

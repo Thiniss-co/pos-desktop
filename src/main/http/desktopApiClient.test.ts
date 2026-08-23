@@ -226,3 +226,116 @@ describe('DesktopApiClient diagnostics', () => {
     })
   })
 })
+
+describe('DesktopApiClient connectivity outcome reporting', () => {
+  const deviceRegisterRoute = {
+    path: '/device/register',
+    method: 'POST' as const,
+    requiresAuth: false,
+    requiresDeviceUuid: false
+  }
+
+  function createClient(
+    overrides: Partial<ConstructorParameters<typeof DesktopApiClient>[0]> = {}
+  ): DesktopApiClient {
+    return new DesktopApiClient({
+      apiOrigin: new URL('https://api.example.test'),
+      getAccessToken: () => null,
+      getDeviceUuid: () => null,
+      ...overrides
+    })
+  }
+
+  it('reports an http_response outcome for a normal response, even an error envelope', async () => {
+    const onRequestOutcome = vi.fn()
+    const client = createClient({
+      onRequestOutcome,
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Not found.',
+            code: 'NOT_FOUND',
+            errors: {},
+            meta: {}
+          }),
+          { status: 404, headers: { 'content-type': 'application/json' } }
+        )
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      backendCode: 'NOT_FOUND'
+    })
+
+    expect(onRequestOutcome).toHaveBeenCalledTimes(1)
+    expect(onRequestOutcome).toHaveBeenCalledWith({ kind: 'http_response', status: 404 })
+  })
+
+  it('reports a transport_failure outcome only when no HTTP response was ever received', async () => {
+    const onRequestOutcome = vi.fn()
+    const client = createClient({
+      onRequestOutcome,
+      fetchImplementation: vi.fn(async () => {
+        throw new Error('ECONNREFUSED 127.0.0.1:8000')
+      }) as typeof fetch
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'transport'
+    })
+
+    expect(onRequestOutcome).toHaveBeenCalledTimes(1)
+    expect(onRequestOutcome).toHaveBeenCalledWith({ kind: 'transport_failure' })
+  })
+
+  it('never reports transport_failure once an HTTP response was received, even if it then fails', async () => {
+    const onRequestOutcome = vi.fn()
+    const client = createClient({
+      onRequestOutcome,
+      fetchImplementation: async () =>
+        new Response('not json', { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toBeTruthy()
+
+    expect(onRequestOutcome).toHaveBeenCalledTimes(1)
+    expect(onRequestOutcome).toHaveBeenCalledWith({ kind: 'http_response', status: 200 })
+  })
+
+  it('cannot corrupt the business result if the connectivity callback throws', async () => {
+    const client = createClient({
+      onRequestOutcome: () => {
+        throw new Error('connectivity service exploded')
+      },
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Registered',
+            code: 'DEVICE_REGISTERED',
+            data: { device: 'registered' },
+            meta: {}
+          }),
+          { status: 201, headers: { 'content-type': 'application/json' } }
+        )
+    })
+
+    await expect(client.request(deviceRegisterRoute)).resolves.toEqual({ device: 'registered' })
+  })
+
+  it('cannot turn a real error into a different error if the connectivity callback throws', async () => {
+    const client = createClient({
+      onRequestOutcome: () => {
+        throw new Error('connectivity service exploded')
+      },
+      fetchImplementation: vi.fn(async () => {
+        throw new Error('ECONNREFUSED 127.0.0.1:8000')
+      }) as typeof fetch
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'transport',
+      message: 'The desktop service refused the connection'
+    })
+  })
+})

@@ -38,10 +38,17 @@ and sets document.documentElement.lang and dir; this prevents an RTL flash.
 ## Error display
 
 localizeAppError maps known backendCode values to errors.CODE, then maps transport and
-configuration categories to local messages. An unknown backend code deliberately uses the
-localized generic error, while a sanitized message without a backend code remains the fallback.
-Only displayed text changes; error category, retryability, backend code, and trace ID retain their
-original values.
+configuration categories to local messages, then falls back to the sanitized backend message, then
+to the localized generic error. Only displayed text changes; error category, retryability, backend
+code, and trace ID retain their original values.
+
+In practice the main-process normalizer (apiError.ts) only ever sets backendCode for a code this
+app recognizes (isKnownApiErrorCode); a genuinely unrecognized backend code arrives with no
+backendCode at all and is shown via its sanitized message, not the generic fallback. The
+generic-fallback branch inside localizeAppError exists to guard a different, currently unreachable
+case: a known code (apiErrorCodes.ts) added before its en/ar catalog entry. Both paths are covered
+by tests, but they answer different questions — do not read "unknown backend code" test coverage as
+proof of what a real unrecognized code renders.
 
 The language switcher appears in both public and authenticated shells. CSS uses logical properties
 so Arabic layout order and borders remain correct without mirroring the brand or non-directional

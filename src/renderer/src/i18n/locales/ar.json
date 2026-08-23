@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "ثينيس لنقاط البيع",
-    "publicEyebrow": "ثينيس لنقاط البيع / جاهزية محطة العمل",
+    "name": "Thinis POS",
+    "publicEyebrow": "Thinis POS / جاهزية محطة العمل",
     "publicTitle": "نقطة البيع جاهزة، خطوة واحدة في كل مرة.",
     "workstationShell": "واجهة محطة العمل",
     "localFirstFoundation": "أساس يعمل محلياً أولاً",
@@ -30,7 +30,7 @@
   },
   "locale": {
     "switcherLabel": "اللغة",
-    "english": "en",
+    "english": "English",
     "arabic": "العربية"
   },
   "connectivity": {
@@ -72,7 +72,7 @@
     "sessionAvailable": "ملخص جلسة محلية متاح بالفعل.",
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
-    "emailPlaceholder": "cashier@example.com",
+    "emailPlaceholder": "cashier{'@'}example.com",
     "signIn": "تسجيل الدخول",
     "signingIn": "جارٍ تسجيل الدخول…",
     "sessionUnavailable": "معلومات الجلسة غير متاحة",
@@ -143,7 +143,14 @@
     "customRoles": "أدوار الشركة المخصصة",
     "createUser": "إنشاء المستخدم",
     "loadingUser": "جارٍ تحميل المستخدم…",
-    "unavailable": "إدارة مستخدمي الشركة غير متاحة."
+    "unavailable": "إدارة مستخدمي الشركة غير متاحة.",
+    "errors": {
+      "COMPANY_LIMIT_REACHED": "وصلت هذه الشركة إلى حد خطتها. لم يتم حفظ أي تغييرات.",
+      "COMPANY_LAST_ADMIN": "لا يمكن تعطيل أو تخفيض صلاحيات آخر مدير شركة نشط. الاستعادة متاحة عبر مشرف عام على الويب.",
+      "PERMISSION_DENIED": "تمت إزالة صلاحيتك لإدارة مستخدمي الشركة. عناصر التحكم لم تعد متاحة.",
+      "FEATURE_NOT_ENABLED": "إدارة مستخدمي الشركة غير مفعّلة في اشتراكك الحالي.",
+      "transport": "يبدو أنك غير متصل بالإنترنت. لم يتم حفظ أي تغييرات."
+    }
   },
   "errors": {
     "generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
@@ -156,7 +163,7 @@
     "SESSION_REVOKED": "انتهت جلستك.",
     "COMPANY_INACTIVE": "هذه الشركة غير نشطة.",
     "FORBIDDEN": "لا يُسمح لك بتنفيذ هذا الإجراء.",
-    "FEATURE_NOT_ENABLED": "هذه الميزة غير مفعّلة لهذه الاشتراكية.",
+    "FEATURE_NOT_ENABLED": "هذه الميزة غير مفعّلة في اشتراكك الحالي.",
     "PERMISSION_DENIED": "ليس لديك إذن لتنفيذ هذا الإجراء.",
     "FEATURE_PERMISSION_DENIED": "ليس لديك إذن لاستخدام هذه الميزة.",
     "DESKTOP_LOGIN_FORBIDDEN": "تسجيل دخول سطح المكتب غير مسموح لهذا المستخدم.",
@@ -177,8 +184,8 @@
     "TOO_MANY_REQUESTS": "طلبات كثيرة جداً. يرجى المحاولة بعد قليل.",
     "CONFLICT": "يتعارض هذا الإجراء مع بيانات موجودة.",
     "IDEMPOTENCY_CONFLICT": "تمت معالجة هذا الطلب سابقاً بصورة مختلفة.",
-    "LOYALTY_FEATURE_NOT_ENABLED": "برنامج الولاء غير مفعّل لهذه الاشتراكية.",
-    "ACCOUNTING_FEATURE_NOT_ENABLED": "المحاسبة غير مفعّلة لهذه الاشتراكية.",
+    "LOYALTY_FEATURE_NOT_ENABLED": "برنامج الولاء غير مفعّل في اشتراكك الحالي.",
+    "ACCOUNTING_FEATURE_NOT_ENABLED": "المحاسبة غير مفعّلة في اشتراكك الحالي.",
     "COMPANY_LIMIT_REACHED": "وصلت هذه الشركة إلى حد خطتها.",
     "COMPANY_LAST_ADMIN": "لا يمكن تعطيل أو تخفيض صلاحيات آخر مدير شركة نشط.",
     "ROLE_ASSIGNMENT_FORBIDDEN": "لا يُسمح لك بتعيين هذا الدور.",

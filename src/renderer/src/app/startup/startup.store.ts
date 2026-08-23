@@ -41,10 +41,12 @@ export const useStartupStore = defineStore('startup', () => {
     } catch (cause) {
       const detail = parsePublicAppError(cause) ?? undefined
       state.value = detail?.category === 'authorization' ? 'access_blocked' : 'fatal_error'
-      error.value = {
-        message: detail?.message ?? 'The application could not be initialized',
-        detail
-      }
+      // `message` is only a diagnostic fallback for the (rare) case where `detail` itself is
+      // absent — e.g. a thrown value that isn't a recognizable PublicAppError. It is intentionally
+      // left unset rather than baked from an English literal here: FatalErrorPage.vue resolves the
+      // displayed text with the reactive `startup.fatalFallback` catalog key in that case, so it
+      // stays translated and reacts to a later language switch.
+      error.value = { message: detail?.message, detail }
 
       if (state.value === 'access_blocked') {
         useAccessStore().setFromError(detail)

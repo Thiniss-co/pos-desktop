@@ -15,8 +15,15 @@ export function broadcastConnectivityChanged(snapshot: ConnectivitySnapshot): vo
   const payload = connectivitySnapshotSchema.parse(snapshot)
 
   for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) {
+    if (window.isDestroyed()) {
+      continue
+    }
+
+    try {
       window.webContents.send(IPC_CHANNELS.connectivityChanged, payload)
+    } catch {
+      // One window's send failing (e.g. a race with its own teardown) must not stop delivery to
+      // the remaining windows.
     }
   }
 }

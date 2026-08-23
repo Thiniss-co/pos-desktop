@@ -3,14 +3,14 @@ import { defineStore } from 'pinia'
 import { LicenseService } from '@renderer/modules/license/service'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
-import { i18n } from '@renderer/i18n'
-import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
+import { createLocalizedErrorRef } from '@renderer/shared/utils/localizedErrorRef'
 import type { BootstrapDisplayState, BootstrapStage } from './types'
 import { BootstrapService } from './service'
 
 export const useBootstrapStore = defineStore('bootstrap', () => {
   const status = ref<BootstrapDisplayState>(null)
-  const error = ref<string | null>(null)
+  const errorState = createLocalizedErrorRef()
+  const error = errorState.error
   const stage = ref<BootstrapStage>('idle')
   const isRetryable = ref(false)
   const isRunning = ref(false)
@@ -18,9 +18,9 @@ export const useBootstrapStore = defineStore('bootstrap', () => {
   async function load(service = new BootstrapService()): Promise<void> {
     try {
       status.value = await service.getStatus()
-      error.value = null
+      errorState.clear()
     } catch {
-      error.value = String(i18n.global.t('bootstrap.statusUnavailable'))
+      errorState.setFallbackKey('bootstrap.statusUnavailable')
     }
   }
 
@@ -33,7 +33,7 @@ export const useBootstrapStore = defineStore('bootstrap', () => {
     }
 
     isRunning.value = true
-    error.value = null
+    errorState.clear()
     isRetryable.value = false
 
     try {
@@ -51,10 +51,10 @@ export const useBootstrapStore = defineStore('bootstrap', () => {
       const publicError = parsePublicAppError(cause)
 
       if (publicError) {
-        error.value = localizeAppError(publicError, i18n.global.t, i18n.global.te)
+        errorState.setDetail(publicError)
         isRetryable.value = publicError.retryable
       } else {
-        error.value = String(i18n.global.t('bootstrap.failed'))
+        errorState.setFallbackKey('bootstrap.failed')
       }
       stage.value = 'idle'
       return false

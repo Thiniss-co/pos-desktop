@@ -24,13 +24,47 @@ import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 
 const deniedCodes = new Set(['PERMISSION_DENIED', 'FEATURE_NOT_ENABLED'])
 
+/**
+ * Company-user management has action-specific guidance (e.g. whether a write was saved) that the
+ * shared error catalog does not carry. Prefer a `companyUsers.errors.<CODE>` / `.transport` key
+ * when one exists, then fall back to the shared localizeAppError resolution. Re-evaluated inside
+ * a computed so it re-localizes on a language switch, the same as the shared resolver.
+ */
+function localizeCompanyUsersError(error: PublicAppError): string {
+  if (error.backendCode) {
+    const moduleKey = 'companyUsers.errors.' + error.backendCode
+
+    if (i18n.global.te(moduleKey)) {
+      return String(i18n.global.t(moduleKey))
+    }
+  }
+
+  if (error.category === 'transport' && i18n.global.te('companyUsers.errors.transport')) {
+    return String(i18n.global.t('companyUsers.errors.transport'))
+  }
+
+  return localizeAppError(error, i18n.global.t, i18n.global.te)
+}
+
 export const useCompanyUsersStore = defineStore('companyUsers', () => {
   const access = ref<CompanyUsersAccessState>(null)
   const list = ref<CompanyUsersDisplayState>(null)
   const selectedUser = ref<CompanyUserDetailState>(null)
   const assignableRoles = ref<CompanyUsersRoleState>(null)
   const query = ref<CompanyUsersQuery>({ page: 1, perPage: 25 })
-  const error = ref<string | null>(null)
+  const errorDetail = ref<PublicAppError | null>(null)
+  const errorFallbackKey = ref<string | null>(null)
+  const error = computed<string | null>(() => {
+    if (errorDetail.value) {
+      return localizeCompanyUsersError(errorDetail.value)
+    }
+
+    if (errorFallbackKey.value) {
+      return String(i18n.global.t(errorFallbackKey.value))
+    }
+
+    return null
+  })
   const fieldErrors = ref<Record<string, string[]> | null>(null)
   const isLoading = ref(false)
   const isMutating = ref(false)
@@ -44,6 +78,11 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
 
     return Math.max(currentAccess.userLimit - list.value.page.total, 0)
   })
+
+  function clearError(): void {
+    errorDetail.value = null
+    errorFallbackKey.value = null
+  }
 
   function clearRemoteAccessWhenDenied(cause: PublicAppError): void {
     if (cause.backendCode && deniedCodes.has(cause.backendCode)) {
@@ -66,12 +105,14 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
     if (publicError) {
       void handleSessionTransition(publicError)
       clearRemoteAccessWhenDenied(publicError)
-      error.value = localizeAppError(publicError, i18n.global.t, i18n.global.te)
+      errorDetail.value = publicError
+      errorFallbackKey.value = null
       fieldErrors.value = publicError.fieldErrors ?? null
       return
     }
 
-    error.value = String(i18n.global.t('companyUsers.unavailable'))
+    errorDetail.value = null
+    errorFallbackKey.value = 'companyUsers.unavailable'
   }
 
   async function loadAccess(service = new CompanyUsersService()): Promise<void> {
@@ -92,7 +133,7 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
     }
 
     isLoading.value = true
-    error.value = null
+    clearError()
     query.value = { ...query.value, ...input }
 
     try {
@@ -117,7 +158,7 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
     service = new CompanyUsersService()
   ): Promise<CompanyUser | null> {
     isLoading.value = true
-    error.value = null
+    clearError()
 
     try {
       selectedUser.value = await service.get(uuid)
@@ -147,7 +188,7 @@ export const useCompanyUsersStore = defineStore('companyUsers', () => {
     }
 
     isMutating.value = true
-    error.value = null
+    clearError()
     fieldErrors.value = null
 
     try {

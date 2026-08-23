@@ -455,8 +455,15 @@ a:focus-visible {
     padding: 14px 16px;
   }
 
-  .app-layout__nav {
+  /* The connectivity banner sits between the header and nav in document order and is auto-placed
+     into the grid. Without an explicit row it competes with nav's explicit row 2 and loses,
+     landing below the nav instead of directly under the header. */
+  .connectivity-banner {
     grid-row: 2;
+  }
+
+  .app-layout__nav {
+    grid-row: 3;
     grid-template-columns: repeat(4, 1fr);
     border-inline-end: 0;
     border-bottom: 1px solid #c8d6d9;

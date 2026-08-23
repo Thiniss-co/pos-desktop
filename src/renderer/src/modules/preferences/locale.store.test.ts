@@ -64,4 +64,39 @@ describe('locale preferences', () => {
     expect(saved).toBe('ar')
     expect(store.locale).toBe('ar')
   })
+
+  it('applies only the most recently requested locale when switches overlap (last-write-wins)', async () => {
+    // Regression test: a slower earlier save resolving after a faster later one must not clobber
+    // the user's last choice, and must not falsely report success for the request it discarded.
+    let saved = 'en'
+    const pending = new Map<'en' | 'ar', () => void>()
+    const service = {
+      getLocale: async () => saved as 'en' | 'ar',
+      setLocale: (locale: 'en' | 'ar') =>
+        new Promise<'en' | 'ar'>((resolve) => {
+          pending.set(locale, () => {
+            saved = locale
+            resolve(locale)
+          })
+        })
+    }
+    const store = useLocaleStore()
+    await store.initialize(service as unknown as PreferencesService)
+
+    const arSave = store.setLocale('ar', service as unknown as PreferencesService)
+    const enSave = store.setLocale('en', service as unknown as PreferencesService)
+
+    expect(store.isSaving).toBe(true)
+
+    // Resolve the slower 'ar' request first, then the newer 'en' request — out of request order.
+    pending.get('ar')?.()
+    pending.get('en')?.()
+
+    await expect(arSave).resolves.toBe(false)
+    await expect(enSave).resolves.toBe(true)
+
+    expect(store.locale).toBe('en')
+    expect(saved).toBe('en')
+    expect(store.isSaving).toBe(false)
+  })
 })

@@ -16,10 +16,18 @@ It does not authorize sales, sync, authentication, or another business action.
 The health probe is intentionally separate from DesktopApiClient. It is unauthenticated, contains
 no device UUID, and never sends an API envelope, response body, exception text, URL, or headers
 through IPC. It is the documented exception to the desktop API namespace because Laravel registers
-/up as an unauthenticated, side-effect-free readiness endpoint.
+/up as an unauthenticated, side-effect-free readiness endpoint. A 3xx response is never followed —
+the probe uses `redirect: 'manual'` so a redirected host cannot make itself look healthy.
+
+The probe and DesktopApiClient share the same fetch implementation (Electron's `net.fetch`,
+Chromium's stack) so they agree about system-proxy and OS-certificate-store behavior; if they used
+different stacks, the banner could show `online` while every real request fails at transport, or
+the reverse.
 
 lastBackendReachableAt is diagnostic only. It must never be used as license validation time, next
-validation time, or a server-time anchor.
+validation time, or a server-time anchor. checkedAt reflects only the last actual /up probe — a
+business-request outcome refreshes lastBackendReachableAt but never checkedAt, so the two fields
+keep one unambiguous meaning each.
 
 ## Timing and lifecycle
 
@@ -35,8 +43,13 @@ All timing dependencies are injected for Node tests:
 
 Startup, Electron resume, renderer online hints, a real business-request transport failure, and the
 Retry button request a recheck. An in-flight probe is shared by concurrent callers; duplicate
-manual retries inside the minimum gap return the current snapshot. Shutdown clears timers, aborts
-the active probe, and removes the power-monitor listener.
+manual retries inside the minimum gap return the current snapshot. Only startup, resume, and an
+explicit user retry bypass the minimum gap (`force`); a request-driven recheck (a transport failure
+or a recovery signal from a successful business response) still respects it, so a burst of failing
+requests cannot drive the probe rate past the documented backoff. Backoff jitter is applied before
+the cap is enforced, so the delay never exceeds the configured maximum. The retry-throttle clock is
+monotonic (`performance.now()`), so a backward wall-clock adjustment cannot re-open or extend the
+window. Shutdown clears timers, aborts the active probe, and removes the power-monitor listener.
 
 Only meaningful state changes are pushed to live windows. Timestamp refreshes do not flood IPC.
 Any HTTP status from a real desktop API request proves a transport path exists; it refreshes the
@@ -50,8 +63,13 @@ subscription is fixed to one shared channel and returns an unsubscribe closure.
 
 The Pinia store does not optimistically write connectivity state. It presents a persistent offline
 or backend-unavailable warning, delays checking copy for two seconds, and shows a four-second
-restored notice only for an actual offline-to-online transition. It also exposes an internal
-onBackendRestored hook for a future sync orchestrator; this phase subscribes no sync behavior.
+restored notice only for an actual offline-to-online transition. Recovery always passes through an
+intermediate `checking` snapshot on its way back to `online`, so the store tracks the last
+non-`checking` status rather than the immediately preceding one — otherwise the toast, and the
+onBackendRestored hook exposed for a future sync orchestrator, would never fire. A `getState()` or
+`checkNow()` reply is discarded if a pushed snapshot already landed while it was in flight, so a
+slow initial read can never overwrite a newer broadcast state. This phase subscribes no sync
+behavior to onBackendRestored.
 
 ## Future policy vocabulary
 

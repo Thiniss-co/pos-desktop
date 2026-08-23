@@ -10,7 +10,9 @@ const layout = computed(() => (route.meta.layout === 'app' ? AppLayout : PublicL
 const connectivity = useConnectivityStore()
 
 onMounted(() => {
-  void connectivity.initialize()
+  // Connectivity monitoring is best-effort diagnostic state; a failed initial read must not
+  // surface as an unhandled rejection or block the rest of the app shell from rendering.
+  connectivity.initialize().catch(() => undefined)
 })
 
 onBeforeUnmount(() => connectivity.dispose())

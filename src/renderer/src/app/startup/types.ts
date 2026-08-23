@@ -26,6 +26,6 @@ export interface StartupSnapshot {
 }
 
 export interface StartupError {
-  readonly message: string
+  readonly message?: string
   readonly detail?: PublicAppError
 }
