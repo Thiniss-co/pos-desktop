@@ -74,7 +74,8 @@ export class BootstrapService {
     private readonly deviceIdentityRepository: BootstrapDeviceIdentityRepository,
     private readonly commercialAccess: BootstrapCommercialAccessChecker,
     private readonly bootstrapStateRepository: BootstrapStateWriter,
-    private readonly bootstrapSnapshotRepository: BootstrapSnapshotWriter
+    private readonly bootstrapSnapshotRepository: BootstrapSnapshotWriter,
+    private readonly onSnapshotPersisted?: () => void
   ) {}
 
   async refresh(): Promise<BootstrapResult> {
@@ -103,6 +104,7 @@ export class BootstrapService {
     const fetchedAt = new Date().toISOString()
 
     const persisted = this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt)
+    this.onSnapshotPersisted?.()
 
     this.bootstrapStateRepository.markComplete({
       snapshotVersion: persisted.snapshotVersion,

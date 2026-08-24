@@ -32,11 +32,15 @@ npm run typecheck   # tsc -p tsconfig.node.json (main/preload) + vue-tsc -p tsco
 npm run lint          # eslint --cache . — reports only, does not auto-fix
 npm run test          # Vitest unit tests (main/shared in Node; renderer in happy-dom)
 npm run smoke:database # real migrator via Electron's Node runtime and a disposable SQLite database
+npm run test:sqlite:electron # file-backed migration/repository/service suite under Electron's ABI
 npm run format         # prettier --write . — MUTATES files; only run when explicitly formatting
 ```
 
-Vitest never imports the Electron-ABI `better-sqlite3` driver from host Node unit tests; use the
-dedicated Electron smoke command above for that boundary.
+Vitest never imports the Electron-ABI `better-sqlite3` driver from host Node unit tests. Both SQLite
+commands run their entry through Electron with `ELECTRON_RUN_AS_NODE=1`, using the same native module
+ABI the packaged app ships. Do not rebuild `better-sqlite3` back and forth for host Node; use
+`smoke:database` as the quick canary and `test:sqlite:electron` for real repositories and file-backed
+transaction coverage.
 
 ## Build / Package
 
@@ -60,10 +64,10 @@ reads `MAIN_VITE_POS_API_ORIGIN`; its absence intentionally leaves the foundatio
 `not_configured` state and causes no request. HTTP is accepted only for loopback development hosts;
 all other origins must use HTTPS.
 
-| Variable | Purpose | Status |
-|---|---|---|
-| `MAIN_VITE_POS_API_ORIGIN` | Main-only base origin for `/api/v1/desktop/*` | Optional; required for activation, login, and bootstrap calls |
-| `POS_API_TRACE` | Main-process opt-in HTTP diagnostics (`1` enables) | Development diagnostics only; off by default |
+| Variable                   | Purpose                                            | Status                                                        |
+| -------------------------- | -------------------------------------------------- | ------------------------------------------------------------- |
+| `MAIN_VITE_POS_API_ORIGIN` | Main-only base origin for `/api/v1/desktop/*`      | Optional; required for activation, login, and bootstrap calls |
+| `POS_API_TRACE`            | Main-process opt-in HTTP diagnostics (`1` enables) | Development diagnostics only; off by default                  |
 
 Do not hardcode a production or staging backend URL anywhere in the codebase. `.env*` files are
 excluded from packaging; `.env.example` contains no secret.

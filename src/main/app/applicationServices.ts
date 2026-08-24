@@ -27,6 +27,7 @@ import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
 import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
+import { CommercialAccessPublisher } from '../ipc/license.ipc'
 
 export interface ApplicationServices {
   readonly runtimeConfig: RuntimeConfig
@@ -44,6 +45,7 @@ export interface ApplicationServices {
   readonly auth: AuthService
   readonly license: LicenseService
   readonly commercialAccess: CommercialAccessService
+  readonly commercialAccessPublisher: CommercialAccessPublisher
   readonly bootstrap: BootstrapService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
@@ -80,6 +82,7 @@ export function createApplicationServices(): ApplicationServices {
   })
   const secureStorage = new SecureStorageService(secureSecrets, safeStorage)
   const session = new SessionService(sessionMetadata, secureStorage)
+  let commercialAccessPublisher: CommercialAccessPublisher | null = null
   const connectivity = new ConnectivityService({
     apiOrigin: runtimeConfig.apiOrigin,
     isOnline: () => net.isOnline(),
@@ -88,7 +91,10 @@ export function createApplicationServices(): ApplicationServices {
       powerMonitor.on('resume', listener)
       return () => powerMonitor.off('resume', listener)
     },
-    onChange: broadcastConnectivityChanged
+    onChange: (snapshot) => {
+      broadcastConnectivityChanged(snapshot)
+      commercialAccessPublisher?.publishCurrent()
+    }
   })
 
   deviceIdentity.getOrCreate()
@@ -120,18 +126,24 @@ export function createApplicationServices(): ApplicationServices {
     session
   )
   const license = new LicenseService(apiClient, licenseMetadata, secureStorage)
-  const commercialAccess = new CommercialAccessService(
+  const commercialAccess = new CommercialAccessService({
     session,
     licenseMetadata,
-    bootstrapSnapshot,
-    appSettings
-  )
+    permissions: bootstrapSnapshot,
+    settings: appSettings,
+    devices: deviceRegistrationRepository,
+    company: bootstrapSnapshot,
+    features: bootstrapSnapshot,
+    connectivity
+  })
+  commercialAccessPublisher = new CommercialAccessPublisher(commercialAccess)
   const bootstrap = new BootstrapService(
     apiClient,
     deviceIdentityRepository,
     commercialAccess,
     bootstrapState,
-    bootstrapSnapshot
+    bootstrapSnapshot,
+    () => commercialAccessPublisher?.publishCurrent()
   )
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
@@ -151,6 +163,7 @@ export function createApplicationServices(): ApplicationServices {
     auth,
     license,
     commercialAccess,
+    commercialAccessPublisher,
     bootstrap,
     companyUsers,
     connectivity,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api.contract'
+import { commercialAccessSnapshotSchema } from '@shared/contracts/license.contract'
 import { LicenseService } from '@renderer/modules/license/service'
 import { BootstrapService } from './service'
 import { useBootstrapStore } from './store'
@@ -9,29 +10,19 @@ function successfulLicenseService(): LicenseService {
   return new LicenseService({
     validate: async () => ({
       ok: true,
-      data: {
-        restrictionLevel: 'none',
-        canSell: true,
-        canSync: true,
-        isActive: true,
-        isInGrace: false,
-        isExpired: false,
-        expiresAt: null,
-        warningMessage: null,
-        validatedAt: '2026-01-01T00:00:00Z',
-        serverTime: '2026-01-01T00:00:00Z',
-        nextValidationDueAt: '2026-01-04T00:00:00Z',
-        maxOfflineHours: 72,
-        subscription: null
-      }
+      data: commercialAccessSnapshotSchema.parse({
+        sell: { allowed: true, reason: null, warning: null },
+        sync: { allowed: true, reason: null, warning: null }
+      })
     }),
     getAccess: async () => ({
       ok: true,
-      data: {
+      data: commercialAccessSnapshotSchema.parse({
         sell: { allowed: true, reason: null, warning: null },
         sync: { allowed: true, reason: null, warning: null }
-      }
-    })
+      })
+    }),
+    onAccessChanged: () => () => undefined
   })
 }
 

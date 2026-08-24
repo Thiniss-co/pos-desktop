@@ -241,7 +241,7 @@ describe('AuthService.refreshSession', () => {
     expect(cleared).toBe(true)
   })
 
-  it('clears the local session when the backend reports the token is device-mismatched', async () => {
+  it('preserves the session and surfaces a device transition when the token is device-mismatched', async () => {
     const apiClient = new DesktopApiClient({
       apiOrigin: new URL('https://api.example.test'),
       getAccessToken: () => 'stored-token',
@@ -285,8 +285,10 @@ describe('AuthService.refreshSession', () => {
       }
     )
 
-    await service.refreshSession()
-    expect(deletedSecret).toBe(true)
-    expect(cleared).toBe(true)
+    await expect(service.refreshSession()).rejects.toMatchObject({
+      backendCode: 'DESKTOP_TOKEN_DEVICE_MISMATCH'
+    })
+    expect(deletedSecret).toBe(false)
+    expect(cleared).toBe(false)
   })
 })

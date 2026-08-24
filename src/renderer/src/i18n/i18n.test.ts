@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { API_ERROR_CODES } from '@shared/constants/apiErrorCodes'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
+import { commercialAccessReasonSchema } from '@shared/contracts/license.contract'
 import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
 import { i18n } from './index'
 import ar from './locales/ar.json'
@@ -22,6 +23,12 @@ describe('i18n catalogs', () => {
 
     for (const code of API_ERROR_CODES) {
       expect(flattenedKeys(en)).toContain('errors.' + code)
+    }
+
+    for (const reason of commercialAccessReasonSchema.options) {
+      expect(flattenedKeys(en)).toContain(
+        'errors.COMMERCIAL_ACCESS_' + reason.replaceAll('-', '_').toUpperCase()
+      )
     }
   })
 

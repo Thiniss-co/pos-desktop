@@ -6,7 +6,7 @@ import {
   type SessionSummary
 } from '@shared/contracts/auth.contract'
 import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
-import { isSessionEndingError } from '@shared/constants/sessionTransitions'
+import { isDeviceTransitionError, isSessionEndingError } from '@shared/constants/sessionTransitions'
 import { isPublicAppError } from '../http/apiError'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import { desktopSessionResourceSchema } from '../http/desktopResources.contract'
@@ -101,13 +101,15 @@ export class AuthService {
       await this.apiClient.request(DESKTOP_API_ROUTES.authMe)
       return existing
     } catch (error) {
-      if (
-        isPublicAppError(error) &&
-        (isSessionEndingError(error.backendCode) ||
-          error.backendCode === 'DESKTOP_TOKEN_DEVICE_MISMATCH')
-      ) {
+      if (isPublicAppError(error) && isSessionEndingError(error.backendCode)) {
         this.endSession()
         return this.getSessionSummary()
+      }
+
+      // Device transitions are intentionally surfaced to the device-recovery path unchanged;
+      // clearing the user session here would incorrectly route a device failure to login.
+      if (isPublicAppError(error) && isDeviceTransitionError(error.backendCode)) {
+        throw error
       }
 
       throw error

@@ -59,6 +59,33 @@ npm run dev               # manual: open shift, scan/search products, build a ca
   [.ai/guidelines/testing-and-verification.md](../../.ai/guidelines/testing-and-verification.md).
 - Cart pricing logic has unit test coverage and lives outside `.vue` files.
 
+## Commercial Access Enforcement Contract
+
+Phase 3 uses the main-process `CommercialAccessService` as the only authority for protected work.
+Renderer access state and disabled buttons are UX only; they are never an authorization boundary and no
+IPC channel lets the renderer set an access decision.
+
+- Opening or resuming a shift calls `assertAllowed('sell')` in the main process.
+- Cart edits remain renderer-only drafts and do not need a guard.
+- Phase 4 must call `assertAllowed('sell')` at the local invoice/outbox transaction boundary, because
+  that is the durable sale rather than the cart.
+- Upload and manual retry call `assertAllowed('sync')` immediately before sending. Invoice upload must
+  also assert `pos.sell`, matching the backend route contract; the generic sync guard intentionally does
+  not add that sell-only rule.
+
+The decision is fail-closed and ordered: device registration/status, session, valid persisted license and
+trusted clock, grace and validation deadline, bootstrap/company, POS feature, license capability,
+`pos.sell`, then connectivity. Deadline and grace equality deny access. Selling is intentionally
+offline-capable once business guards pass; syncing requires online connectivity. A backwards clock requires
+license validation before access can recover. Session failures route to login, while device failures route
+to device recovery and retain durable local data.
+
+The first bootstrap remains a sync operation: it may proceed without a cached company/feature snapshot so
+the workstation cannot deadlock itself. After a long offline period, validate the license before bootstrap,
+because bootstrap requires current `can_sync` access. To add a future protected action, add a named action
+and its persisted-state checks in the main-process guard, project only its sanitized decision through the
+read-only access IPC, and enforce it again at the durable operation boundary.
+
 ## Next Phase
 
 [04-local-sale-sync-queue.md](04-local-sale-sync-queue.md) — completing a sale locally and

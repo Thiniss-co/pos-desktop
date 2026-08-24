@@ -203,6 +203,20 @@
     "COMPANY_LAST_ADMIN": "لا يمكن تعطيل أو تخفيض صلاحيات آخر مدير شركة نشط.",
     "ROLE_ASSIGNMENT_FORBIDDEN": "لا يُسمح لك بتعيين هذا الدور.",
     "SERVER_ERROR": "واجهت خدمة نقاط البيع خطأ.",
-    "SERVICE_UNAVAILABLE": "خدمة نقاط البيع غير متاحة."
+    "SERVICE_UNAVAILABLE": "خدمة نقاط البيع غير متاحة.",
+    "COMMERCIAL_ACCESS_DEVICE_NOT_REGISTERED": "محطة العمل هذه غير مسجلة على جهاز نشط.",
+    "COMMERCIAL_ACCESS_DEVICE_REVOKED": "تم إلغاء الجهاز الخاص بمحطة العمل هذه أو إحالته للتقاعد.",
+    "COMMERCIAL_ACCESS_DEVICE_BLOCKED": "جهاز محطة العمل هذا محظور من تنفيذ هذا الإجراء.",
+    "COMMERCIAL_ACCESS_SESSION_INVALID": "سجّل الدخول بحساب نشط للمتابعة.",
+    "COMMERCIAL_ACCESS_CLOCK_UNTRUSTED": "صحح ساعة هذا الجهاز قبل استمرار الوصول التجاري.",
+    "COMMERCIAL_ACCESS_LICENSE_STATE_INVALID": "يلزم التحقق من الترخيص قبل استمرار الوصول التجاري.",
+    "COMMERCIAL_ACCESS_GRACE_ENDED": "انتهت فترة سماح الاشتراك.",
+    "COMMERCIAL_ACCESS_VALIDATION_OVERDUE": "التحقق من الترخيص متأخر. اتصل بخدمة سطح المكتب للمتابعة.",
+    "COMMERCIAL_ACCESS_LICENSE_DENIED": "محطة العمل هذه غير مسموح لها بتنفيذ هذا الإجراء.",
+    "COMMERCIAL_ACCESS_PERMISSION_DENIED": "ليس لحسابك إذن للبيع.",
+    "COMMERCIAL_ACCESS_BOOTSTRAP_INCOMPLETE": "لم تكتمل تهيئة البيانات المحلية لمحطة العمل.",
+    "COMMERCIAL_ACCESS_COMPANY_INACTIVE": "هذه الشركة غير نشطة.",
+    "COMMERCIAL_ACCESS_FEATURE_NOT_ENABLED": "ميزة نقطة البيع غير مفعلة لهذا الاشتراك.",
+    "COMMERCIAL_ACCESS_CONNECTIVITY_UNAVAILABLE": "يلزم اتصال مباشر بخدمة سطح المكتب لإجراء المزامنة."
   }
 }

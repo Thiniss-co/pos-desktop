@@ -26,6 +26,10 @@ interface SyncCountRow {
   readonly count: number
 }
 
+interface UpdateResult {
+  readonly changes: number
+}
+
 export class SyncQueueRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
@@ -56,21 +60,29 @@ export class SyncQueueRepository {
   }
 
   transition(localQueueUuid: string, nextState: SyncQueueState): void {
-    const row = this.database
-      .prepare('SELECT state FROM sync_queue WHERE local_queue_uuid = ?')
-      .get(localQueueUuid) as SyncQueueRow | undefined
+    this.database.transaction(() => {
+      const row = this.database
+        .prepare('SELECT state FROM sync_queue WHERE local_queue_uuid = ?')
+        .get(localQueueUuid) as SyncQueueRow | undefined
 
-    if (!row || !isSyncQueueState(row.state)) {
-      throw new Error('Sync queue item was not found')
-    }
+      if (!row || !isSyncQueueState(row.state)) {
+        throw new Error('Sync queue item was not found')
+      }
 
-    if (!isSyncQueueTransitionAllowed(row.state, nextState)) {
-      throw new Error(`Sync queue transition from ${row.state} to ${nextState} is not allowed`)
-    }
+      if (!isSyncQueueTransitionAllowed(row.state, nextState)) {
+        throw new Error(`Sync queue transition from ${row.state} to ${nextState} is not allowed`)
+      }
 
-    this.database
-      .prepare('UPDATE sync_queue SET state = ?, updated_at = ? WHERE local_queue_uuid = ?')
-      .run(nextState, new Date().toISOString(), localQueueUuid)
+      const result = this.database
+        .prepare(
+          'UPDATE sync_queue SET state = ?, updated_at = ? WHERE local_queue_uuid = ? AND state = ?'
+        )
+        .run(nextState, new Date().toISOString(), localQueueUuid, row.state) as UpdateResult
+
+      if (result.changes !== 1) {
+        throw new Error('Sync queue item changed before its transition could be committed')
+      }
+    })()
   }
 
   getStatus(): SyncStatus {

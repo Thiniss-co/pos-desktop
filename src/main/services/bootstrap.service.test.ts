@@ -124,6 +124,7 @@ describe('BootstrapService.refresh', () => {
 
   it('persists the snapshot then marks bootstrap complete, returning sanitized counts', async () => {
     let persistedCalledBefore = false
+    let publishedAfterPersist = false
     let markCompleteCalled = false
 
     const service = new BootstrapService(
@@ -151,12 +152,17 @@ describe('BootstrapService.refresh', () => {
             counts: { categories: 1 }
           }
         }
+      },
+      () => {
+        expect(persistedCalledBefore).toBe(true)
+        publishedAfterPersist = true
       }
     )
 
     const result = await service.refresh()
 
     expect(markCompleteCalled).toBe(true)
+    expect(publishedAfterPersist).toBe(true)
     expect(result).toEqual({
       isComplete: true,
       snapshotVersion: '20260101000000',

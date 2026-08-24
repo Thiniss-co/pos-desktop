@@ -25,4 +25,28 @@ export class DeviceRegistrationRepository {
       )
       .run(record.serverDeviceId, record.status, record.lastSeenAt, record.updatedAt)
   }
+
+  get(): DeviceRegistrationRecord | null {
+    const row = this.database
+      .prepare(
+        'SELECT server_device_id, status, last_seen_at, updated_at FROM device_registration WHERE id = 1'
+      )
+      .get() as
+      | {
+          readonly server_device_id: string
+          readonly status: string
+          readonly last_seen_at: string | null
+          readonly updated_at: string
+        }
+      | undefined
+
+    return row
+      ? {
+          serverDeviceId: row.server_device_id,
+          status: row.status,
+          lastSeenAt: row.last_seen_at,
+          updatedAt: row.updated_at
+        }
+      : null
+  }
 }

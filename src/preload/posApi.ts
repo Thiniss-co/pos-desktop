@@ -17,7 +17,7 @@ import type {
 } from '@shared/contracts/company-users.contract'
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import type { IpcResult } from '@shared/contracts/ipc.contract'
-import type { CommercialAccessSnapshot, LicenseStatus } from '@shared/contracts/license.contract'
+import type { CommercialAccessSnapshot } from '@shared/contracts/license.contract'
 import type { LocaleCode, ThemePreference } from '@shared/contracts/preferences.contract'
 import type { SyncStatus } from '@shared/contracts/sync.contract'
 import type { RuntimeInfo } from '@shared/contracts/system.contract'
@@ -37,8 +37,9 @@ export interface PosApi {
     logout(): Promise<IpcResult<void>>
   }
   readonly license: {
-    validate(): Promise<IpcResult<LicenseStatus>>
+    validate(): Promise<IpcResult<CommercialAccessSnapshot>>
     getAccess(): Promise<IpcResult<CommercialAccessSnapshot>>
+    onAccessChanged(listener: (snapshot: CommercialAccessSnapshot) => void): () => void
   }
   readonly bootstrap: {
     getStatus(): Promise<IpcResult<BootstrapStatus>>
@@ -86,7 +87,17 @@ export const posApi: PosApi = Object.freeze({
   }),
   license: Object.freeze({
     validate: () => ipcRenderer.invoke(IPC_CHANNELS.licenseValidate),
-    getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.licenseGetAccess)
+    getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.licenseGetAccess),
+    onAccessChanged: (listener: (snapshot: CommercialAccessSnapshot) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        // The main-process publisher validates this strictly before send. The bridge deliberately
+        // exposes only the renderer-safe access projection, never license or session internals.
+        listener(payload as CommercialAccessSnapshot)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.licenseAccessChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.licenseAccessChanged, subscription)
+    }
   }),
   bootstrap: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.bootstrapGetStatus),

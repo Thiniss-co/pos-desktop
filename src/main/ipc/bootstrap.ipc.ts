@@ -15,6 +15,11 @@ export function registerBootstrapIpcHandlers(services: ApplicationServices): voi
   )
 
   ipcMain.handle(IPC_CHANNELS.bootstrapRefresh, (_event, input: unknown) =>
-    handleIpcRequest(input, bootstrapRefreshInputSchema, () => services.bootstrap.refresh())
+    handleIpcRequest(input, bootstrapRefreshInputSchema, async () => {
+      const revision = services.commercialAccessPublisher.begin()
+      const result = await services.bootstrap.refresh()
+      services.commercialAccessPublisher.publish(revision)
+      return result
+    })
   )
 }

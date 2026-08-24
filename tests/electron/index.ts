@@ -1,0 +1,8 @@
+import './suites/schema.suite'
+import './suites/transactions.suite'
+import './suites/bootstrapSnapshot.suite'
+import './suites/bootstrapTwoPhase.suite'
+import './suites/licenseMetadata.suite'
+import './suites/activation.suite'
+import './suites/sessionInvalidation.suite'
+import './suites/syncQueue.suite'

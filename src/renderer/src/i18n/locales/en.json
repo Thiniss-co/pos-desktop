@@ -203,6 +203,20 @@
     "COMPANY_LAST_ADMIN": "The last active Company Admin cannot be disabled or demoted.",
     "ROLE_ASSIGNMENT_FORBIDDEN": "You are not allowed to assign that role.",
     "SERVER_ERROR": "The POS service encountered an error.",
-    "SERVICE_UNAVAILABLE": "The POS service is unavailable."
+    "SERVICE_UNAVAILABLE": "The POS service is unavailable.",
+    "COMMERCIAL_ACCESS_DEVICE_NOT_REGISTERED": "This workstation is not registered to an active device.",
+    "COMMERCIAL_ACCESS_DEVICE_REVOKED": "This workstation device has been revoked or retired.",
+    "COMMERCIAL_ACCESS_DEVICE_BLOCKED": "This workstation device is blocked for this action.",
+    "COMMERCIAL_ACCESS_SESSION_INVALID": "Sign in with an active account to continue.",
+    "COMMERCIAL_ACCESS_CLOCK_UNTRUSTED": "Correct this device's clock before commercial access can continue.",
+    "COMMERCIAL_ACCESS_LICENSE_STATE_INVALID": "License validation is required before commercial access can continue.",
+    "COMMERCIAL_ACCESS_GRACE_ENDED": "The subscription grace period has ended.",
+    "COMMERCIAL_ACCESS_VALIDATION_OVERDUE": "License validation is overdue. Connect to the desktop service to continue.",
+    "COMMERCIAL_ACCESS_LICENSE_DENIED": "This workstation is not permitted to perform that action.",
+    "COMMERCIAL_ACCESS_PERMISSION_DENIED": "Your account does not have permission to sell.",
+    "COMMERCIAL_ACCESS_BOOTSTRAP_INCOMPLETE": "Local workstation data has not completed bootstrap.",
+    "COMMERCIAL_ACCESS_COMPANY_INACTIVE": "This company is inactive.",
+    "COMMERCIAL_ACCESS_FEATURE_NOT_ENABLED": "The POS feature is not enabled for this subscription.",
+    "COMMERCIAL_ACCESS_CONNECTIVITY_UNAVAILABLE": "An online connection to the desktop service is required to sync."
   }
 }

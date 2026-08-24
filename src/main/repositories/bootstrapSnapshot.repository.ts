@@ -7,6 +7,13 @@ export interface BootstrapPersistResult {
   readonly counts: Record<string, number>
 }
 
+export interface BootstrapCompany {
+  readonly companyUuid: string
+  readonly name: string
+  readonly isActive: boolean
+  readonly updatedAt: string
+}
+
 function bit(value: boolean): number {
   return value ? 1 : 0
 }
@@ -44,6 +51,7 @@ export class BootstrapSnapshotRepository {
       this.replaceBranch(resource.branch, fetchedAt)
       this.replaceWarehouse(resource.warehouse, fetchedAt)
       this.replaceSubscription(resource.subscription, fetchedAt)
+      this.persistDeviceRegistration(resource.device, fetchedAt)
 
       this.database.prepare('DELETE FROM bootstrap_features').run()
       for (const [code, enabled] of Object.entries(resource.features)) {
@@ -79,13 +87,17 @@ export class BootstrapSnapshotRepository {
         )
         .run(resource.role.name, fetchedAt)
 
-      counts.categories = this.replaceCollection('categories', resource.categories ?? [], (row) =>
+      // SQLite foreign keys remain enabled for the entire replacement. Delete catalogue children
+      // before their products, then insert in the natural parent-to-child order below.
+      this.clearCatalogue()
+
+      counts.categories = this.replaceCollection(resource.categories ?? [], (row) =>
         this.database
           .prepare('INSERT INTO categories (uuid, name, is_active, updated_at) VALUES (?, ?, ?, ?)')
           .run(row.id, row.name, bit(row.is_active), row.updated_at ?? null)
       )
 
-      counts.products = this.replaceCollection('products', resource.products ?? [], (row) =>
+      counts.products = this.replaceCollection(resource.products ?? [], (row) =>
         this.database
           .prepare(
             `
@@ -113,81 +125,72 @@ export class BootstrapSnapshotRepository {
           )
       )
 
-      counts.product_barcodes = this.replaceCollection(
-        'product_barcodes',
-        resource.product_barcodes ?? [],
-        (row) =>
-          this.database
-            .prepare(
-              `
+      counts.product_barcodes = this.replaceCollection(resource.product_barcodes ?? [], (row) =>
+        this.database
+          .prepare(
+            `
                 INSERT INTO product_barcodes (id, product_id, barcode, type, is_primary, is_active, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
               `
-            )
-            .run(
-              row.id,
-              row.product_id,
-              row.barcode,
-              row.type ?? null,
-              bit(row.is_primary),
-              bit(row.is_active),
-              row.updated_at ?? null
-            )
+          )
+          .run(
+            row.id,
+            row.product_id,
+            row.barcode,
+            row.type ?? null,
+            bit(row.is_primary),
+            bit(row.is_active),
+            row.updated_at ?? null
+          )
       )
 
-      counts.product_prices = this.replaceCollection(
-        'product_prices',
-        resource.product_prices ?? [],
-        (row) =>
-          this.database
-            .prepare(
-              `
+      counts.product_prices = this.replaceCollection(resource.product_prices ?? [], (row) =>
+        this.database
+          .prepare(
+            `
                 INSERT INTO product_prices (id, product_id, label, amount, currency, price_type, is_active, starts_at, ends_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               `
-            )
-            .run(
-              row.id,
-              row.product_id,
-              row.label ?? null,
-              row.amount,
-              row.currency,
-              row.price_type ?? null,
-              bit(row.is_active),
-              row.starts_at ?? null,
-              row.ends_at ?? null,
-              row.updated_at ?? null
-            )
+          )
+          .run(
+            row.id,
+            row.product_id,
+            row.label ?? null,
+            row.amount,
+            row.currency,
+            row.price_type ?? null,
+            bit(row.is_active),
+            row.starts_at ?? null,
+            row.ends_at ?? null,
+            row.updated_at ?? null
+          )
       )
 
-      counts.stock_items = this.replaceCollection(
-        'stock_items',
-        resource.stock_items ?? [],
-        (row) =>
-          this.database
-            .prepare(
-              `
+      counts.stock_items = this.replaceCollection(resource.stock_items ?? [], (row) =>
+        this.database
+          .prepare(
+            `
               INSERT INTO stock_items (
                 id, product_id, warehouse_id, quantity, reserved_quantity, available_quantity,
                 minimum_quantity, maximum_quantity, is_active, updated_at
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `
-            )
-            .run(
-              row.id,
-              row.product_id,
-              row.warehouse_id,
-              decimal(row.quantity),
-              decimal(row.reserved_quantity),
-              decimal(row.available_quantity),
-              decimal(row.minimum_quantity),
-              decimal(row.maximum_quantity),
-              bit(row.is_active),
-              row.updated_at ?? null
-            )
+          )
+          .run(
+            row.id,
+            row.product_id,
+            row.warehouse_id,
+            decimal(row.quantity),
+            decimal(row.reserved_quantity),
+            decimal(row.available_quantity),
+            decimal(row.minimum_quantity),
+            decimal(row.maximum_quantity),
+            bit(row.is_active),
+            row.updated_at ?? null
+          )
       )
 
-      counts.taxes = this.replaceCollection('taxes', resource.taxes ?? [], (row) =>
+      counts.taxes = this.replaceCollection(resource.taxes ?? [], (row) =>
         this.database
           .prepare(
             `
@@ -207,32 +210,29 @@ export class BootstrapSnapshotRepository {
           )
       )
 
-      counts.payment_methods = this.replaceCollection(
-        'payment_methods',
-        resource.payment_methods ?? [],
-        (row) =>
-          this.database
-            .prepare(
-              `
+      counts.payment_methods = this.replaceCollection(resource.payment_methods ?? [], (row) =>
+        this.database
+          .prepare(
+            `
                 INSERT INTO payment_methods (
                   id, name, code, type, is_active, allows_change, requires_reference, sort_order, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
               `
-            )
-            .run(
-              row.id,
-              row.name,
-              row.code ?? null,
-              row.type ?? null,
-              bit(row.is_active),
-              bit(row.allows_change),
-              bit(row.requires_reference),
-              row.sort_order,
-              row.updated_at ?? null
-            )
+          )
+          .run(
+            row.id,
+            row.name,
+            row.code ?? null,
+            row.type ?? null,
+            bit(row.is_active),
+            bit(row.allows_change),
+            bit(row.requires_reference),
+            row.sort_order,
+            row.updated_at ?? null
+          )
       )
 
-      counts.customers = this.replaceCollection('customers', resource.customers ?? [], (row) =>
+      counts.customers = this.replaceCollection(resource.customers ?? [], (row) =>
         this.database
           .prepare(
             `
@@ -279,6 +279,38 @@ export class BootstrapSnapshotRepository {
     return rows.map((row) => row.permission_name)
   }
 
+  getCompany(): BootstrapCompany | null {
+    const row = this.database
+      .prepare(
+        'SELECT company_uuid, name, is_active, updated_at FROM bootstrap_company WHERE id = 1'
+      )
+      .get() as
+      | {
+          readonly company_uuid: string
+          readonly name: string
+          readonly is_active: number
+          readonly updated_at: string
+        }
+      | undefined
+
+    return row
+      ? {
+          companyUuid: row.company_uuid,
+          name: row.name,
+          isActive: row.is_active === 1,
+          updatedAt: row.updated_at
+        }
+      : null
+  }
+
+  isFeatureEnabled(code: string): boolean {
+    const row = this.database
+      .prepare('SELECT is_enabled FROM bootstrap_features WHERE feature_code = ?')
+      .get(code) as { readonly is_enabled: number } | undefined
+
+    return row?.is_enabled === 1
+  }
+
   getLimit(key: string): number | null {
     const row = this.database
       .prepare('SELECT limit_value FROM bootstrap_limits WHERE limit_key = ?')
@@ -287,18 +319,27 @@ export class BootstrapSnapshotRepository {
     return row?.limit_value ?? null
   }
 
-  private replaceCollection<T>(
-    table: string,
-    rows: readonly T[],
-    insert: (row: T) => void
-  ): number {
-    this.database.prepare(`DELETE FROM ${table}`).run()
-
+  private replaceCollection<T>(rows: readonly T[], insert: (row: T) => void): number {
     for (const row of rows) {
       insert(row)
     }
 
     return rows.length
+  }
+
+  private clearCatalogue(): void {
+    for (const table of [
+      'product_barcodes',
+      'product_prices',
+      'stock_items',
+      'products',
+      'categories',
+      'taxes',
+      'payment_methods',
+      'customers'
+    ]) {
+      this.database.prepare(`DELETE FROM ${table}`).run()
+    }
   }
 
   private replaceBranch(branch: DesktopBootstrapResource['branch'], fetchedAt: string): void {
@@ -320,6 +361,25 @@ export class BootstrapSnapshotRepository {
         `
       )
       .run(branch.id, branch.name, bit(branch.is_active), fetchedAt)
+  }
+
+  private persistDeviceRegistration(
+    device: DesktopBootstrapResource['device'],
+    fetchedAt: string
+  ): void {
+    this.database
+      .prepare(
+        `
+          INSERT INTO device_registration (id, server_device_id, status, last_seen_at, updated_at)
+          VALUES (1, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            server_device_id = excluded.server_device_id,
+            status = excluded.status,
+            last_seen_at = excluded.last_seen_at,
+            updated_at = excluded.updated_at
+        `
+      )
+      .run(device.id, device.status ?? 'unknown', device.last_seen_at ?? null, fetchedAt)
   }
 
   private replaceWarehouse(
