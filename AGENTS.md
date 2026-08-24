@@ -55,14 +55,14 @@ Before changing anything, always look first:
 
 ## Testing Commands
 
-Run whatever of these exist in `package.json` before declaring work done (as of Phase 0 inspection,
-`typecheck`, `lint`, `format`, and packaging scripts exist; a `test` script does not yet exist —
-see `.ai/guidelines/testing-and-verification.md` for what to add and when):
+Run whatever of these exist in `package.json` before declaring work done (verify by reading
+`package.json` — do not assume): `typecheck`, `lint`, `format`, `test`, and packaging scripts all
+exist as of this writing — see `.ai/guidelines/testing-and-verification.md` for coverage priorities.
 
 ```bash
 npm run typecheck   # tsc (node) + vue-tsc (web), no emit
 npm run lint         # eslint --cache .
-npm run test         # NOT YET DEFINED — do not assume it exists; check first
+npm run test         # vitest run
 ```
 
 Do not run `npm run format` (it rewrites files with `--write`) or `npm run dev`/`npm run start`

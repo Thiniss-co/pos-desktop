@@ -4,6 +4,12 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { UpdateCompanyUserInput } from '@shared/contracts/company-users.contract'
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
+import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
+import AppCheckbox from '@renderer/shared/components/forms/AppCheckbox.vue'
+import AppInput from '@renderer/shared/components/forms/AppInput.vue'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useCompanyUsersStore } from '../store'
 
 const route = useRoute()
@@ -45,6 +51,15 @@ onMounted(async () => {
     .map((role) => role.uuid)
 })
 
+function toggleRole(list: string[], value: string, checked: boolean): void {
+  const index = list.indexOf(value)
+  if (checked && index === -1) {
+    list.push(value)
+  } else if (!checked && index !== -1) {
+    list.splice(index, 1)
+  }
+}
+
 async function submit(): Promise<void> {
   if (!selectedUser.value) {
     return
@@ -71,73 +86,101 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <section class="shell-page company-user-form-page">
-    <p class="shell-page__label">{{ t('companyUsers.label') }}</p>
-    <h2>{{ t('companyUsers.editTitle') }}</h2>
-    <p v-if="isLoading">{{ t('companyUsers.loadingUser') }}</p>
-    <p v-else-if="!access?.canManage" class="inline-error" role="alert">
+  <section class="company-user-form-page">
+    <PageHeader :eyebrow="t('companyUsers.label')" :title="t('companyUsers.editTitle')" />
+    <AppLoadingSkeleton v-if="isLoading" :label="t('companyUsers.loadingUser')" />
+    <AppInlineError v-else-if="!access?.canManage">
       {{ t('companyUsers.noPermissionEdit') }}
-    </p>
+    </AppInlineError>
 
-    <form v-else-if="selectedUser" class="foundation-form" @submit.prevent="submit">
-      <label>
-        {{ t('companyUsers.name') }}
-        <input v-model.trim="form.name" required maxlength="255" autocomplete="name" />
-      </label>
-      <label>
-        {{ t('auth.email') }}
-        <input
-          v-model.trim="form.email"
-          required
-          type="email"
-          maxlength="255"
-          autocomplete="email"
-        />
-      </label>
-      <label>
-        {{ t('companyUsers.newPassword') }}
-        <input
-          v-model="form.password"
-          type="password"
-          minlength="8"
-          maxlength="255"
-          autocomplete="new-password"
-        />
-      </label>
+    <form v-else-if="selectedUser" class="company-user-form-page__form" @submit.prevent="submit">
+      <AppInput
+        v-model.trim="form.name"
+        :label="t('companyUsers.name')"
+        required
+        maxlength="255"
+        autocomplete="name"
+      />
+      <AppInput
+        v-model.trim="form.email"
+        type="email"
+        :label="t('auth.email')"
+        required
+        maxlength="255"
+        autocomplete="email"
+      />
+      <AppInput
+        v-model="form.password"
+        type="password"
+        :label="t('companyUsers.newPassword')"
+        minlength="8"
+        maxlength="255"
+        autocomplete="new-password"
+      />
 
       <fieldset class="company-user-form-page__roles">
         <legend>{{ t('companyUsers.systemRoles') }}</legend>
-        <label v-for="role in assignableRoles?.systemRoles" :key="role.key">
-          <input
-            v-model="form.roles"
-            type="checkbox"
-            :value="role.key"
-            :disabled="!role.assignable"
-          />
-          {{ role.label }}
-        </label>
+        <AppCheckbox
+          v-for="role in assignableRoles?.systemRoles"
+          :key="role.key"
+          :label="role.label"
+          :disabled="!role.assignable"
+          :model-value="form.roles.includes(role.key)"
+          @update:model-value="(checked) => toggleRole(form.roles, role.key, checked)"
+        />
       </fieldset>
 
       <fieldset class="company-user-form-page__roles">
         <legend>{{ t('companyUsers.customRoles') }}</legend>
-        <label v-for="role in assignableRoles?.companyRoles" :key="role.uuid">
-          <input
-            v-model="form.companyRoleIds"
-            type="checkbox"
-            :value="role.uuid"
-            :disabled="!role.isActive"
-          />
-          {{ role.name }}
-        </label>
+        <AppCheckbox
+          v-for="role in assignableRoles?.companyRoles"
+          :key="role.uuid"
+          :label="role.name"
+          :disabled="!role.isActive"
+          :model-value="form.companyRoleIds.includes(role.uuid)"
+          @update:model-value="(checked) => toggleRole(form.companyRoleIds, role.uuid, checked)"
+        />
       </fieldset>
 
-      <p v-if="fieldErrors" class="inline-error" role="alert">
-        <span v-for="(messages, field) in fieldErrors" :key="field"
-          >{{ field }}: {{ messages.join(' ') }}
+      <AppInlineError v-if="fieldErrors">
+        <span v-for="(messages, field) in fieldErrors" :key="field">
+          {{ field }}: {{ messages.join(' ') }}
         </span>
-      </p>
-      <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
-      <button type="submit" :disabled="isMutating">{{ t('common.saveChanges') }}</button>
+      </AppInlineError>
+      <AppInlineError v-if="error">{{ error }}</AppInlineError>
+
+      <AppButton type="submit" :loading="isMutating">{{ t('common.saveChanges') }}</AppButton>
     </form>
   </section>
 </template>
+
+<style scoped>
+.company-user-form-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 32rem;
+}
+
+.company-user-form-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.company-user-form-page__roles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+}
+
+.company-user-form-page__roles legend {
+  padding-inline: var(--space-1);
+  font-size: var(--text-body-sm-size);
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+}
+</style>

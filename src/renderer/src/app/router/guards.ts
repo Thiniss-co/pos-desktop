@@ -36,6 +36,14 @@ function canAccessRoute(state: StartupState, routeName: string | null | undefine
 }
 
 export async function startupGuard(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
+  // The dev-only design gallery (see devGallery module) has no business state to be ready for —
+  // it renders static, immutable fixtures and never calls IPC/HTTP/SQLite. It is excluded from
+  // routes.ts entirely outside `import.meta.env.DEV`, so this branch is unreachable in a
+  // production build; see devGallery.exclusion.test.ts for the build-output proof.
+  if (to.meta.devOnly === true) {
+    return true
+  }
+
   const startup = useStartupStore()
 
   if (!startup.isInitialized) {

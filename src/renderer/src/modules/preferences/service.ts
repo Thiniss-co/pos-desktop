@@ -1,4 +1,4 @@
-import type { LocaleCode } from '@shared/contracts/preferences.contract'
+import type { LocaleCode, ThemePreference } from '@shared/contracts/preferences.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
 export class PreferencesService {
@@ -12,5 +12,13 @@ export class PreferencesService {
 
   async setLocale(locale: LocaleCode): Promise<LocaleCode> {
     return unwrapIpcResult(await this.gateway.setLocale(locale))
+  }
+
+  async getTheme(): Promise<ThemePreference | null> {
+    return unwrapIpcResult(await this.gateway.getTheme())
+  }
+
+  async setTheme(theme: ThemePreference): Promise<ThemePreference> {
+    return unwrapIpcResult(await this.gateway.setTheme(theme))
   }
 }

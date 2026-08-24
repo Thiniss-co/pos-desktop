@@ -20,7 +20,10 @@
     "disabled": "معطّل",
     "loading": "جارٍ التحميل…",
     "signOut": "تسجيل الخروج",
-    "signingOut": "جارٍ تسجيل الخروج…"
+    "signingOut": "جارٍ تسجيل الخروج…",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "close": "إغلاق"
   },
   "navigation": {
     "pos": "نقطة البيع",
@@ -32,6 +35,13 @@
     "switcherLabel": "اللغة",
     "english": "English",
     "arabic": "العربية"
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "النظام",
+    "saveFailed": "تعذر حفظ اختيار المظهر، وقد لا يستمر بعد إعادة تشغيل التطبيق."
   },
   "connectivity": {
     "checking": "جارٍ التحقق من الاتصال…",
@@ -110,7 +120,8 @@
     "apiConfiguration": "إعداد واجهة البرمجة",
     "deviceState": "حالة الجهاز",
     "registered": "مسجل",
-    "notRegistered": "غير مسجل"
+    "notRegistered": "غير مسجل",
+    "unavailable": "تفاصيل محطة العمل غير متاحة بعد."
   },
   "companyUsers": {
     "label": "مستخدمو الشركة",
@@ -129,7 +140,9 @@
     "roles": "الأدوار",
     "actions": "الإجراءات",
     "pageOf": "الصفحة {page} من {total}",
+    "confirmDisableTitle": "تعطيل المستخدم؟",
     "confirmDisable": "تعطيل {name}؟ سيمنع ذلك تسجيل الدخول، لكنه لا يحذف الحساب أو الجهاز أو بيانات العمل.",
+    "confirmEnableTitle": "تفعيل المستخدم؟",
     "confirmEnable": "تفعيل {name}؟ سيعيد ذلك تسجيل الدخول فقط إذا كانت الخطة ما تزال تستوعب مستخدمين.",
     "createTitle": "إضافة مستخدم شركة",
     "editTitle": "تعديل مستخدم الشركة",

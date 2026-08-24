@@ -9,6 +9,7 @@ import { useStartupStore } from './app/startup/startup.store'
 import { useAuthStore } from './modules/auth/store'
 import { i18n } from './i18n'
 import { applyLocaleToDocument, useLocaleStore } from './modules/preferences/locale.store'
+import { applyThemeToDocument, useThemeStore } from './modules/preferences/theme.store'
 
 const pinia = createPinia()
 
@@ -23,6 +24,12 @@ async function bootstrapRenderer(): Promise<void> {
     await useLocaleStore(pinia).initialize()
   } catch {
     applyLocaleToDocument('en')
+  }
+
+  try {
+    await useThemeStore(pinia).initialize()
+  } catch {
+    applyThemeToDocument('system')
   }
 
   createApp(App).use(pinia).use(i18n).use(router).mount('#app')

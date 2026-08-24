@@ -20,7 +20,10 @@
     "disabled": "Disabled",
     "loading": "Loading…",
     "signOut": "Sign out",
-    "signingOut": "Signing out…"
+    "signingOut": "Signing out…",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close"
   },
   "navigation": {
     "pos": "POS",
@@ -32,6 +35,13 @@
     "switcherLabel": "Language",
     "english": "English",
     "arabic": "العربية"
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "saveFailed": "Your theme choice could not be saved and may not persist after restart."
   },
   "connectivity": {
     "checking": "Checking connection…",
@@ -110,7 +120,8 @@
     "apiConfiguration": "API configuration",
     "deviceState": "Device state",
     "registered": "registered",
-    "notRegistered": "not registered"
+    "notRegistered": "not registered",
+    "unavailable": "Workstation details are not available yet."
   },
   "companyUsers": {
     "label": "Company users",
@@ -129,7 +140,9 @@
     "roles": "Roles",
     "actions": "Actions",
     "pageOf": "Page {page} of {total}",
+    "confirmDisableTitle": "Disable user?",
     "confirmDisable": "Disable {name}? This prevents sign-in but does not delete the account, device, or business data.",
+    "confirmEnableTitle": "Enable user?",
     "confirmEnable": "Enable {name}? This restores sign-in only if the subscription still has capacity.",
     "createTitle": "Add a company user",
     "editTitle": "Edit company user",

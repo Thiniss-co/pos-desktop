@@ -1,7 +1,10 @@
+@import './tokens.css';
+@import './themes/palette.css';
+
 :root {
-  color: #172b38;
-  background: #e8eef0;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-on-background);
+  background: var(--color-background);
+  font-family: var(--font-ui);
   font-synthesis: none;
 }
 
@@ -15,9 +18,39 @@
 body {
   min-width: 320px;
   min-height: 100vh;
+  color: var(--color-on-background);
+  background: var(--color-background);
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+  color: inherit;
+}
+
+/* Visible keyboard focus everywhere, in both themes — never removed without a replacement. */
+:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Money, quantities, totals, timestamps, SKU, and barcode values — always tabular, always the
+   numeric face, regardless of locale. See shared/utils/format.ts for the matching Latin-digit
+   enforcement in Arabic. */
+.numeric {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

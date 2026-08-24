@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
 
 const { snapshot } = storeToRefs(useStartupStore())
@@ -8,13 +10,13 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section class="shell-page">
-    <p class="shell-page__label">{{ t('settings.label') }}</p>
-    <h2>{{ t('settings.title') }}</h2>
+  <section class="settings-page">
+    <PageHeader :eyebrow="t('settings.label')" :title="t('settings.title')" />
+
     <dl v-if="snapshot" class="readiness-list">
       <div>
         <dt>{{ t('settings.appVersion') }}</dt>
-        <dd>{{ snapshot.runtime.appVersion }}</dd>
+        <dd class="numeric">{{ snapshot.runtime.appVersion }}</dd>
       </div>
       <div>
         <dt>{{ t('settings.apiConfiguration') }}</dt>
@@ -29,5 +31,14 @@ const { t } = useI18n()
         </dd>
       </div>
     </dl>
+    <AppEmptyState v-else :title="t('settings.unavailable')" />
   </section>
 </template>
+
+<style scoped>
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+</style>

@@ -4,6 +4,10 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
+import AppInput from '@renderer/shared/components/forms/AppInput.vue'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useAuthStore } from '../store'
 
 const auth = useAuthStore()
@@ -35,40 +39,60 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div class="startup-panel">
-    <p class="startup-panel__label">{{ t('auth.label') }}</p>
-    <h2>{{ t('auth.title') }}</h2>
-    <p v-if="session?.isAuthenticated">{{ t('auth.sessionAvailable') }}</p>
-    <form class="foundation-form" @submit.prevent="submit">
-      <label>
-        {{ t('auth.email') }}
-        <input
-          v-model="email"
-          type="email"
-          autocomplete="username"
-          :placeholder="t('auth.emailPlaceholder')"
-          required
-        />
-      </label>
-      <label>
-        {{ t('auth.password') }}
-        <input
-          v-model="password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="••••••••"
-          required
-        />
-      </label>
-      <p v-if="fieldErrors" class="inline-error">
-        <span v-for="(messages, field) in fieldErrors" :key="field"
-          >{{ field }}: {{ messages.join(', ') }}</span
-        >
-      </p>
-      <button type="submit" :disabled="isSubmitting">
-        {{ isSubmitting ? t('auth.signingIn') : t('auth.signIn') }}
-      </button>
+  <div class="login-page">
+    <PageHeader :eyebrow="t('auth.label')" :title="t('auth.title')" />
+    <p v-if="session?.isAuthenticated" class="login-page__hint">
+      {{ t('auth.sessionAvailable') }}
+    </p>
+
+    <form class="login-page__form" @submit.prevent="submit">
+      <AppInput
+        v-model="email"
+        type="email"
+        autocomplete="username"
+        :label="t('auth.email')"
+        :placeholder="t('auth.emailPlaceholder')"
+        required
+      />
+      <AppInput
+        v-model="password"
+        type="password"
+        autocomplete="current-password"
+        :label="t('auth.password')"
+        placeholder="••••••••"
+        required
+      />
+
+      <AppInlineError v-if="fieldErrors">
+        <span v-for="(messages, field) in fieldErrors" :key="field">
+          {{ field }}: {{ messages.join(', ') }}
+        </span>
+      </AppInlineError>
+
+      <AppButton type="submit" :loading="isSubmitting" full-width>
+        {{ t('auth.signIn') }}
+      </AppButton>
     </form>
-    <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
+
+    <AppInlineError v-if="error">{{ error }}</AppInlineError>
   </div>
 </template>
+
+<style scoped>
+.login-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.login-page__hint {
+  color: var(--color-on-surface-variant);
+  font-size: var(--text-body-md-size);
+}
+
+.login-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+</style>

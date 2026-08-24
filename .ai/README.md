@@ -6,19 +6,20 @@ here is the detailed source of truth — update both together.
 
 ## Guidelines
 
-| File | Covers |
-|---|---|
-| [desktop-architecture.md](guidelines/desktop-architecture.md) | main/preload/renderer split, service/repository/store pattern, module layout |
-| [electron-security.md](guidelines/electron-security.md) | window hardening, IPC exposure, validation, printing bridge |
-| [vue-structure.md](guidelines/vue-structure.md) | module layout, stores, composables, component categories |
-| [backend-api-contract.md](guidelines/backend-api-contract.md) | desktop routes, auth headers, envelope, error handling |
-| [offline-sync-contract.md](guidelines/offline-sync-contract.md) | sync queue states, idempotency, conflict/quarantine rules |
-| [local-database.md](guidelines/local-database.md) | SQLite ownership, migrations, repositories, sync fields |
-| [ipc-contracts.md](guidelines/ipc-contracts.md) | `window.posApi` shape, channel typing, validation |
-| [pos-ux-rules.md](guidelines/pos-ux-rules.md) | cashier-first UX, barcode input, offline/sync indicators |
-| [testing-and-verification.md](guidelines/testing-and-verification.md) | required checks, coverage targets, manual smoke checklist |
-| [phase-workflow.md](guidelines/phase-workflow.md) | phase sequence and what belongs in each phase |
-| [no-go-rules.md](guidelines/no-go-rules.md) | hard forbidden-action list |
+| File                                                                  | Covers                                                                       |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [desktop-architecture.md](guidelines/desktop-architecture.md)         | main/preload/renderer split, service/repository/store pattern, module layout |
+| [electron-security.md](guidelines/electron-security.md)               | window hardening, IPC exposure, validation, printing bridge                  |
+| [vue-structure.md](guidelines/vue-structure.md)                       | module layout, stores, composables, component categories                     |
+| [backend-api-contract.md](guidelines/backend-api-contract.md)         | desktop routes, auth headers, envelope, error handling                       |
+| [offline-sync-contract.md](guidelines/offline-sync-contract.md)       | sync queue states, idempotency, conflict/quarantine rules                    |
+| [local-database.md](guidelines/local-database.md)                     | SQLite ownership, migrations, repositories, sync fields                      |
+| [ipc-contracts.md](guidelines/ipc-contracts.md)                       | `window.posApi` shape, channel typing, validation                            |
+| [pos-ux-rules.md](guidelines/pos-ux-rules.md)                         | cashier-first UX, barcode input, offline/sync indicators                     |
+| [design-system.md](guidelines/design-system.md)                       | light/dark tokens, contrast usage rules, theme preference, component reuse   |
+| [testing-and-verification.md](guidelines/testing-and-verification.md) | required checks, coverage targets, manual smoke checklist                    |
+| [phase-workflow.md](guidelines/phase-workflow.md)                     | phase sequence and what belongs in each phase                                |
+| [no-go-rules.md](guidelines/no-go-rules.md)                           | hard forbidden-action list                                                   |
 
 ## How These Relate to `docs/`
 

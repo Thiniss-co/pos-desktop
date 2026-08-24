@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import { useConnectivityStore } from '../store'
 
 const { t } = useI18n()
@@ -15,30 +17,36 @@ const {
 </script>
 
 <template>
-  <section
+  <AppBanner
     v-if="showOfflineWarning || showBackendUnavailableWarning"
-    class="connectivity-banner connectivity-banner--warning"
+    class="connectivity-banner"
+    variant="warning"
     role="alert"
   >
     <p>
       {{ showOfflineWarning ? t('connectivity.offline') : t('connectivity.backendUnavailable') }}
     </p>
-    <button type="button" :disabled="isRetrying" @click="connectivity.retry()">
-      {{ isRetrying ? t('common.loading') : t('connectivity.retry') }}
-    </button>
-  </section>
-  <p
-    v-else-if="showCheckingHint"
-    class="connectivity-banner connectivity-banner--hint"
-    role="status"
-  >
+    <template #action>
+      <AppButton variant="ghost" :loading="isRetrying" @click="connectivity.retry()">
+        {{ t('connectivity.retry') }}
+      </AppButton>
+    </template>
+  </AppBanner>
+  <AppBanner v-else-if="showCheckingHint" class="connectivity-banner" variant="info" role="status">
     {{ t('connectivity.checking') }}
-  </p>
-  <p
+  </AppBanner>
+  <AppBanner
     v-else-if="showRestoredToast"
-    class="connectivity-banner connectivity-banner--restored"
+    class="connectivity-banner"
+    variant="success"
     role="status"
   >
     {{ t('connectivity.restored') }}
-  </p>
+  </AppBanner>
 </template>
+
+<style scoped>
+.connectivity-banner {
+  margin-block-end: var(--space-4);
+}
+</style>

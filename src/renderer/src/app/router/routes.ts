@@ -50,6 +50,21 @@ export const routes: RouteRecordRaw[] = [
     component: CompanyUserEditPage,
     meta: { layout: 'app' }
   },
+  // Dev-only design gallery. The `import.meta.env.DEV` check is statically replaced with `false`
+  // in a production build, so Vite/Rollup dead-code-eliminates this entire array — including the
+  // dynamic import, which is why the component is lazy-loaded rather than statically imported
+  // like every route above. See devGallery.exclusion.test.ts for the build-output proof, and
+  // guards.ts's `meta.devOnly` bypass for why the startup guard doesn't redirect it away.
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/__dev/gallery',
+          name: 'dev-gallery',
+          component: () => import('@renderer/modules/devGallery/pages/DevGalleryPage.vue'),
+          meta: { layout: 'app', devOnly: true }
+        }
+      ]
+    : []),
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',

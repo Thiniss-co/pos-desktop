@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 
 const { t } = useI18n()
 </script>
 
 <template>
-  <section class="shell-page">
-    <p class="shell-page__label">{{ t('pos.label') }}</p>
-    <h2>{{ t('pos.title') }}</h2>
-    <p>{{ t('pos.description') }}</p>
+  <section class="pos-page">
+    <PageHeader
+      :eyebrow="t('pos.label')"
+      :title="t('pos.title')"
+      :description="t('pos.description')"
+    />
   </section>
 </template>
+
+<style scoped>
+.pos-page {
+  display: flex;
+  flex-direction: column;
+}
+</style>

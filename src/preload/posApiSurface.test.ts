@@ -29,6 +29,8 @@ describe('posApi surface', () => {
     expect(source).toContain('preferences')
     expect(source).toContain('getLocale')
     expect(source).toContain('setLocale')
+    expect(source).toContain('getTheme')
+    expect(source).toContain('setTheme')
   })
 
   it('contains only named company-user management methods', () => {

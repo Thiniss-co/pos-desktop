@@ -1,0 +1,105 @@
+/*
+ * Modern Ledger — non-color design tokens.
+ *
+ * Typography, spacing, radius, sizing, motion, and layering. Colors live in
+ * `themes/palette.css` — this file never contains a color value.
+ */
+
+:root {
+  /* ---- Type families ------------------------------------------------- */
+  --font-ui-latin: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-ui-arabic: 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  --font-numeric: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', monospace;
+  /* The active UI face for the current document direction. RTL flips this to the Arabic stack
+     below — Latin display fonts and JetBrains Mono are never used to render Arabic glyphs. */
+  --font-ui: var(--font-ui-latin);
+
+  /* ---- Type scale: size / line-height / weight ------------------------ */
+  --text-display-lg-size: 2rem; /* 32px */
+  --text-display-lg-line: 2.5rem; /* 40px */
+  --text-display-lg-weight: 700;
+
+  --text-display-md-size: 1.5rem; /* 24px */
+  --text-display-md-line: 2rem; /* 32px */
+  --text-display-md-weight: 600;
+
+  --text-headline-sm-size: 1.125rem; /* 18px */
+  --text-headline-sm-line: 1.5rem; /* 24px */
+  --text-headline-sm-weight: 600;
+
+  --text-body-lg-size: 1rem; /* 16px */
+  --text-body-lg-line: 1.5rem; /* 24px */
+  --text-body-lg-weight: 400;
+
+  --text-body-md-size: 0.875rem; /* 14px */
+  --text-body-md-line: 1.25rem; /* 20px */
+  --text-body-md-weight: 400;
+
+  --text-body-sm-size: 0.8125rem; /* 13px */
+  --text-body-sm-line: 1.125rem; /* 18px */
+  --text-body-sm-weight: 400;
+
+  --text-label-caps-size: 0.6875rem; /* 11px */
+  --text-label-caps-line: 1rem; /* 16px */
+  --text-label-caps-weight: 700;
+  --text-label-caps-tracking: 0.05em; /* Latin only — see [dir="rtl"] override below. */
+
+  --text-numeric-data-size: 0.875rem; /* 14px */
+  --text-numeric-data-line: 1.25rem; /* 20px */
+  --text-numeric-data-weight: 500;
+
+  --text-numeric-lg-size: 1.75rem; /* 28px */
+  --text-numeric-lg-line: 2rem; /* 32px */
+  --text-numeric-lg-weight: 600;
+
+  /* ---- Spacing (4px base) ---------------------------------------------- */
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-5: 1.25rem; /* 20 */
+  --space-6: 1.5rem; /* 24 */
+  --space-8: 2rem; /* 32 */
+
+  /* ---- Radius ------------------------------------------------------------ */
+  --radius-xs: 2px; /* compact accents */
+  --radius-sm: 4px; /* buttons, fields, chips */
+  --radius-md: 6px; /* medium controls */
+  --radius-lg: 8px; /* panels, dialogs, cart, cards */
+  --radius-xl: 12px; /* one exceptional large container only */
+  --radius-full: 9999px; /* circular / avatar / status-dot only */
+
+  /* ---- Sizing --------------------------------------------------------- */
+  --size-target-min: 44px; /* minimum interactive target */
+  --size-row: 48px; /* ledger row */
+  --size-row-lg: 56px; /* long table row */
+
+  /* ---- Motion ----------------------------------------------------------- */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- Layering --------------------------------------------------------- */
+  --z-dropdown: 20;
+  --z-banner: 30;
+  --z-dialog: 40;
+  --z-toast: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}
+
+/* Arabic UI swaps the Latin display/body stack for the Arabic-appropriate one. The numeric stack
+   is never swapped — money, quantities, SKU, and barcode values stay in JetBrains Mono regardless
+   of locale (see shared/utils/format.ts, which already forces Latin digits in Arabic). Latin
+   uppercase letter-spacing on label-caps text never applies to Arabic glyphs. */
+html[dir='rtl'] {
+  --font-ui: var(--font-ui-arabic);
+  --text-label-caps-tracking: normal;
+}

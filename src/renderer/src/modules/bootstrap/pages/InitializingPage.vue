@@ -4,6 +4,10 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
+import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useBootstrapStore } from '../store'
 
 const bootstrap = useBootstrapStore()
@@ -50,14 +54,22 @@ watch(
 </script>
 
 <template>
-  <div class="startup-panel">
-    <p class="startup-panel__label">{{ t('bootstrap.label') }}</p>
-    <h2>{{ t('bootstrap.title') }}</h2>
+  <div class="initializing-page">
+    <PageHeader :eyebrow="t('bootstrap.label')" :title="t('bootstrap.title')" />
     <p v-if="status?.isComplete">{{ t('bootstrap.snapshotAvailable') }}</p>
+    <AppLoadingSkeleton v-else-if="isRunning" :label="stageLabels[stage]?.()" :lines="2" />
     <p v-else>{{ stageLabels[stage]?.() }}</p>
-    <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
-    <button v-if="error && isRetryable && !isRunning" type="button" @click="start">
+    <AppInlineError v-if="error">{{ error }}</AppInlineError>
+    <AppButton v-if="error && isRetryable && !isRunning" variant="secondary" @click="start">
       {{ t('common.retry') }}
-    </button>
+    </AppButton>
   </div>
 </template>
+
+<style scoped>
+.initializing-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+</style>

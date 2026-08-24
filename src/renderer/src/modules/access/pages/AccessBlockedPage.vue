@@ -3,6 +3,8 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useAccessStore } from '../store'
 
 const { state } = storeToRefs(useAccessStore())
@@ -17,13 +19,29 @@ async function retry(): Promise<void> {
 </script>
 
 <template>
-  <div class="startup-panel" role="alert">
-    <p class="startup-panel__label">{{ t('startup.accessBlockedLabel') }}</p>
-    <h2>{{ t('startup.accessBlockedTitle') }}</h2>
+  <div class="access-blocked-page" role="alert">
+    <PageHeader
+      :eyebrow="t('startup.accessBlockedLabel')"
+      :title="t('startup.accessBlockedTitle')"
+    />
     <p>{{ state.message }}</p>
-    <p v-if="state.traceId" class="inline-meta">
+    <p v-if="state.traceId" class="access-blocked-page__reference numeric">
       {{ t('startup.reference', { traceId: state.traceId }) }}
     </p>
-    <button type="button" @click="retry">{{ t('common.retry') }}</button>
+    <AppButton variant="secondary" @click="retry">{{ t('common.retry') }}</AppButton>
   </div>
 </template>
+
+<style scoped>
+.access-blocked-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.access-blocked-page__reference {
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-muted);
+}
+</style>

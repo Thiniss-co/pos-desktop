@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   preferencesGetLocaleInputSchema,
-  preferencesSetLocaleInputSchema
+  preferencesSetLocaleInputSchema,
+  preferencesGetThemeInputSchema,
+  preferencesSetThemeInputSchema
 } from '@shared/validators/ipc.validators'
 import { handleIpcRequest } from './handleIpcRequest'
 
@@ -37,6 +39,37 @@ describe('preferences IPC validation', () => {
     const rejectedInjection = await handleIpcRequest(
       "en'; DROP TABLE app_settings; --",
       preferencesSetLocaleInputSchema,
+      () => 'not called'
+    )
+    expect(rejectedInjection).toMatchObject({ ok: false, error: { category: 'validation' } })
+  })
+
+  it('rejects any input for getTheme', async () => {
+    const result = await handleIpcRequest(
+      { theme: 'dark' },
+      preferencesGetThemeInputSchema,
+      () => 'not called'
+    )
+
+    expect(result).toMatchObject({ ok: false, error: { category: 'validation' } })
+  })
+
+  it('accepts only "light", "dark", or "system" for setTheme, rejecting arbitrary strings', async () => {
+    for (const theme of ['light', 'dark', 'system'] as const) {
+      const accepted = await handleIpcRequest(theme, preferencesSetThemeInputSchema, (t) => t)
+      expect(accepted).toEqual({ ok: true, data: theme })
+    }
+
+    const rejected = await handleIpcRequest(
+      'blue',
+      preferencesSetThemeInputSchema,
+      () => 'not called'
+    )
+    expect(rejected).toMatchObject({ ok: false, error: { category: 'validation' } })
+
+    const rejectedInjection = await handleIpcRequest(
+      "light'; DROP TABLE app_settings; --",
+      preferencesSetThemeInputSchema,
       () => 'not called'
     )
     expect(rejectedInjection).toMatchObject({ ok: false, error: { category: 'validation' } })

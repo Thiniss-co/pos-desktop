@@ -1,0 +1,152 @@
+/*
+ * Modern Ledger — semantic color tokens (light + dark, defined once).
+ *
+ * Mechanism: every token is `light-dark(<light value>, <dark value>)`. `color-scheme` on
+ * `:root` decides which branch resolves — the browser evaluates it live, so `system` mode
+ * repaints on an OS theme change with zero JavaScript and zero flash. `theme.store.ts`'s
+ * `applyThemeToDocument()` sets `color-scheme` to `'light'` / `'dark'` for an explicit choice,
+ * or leaves it at this file's default of `'light dark'` for `system` (letting the browser pick
+ * from `prefers-color-scheme`). This requires no `[data-theme]` attribute selector and no
+ * duplicated `@media` block — see docs/architecture/design-system.md for the full rationale.
+ *
+ * Values are the approved Modern Ledger palette. Do not edit a value here without re-running the
+ * contrast gate in docs/architecture/design-system.md and updating its tables.
+ *
+ * Derivation policy: every token below comes from the approved spec. Where the spec defines a
+ * token in only one theme (the dark-only surface tiers, hover/active/secondary states, and
+ * decorative-divider tokens), the other theme's value is derived with `color-mix()` from that
+ * theme's own already-approved neighboring token — never a new, undocumented hex. Each such line
+ * is commented "derived".
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- Background / surface ladder ------------------------------------ */
+  --color-background: light-dark(#f8f9ff, #0d1322);
+  --color-on-background: light-dark(#0b1c30, #dde2f8);
+
+  --color-surface: light-dark(#f8f9ff, #0d1322);
+  --color-surface-dim: light-dark(#cbdbf5, #0d1322);
+  --color-surface-bright: light-dark(#f8f9ff, #33394a);
+  --color-surface-container-lowest: light-dark(#ffffff, #080e1d);
+  --color-surface-container-low: light-dark(#eff4ff, #151b2b);
+  --color-surface-container: light-dark(#e5eeff, #191f2f);
+  --color-surface-container-high: light-dark(#dce9ff, #242a3a);
+  --color-surface-container-highest: light-dark(#d3e4fe, #2f3445);
+
+  /* Dark-only surface tiers from the approved spec; derived light counterparts (see policy
+     above) reuse the nearest surface-container rung for a tonally equivalent elevation step. */
+  --color-surface-primary: light-dark(
+    var(--color-surface-container),
+    #111827
+  ); /* derived (light) */
+  --color-surface-elevated: light-dark(
+    var(--color-surface-container-high),
+    #1f2937
+  ); /* derived (light) */
+  --color-surface-interactive: light-dark(
+    var(--color-surface-container-high),
+    #263244
+  ); /* derived (light) */
+  --color-surface-selected: light-dark(
+    var(--color-surface-container-highest),
+    #2d3748
+  ); /* derived (light) */
+
+  --color-on-surface: light-dark(#0b1c30, #dde2f8);
+  --color-on-surface-variant: light-dark(#45464d, #c4c7c8);
+
+  /* Dark-only text tiers; text-disabled aliases the already-approved disabled-text pair exactly
+     (dark disabled-text is #64748b, identical to the spec's dark text-disabled value). */
+  --color-text-secondary: light-dark(
+    var(--color-on-surface-variant),
+    #cbd5e1
+  ); /* derived (light) */
+  --color-text-muted: light-dark(
+    color-mix(in srgb, var(--color-on-surface-variant) 75%, var(--color-surface)),
+    #94a3b8
+  ); /* derived (light) */
+  --color-text-disabled: var(--color-disabled-text);
+
+  --color-inverse-surface: light-dark(#213145, #dde2f8);
+  --color-inverse-on-surface: light-dark(#eaf1ff, #2a3040);
+
+  /* Every CONTROL boundary (input border, focusable edge, selected state, button outline) must
+     use --color-outline. --color-outline-variant / --color-border-strong / --color-divider-subtle
+     fail the 3:1 non-text contrast ratio against surface in one or both themes and are permitted
+     ONLY as decorative separators (table rules, panel dividers) per the Checkpoint 1 contrast
+     gate — see docs/architecture/design-system.md, "Conflict 1". */
+  --color-outline: light-dark(#76777d, #8e9193);
+  --color-outline-variant: light-dark(#c6c6cd, #444749);
+  --color-border-strong: light-dark(var(--color-outline-variant), #374151); /* derived (light) */
+  --color-divider-subtle: light-dark(
+    var(--color-surface-container-low),
+    #273244
+  ); /* derived (light) */
+
+  /* ---- Primary ---------------------------------------------------------- */
+  --color-primary: light-dark(#000000, #ffffff);
+  --color-on-primary: light-dark(#ffffff, #2e3132);
+  --color-primary-container: light-dark(#131b2e, #e1e3e4);
+  --color-on-primary-container: light-dark(#dae2fd, #454748);
+
+  /* ---- Secondary ---------------------------------------------------------
+     Dark secondary (#0e573b) does not separate from any dark surface on its own (Checkpoint 1,
+     "Conflict 2") — every dark secondary button carries a mandatory 1px border in
+     --color-secondary-outline. #91d5b1 is used ONLY as that border; never as a background. */
+  --color-secondary: light-dark(#276a4c, #0e573b);
+  --color-on-secondary: light-dark(#ffffff, #ffffff);
+  --color-secondary-outline: light-dark(transparent, #91d5b1);
+  --color-secondary-hover: light-dark(
+    color-mix(in srgb, #276a4c 88%, black),
+    #13704d
+  ); /* derived (light) */
+  --color-secondary-active: light-dark(
+    color-mix(in srgb, #276a4c 75%, black),
+    #0a4530
+  ); /* derived (light) */
+  --color-secondary-container: light-dark(#aaeec9, #085438);
+  --color-on-secondary-container: light-dark(#2c6e50, #adf1cc);
+
+  /* ---- Transaction accent (Amber) — identical in both themes per spec ---- */
+  --color-transaction-accent: #f59e0b;
+  --color-transaction-accent-hover: #d97706;
+  /* The active/pressed face (#b45309) fails 4.5:1 under --color-on-transaction-accent
+     (Checkpoint 1, "Conflict 3"): pressed state is rendered as a ring using this token, on top of
+     the --color-transaction-accent-hover face — never as a label-bearing background. */
+  --color-transaction-accent-active: #b45309;
+  --color-on-transaction-accent: #111827;
+  --color-transaction-container: #fef3c7;
+
+  /* ---- Status ------------------------------------------------------------
+     Bare status text (using --color-success etc. as a foreground) is permitted only on
+     --color-surface, --color-surface-container-lowest, and --color-surface-container-low
+     (Checkpoint 1, "Conflict 4"). At --color-surface-container and above, status MUST use its
+     paired container tokens instead — this is why AppStatusChip/AppBanner are container-based. */
+  --color-success: light-dark(#15803d, #22c55e);
+  --color-on-success: light-dark(#ffffff, #052e16);
+  --color-success-container: light-dark(#dcfce7, #123c27);
+  --color-on-success-container: light-dark(#14532d, #bbf7d0);
+
+  --color-warning: light-dark(#b45309, #fbbf24);
+  --color-on-warning: light-dark(#ffffff, #3d2d00);
+  --color-warning-container: light-dark(#fef3c7, #453308);
+  --color-on-warning-container: light-dark(#78350f, #fef3c7);
+
+  --color-error: light-dark(#ba1a1a, #f87171);
+  --color-on-error: light-dark(#ffffff, #690005);
+  --color-error-container: light-dark(#ffdad6, #93000a);
+  --color-on-error-container: light-dark(#93000a, #ffdad6);
+
+  --color-information: light-dark(#2563eb, #60a5fa);
+  --color-on-information: light-dark(#ffffff, #082f49);
+  --color-information-container: light-dark(#dbeafe, #172e52);
+  --color-on-information-container: light-dark(#1e3a8a, #dbeafe);
+
+  /* ---- Utility ------------------------------------------------------------ */
+  --color-focus-ring: light-dark(#0284c7, #38bdf8);
+  --color-disabled-surface: light-dark(#e5e7eb, #242a3a);
+  --color-disabled-text: light-dark(#76777d, #64748b);
+  --color-scrim: light-dark(rgba(11, 28, 48, 0.52), rgba(0, 0, 0, 0.72));
+}

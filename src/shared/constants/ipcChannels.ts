@@ -16,6 +16,8 @@ export const IPC_CHANNELS = Object.freeze({
   connectivityChanged: 'connectivity:changed',
   preferencesGetLocale: 'preferences:get-locale',
   preferencesSetLocale: 'preferences:set-locale',
+  preferencesGetTheme: 'preferences:get-theme',
+  preferencesSetTheme: 'preferences:set-theme',
   companyUsersGetAccess: 'company-users:get-access',
   companyUsersList: 'company-users:list',
   companyUsersGet: 'company-users:get',

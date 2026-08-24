@@ -9,12 +9,13 @@ follow, see [.ai/guidelines/](../.ai/guidelines/README.md) and the root [CLAUDE.
 
 ## Map
 
-| Section | Purpose |
-|---|---|
-| [setup.md](setup.md) | Install, run, verify — commands and environment |
-| [architecture/](architecture/desktop-frontend-architecture.md) | How the app is built: processes, data flow, sync, testing strategy |
-| [backend-contract/](backend-contract/desktop-api-summary.md) | What the backend provides — routes, envelope, auth, errors, sync contract |
-| [phases/](phases/00-ai-rules-and-docs.md) | The phase-by-phase implementation plan, one doc per phase |
+| Section                                                        | Purpose                                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [setup.md](setup.md)                                           | Install, run, verify — commands and environment                           |
+| [architecture/](architecture/desktop-frontend-architecture.md) | How the app is built: processes, data flow, sync, testing strategy        |
+| [architecture/design-system.md](architecture/design-system.md) | Modern Ledger tokens, contrast gate, theming, component inventory         |
+| [backend-contract/](backend-contract/desktop-api-summary.md)   | What the backend provides — routes, envelope, auth, errors, sync contract |
+| [phases/](phases/00-ai-rules-and-docs.md)                      | The phase-by-phase implementation plan, one doc per phase                 |
 
 ## Current Project State (as of this writing)
 

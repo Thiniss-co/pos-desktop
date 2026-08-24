@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { localizeAppError } from '@renderer/shared/utils/localizeAppError'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useStartupStore } from './startup.store'
 
 const { error } = storeToRefs(useStartupStore())
@@ -15,9 +16,16 @@ const message = computed(() =>
 </script>
 
 <template>
-  <div class="startup-panel" role="alert">
-    <p class="startup-panel__label">{{ t('startup.fatalLabel') }}</p>
-    <h2>{{ t('startup.fatalTitle') }}</h2>
+  <div class="fatal-error-page" role="alert">
+    <PageHeader :eyebrow="t('startup.fatalLabel')" :title="t('startup.fatalTitle')" />
     <p>{{ message }}</p>
   </div>
 </template>
+
+<style scoped>
+.fatal-error-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+</style>

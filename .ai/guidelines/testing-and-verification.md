@@ -8,14 +8,13 @@ assume):
 ```bash
 npm run typecheck   # tsc (main/preload) + vue-tsc (renderer), no emit
 npm run lint          # eslint --cache . (no auto-fix)
-npm run test           # unit tests — NOT YET DEFINED as of this writing
+npm run test           # vitest run — see vitest.config.ts for environment/alias setup
 ```
 
 If a script doesn't exist, say so explicitly in the task report rather than skipping silently or
-fabricating a result. Adding a real `test` script/runner is tracked in
-`docs/phases/01-foundation-structure.md`.
+fabricating a result.
 
-## Unit Tests Required (once a test runner exists)
+## Unit Tests Required
 
 Priority order for coverage as functionality lands:
 

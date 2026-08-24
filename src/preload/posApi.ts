@@ -18,7 +18,7 @@ import type {
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import type { IpcResult } from '@shared/contracts/ipc.contract'
 import type { CommercialAccessSnapshot, LicenseStatus } from '@shared/contracts/license.contract'
-import type { LocaleCode } from '@shared/contracts/preferences.contract'
+import type { LocaleCode, ThemePreference } from '@shared/contracts/preferences.contract'
 import type { SyncStatus } from '@shared/contracts/sync.contract'
 import type { RuntimeInfo } from '@shared/contracts/system.contract'
 
@@ -55,6 +55,8 @@ export interface PosApi {
   readonly preferences: {
     getLocale(): Promise<IpcResult<LocaleCode | null>>
     setLocale(locale: LocaleCode): Promise<IpcResult<LocaleCode>>
+    getTheme(): Promise<IpcResult<ThemePreference | null>>
+    setTheme(theme: ThemePreference): Promise<IpcResult<ThemePreference>>
   }
   readonly companyUsers: {
     getAccess(): Promise<IpcResult<CompanyUserAccess>>
@@ -109,7 +111,11 @@ export const posApi: PosApi = Object.freeze({
   }),
   preferences: Object.freeze({
     getLocale: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetLocale),
-    setLocale: (locale: LocaleCode) => ipcRenderer.invoke(IPC_CHANNELS.preferencesSetLocale, locale)
+    setLocale: (locale: LocaleCode) =>
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetLocale, locale),
+    getTheme: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetTheme),
+    setTheme: (theme: ThemePreference) =>
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetTheme, theme)
   }),
   companyUsers: Object.freeze({
     getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGetAccess),

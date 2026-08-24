@@ -2,6 +2,8 @@
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
+import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useSyncStore } from '../store'
 
 const sync = useSyncStore()
@@ -19,11 +21,21 @@ onMounted(() => void sync.refresh())
 </script>
 
 <template>
-  <section class="shell-page">
-    <p class="shell-page__label">{{ t('sync.label') }}</p>
-    <h2>{{ t('sync.queuedRecords', { count: queuedCount }) }}</h2>
-    <p>{{ t('sync.description') }}</p>
-    <p v-if="status?.state === 'paused'" class="inline-error">{{ status.pausedReason }}</p>
-    <p v-if="error" class="inline-error">{{ error }}</p>
+  <section class="sync-page">
+    <PageHeader
+      :eyebrow="t('sync.label')"
+      :title="t('sync.queuedRecords', { count: queuedCount })"
+      :description="t('sync.description')"
+    />
+    <AppInlineError v-if="status?.state === 'paused'">{{ status.pausedReason }}</AppInlineError>
+    <AppInlineError v-if="error">{{ error }}</AppInlineError>
   </section>
 </template>
+
+<style scoped>
+.sync-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+</style>
