@@ -5,11 +5,14 @@ import {
 } from '@shared/contracts/api.contract'
 import { isKnownApiErrorCode } from '@shared/constants/apiErrorCodes'
 
-function createPublicError(
+export function createPublicError(
   category: PublicAppError['category'],
   message: string,
   retryable: boolean,
-  details: Pick<PublicAppError, 'backendCode' | 'fieldErrors' | 'traceId'> = {}
+  details: Pick<
+    PublicAppError,
+    'backendCode' | 'fieldErrors' | 'traceId' | 'httpStatus' | 'contentType'
+  > = {}
 ): PublicAppError {
   return publicAppErrorSchema.parse({
     category,
@@ -77,6 +80,33 @@ function safeMessage(message: string, fallback: string): string {
   return normalized ? normalized.slice(0, 300) : fallback
 }
 
+export function invalidResponseEnvelopeError(): PublicAppError {
+  return createPublicError(
+    'unexpected',
+    'The desktop service returned an invalid response envelope',
+    false,
+    { backendCode: 'response_envelope_invalid' }
+  )
+}
+
+export function responseBodyNotJsonError(
+  httpStatus: number,
+  contentType: string | null
+): PublicAppError {
+  const normalizedContentType = contentType?.trim().slice(0, 200) || undefined
+
+  return createPublicError(
+    'unexpected',
+    'The desktop service returned a response body that is not JSON',
+    false,
+    {
+      backendCode: 'response_body_not_json',
+      httpStatus,
+      contentType: normalizedContentType
+    }
+  )
+}
+
 export function normalizeApiEnvelopeError(envelope: ApiErrorEnvelope): PublicAppError {
   const category = categoryForBackendCode(envelope.code)
 
@@ -130,29 +160,51 @@ export type TransportErrorClassification =
 export function classifyTransportError(error: unknown): TransportErrorClassification {
   const name = error instanceof Error ? error.name.toLowerCase() : ''
   const message = error instanceof Error ? error.message.toLowerCase() : ''
+  const source = `${name} ${message}`
 
-  if (name === 'aborterror' || message.includes('timeout')) {
+  if (
+    name === 'aborterror' ||
+    source.includes('timeout') ||
+    source.includes('net::err_timed_out')
+  ) {
     return 'timeout'
   }
 
-  if (message.includes('enotfound') || message.includes('getaddrinfo')) {
+  if (
+    source.includes('enotfound') ||
+    source.includes('getaddrinfo') ||
+    source.includes('net::err_name_not_resolved')
+  ) {
     return 'dns'
   }
 
   if (
-    message.includes('econnrefused') ||
-    message.includes('fetch failed') ||
-    message.includes('econnreset') ||
-    message.includes('connect ')
+    source.includes('econnrefused') ||
+    source.includes('fetch failed') ||
+    source.includes('econnreset') ||
+    source.includes('connect ') ||
+    source.includes('net::err_connection_refused') ||
+    source.includes('net::err_connection_reset') ||
+    source.includes('net::err_connection_aborted') ||
+    source.includes('net::err_connection_closed')
   ) {
     return 'connection_refused'
   }
 
-  if (message.includes('certificate') || message.includes('tls') || message.includes('ssl')) {
+  if (
+    source.includes('certificate') ||
+    source.includes('tls') ||
+    source.includes('ssl') ||
+    source.includes('net::err_cert')
+  ) {
     return 'tls'
   }
 
-  if (message.includes('network') || message.includes('offline')) {
+  if (
+    source.includes('network') ||
+    source.includes('offline') ||
+    source.includes('net::err_internet_disconnected')
+  ) {
     return 'offline'
   }
 

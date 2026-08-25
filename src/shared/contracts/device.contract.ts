@@ -7,7 +7,8 @@ export const deviceIdentitySummarySchema = z
     platform: z.string(),
     osVersion: z.string(),
     appVersion: z.string(),
-    isRegistered: z.boolean()
+    isRegistered: z.boolean(),
+    registrationStatus: z.string().nullable()
   })
   .strict()
 

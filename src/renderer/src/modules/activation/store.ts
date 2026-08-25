@@ -52,5 +52,10 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
-  return { summary, error, fieldErrors, isSubmitting, load, activate }
+  function setDeviceRecoveryMessage(): void {
+    fieldErrors.value = null
+    errorState.setFallbackKey('activation.deviceRecoveryRequired')
+  }
+
+  return { summary, error, fieldErrors, isSubmitting, load, activate, setDeviceRecoveryMessage }
 })

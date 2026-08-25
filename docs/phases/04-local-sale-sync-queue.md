@@ -57,6 +57,22 @@ npm run dev                  # manual: complete a sale offline, go online, confi
 - License-denial pause is worker-wide, not a persisted per-item state, verified manually or via
   test.
 
+## Authoritative Open-Shift Requirement
+
+Immediately before, and again inside, the atomic main-process local invoice/payment/outbox
+transaction, checkout must satisfy every condition below. A disabled renderer control is only UX;
+a direct IPC call must not bypass any condition.
+
+1. `CommercialAccessService.assertAllowed('sell')` succeeds.
+2. Main resolves the authoritative current shift; renderer-supplied shift state is never trusted.
+3. A shift exists and its status is exactly `open`.
+4. `paused`, `closed`, `cancelled`, and `null` are denied.
+5. Shift company, user, device, and session match the authoritative desktop context.
+6. Checkout requires `pos.sell`; `shifts.view` and `shifts.manage` remain lifecycle-only, with no role-name checks.
+7. The immutable catalog, pricing, and tax revision is still valid.
+8. Invoice, payments, and outbox records are written atomically only after every check succeeds.
+9. The main-process checks execute for every direct checkout IPC invocation.
+
 ## Next Phase
 
 [05-refunds-receipts-printing.md](05-refunds-receipts-printing.md) — refund flow, receipt

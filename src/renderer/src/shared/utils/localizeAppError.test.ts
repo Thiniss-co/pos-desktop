@@ -17,4 +17,20 @@ describe('localizeAppError', () => {
       'A safe, sanitized backend message'
     )
   })
+
+  it('uses a safe backend message and reference when a backend code has no catalog entry', () => {
+    const error = publicAppErrorSchema.parse({
+      category: 'authorization',
+      message: 'Desktop device branch and warehouse assignments are required.',
+      backendCode: 'UNMAPPED_BACKEND_DENIAL',
+      traceId: 'trace-shift-assignment',
+      retryable: false
+    })
+
+    i18n.global.locale.value = 'en'
+
+    expect(localizeAppError(error, i18n.global.t, i18n.global.te)).toBe(
+      'Desktop device branch and warehouse assignments are required. Reference: trace-shift-assignment'
+    )
+  })
 })

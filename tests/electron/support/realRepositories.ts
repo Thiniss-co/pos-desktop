@@ -3,6 +3,7 @@ import type { SqliteDatabase } from '../../../src/main/database/connection'
 import { AppSettingsRepository } from '../../../src/main/repositories/appSettings.repository'
 import { BootstrapSnapshotRepository } from '../../../src/main/repositories/bootstrapSnapshot.repository'
 import { BootstrapStateRepository } from '../../../src/main/repositories/bootstrapState.repository'
+import { CatalogRepository } from '../../../src/main/repositories/catalog.repository'
 import { SqliteDeviceIdentityRepository } from '../../../src/main/repositories/deviceIdentity.repository'
 import { DeviceRegistrationRepository } from '../../../src/main/repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../../../src/main/repositories/licenseMetadata.repository'
@@ -14,6 +15,7 @@ export interface RealRepositories {
   readonly appSettings: AppSettingsRepository
   readonly bootstrapSnapshot: BootstrapSnapshotRepository
   readonly bootstrapState: BootstrapStateRepository
+  readonly catalog: CatalogRepository
   readonly deviceIdentity: SqliteDeviceIdentityRepository
   readonly deviceRegistration: DeviceRegistrationRepository
   readonly licenseMetadata: LicenseMetadataRepository
@@ -27,6 +29,7 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
     appSettings: new AppSettingsRepository(database),
     bootstrapSnapshot: new BootstrapSnapshotRepository(database),
     bootstrapState: new BootstrapStateRepository(database),
+    catalog: new CatalogRepository(database),
     deviceIdentity: new SqliteDeviceIdentityRepository(database),
     deviceRegistration: new DeviceRegistrationRepository(database),
     licenseMetadata: new LicenseMetadataRepository(database),
@@ -38,6 +41,7 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
   assert.ok(repositories.appSettings instanceof AppSettingsRepository)
   assert.ok(repositories.bootstrapSnapshot instanceof BootstrapSnapshotRepository)
   assert.ok(repositories.bootstrapState instanceof BootstrapStateRepository)
+  assert.ok(repositories.catalog instanceof CatalogRepository)
   assert.ok(repositories.deviceIdentity instanceof SqliteDeviceIdentityRepository)
   assert.ok(repositories.deviceRegistration instanceof DeviceRegistrationRepository)
   assert.ok(repositories.licenseMetadata instanceof LicenseMetadataRepository)

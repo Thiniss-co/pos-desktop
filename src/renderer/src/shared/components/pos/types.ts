@@ -3,7 +3,7 @@
  *
  * These are deliberately NOT the real business contracts (catalog, cart, payment). Every value a
  * component in this folder receives is already computed and formatted by the real Phase 3
- * services/stores that don't exist yet — these components only ever render what they're given.
+ * services/stores; these components only ever render what they're given.
  * No file in this folder may import the preload bridge, HTTP, the local database, main-process
  * code, a business Pinia store, or a license/sync service (enforced by importBoundary.test.ts).
  */
@@ -58,7 +58,7 @@ export interface DisplaySplitPayment {
 }
 
 export type ShiftPhase =
-  'closed' | 'opening' | 'open' | 'pausing' | 'paused' | 'resuming' | 'closing'
+  'closed' | 'cancelled' | 'opening' | 'open' | 'pausing' | 'paused' | 'resuming' | 'closing'
 
 export type SyncQueueDisplayState =
   'pending' | 'uploading' | 'retryable-error' | 'conflict' | 'rejected'

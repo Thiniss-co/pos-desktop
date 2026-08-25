@@ -117,7 +117,12 @@ export class BootstrapService {
       snapshotVersion: persisted.snapshotVersion,
       serverTime: persisted.serverTime,
       fetchedAt,
-      counts: persisted.counts
+      counts: persisted.counts,
+      catalog: {
+        revision: resource.catalog_contract.revision,
+        generatedAt: resource.catalog_contract.generated_at,
+        validUntil: resource.catalog_contract.valid_until
+      }
     })
   }
 }

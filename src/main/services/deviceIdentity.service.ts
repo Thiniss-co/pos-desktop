@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 
-export interface StoredDeviceIdentity extends DeviceIdentitySummary {}
+export interface StoredDeviceIdentity extends Omit<DeviceIdentitySummary, 'registrationStatus'> {}
 
 export interface DeviceIdentityRepository {
   get(): StoredDeviceIdentity | null

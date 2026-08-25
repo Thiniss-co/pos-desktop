@@ -22,6 +22,55 @@ function decimal(value: number | null | undefined): string | null {
   return value === null || value === undefined ? null : value.toFixed(3)
 }
 
+function normalizeSearch(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US')
+}
+
+function assertCatalogSemantics(resource: DesktopBootstrapResource): void {
+  const contract = resource.catalog_contract
+  const generatedAt = Date.parse(contract.generated_at)
+  const validUntil = Date.parse(contract.valid_until)
+
+  if (!Number.isFinite(generatedAt) || !Number.isFinite(validUntil) || generatedAt >= validUntil) {
+    throw new Error('The sellable catalog validity window is invalid')
+  }
+
+  const activeCategories = new Set(
+    (resource.categories ?? [])
+      .filter((category) => category.is_active)
+      .map((category) => category.id)
+  )
+
+  for (const product of resource.products ?? []) {
+    if (!product.is_active) {
+      continue
+    }
+
+    if (
+      product.status !== 'active' ||
+      !product.category_uuid ||
+      !activeCategories.has(product.category_uuid) ||
+      !product.resolved_price ||
+      !product.resolved_tax
+    ) {
+      throw new Error('An active catalog product is missing its sellable snapshot')
+    }
+
+    const price = product.resolved_price
+    const tax = product.resolved_tax
+
+    if (
+      Date.parse(price.valid_from) > generatedAt ||
+      price.valid_until !== contract.valid_until ||
+      price.amount > contract.maximum_unit_price ||
+      (tax.mode === 'none' && (tax.id !== null || tax.rate_basis_points !== 0)) ||
+      (tax.mode !== 'none' && tax.id === null)
+    ) {
+      throw new Error('A catalog product conflicts with the issued calculation contract')
+    }
+  }
+}
+
 /**
  * Persists a full desktop bootstrap snapshot as one atomic replace-in-transaction. Phase 2 only
  * performs full (non-incremental) bootstrap, so each entity table is fully replaced; incremental
@@ -31,6 +80,7 @@ export class BootstrapSnapshotRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
   persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult {
+    assertCatalogSemantics(resource)
     const counts: Record<string, number> = {}
 
     const commit = this.database.transaction(() => {
@@ -87,40 +137,88 @@ export class BootstrapSnapshotRepository {
         )
         .run(resource.role.name, fetchedAt)
 
-      // SQLite foreign keys remain enabled for the entire replacement. Delete catalogue children
-      // before their products, then insert in the natural parent-to-child order below.
-      this.clearCatalogue()
+      // The Phase 3 sellable catalogue is isolated from the legacy Phase 2 numeric-ID tables.
+      // Existing legacy rows remain available for diagnostics after migration but are never used
+      // to authorize or calculate a new cart. Replacement keeps foreign keys enabled throughout.
+      this.clearSellableCatalogue()
+
+      const contract = resource.catalog_contract
+      this.database
+        .prepare(
+          `
+            INSERT INTO catalog_metadata (
+              id, revision, generated_at, valid_until, quantity_scale, minimum_quantity,
+              maximum_quantity, maximum_unit_price, maximum_line_total, maximum_invoice_total,
+              mixed_tax_mode_policy, fetched_at
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `
+        )
+        .run(
+          contract.revision,
+          contract.generated_at,
+          contract.valid_until,
+          contract.quantity_scale,
+          contract.minimum_quantity,
+          contract.maximum_quantity,
+          contract.maximum_unit_price,
+          contract.maximum_line_total,
+          contract.maximum_invoice_total,
+          contract.mixed_tax_mode_policy,
+          fetchedAt
+        )
 
       counts.categories = this.replaceCollection(resource.categories ?? [], (row) =>
         this.database
-          .prepare('INSERT INTO categories (uuid, name, is_active, updated_at) VALUES (?, ?, ?, ?)')
-          .run(row.id, row.name, bit(row.is_active), row.updated_at ?? null)
+          .prepare(
+            `
+              INSERT INTO catalog_categories (uuid, name, search_name, is_active, updated_at)
+              VALUES (?, ?, ?, ?, ?)
+            `
+          )
+          .run(
+            row.id,
+            row.name,
+            normalizeSearch(row.name),
+            bit(row.is_active),
+            row.updated_at ?? null
+          )
       )
 
       counts.products = this.replaceCollection(resource.products ?? [], (row) =>
         this.database
           .prepare(
             `
-              INSERT INTO products (
-                uuid, server_id, company_id, category_id, name, sku, barcode, description,
-                status, is_active, track_stock, unit, tax_mode, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO catalog_products (
+                uuid, category_uuid, name, search_name, sku, search_sku, barcode, description,
+                status, is_active, track_stock, unit, price_amount, price_currency, price_source,
+                price_revision, price_valid_from, price_valid_until, tax_uuid, tax_mode,
+                tax_rate_basis_points, tax_revision, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `
           )
           .run(
             row.uuid,
-            row.server_id,
-            row.company_id,
-            row.category_id ?? null,
+            row.category_uuid,
             row.name,
+            normalizeSearch(row.name),
             row.sku ?? null,
+            row.sku ? normalizeSearch(row.sku) : null,
             row.barcode ?? null,
             row.description ?? null,
-            row.status ?? null,
+            row.status ?? 'inactive',
             bit(row.is_active),
             bit(row.track_stock),
             row.unit ?? null,
-            row.tax_mode ?? null,
+            row.resolved_price?.amount ?? null,
+            row.resolved_price?.currency ?? null,
+            row.resolved_price?.source ?? null,
+            row.resolved_price?.revision ?? null,
+            row.resolved_price?.valid_from ?? null,
+            row.resolved_price?.valid_until ?? null,
+            row.resolved_tax?.id ?? null,
+            row.resolved_tax?.mode ?? null,
+            row.resolved_tax?.rate_basis_points ?? null,
+            row.resolved_tax?.revision ?? null,
             row.updated_at ?? null
           )
       )
@@ -129,13 +227,15 @@ export class BootstrapSnapshotRepository {
         this.database
           .prepare(
             `
-                INSERT INTO product_barcodes (id, product_id, barcode, type, is_primary, is_active, updated_at)
+                INSERT INTO catalog_product_barcodes (
+                  uuid, product_uuid, barcode, type, is_primary, is_active, updated_at
+                )
                 VALUES (?, ?, ?, ?, ?, ?, ?)
               `
           )
           .run(
             row.id,
-            row.product_id,
+            row.product_uuid,
             row.barcode,
             row.type ?? null,
             bit(row.is_primary),
@@ -144,42 +244,24 @@ export class BootstrapSnapshotRepository {
           )
       )
 
-      counts.product_prices = this.replaceCollection(resource.product_prices ?? [], (row) =>
-        this.database
-          .prepare(
-            `
-                INSERT INTO product_prices (id, product_id, label, amount, currency, price_type, is_active, starts_at, ends_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `
-          )
-          .run(
-            row.id,
-            row.product_id,
-            row.label ?? null,
-            row.amount,
-            row.currency,
-            row.price_type ?? null,
-            bit(row.is_active),
-            row.starts_at ?? null,
-            row.ends_at ?? null,
-            row.updated_at ?? null
-          )
-      )
+      // Raw ProductPrice and Tax collections are deliberately non-authoritative. Their exact
+      // calculation-ready values are persisted on catalog_products from resolved_price/tax.
+      counts.product_prices = resource.product_prices?.length ?? 0
 
       counts.stock_items = this.replaceCollection(resource.stock_items ?? [], (row) =>
         this.database
           .prepare(
             `
-              INSERT INTO stock_items (
-                id, product_id, warehouse_id, quantity, reserved_quantity, available_quantity,
+              INSERT INTO catalog_stock_items (
+                uuid, product_uuid, warehouse_uuid, quantity, reserved_quantity, available_quantity,
                 minimum_quantity, maximum_quantity, is_active, updated_at
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `
           )
           .run(
             row.id,
-            row.product_id,
-            row.warehouse_id,
+            row.product_uuid,
+            row.warehouse_uuid,
             decimal(row.quantity),
             decimal(row.reserved_quantity),
             decimal(row.available_quantity),
@@ -190,25 +272,10 @@ export class BootstrapSnapshotRepository {
           )
       )
 
-      counts.taxes = this.replaceCollection(resource.taxes ?? [], (row) =>
-        this.database
-          .prepare(
-            `
-              INSERT INTO taxes (id, name, code, rate, type, is_default, is_active, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `
-          )
-          .run(
-            row.id,
-            row.name,
-            row.code ?? null,
-            row.rate,
-            row.type ?? null,
-            bit(row.is_default),
-            bit(row.is_active),
-            row.updated_at ?? null
-          )
-      )
+      counts.taxes = resource.taxes?.length ?? 0
+
+      this.database.prepare('DELETE FROM payment_methods').run()
+      this.database.prepare('DELETE FROM customers').run()
 
       counts.payment_methods = this.replaceCollection(resource.payment_methods ?? [], (row) =>
         this.database
@@ -327,16 +394,13 @@ export class BootstrapSnapshotRepository {
     return rows.length
   }
 
-  private clearCatalogue(): void {
+  private clearSellableCatalogue(): void {
     for (const table of [
-      'product_barcodes',
-      'product_prices',
-      'stock_items',
-      'products',
-      'categories',
-      'taxes',
-      'payment_methods',
-      'customers'
+      'catalog_product_barcodes',
+      'catalog_stock_items',
+      'catalog_products',
+      'catalog_categories',
+      'catalog_metadata'
     ]) {
       this.database.prepare(`DELETE FROM ${table}`).run()
     }

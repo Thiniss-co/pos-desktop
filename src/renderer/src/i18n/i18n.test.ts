@@ -53,7 +53,7 @@ describe('i18n catalogs', () => {
     )
   })
 
-  it('falls back to the localized generic message when a backendCode has no catalog entry', () => {
+  it('falls back to the safe backend message when a backendCode has no catalog entry', () => {
     // The main-process normalizer (apiError.ts) strips backendCode entirely for a code this app
     // doesn't recognize (see apiError.test.ts), so it never reaches localizeAppError with a
     // backendCode set. This exercises localizeAppError's own defensive branch directly — the
@@ -68,9 +68,7 @@ describe('i18n catalogs', () => {
     })
 
     i18n.global.locale.value = 'en'
-    expect(localizeAppError(error, i18n.global.t, i18n.global.te)).toBe(
-      'Something went wrong. Please try again.'
-    )
+    expect(localizeAppError(error, i18n.global.t, i18n.global.te)).toBe('Unexpected rejection')
   })
 
   it('compiles every catalog message in both locales without a message-syntax error', () => {

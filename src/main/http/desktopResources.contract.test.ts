@@ -1,33 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { desktopBootstrapResourceSchema } from './desktopResources.contract'
+import { desktopBootstrapFixture } from '../testing/fixtures/desktopBootstrap.fixture'
+import { desktopShiftFixture } from '../testing/fixtures/desktopShift.fixture'
+import {
+  desktopBootstrapResourceSchema,
+  desktopShiftResourceSchema
+} from './desktopResources.contract'
 
 function bootstrapResourceWithExpiry(pointsExpireAfterDays: unknown): Record<string, unknown> {
   return {
-    server_time: '2026-01-01T00:00:00Z',
-    company: { id: 'company-uuid', name: 'Acme', is_active: true },
-    device: {
-      id: 'server-device-uuid',
-      device_uuid: '00000000-0000-4000-8000-000000000003',
-      device_name: 'Front Register',
-      platform: 'linux'
-    },
-    license: {
-      is_active: true,
-      is_trial: false,
-      is_in_grace: false,
-      is_expired: false,
-      is_suspended: false,
-      can_login: true,
-      can_sell: true,
-      can_sync: true,
-      can_activate_device: true,
-      restriction_level: 'none'
-    },
-    subscription: null,
-    features: { pos: true },
-    limits: { users: 5 },
-    permissions: ['pos.sell'],
-    role: { name: 'cashier' },
+    ...desktopBootstrapFixture(),
     loyalty: {
       enabled: true,
       earn_enabled: true,
@@ -39,10 +20,7 @@ function bootstrapResourceWithExpiry(pointsExpireAfterDays: unknown): Record<str
       points_expire_after_days: pointsExpireAfterDays,
       points_activate_after_days: 0,
       allow_partial_redemption: true
-    },
-    branch: null,
-    warehouse: null,
-    sync: { snapshot_version: '20260101000000', full_sync_required: true, entities: {} }
+    }
   }
 }
 
@@ -70,6 +48,52 @@ describe('desktopBootstrapResourceSchema loyalty expiry', () => {
   ])('rejects a %s expiry', (_description, expiry) => {
     expect(
       desktopBootstrapResourceSchema.safeParse(bootstrapResourceWithExpiry(expiry)).success
+    ).toBe(false)
+  })
+
+  it('rejects unknown product fields and non-integer calculation values', () => {
+    const fixture = desktopBootstrapFixture()
+    const product = fixture.products?.[0]
+
+    expect(product).toBeDefined()
+    expect(
+      desktopBootstrapResourceSchema.safeParse({
+        ...fixture,
+        products: [{ ...product, internal_price_id: 42 }]
+      }).success
+    ).toBe(false)
+    expect(
+      desktopBootstrapResourceSchema.safeParse({
+        ...fixture,
+        products: [
+          {
+            ...product,
+            resolved_tax: { ...product?.resolved_tax, rate_basis_points: 1500.5 }
+          }
+        ]
+      }).success
+    ).toBe(false)
+  })
+})
+
+describe('desktopShiftResourceSchema', () => {
+  it('accepts the golden cancelled show response with signed expected cash', () => {
+    const fixture = desktopShiftFixture({
+      status: 'cancelled',
+      expected_cash_amount: -250,
+      cash_difference_amount: 1250,
+      cash_movement_net_amount: -500
+    })
+
+    expect(desktopShiftResourceSchema.parse(fixture)).toEqual(fixture)
+  })
+
+  it('keeps the strict shift resource contract', () => {
+    expect(
+      desktopShiftResourceSchema.safeParse({
+        ...desktopShiftFixture(),
+        unrecognized_shift_field: true
+      }).success
     ).toBe(false)
   })
 })

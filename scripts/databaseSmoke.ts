@@ -31,7 +31,12 @@ const expectedTables = [
   'stock_items',
   'taxes',
   'payment_methods',
-  'customers'
+  'customers',
+  'catalog_metadata',
+  'catalog_categories',
+  'catalog_products',
+  'catalog_product_barcodes',
+  'catalog_stock_items'
 ]
 
 const expectedBootstrapStateColumns = ['snapshot_version', 'server_time', 'counts_json']

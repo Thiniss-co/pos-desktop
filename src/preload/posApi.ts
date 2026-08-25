@@ -3,6 +3,13 @@ import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract'
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
+import type {
+  CatalogCategory,
+  CatalogProduct,
+  CatalogProductPage,
+  CatalogSearchInput,
+  CatalogStatus
+} from '@shared/contracts/catalog.contract'
 import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contract'
 import type {
   AssignableRoles,
@@ -21,6 +28,13 @@ import type { CommercialAccessSnapshot } from '@shared/contracts/license.contrac
 import type { LocaleCode, ThemePreference } from '@shared/contracts/preferences.contract'
 import type { SyncStatus } from '@shared/contracts/sync.contract'
 import type { RuntimeInfo } from '@shared/contracts/system.contract'
+import type {
+  CloseShiftInput,
+  OpenShiftInput,
+  PauseShiftInput,
+  ResumeShiftInput,
+  Shift
+} from '@shared/contracts/shift.contract'
 
 export interface PosApi {
   readonly system: {
@@ -44,6 +58,21 @@ export interface PosApi {
   readonly bootstrap: {
     getStatus(): Promise<IpcResult<BootstrapStatus>>
     refresh(): Promise<IpcResult<BootstrapResult>>
+  }
+  readonly catalog: {
+    getStatus(): Promise<IpcResult<CatalogStatus>>
+    listCategories(): Promise<IpcResult<CatalogCategory[]>>
+    searchProducts(input: CatalogSearchInput): Promise<IpcResult<CatalogProductPage>>
+    getProduct(input: { uuid: string }): Promise<IpcResult<CatalogProduct>>
+    findByBarcode(input: { barcode: string }): Promise<IpcResult<CatalogProduct>>
+  }
+  readonly shifts: {
+    current(): Promise<IpcResult<Shift | null>>
+    get(input: { uuid: string }): Promise<IpcResult<Shift>>
+    open(input: OpenShiftInput): Promise<IpcResult<Shift>>
+    pause(input: PauseShiftInput): Promise<IpcResult<Shift>>
+    resume(input: ResumeShiftInput): Promise<IpcResult<Shift>>
+    close(input: CloseShiftInput): Promise<IpcResult<Shift>>
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
@@ -102,6 +131,24 @@ export const posApi: PosApi = Object.freeze({
   bootstrap: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.bootstrapGetStatus),
     refresh: () => ipcRenderer.invoke(IPC_CHANNELS.bootstrapRefresh)
+  }),
+  catalog: Object.freeze({
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.catalogGetStatus),
+    listCategories: () => ipcRenderer.invoke(IPC_CHANNELS.catalogListCategories),
+    searchProducts: (input: CatalogSearchInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogSearchProducts, input),
+    getProduct: (input: { uuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogGetProduct, input),
+    findByBarcode: (input: { barcode: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogFindByBarcode, input)
+  }),
+  shifts: Object.freeze({
+    current: () => ipcRenderer.invoke(IPC_CHANNELS.shiftsCurrent),
+    get: (input: { uuid: string }) => ipcRenderer.invoke(IPC_CHANNELS.shiftsGet, input),
+    open: (input: OpenShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsOpen, input),
+    pause: (input: PauseShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsPause, input),
+    resume: (input: ResumeShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsResume, input),
+    close: (input: CloseShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsClose, input)
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus)

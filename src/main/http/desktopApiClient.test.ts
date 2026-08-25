@@ -49,6 +49,24 @@ describe('DesktopApiClient diagnostics', () => {
     })
   })
 
+  it('fails a protected request with a non-retryable typed local identity error', async () => {
+    const fetchImplementation = vi.fn()
+    const client = createClient({ fetchImplementation })
+    const protectedRoute = {
+      path: '/shifts/current',
+      method: 'GET' as const,
+      requiresAuth: true,
+      requiresDeviceUuid: true
+    }
+
+    await expect(client.request(protectedRoute)).rejects.toMatchObject({
+      category: 'authentication',
+      backendCode: 'DESKTOP_LOCAL_IDENTITY_MISSING',
+      retryable: false
+    })
+    expect(fetchImplementation).not.toHaveBeenCalled()
+  })
+
   it('normalizes connection-refused fetch failures', async () => {
     const client = createClient({
       fetchImplementation: vi.fn(async () => {
@@ -59,6 +77,40 @@ describe('DesktopApiClient diagnostics', () => {
     await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
       category: 'transport',
       message: 'The desktop service refused the connection'
+    })
+  })
+
+  it('keeps a non-JSON HTTP response typed as an unexpected response failure', async () => {
+    const client = createClient({
+      fetchImplementation: async () =>
+        new Response('<html>gateway error</html>', {
+          status: 502,
+          headers: { 'content-type': 'text/html; charset=utf-8' }
+        })
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'unexpected',
+      backendCode: 'response_body_not_json',
+      retryable: false,
+      httpStatus: 502,
+      contentType: 'text/html; charset=utf-8'
+    })
+  })
+
+  it('keeps an invalid JSON envelope typed as an unexpected response failure', async () => {
+    const client = createClient({
+      fetchImplementation: async () =>
+        new Response(JSON.stringify({ success: true, data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'unexpected',
+      backendCode: 'response_envelope_invalid',
+      retryable: false
     })
   })
 
@@ -225,6 +277,29 @@ describe('DesktopApiClient diagnostics', () => {
       message: 'The device limit for this plan has been reached.'
     })
   })
+
+  it('preserves an empty-array Laravel error payload as a shift-state conflict', async () => {
+    const client = createClient({
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            message: 'This device already has an open shift.',
+            code: 'DESKTOP_SHIFT_ALREADY_OPEN',
+            errors: [],
+            meta: { trace_id: 'trace-shift-already-open' }
+          }),
+          { status: 409, headers: { 'content-type': 'application/json' } }
+        )
+    })
+
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'conflict',
+      retryable: false,
+      backendCode: 'DESKTOP_SHIFT_ALREADY_OPEN',
+      traceId: 'trace-shift-already-open'
+    })
+  })
 })
 
 describe('DesktopApiClient connectivity outcome reporting', () => {
@@ -288,7 +363,7 @@ describe('DesktopApiClient connectivity outcome reporting', () => {
     expect(onRequestOutcome).toHaveBeenCalledWith({ kind: 'transport_failure' })
   })
 
-  it('never reports transport_failure once an HTTP response was received, even if it then fails', async () => {
+  it('never reports transport_failure once an HTTP response was received, even if its body is invalid', async () => {
     const onRequestOutcome = vi.fn()
     const client = createClient({
       onRequestOutcome,
@@ -296,7 +371,10 @@ describe('DesktopApiClient connectivity outcome reporting', () => {
         new Response('not json', { status: 200, headers: { 'content-type': 'application/json' } })
     })
 
-    await expect(client.request(deviceRegisterRoute)).rejects.toBeTruthy()
+    await expect(client.request(deviceRegisterRoute)).rejects.toMatchObject({
+      category: 'unexpected',
+      backendCode: 'response_body_not_json'
+    })
 
     expect(onRequestOutcome).toHaveBeenCalledTimes(1)
     expect(onRequestOutcome).toHaveBeenCalledWith({ kind: 'http_response', status: 200 })

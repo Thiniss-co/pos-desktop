@@ -1,7 +1,19 @@
 import { z } from 'zod'
 import { activationInputSchema } from '@shared/contracts/activation.contract'
 import { loginInputSchema } from '@shared/contracts/auth.contract'
+import {
+  catalogBarcodeInputSchema,
+  catalogProductIdInputSchema,
+  catalogSearchInputSchema
+} from '@shared/contracts/catalog.contract'
 import { localeCodeSchema, themePreferenceSchema } from '@shared/contracts/preferences.contract'
+import {
+  closeShiftInputSchema,
+  openShiftInputSchema,
+  pauseShiftInputSchema,
+  resumeShiftInputSchema,
+  shiftIdInputSchema
+} from '@shared/contracts/shift.contract'
 import {
   companyUserIdInputSchema,
   createCompanyUserInputSchema,
@@ -22,6 +34,17 @@ export const licenseValidateInputSchema = z.undefined()
 export const licenseGetAccessInputSchema = z.undefined()
 export const bootstrapGetStatusInputSchema = z.undefined()
 export const bootstrapRefreshInputSchema = z.undefined()
+export const catalogGetStatusInputSchema = z.undefined()
+export const catalogListCategoriesInputSchema = z.undefined()
+export const catalogSearchProductsInputSchema = catalogSearchInputSchema
+export const catalogGetProductInputSchema = catalogProductIdInputSchema
+export const catalogFindByBarcodeInputSchema = catalogBarcodeInputSchema
+export const shiftsCurrentInputSchema = z.undefined()
+export const shiftsGetInputSchema = shiftIdInputSchema
+export const shiftsOpenInputSchema = openShiftInputSchema
+export const shiftsPauseInputSchema = pauseShiftInputSchema
+export const shiftsResumeInputSchema = resumeShiftInputSchema
+export const shiftsCloseInputSchema = closeShiftInputSchema
 export const syncGetStatusInputSchema = z.undefined()
 export const connectivityGetStateInputSchema = z.undefined()
 export const connectivityCheckNowInputSchema = z.undefined()

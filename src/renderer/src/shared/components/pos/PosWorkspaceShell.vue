@@ -48,7 +48,7 @@
   padding-inline-start: var(--space-4);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .pos-workspace-shell__body {
     grid-template-columns: 1fr;
   }

@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
+import { deviceIdentitySummarySchema } from '@shared/contracts/device.contract'
 import {
   deviceGetIdentitySummaryInputSchema,
   deviceRegisterInputSchema
@@ -10,7 +11,10 @@ import { handleIpcRequest } from './handleIpcRequest'
 export function registerDeviceIpcHandlers(services: ApplicationServices): void {
   ipcMain.handle(IPC_CHANNELS.deviceGetIdentitySummary, (_event, input: unknown) =>
     handleIpcRequest(input, deviceGetIdentitySummaryInputSchema, () =>
-      services.deviceIdentity.getOrCreate()
+      deviceIdentitySummarySchema.parse({
+        ...services.deviceIdentity.getOrCreate(),
+        registrationStatus: services.deviceRegistration.get()?.status ?? null
+      })
     )
   )
 

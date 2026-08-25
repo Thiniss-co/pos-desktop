@@ -3,13 +3,13 @@ import {
   type ApiEnvelope,
   type ApiSuccessEnvelope
 } from '@shared/contracts/api.contract'
-import { normalizeApiEnvelopeError } from './apiError'
+import { invalidResponseEnvelopeError, normalizeApiEnvelopeError } from './apiError'
 
 export function parseApiEnvelope(payload: unknown): ApiEnvelope {
   const parsed = apiEnvelopeSchema.safeParse(payload)
 
   if (!parsed.success) {
-    throw new Error('The desktop service returned an invalid response envelope')
+    throw invalidResponseEnvelopeError()
   }
 
   return parsed.data

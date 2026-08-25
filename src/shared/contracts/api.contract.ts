@@ -20,7 +20,9 @@ export const publicAppErrorSchema = z
     backendCode: z.string().optional(),
     retryable: z.boolean(),
     fieldErrors: fieldErrorsSchema.optional(),
-    traceId: z.string().optional()
+    traceId: z.string().optional(),
+    httpStatus: z.number().int().min(100).max(599).optional(),
+    contentType: z.string().trim().min(1).max(200).optional()
   })
   .strict()
 
@@ -39,14 +41,16 @@ export const apiErrorEnvelopeSchema = z
     success: z.literal(false),
     message: z.string(),
     code: z.string(),
-    // Laravel's ApiResponse::error() sends `errors: null` (not an omitted/undefined field)
-    // whenever there are no field-level validation errors, e.g. INVALID_CREDENTIALS, FORBIDDEN,
-    // TOO_MANY_REQUESTS. Zod's `.default()` only substitutes for `undefined`, so an explicit
-    // `null` must be normalized here, or every such error response fails envelope validation.
-    errors: fieldErrorsSchema
-      .nullable()
-      .default({})
-      .transform((value) => value ?? {}),
+    // Laravel's ApiResponse::error() serializes an empty PHP array as `[]`, while an explicit
+    // null has also appeared on controller-produced errors. Both mean no field-level validation
+    // errors, so normalize only those empty representations to the contract's record shape.
+    errors: z.preprocess(
+      (value) =>
+        value === null || value === undefined || (Array.isArray(value) && value.length === 0)
+          ? {}
+          : value,
+      fieldErrorsSchema
+    ),
     meta: z
       .object({
         trace_id: z.string().optional()

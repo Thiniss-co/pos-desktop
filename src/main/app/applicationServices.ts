@@ -9,6 +9,7 @@ import { DesktopApiClient } from '../http/desktopApiClient'
 import { AppSettingsRepository } from '../repositories/appSettings.repository'
 import { BootstrapStateRepository } from '../repositories/bootstrapState.repository'
 import { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
+import { CatalogRepository } from '../repositories/catalog.repository'
 import { SqliteDeviceIdentityRepository } from '../repositories/deviceIdentity.repository'
 import { DeviceRegistrationRepository } from '../repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../repositories/licenseMetadata.repository'
@@ -19,12 +20,15 @@ import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { ActivationService } from '../services/activation.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
 import { BootstrapService } from '../services/bootstrap.service'
+import { CatalogService } from '../services/catalog.service'
 import { CompanyUsersService } from '../services/companyUsers.service'
 import { CommercialAccessService } from '../services/commercialAccess.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
+import { ShiftService } from '../services/shift.service'
+import { ShiftPermissions } from '../services/shiftPermissions'
 import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
 import { CommercialAccessPublisher } from '../ipc/license.ipc'
@@ -34,6 +38,7 @@ export interface ApplicationServices {
   readonly database: SqliteDatabase
   readonly appSettings: AppSettingsRepository
   readonly deviceIdentity: DeviceIdentityService
+  readonly deviceRegistration: DeviceRegistrationRepository
   readonly session: SessionService
   readonly licenseMetadata: LicenseMetadataRepository
   readonly bootstrapState: BootstrapStateRepository
@@ -47,6 +52,8 @@ export interface ApplicationServices {
   readonly commercialAccess: CommercialAccessService
   readonly commercialAccessPublisher: CommercialAccessPublisher
   readonly bootstrap: BootstrapService
+  readonly catalog: CatalogService
+  readonly shifts: ShiftService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   getRuntimeInfo(): RuntimeInfo
@@ -72,6 +79,7 @@ export function createApplicationServices(): ApplicationServices {
   const licenseMetadata = new LicenseMetadataRepository(database)
   const bootstrapState = new BootstrapStateRepository(database)
   const bootstrapSnapshot = new BootstrapSnapshotRepository(database)
+  const catalogRepository = new CatalogRepository(database)
   const syncQueue = new SyncQueueRepository(database)
   const syncConflicts = new SyncConflictRepository(database)
   const deviceIdentity = new DeviceIdentityService(deviceIdentityRepository, {
@@ -145,6 +153,9 @@ export function createApplicationServices(): ApplicationServices {
     bootstrapSnapshot,
     () => commercialAccessPublisher?.publishCurrent()
   )
+  const catalog = new CatalogService(catalogRepository, commercialAccess)
+  const shiftPermissions = new ShiftPermissions(bootstrapSnapshot)
+  const shifts = new ShiftService(apiClient, commercialAccess, shiftPermissions)
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
   return {
@@ -152,6 +163,7 @@ export function createApplicationServices(): ApplicationServices {
     database,
     appSettings,
     deviceIdentity,
+    deviceRegistration: deviceRegistrationRepository,
     session,
     licenseMetadata,
     bootstrapState,
@@ -165,6 +177,8 @@ export function createApplicationServices(): ApplicationServices {
     commercialAccess,
     commercialAccessPublisher,
     bootstrap,
+    catalog,
+    shifts,
     companyUsers,
     connectivity,
     getRuntimeInfo: () =>

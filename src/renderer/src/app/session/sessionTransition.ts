@@ -16,6 +16,22 @@ export function configureSessionTransition(dependencies: SessionTransitionDepend
   configuredDependencies = dependencies
 }
 
+export async function handleSessionEndingTransition(
+  dependencies?: SessionTransitionDependencies
+): Promise<boolean> {
+  const transition = dependencies ?? configuredDependencies
+
+  if (!transition) {
+    return false
+  }
+
+  await transition.refreshStartup()
+  transition.setAuthMessage(SESSION_ENDED_MESSAGE)
+  await transition.replaceLogin()
+
+  return true
+}
+
 /**
  * Moves the renderer to the login flow only after main has removed the invalid session. This
  * helper deliberately accepts only validated public errors so transport and authorization
@@ -31,15 +47,5 @@ export async function handleSessionTransition(
     return false
   }
 
-  const transition = dependencies ?? configuredDependencies
-
-  if (!transition) {
-    return false
-  }
-
-  await transition.refreshStartup()
-  transition.setAuthMessage(SESSION_ENDED_MESSAGE)
-  await transition.replaceLogin()
-
-  return true
+  return handleSessionEndingTransition(dependencies)
 }

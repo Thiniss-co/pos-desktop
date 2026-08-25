@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import { BootstrapService } from './bootstrap.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
+import { desktopBootstrapFixture } from '../testing/fixtures/desktopBootstrap.fixture'
 
 const identity: StoredDeviceIdentity = {
   deviceUuid: '00000000-0000-4000-8000-000000000003',
@@ -37,36 +38,16 @@ function bootstrapSuccessEnvelope(
     message: 'Bootstrap retrieved.',
     code: 'DESKTOP_BOOTSTRAP_RETRIEVED',
     data: {
-      server_time: '2026-01-01T00:00:00Z',
-      company: { id: 'company-uuid', name: 'Acme', is_active: true },
+      ...desktopBootstrapFixture(),
       device: {
-        id: 'server-device-uuid',
+        id: '22222222-2222-4222-8222-222222222222',
         device_uuid: identity.deviceUuid,
         device_name: identity.deviceName,
-        platform: identity.platform
+        platform: identity.platform,
+        status: 'active',
+        last_seen_at: null,
+        last_license_validated_at: null
       },
-      license: {
-        is_active: true,
-        is_trial: false,
-        is_in_grace: false,
-        is_expired: false,
-        is_suspended: false,
-        can_login: true,
-        can_sell: true,
-        can_sync: true,
-        can_activate_device: true,
-        restriction_level: 'none'
-      },
-      subscription: null,
-      features: { pos: true },
-      limits: { users: 5 },
-      permissions: ['pos.sell'],
-      role: { name: 'cashier' },
-      loyalty: null,
-      branch: null,
-      warehouse: null,
-      sync: { snapshot_version: '20260101000000', full_sync_required: true, entities: {} },
-      categories: [],
       ...overrides
     },
     meta: {}
@@ -168,7 +149,12 @@ describe('BootstrapService.refresh', () => {
       snapshotVersion: '20260101000000',
       serverTime: '2026-01-01T00:00:00Z',
       fetchedAt: expect.any(String),
-      counts: { categories: 1 }
+      counts: { categories: 1 },
+      catalog: {
+        revision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        generatedAt: '2026-01-01T00:00:00+00:00',
+        validUntil: '2026-01-04T00:00:00+00:00'
+      }
     })
   })
 

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 withDefaults(
   defineProps<{
     modelValue: string
@@ -10,6 +12,9 @@ withDefaults(
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string]; submit: [] }>()
+const inputRef = ref<HTMLInputElement | null>(null)
+
+defineExpose({ focus: () => inputRef.value?.focus() })
 </script>
 
 <template>
@@ -21,6 +26,7 @@ const emit = defineEmits<{ 'update:modelValue': [string]; submit: [] }>()
     <label class="product-search-bar__label" :for="'product-search-bar-input'">{{ label }}</label>
     <input
       id="product-search-bar-input"
+      ref="inputRef"
       class="product-search-bar__input"
       type="search"
       :placeholder="placeholder"

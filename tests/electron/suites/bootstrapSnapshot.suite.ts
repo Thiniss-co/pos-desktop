@@ -44,7 +44,8 @@ databaseTest(
       readCommitted<{ name: string }>(sandbox, 'SELECT name FROM bootstrap_company')[0]?.name,
       'Example Shop'
     )
-    equal(readCommitted(sandbox, 'SELECT * FROM products').length, 1)
+    equal(readCommitted(sandbox, 'SELECT * FROM catalog_products').length, 1)
+    equal(readCommitted(sandbox, 'SELECT * FROM catalog_metadata').length, 1)
   }
 )
 
@@ -65,8 +66,8 @@ databaseTest(
     )
     closeDatabase(database)
 
-    equal(readCommitted(sandbox, 'SELECT * FROM products').length, 0)
-    equal(readCommitted(sandbox, 'SELECT * FROM product_barcodes').length, 0)
+    equal(readCommitted(sandbox, 'SELECT * FROM catalog_products').length, 0)
+    equal(readCommitted(sandbox, 'SELECT * FROM catalog_product_barcodes').length, 0)
   }
 )
 
@@ -76,7 +77,7 @@ databaseTest(
     const database = openTestDatabase(sandbox)
     const stableRepository = realRepositories(database).bootstrapSnapshot
     stableRepository.persistSnapshot(desktopBootstrapFixture(), '2026-01-01T00:01:00+00:00')
-    const before = tableDigest(sandbox, 'products')
+    const before = tableDigest(sandbox, 'catalog_products')
     let observedWrites = 0
     const failingRepository = realRepositories(
       failingDatabase(database, {
@@ -96,7 +97,7 @@ databaseTest(
     equal(observedWrites, 5)
     closeDatabase(database)
 
-    equal(tableDigest(sandbox, 'products'), before)
+    equal(tableDigest(sandbox, 'catalog_products'), before)
     equal(
       readCommitted<{ is_enabled: number }>(
         sandbox,
@@ -114,7 +115,7 @@ databaseTest(
     const database = openTestDatabase(sandbox)
     const repository = realRepositories(database).bootstrapSnapshot
     repository.persistSnapshot(desktopBootstrapFixture(), '2026-01-01T00:01:00+00:00')
-    const before = tableDigest(sandbox, 'products')
+    const before = tableDigest(sandbox, 'catalog_products')
 
     throws(
       () =>
@@ -123,6 +124,38 @@ databaseTest(
     )
     closeDatabase(database)
 
-    equal(tableDigest(sandbox, 'products'), before)
+    equal(tableDigest(sandbox, 'catalog_products'), before)
   }
 )
+
+databaseTest('an invalid catalog contract preserves the complete prior snapshot', (sandbox) => {
+  const database = openTestDatabase(sandbox)
+  const repository = realRepositories(database).bootstrapSnapshot
+  const fixture = desktopBootstrapFixture()
+  repository.persistSnapshot(fixture, '2026-01-01T00:01:00+00:00')
+  const beforeProducts = tableDigest(sandbox, 'catalog_products')
+  const beforeMetadata = tableDigest(sandbox, 'catalog_metadata')
+  const product = fixture.products?.[0]
+
+  throws(() =>
+    repository.persistSnapshot(
+      desktopBootstrapFixture({
+        products: product
+          ? [
+              {
+                ...product,
+                resolved_price: product.resolved_price
+                  ? { ...product.resolved_price, valid_until: '2026-01-03T00:00:00+00:00' }
+                  : null
+              }
+            ]
+          : []
+      }),
+      '2026-01-02T00:01:00+00:00'
+    )
+  )
+  closeDatabase(database)
+
+  equal(tableDigest(sandbox, 'catalog_products'), beforeProducts)
+  equal(tableDigest(sandbox, 'catalog_metadata'), beforeMetadata)
+})

@@ -23,7 +23,7 @@ status. Full client-side behavior rules (state machine, review, worker pause):
 | `IDEMPOTENCY_CONFLICT` | The idempotency key was reused with a different payload than originally sent — treat as `conflict`, preserve both sides for review, do not auto-retry |
 | `VALIDATION_FAILED` | Payload rejected — check `errors` for field-level detail; stale price or stock 422s become terminal `rejected` records with recovery guidance |
 | `FEATURE_NOT_ENABLED` | Feature/endpoint not enabled for this tenant/license — may indicate a pause condition depending on which endpoint |
-| `SHIFT_ALREADY_OPEN` / `SHIFT_NOT_OPEN` / `SHIFT_CLOSED` / `SHIFT_PAUSED` / `SHIFT_NOT_PAUSED` | Shift-state conflicts — a queued shift-related sync may need to reconcile local shift state against these before retrying |
+| `DESKTOP_SHIFT_ALREADY_OPEN` / `DESKTOP_SHIFT_NOT_OPEN` / `DESKTOP_SHIFT_ALREADY_PAUSED` / `DESKTOP_SHIFT_NOT_PAUSED` / `DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND` | Shift-state conflicts — a queued shift-related sync may need to reconcile local shift state against these before retrying |
 
 ## Ordering Requirement
 

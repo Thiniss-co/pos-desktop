@@ -1,5 +1,14 @@
 import { z } from 'zod'
 
+const isoSecondTimestampSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/)
+const sha256RevisionSchema = z.string().regex(/^[a-f0-9]{64}$/)
+const currencySchema = z.string().regex(/^[A-Z]{3}$/)
+const taxModeSchema = z.enum(['none', 'inclusive', 'exclusive'])
+const shiftMoneySchema = z.number().int().min(0).max(2_147_483_647)
+const signedShiftMoneySchema = z.number().int().min(-2_147_483_648).max(2_147_483_647)
+
 /**
  * Raw Laravel API Resource shapes for the desktop endpoints, transcribed from the actual
  * backend source (pos-backend). These are main-process-only: they carry secrets (the desktop
@@ -159,9 +168,7 @@ const categoryResourceSchema = z
 const productResourceSchema = z
   .object({
     uuid: z.uuid(),
-    server_id: z.number().int(),
-    company_id: z.number().int(),
-    category_id: z.number().int().nullable().optional(),
+    category_uuid: z.uuid().nullable(),
     name: z.string(),
     sku: z.string().nullable().optional(),
     barcode: z.string().nullable().optional(),
@@ -170,22 +177,41 @@ const productResourceSchema = z
     is_active: z.boolean(),
     track_stock: z.boolean(),
     unit: z.string().nullable().optional(),
-    tax_mode: z.string().nullable().optional(),
+    resolved_price: z
+      .object({
+        amount: z.number().int().min(0).max(1_000_000_000),
+        currency: currencySchema,
+        source: z.literal('product_base'),
+        revision: sha256RevisionSchema,
+        valid_from: isoSecondTimestampSchema,
+        valid_until: isoSecondTimestampSchema
+      })
+      .strict()
+      .nullable(),
+    resolved_tax: z
+      .object({
+        id: z.uuid().nullable(),
+        mode: taxModeSchema,
+        rate_basis_points: z.number().int().min(0).max(10_000),
+        revision: sha256RevisionSchema
+      })
+      .strict()
+      .nullable(),
     updated_at: z.string().nullable().optional()
   })
-  .passthrough()
+  .strict()
 
 const productBarcodeResourceSchema = z
   .object({
     id: z.uuid(),
-    product_id: z.number().int(),
+    product_uuid: z.uuid(),
     barcode: z.string(),
     type: z.string().nullable().optional(),
     is_primary: z.boolean(),
     is_active: z.boolean(),
     updated_at: z.string().nullable().optional()
   })
-  .passthrough()
+  .strict()
 
 const productPriceResourceSchema = z
   .object({
@@ -205,8 +231,8 @@ const productPriceResourceSchema = z
 const stockItemResourceSchema = z
   .object({
     id: z.uuid(),
-    product_id: z.number().int(),
-    warehouse_id: z.number().int(),
+    product_uuid: z.uuid(),
+    warehouse_uuid: z.uuid(),
     quantity: z.number(),
     reserved_quantity: z.number(),
     available_quantity: z.number(),
@@ -215,7 +241,7 @@ const stockItemResourceSchema = z
     is_active: z.boolean(),
     updated_at: z.string().nullable().optional()
   })
-  .passthrough()
+  .strict()
 
 const taxResourceSchema = z
   .object({
@@ -260,7 +286,7 @@ const customerResourceSchema = z
 
 export const desktopBootstrapResourceSchema = z
   .object({
-    server_time: z.string(),
+    server_time: isoSecondTimestampSchema,
     company: namedActiveRefResourceSchema,
     device: desktopDeviceResourceSchema,
     license: accessDecisionResourceSchema,
@@ -286,6 +312,20 @@ export const desktopBootstrapResourceSchema = z
       .nullable(),
     branch: namedActiveRefResourceSchema.nullable(),
     warehouse: namedActiveRefResourceSchema.nullable(),
+    catalog_contract: z
+      .object({
+        revision: sha256RevisionSchema,
+        generated_at: isoSecondTimestampSchema,
+        valid_until: isoSecondTimestampSchema,
+        quantity_scale: z.literal(3),
+        minimum_quantity: z.literal('0.001'),
+        maximum_quantity: z.literal('999999.999'),
+        maximum_unit_price: z.literal(1_000_000_000),
+        maximum_line_total: z.literal(900_000_000_000_000),
+        maximum_invoice_total: z.literal(900_000_000_000_000),
+        mixed_tax_mode_policy: z.literal('single_invoice_mode')
+      })
+      .strict(),
     sync: z
       .object({
         snapshot_version: z.string(),
@@ -302,9 +342,64 @@ export const desktopBootstrapResourceSchema = z
     payment_methods: z.array(paymentMethodResourceSchema).optional(),
     customers: z.array(customerResourceSchema).optional()
   })
-  .passthrough()
+  .strict()
 
 export type DesktopBootstrapResource = z.infer<typeof desktopBootstrapResourceSchema>
+
+export const desktopShiftResourceSchema = z
+  .object({
+    id: z.uuid(),
+    uuid: z.uuid(),
+    status: z.enum(['open', 'paused', 'closed', 'cancelled']),
+    company_id: z.number().int(),
+    branch_id: z.number().int(),
+    warehouse_id: z.number().int(),
+    device_uuid: z.uuid().optional(),
+    user: z
+      .object({
+        id: z.number().int(),
+        uuid: z.uuid(),
+        name: z.string(),
+        email: z.string()
+      })
+      .strict()
+      .optional(),
+    opening_cash_amount: shiftMoneySchema,
+    expected_cash_amount: signedShiftMoneySchema.nullable(),
+    actual_cash_amount: shiftMoneySchema.nullable(),
+    cash_difference_amount: signedShiftMoneySchema.nullable(),
+    sales_total_amount: shiftMoneySchema,
+    refund_total_amount: shiftMoneySchema,
+    cash_sales_amount: shiftMoneySchema,
+    card_sales_amount: shiftMoneySchema,
+    other_payment_total_amount: shiftMoneySchema,
+    cash_movement_in_amount: shiftMoneySchema,
+    cash_movement_out_amount: shiftMoneySchema,
+    cash_movement_net_amount: signedShiftMoneySchema,
+    safe_drop_amount: shiftMoneySchema,
+    expense_payout_amount: shiftMoneySchema,
+    cash_drawer_movement_count: z.number().int().nonnegative(),
+    opened_at: z.string(),
+    closed_at: z.string().nullable(),
+    paused_at: z.string().nullable(),
+    pause_count: z.number().int().nonnegative(),
+    total_paused_seconds: z.number().int().nonnegative(),
+    active_pause: z
+      .object({
+        uuid: z.uuid(),
+        paused_at: z.string(),
+        reason: z.string().nullable(),
+        notes: z.string().nullable()
+      })
+      .strict()
+      .nullable()
+      .optional(),
+    notes: z.string().nullable(),
+    close_notes: z.string().nullable()
+  })
+  .strict()
+
+export type DesktopShiftResource = z.infer<typeof desktopShiftResourceSchema>
 
 export const companyUserResourceSchema = z
   .object({

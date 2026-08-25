@@ -8,16 +8,21 @@ snapshot), with no sale finalization or sync yet.
 
 ## Scope
 
-- `shifts` module: open shift (starting cash count), pause/resume, close shift (cash count,
+- `shifts` module: current/show/open shift (starting cash count), pause/resume, close shift (cash count,
   variance display) — calling the backend shift/cash-drawer endpoints via
   `window.posApi.shifts.*`, with shift-state error codes
-  (`SHIFT_ALREADY_OPEN`, `SHIFT_NOT_OPEN`, `SHIFT_CLOSED`, `SHIFT_PAUSED`, `SHIFT_NOT_PAUSED`)
-  handled explicitly. The main-process shift service must call
-  `CommercialAccessService.assertCanSell()` before opening a shift; it is never a renderer-side
-  decision.
+  (`DESKTOP_SHIFT_ALREADY_OPEN`, `DESKTOP_SHIFT_NOT_OPEN`,
+  `DESKTOP_SHIFT_ALREADY_PAUSED`, `DESKTOP_SHIFT_NOT_PAUSED`,
+  `DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND`) handled explicitly. The main-process shift service calls
+  `CommercialAccessService.assertAllowed('sell')` immediately before opening or resuming a shift;
+  it is never a renderer-side decision. Pause and close retain the backend's authenticated,
+  device-bound shift policy without incorrectly applying the new-sale guard.
 - `pos`/`cart` module: product catalog browsing/search reading from local SQLite (offline-first,
   per [.ai/guidelines/pos-ux-rules.md](../../.ai/guidelines/pos-ux-rules.md)), cart line
   add/remove/quantity-adjust, running totals (pricing/tax logic in a service, not the page).
+  The local catalog consumes the server-issued sellable snapshot: UUID category joins, integer
+  minor-unit price, immutable price/tax revisions, integer tax basis points, and an exclusive
+  catalog validity end. Old Phase 2 catalog rows remain diagnostic-only until a new bootstrap.
 - `useBarcodeScanner()` composable implemented and wired into the checkout screen per
   [.ai/guidelines/pos-ux-rules.md](../../.ai/guidelines/pos-ux-rules.md).
 - Shell-level offline banner and (stub, since sync doesn't exist yet) sync indicator placeholder.
@@ -45,6 +50,9 @@ snapshot), with no sale finalization or sync yet.
 npm run typecheck
 npm run lint
 npm run test            # including cart pricing/tax and shift-state tests
+npm run smoke:database
+npm run test:sqlite:electron
+npm run build
 npm run dev               # manual: open shift, scan/search products, build a cart, close shift
 ```
 
@@ -58,6 +66,11 @@ npm run dev               # manual: open shift, scan/search products, build a ca
 - Barcode scanning captured correctly per the manual smoke checklist in
   [.ai/guidelines/testing-and-verification.md](../../.ai/guidelines/testing-and-verification.md).
 - Cart pricing logic has unit test coverage and lives outside `.vue` files.
+- Cart math uses BigInt internally, three-decimal scaled quantities, Laravel-compatible half-up
+  rounding, discounts before tax, proportional invoice discount allocation, and the published
+  money limits. The cart rejects mixed tax modes under `single_invoice_mode`.
+- The POS screen has no working payment/finalization path. Its Phase 4 checkout placeholder is
+  disabled and performs no IPC request.
 
 ## Commercial Access Enforcement Contract
 
@@ -66,9 +79,14 @@ Renderer access state and disabled buttons are UX only; they are never an author
 IPC channel lets the renderer set an access decision.
 
 - Opening or resuming a shift calls `assertAllowed('sell')` in the main process.
+- Every lifecycle request also checks its own persisted bootstrap permission in the main process:
+  `shifts.view` for current/show and `shifts.manage` for open/pause/resume/close. These
+  permission checks run before the sell guard and before any HTTP request; renderer visibility is
+  UX only.
 - Cart edits remain renderer-only drafts and do not need a guard.
-- Phase 4 must call `assertAllowed('sell')` at the local invoice/outbox transaction boundary, because
-  that is the durable sale rather than the cart.
+- Phase 4 must resolve the authoritative current shift in main, require its status to be exactly
+  `open`, and call `assertAllowed('sell')` immediately before and inside its atomic local
+  invoice/payment/outbox transaction. Renderer-supplied shift state is never trusted.
 - Upload and manual retry call `assertAllowed('sync')` immediately before sending. Invoice upload must
   also assert `pos.sell`, matching the backend route contract; the generic sync guard intentionally does
   not add that sell-only rule.

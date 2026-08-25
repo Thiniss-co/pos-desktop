@@ -4,7 +4,9 @@ import { databaseMigrations } from '../../../src/main/database/migrations'
 import { databaseTest } from '../support/sandbox'
 import {
   assertDefaultDatabasePathIsUnavailable,
+  applyAllTestMigrations,
   openExistingTestDatabase,
+  openPhaseTwoTestDatabase,
   openTestDatabase
 } from '../support/openTestDatabase'
 
@@ -34,7 +36,12 @@ const expectedTables = [
   'stock_items',
   'taxes',
   'payment_methods',
-  'customers'
+  'customers',
+  'catalog_metadata',
+  'catalog_categories',
+  'catalog_products',
+  'catalog_product_barcodes',
+  'catalog_stock_items'
 ]
 
 databaseTest(
@@ -58,6 +65,14 @@ databaseTest(
       ok(tables.includes(table), `missing table ${table}`)
     }
     deepEqual(indexes, [
+      'idx_catalog_categories_active_name',
+      'idx_catalog_product_barcodes_lookup',
+      'idx_catalog_products_barcode',
+      'idx_catalog_products_browse',
+      'idx_catalog_products_search_name',
+      'idx_catalog_products_search_sku',
+      'idx_catalog_stock_items_product',
+      'idx_catalog_stock_items_warehouse',
       'idx_product_barcodes_barcode',
       'idx_product_barcodes_product_id',
       'idx_product_prices_product_id',
@@ -102,6 +117,38 @@ databaseTest(
     )
     equal(setting.value, 'ok')
     closeDatabase(reopened)
+  }
+)
+
+databaseTest(
+  'an existing Phase 2 database migrates additively with its state intact',
+  (sandbox) => {
+    const database = openPhaseTwoTestDatabase(sandbox)
+    database
+      .prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)')
+      .run('migration.canary', 'preserved', '2026-01-01T00:00:00Z')
+    applyAllTestMigrations(database)
+
+    equal(
+      (
+        database
+          .prepare('SELECT value FROM app_settings WHERE key = ?')
+          .get('migration.canary') as {
+          value: string
+        }
+      ).value,
+      'preserved'
+    )
+    equal(
+      (
+        database.prepare('SELECT COUNT(*) AS total FROM catalog_metadata').get() as {
+          total: number
+        }
+      ).total,
+      0,
+      'old bootstrap data must not fabricate a current sellable catalog'
+    )
+    closeDatabase(database)
   }
 )
 

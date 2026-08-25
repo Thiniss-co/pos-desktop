@@ -17,7 +17,8 @@ const baseSnapshot: StartupSnapshot = {
     platform: 'linux',
     osVersion: '6.0',
     appVersion: '1.0.0',
-    isRegistered: false
+    isRegistered: false,
+    registrationStatus: null
   },
   session: { isAuthenticated: false, userName: null, userEmail: null },
   bootstrap: { isComplete: false, updatedAt: null },
@@ -41,6 +42,18 @@ describe('determineStartupState', () => {
       })
     ).toBe('needs_login')
   })
+
+  it.each(['revoked', 'retired'])(
+    'requires activation for persisted terminal status %s',
+    (status) => {
+      expect(
+        determineStartupState({
+          ...baseSnapshot,
+          device: { ...baseSnapshot.device, isRegistered: true, registrationStatus: status }
+        })
+      ).toBe('needs_activation')
+    }
+  )
 
   it('requires bootstrap once authenticated but the local snapshot is incomplete', () => {
     expect(

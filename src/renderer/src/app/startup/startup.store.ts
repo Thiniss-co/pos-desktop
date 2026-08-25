@@ -2,11 +2,16 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useAccessStore } from '@renderer/modules/access/store'
 import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
+import { isTerminalDeviceStatus } from '@shared/constants/deviceStatuses'
 import { StartupService } from './startup.service'
 import type { StartupError, StartupSnapshot, StartupState } from './types'
 
 function determineStartupState(snapshot: StartupSnapshot): StartupState {
-  if (!snapshot.device.isRegistered) {
+  if (
+    !snapshot.device.isRegistered ||
+    (snapshot.device.registrationStatus !== null &&
+      isTerminalDeviceStatus(snapshot.device.registrationStatus))
+  ) {
     return 'needs_activation'
   }
 

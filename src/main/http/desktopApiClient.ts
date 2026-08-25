@@ -4,9 +4,11 @@ import type { ConnectivityRequestOutcome } from '@shared/contracts/connectivity.
 import {
   backendNotConfiguredError,
   classifyTransportError,
+  createPublicError,
   isPublicAppError,
   normalizeHttpError,
-  normalizeTransportError
+  normalizeTransportError,
+  responseBodyNotJsonError
 } from './apiError'
 import { parseApiEnvelope, unwrapApiEnvelope } from './apiEnvelope'
 import { createApiTracer, type ApiTracer } from './apiTrace'
@@ -86,7 +88,12 @@ export class DesktopApiClient {
       const deviceUuid = this.dependencies.getDeviceUuid()
 
       if (!token || !deviceUuid) {
-        throw new Error('Protected desktop API requests require a session and device identity')
+        throw createPublicError(
+          'authentication',
+          'A protected desktop request requires a session and device identity.',
+          false,
+          { backendCode: 'DESKTOP_LOCAL_IDENTITY_MISSING' }
+        )
       }
 
       headers.set('Authorization', `Bearer ${token}`)
@@ -108,7 +115,17 @@ export class DesktopApiClient {
       })
       receivedHttpResponse = true
       this.reportRequestOutcome({ kind: 'http_response', status: response.status })
-      const payload: unknown = await response.json()
+      let payload: unknown
+
+      try {
+        payload = await response.json()
+      } catch {
+        throw responseBodyNotJsonError(
+          response.status,
+          response.headers?.get('content-type') ?? null
+        )
+      }
+
       const envelope = parseApiEnvelope(payload)
       const errorEnvelope = envelope.success ? undefined : (envelope as ApiErrorEnvelope)
 

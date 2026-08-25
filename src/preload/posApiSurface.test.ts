@@ -40,6 +40,17 @@ describe('posApi surface', () => {
     expect(source).toContain('setRoles')
   })
 
+  it('contains only narrow read-only catalog and explicit shift lifecycle methods', () => {
+    expect(source).toContain('catalog')
+    expect(source).toContain('listCategories')
+    expect(source).toContain('searchProducts')
+    expect(source).toContain('findByBarcode')
+    expect(source).toContain('shifts')
+    expect(source).toContain('pause')
+    expect(source).toContain('resume')
+    expect(source).toContain('close')
+  })
+
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)

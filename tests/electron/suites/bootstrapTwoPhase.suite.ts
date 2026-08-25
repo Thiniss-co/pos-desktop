@@ -57,7 +57,7 @@ databaseTest(
     await throwsAsync(() => service.refresh(), /completion write failed/)
     closeDatabase(database)
 
-    equal(readCommitted(sandbox, 'SELECT * FROM products').length, 1)
+    equal(readCommitted(sandbox, 'SELECT * FROM catalog_products').length, 1)
     equal(
       readCommitted<{ is_complete: number }>(sandbox, 'SELECT is_complete FROM bootstrap_state')[0]
         ?.is_complete ?? 0,

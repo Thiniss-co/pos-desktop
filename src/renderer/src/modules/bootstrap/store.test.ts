@@ -54,7 +54,9 @@ describe('useBootstrapStore', () => {
     )
 
     expect(succeeded).toBe(false)
-    expect(store.error).toBe('Something went wrong. Please try again.')
+    expect(store.error).toBe(
+      'The POS service returned bootstrap data this app cannot safely use. Update the app or contact support.'
+    )
     expect(store.isRetryable).toBe(false)
   })
 

@@ -50,8 +50,8 @@ Error:
 ```
 
 - The central API client parses **every** response against this envelope shape before returning
-  data to a service. A response that doesn't match the envelope is treated as a transport error,
-  not silently passed through.
+  data to a service. A response that doesn't match the envelope is a non-retryable unexpected
+  response/contract error, never a transport error, and is not silently passed through.
 - `code` (not HTTP status alone, and not `message`) drives branching logic — `message` is for
   display only and must never be parsed/matched against in code.
 - Known error codes to handle explicitly where relevant: `UNAUTHENTICATED`, `FORBIDDEN`,

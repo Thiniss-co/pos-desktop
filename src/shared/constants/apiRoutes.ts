@@ -50,6 +50,42 @@ export const DESKTOP_API_ROUTES = Object.freeze({
     requiresAuth: true,
     requiresDeviceUuid: true
   },
+  shiftsCurrent: {
+    path: '/shifts/current',
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  shiftsOpen: {
+    path: '/shifts/open',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  shiftsShow: {
+    path: '/shifts',
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  shiftsPause: {
+    path: '/shifts',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  shiftsResume: {
+    path: '/shifts',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  shiftsClose: {
+    path: '/shifts',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
   invoicesUpload: {
     path: '/invoices/upload',
     method: 'POST',
