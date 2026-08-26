@@ -2,6 +2,9 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type {
   CatalogCategory,
+  CatalogBarcodeLookup,
+  CatalogCustomer,
+  CatalogPaymentMethod,
   CatalogProduct,
   CatalogStatus
 } from '@shared/contracts/catalog.contract'
@@ -16,6 +19,10 @@ export const useCatalogStore = defineStore('catalog', () => {
   const status = ref<CatalogStatus | null>(null)
   const categories = ref<CatalogCategory[]>([])
   const products = ref<CatalogProduct[]>([])
+  const paymentMethods = ref<CatalogPaymentMethod[]>([])
+  const customers = ref<CatalogCustomer[]>([])
+  const customerQuery = ref('')
+  const selectedCustomerUuid = ref<string | null>(null)
   const query = ref('')
   const selectedCategoryUuid = ref<string | null>(null)
   const total = ref(0)
@@ -24,7 +31,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   const error = errorState.error
   let latestSearch = 0
 
-  const isAvailable = computed(() => status.value?.available === true)
+  const isAvailable = computed(() => status.value?.isReadable === true)
 
   function setError(cause: unknown, fallbackKey: string): void {
     const publicError = parsePublicAppError(cause)
@@ -43,15 +50,23 @@ export const useCatalogStore = defineStore('catalog', () => {
     try {
       status.value = await service.getStatus()
 
-      if (!status.value.available) {
+      if (!status.value.isReadable) {
         categories.value = []
         products.value = []
+        paymentMethods.value = []
+        customers.value = []
         total.value = 0
         return
       }
 
-      categories.value = await service.listCategories()
+      const [nextCategories, nextPaymentMethods] = await Promise.all([
+        service.listCategories(),
+        service.listPaymentMethods()
+      ])
+      categories.value = nextCategories
+      paymentMethods.value = nextPaymentMethods
       await search(service)
+      await searchCustomers(service)
     } catch (cause) {
       setError(cause, 'pos.catalogUnavailable')
     }
@@ -76,7 +91,6 @@ export const useCatalogStore = defineStore('catalog', () => {
 
       products.value = page.items
       total.value = page.total
-      status.value = { available: true, reason: 'ready', contract: page.contract }
     } catch (cause) {
       if (request === latestSearch) {
         setError(cause, 'pos.catalogUnavailable')
@@ -96,18 +110,35 @@ export const useCatalogStore = defineStore('catalog', () => {
     await search(service)
   }
 
-  async function findByBarcode(
+  async function findProductByBarcode(
     barcode: string,
     service = new CatalogRendererService()
-  ): Promise<CatalogProduct | null> {
+  ): Promise<CatalogBarcodeLookup> {
     try {
-      const product = await service.findByBarcode(barcode)
+      const result = await service.findProductByBarcode(barcode)
       errorState.clear()
-      return product
+      return result
     } catch (cause) {
       setError(cause, 'pos.barcodeNotFound')
-      return null
+      return { outcome: 'unavailable-catalog' }
     }
+  }
+
+  async function searchCustomers(service = new CatalogRendererService()): Promise<void> {
+    try {
+      const page = await service.searchCustomers({
+        query: customerQuery.value,
+        limit: PAGE_SIZE,
+        offset: 0
+      })
+      customers.value = page.items
+    } catch (cause) {
+      setError(cause, 'pos.catalogUnavailable')
+    }
+  }
+
+  function selectCustomer(uuid: string | null): void {
+    selectedCustomerUuid.value = uuid
   }
 
   async function getProduct(
@@ -128,6 +159,10 @@ export const useCatalogStore = defineStore('catalog', () => {
     status,
     categories,
     products,
+    paymentMethods,
+    customers,
+    customerQuery,
+    selectedCustomerUuid,
     query,
     selectedCategoryUuid,
     total,
@@ -138,6 +173,8 @@ export const useCatalogStore = defineStore('catalog', () => {
     search,
     selectCategory,
     getProduct,
-    findByBarcode
+    findProductByBarcode,
+    searchCustomers,
+    selectCustomer
   }
 })

@@ -16,6 +16,7 @@ export function registerBootstrapIpcHandlers(services: ApplicationServices): voi
 
   ipcMain.handle(IPC_CHANNELS.bootstrapRefresh, (_event, input: unknown) =>
     handleIpcRequest(input, bootstrapRefreshInputSchema, async () => {
+      await services.auth.ensureCatalogReadContext()
       const revision = services.commercialAccessPublisher.begin()
       const result = await services.bootstrap.refresh()
       services.commercialAccessPublisher.publish(revision)

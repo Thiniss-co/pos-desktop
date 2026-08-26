@@ -59,8 +59,10 @@ export const catalogProductSchema = z
 
 export const catalogStatusSchema = z
   .object({
-    available: z.boolean(),
-    reason: z.enum(['ready', 'missing', 'not-yet-valid', 'expired', 'commercial-access-denied']),
+    status: z.enum(['fresh', 'cached', 'stale', 'unavailable']),
+    isReadable: z.boolean(),
+    catalogValid: z.boolean(),
+    lastSyncedAt: isoDateTimeSchema.nullable(),
     contract: catalogContractSchema.nullable()
   })
   .strict()
@@ -76,7 +78,7 @@ export const catalogSearchInputSchema = z
 
 export const catalogProductIdInputSchema = z.object({ uuid: z.uuid() }).strict()
 export const catalogBarcodeInputSchema = z
-  .object({ barcode: z.string().trim().min(3).max(255) })
+  .object({ barcode: z.string().trim().min(1).max(255) })
   .strict()
 
 export const catalogProductPageSchema = z
@@ -89,9 +91,56 @@ export const catalogProductPageSchema = z
   })
   .strict()
 
+export const catalogCustomerSchema = z
+  .object({
+    uuid: z.uuid(),
+    name: z.string(),
+    phone: z.string().nullable()
+  })
+  .strict()
+
+export const catalogCustomerSearchInputSchema = z
+  .object({
+    query: z.string().trim().max(100).default(''),
+    limit: z.number().int().min(1).max(50).default(24),
+    offset: z.number().int().min(0).max(10_000).default(0)
+  })
+  .strict()
+
+export const catalogCustomerPageSchema = z
+  .object({
+    items: z.array(catalogCustomerSchema),
+    total: z.number().int().nonnegative(),
+    limit: z.number().int().positive(),
+    offset: z.number().int().nonnegative()
+  })
+  .strict()
+
+export const catalogPaymentMethodSchema = z
+  .object({
+    uuid: z.uuid(),
+    name: z.string(),
+    code: z.string().nullable(),
+    type: z.string().nullable()
+  })
+  .strict()
+
+export const catalogBarcodeLookupSchema = z.discriminatedUnion('outcome', [
+  z.object({ outcome: z.literal('found'), product: catalogProductSchema }).strict(),
+  z.object({ outcome: z.literal('not-found') }).strict(),
+  z.object({ outcome: z.literal('ambiguous') }).strict(),
+  z.object({ outcome: z.literal('stale-catalog') }).strict(),
+  z.object({ outcome: z.literal('unavailable-catalog') }).strict()
+])
+
 export type CatalogContract = z.infer<typeof catalogContractSchema>
 export type CatalogCategory = z.infer<typeof catalogCategorySchema>
 export type CatalogProduct = z.infer<typeof catalogProductSchema>
 export type CatalogStatus = z.infer<typeof catalogStatusSchema>
 export type CatalogSearchInput = z.infer<typeof catalogSearchInputSchema>
 export type CatalogProductPage = z.infer<typeof catalogProductPageSchema>
+export type CatalogCustomer = z.infer<typeof catalogCustomerSchema>
+export type CatalogCustomerSearchInput = z.infer<typeof catalogCustomerSearchInputSchema>
+export type CatalogCustomerPage = z.infer<typeof catalogCustomerPageSchema>
+export type CatalogPaymentMethod = z.infer<typeof catalogPaymentMethodSchema>
+export type CatalogBarcodeLookup = z.infer<typeof catalogBarcodeLookupSchema>

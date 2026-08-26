@@ -57,6 +57,12 @@ databaseTest(
     repository.persistSnapshot(desktopBootstrapFixture(), '2026-01-01T00:01:00+00:00')
     repository.persistSnapshot(
       desktopBootstrapFixture({
+        catalog_contract: {
+          ...desktopBootstrapFixture().catalog_contract,
+          revision: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+          generated_at: '2026-01-02T00:00:00+00:00',
+          valid_until: '2026-01-05T00:00:00+00:00'
+        },
         products: [],
         product_barcodes: [],
         product_prices: [],
@@ -119,7 +125,19 @@ databaseTest(
 
     throws(
       () =>
-        repository.persistSnapshot(danglingBarcodeCatalogueFixture(), '2026-01-02T00:01:00+00:00'),
+        repository.persistSnapshot(
+          desktopBootstrapFixture({
+            catalog_contract: {
+              ...desktopBootstrapFixture().catalog_contract,
+              revision: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+              generated_at: '2026-01-02T00:00:00+00:00',
+              valid_until: '2026-01-05T00:00:00+00:00'
+            },
+            products: [],
+            product_barcodes: danglingBarcodeCatalogueFixture().product_barcodes
+          }),
+          '2026-01-02T00:01:00+00:00'
+        ),
       /FOREIGN KEY constraint failed/
     )
     closeDatabase(database)

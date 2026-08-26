@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { DesktopApiClient } from '../http/desktopApiClient'
+import type {
+  SessionContext,
+  SessionEstablishInput
+} from '../repositories/sessionMetadata.repository'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from './auth.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 
@@ -54,6 +58,52 @@ function loginSuccessEnvelope(): Record<string, unknown> {
   }
 }
 
+function userContextSuccessEnvelope(): Record<string, unknown> {
+  return {
+    success: true,
+    message: 'Desktop user context retrieved successfully.',
+    code: 'DESKTOP_USER_CONTEXT_RETRIEVED',
+    data: {
+      user: {
+        id: 1,
+        uuid: '11111111-1111-4111-8111-111111111111',
+        name: 'Cashier One',
+        email: 'cashier@example.test',
+        is_active: true,
+        roles: ['cashier'],
+        permissions: ['pos.view']
+      },
+      device: {
+        id: 'server-device-uuid',
+        device_uuid: identity.deviceUuid,
+        device_name: identity.deviceName,
+        platform: identity.platform
+      },
+      company: {
+        id: '22222222-2222-4222-8222-222222222222',
+        name: 'Example Company',
+        is_active: true
+      },
+      branch: null,
+      warehouse: null,
+      access: {
+        allowed: true,
+        is_active: true,
+        is_trial: false,
+        is_in_grace: false,
+        is_expired: false,
+        is_suspended: false,
+        can_login: true,
+        can_sell: true,
+        can_sync: true,
+        can_activate_device: true,
+        restriction_level: 'none'
+      }
+    },
+    meta: {}
+  }
+}
+
 interface FakeSecureStorage {
   encryptionAvailable: boolean
   getStatus: () => { encryptionAvailable: boolean }
@@ -81,26 +131,53 @@ function createFakeSecureStorage(): FakeSecureStorage {
 
 interface FakeSessionMetadata {
   getSummary: () => { isAuthenticated: boolean; userName: string | null; userEmail: string | null }
-  establish: (input: { userName: string; userEmail: string }) => void
+  getContext: () => SessionContext
+  establish: (input: SessionEstablishInput) => void
   clear: () => void
 }
 
 function createFakeSessionMetadata(): FakeSessionMetadata {
   let userName: string | null = null
   let userEmail: string | null = null
+  let context: SessionContext = {
+    isAuthenticated: false,
+    userUuid: null,
+    userIsActive: false,
+    companyUuid: null,
+    deviceUuid: null,
+    serverDeviceId: null
+  }
+
   return {
     getSummary: () => ({
       isAuthenticated: Boolean(userEmail),
       userName,
       userEmail
     }),
-    establish: (input: { userName: string; userEmail: string }) => {
+    getContext: () => context,
+    establish: (input) => {
       userName = input.userName
       userEmail = input.userEmail
+      context = {
+        isAuthenticated: Boolean(input.userEmail && input.userUuid),
+        userUuid: input.userUuid ?? null,
+        userIsActive: input.userIsActive === true,
+        companyUuid: input.companyUuid ?? null,
+        deviceUuid: input.deviceUuid ?? null,
+        serverDeviceId: input.serverDeviceId ?? null
+      }
     },
     clear: () => {
       userName = null
       userEmail = null
+      context = {
+        isAuthenticated: false,
+        userUuid: null,
+        userIsActive: false,
+        companyUuid: null,
+        deviceUuid: null,
+        serverDeviceId: null
+      }
     }
   }
 }
@@ -185,6 +262,14 @@ describe('AuthService.login', () => {
       { get: () => identity },
       {
         getSummary: () => ({ isAuthenticated: false, userName: null, userEmail: null }),
+        getContext: () => ({
+          isAuthenticated: false,
+          userUuid: null,
+          userIsActive: false,
+          companyUuid: null,
+          deviceUuid: null,
+          serverDeviceId: null
+        }),
         establish: () => {
           throw new Error('disk full')
         },
@@ -223,6 +308,14 @@ describe('AuthService.refreshSession', () => {
           isAuthenticated: true,
           userName: 'Cashier One',
           userEmail: 'c@e.test'
+        }),
+        getContext: () => ({
+          isAuthenticated: true,
+          userUuid: '11111111-1111-4111-8111-111111111111',
+          userIsActive: true,
+          companyUuid: '22222222-2222-4222-8222-222222222222',
+          deviceUuid: identity.deviceUuid,
+          serverDeviceId: 'server-device-uuid'
         }),
         establish: () => undefined,
         clear: () => {
@@ -270,6 +363,14 @@ describe('AuthService.refreshSession', () => {
           userName: 'Cashier One',
           userEmail: 'c@e.test'
         }),
+        getContext: () => ({
+          isAuthenticated: true,
+          userUuid: '11111111-1111-4111-8111-111111111111',
+          userIsActive: true,
+          companyUuid: '22222222-2222-4222-8222-222222222222',
+          deviceUuid: identity.deviceUuid,
+          serverDeviceId: 'server-device-uuid'
+        }),
         establish: () => undefined,
         clear: () => {
           cleared = true
@@ -290,5 +391,66 @@ describe('AuthService.refreshSession', () => {
     })
     expect(deletedSecret).toBe(false)
     expect(cleared).toBe(false)
+  })
+
+  it('hydrates a legacy display-only session before catalog access', async () => {
+    let context: SessionContext = {
+      isAuthenticated: false,
+      userUuid: null,
+      userIsActive: false,
+      companyUuid: null,
+      deviceUuid: null,
+      serverDeviceId: null
+    }
+    const apiClient = new DesktopApiClient({
+      apiOrigin: new URL('https://api.example.test'),
+      getAccessToken: () => 'stored-token',
+      getDeviceUuid: () => identity.deviceUuid,
+      fetchImplementation: (async () => ({
+        ok: true,
+        status: 200,
+        json: async () => userContextSuccessEnvelope()
+      })) as unknown as typeof fetch
+    })
+    const service = new AuthService(
+      apiClient,
+      { get: () => identity },
+      {
+        getSummary: () => ({
+          isAuthenticated: true,
+          userName: 'Cashier One',
+          userEmail: 'cashier@example.test'
+        }),
+        getContext: () => context,
+        establish: (input) => {
+          context = {
+            isAuthenticated: Boolean(input.userEmail && input.userUuid),
+            userUuid: input.userUuid ?? null,
+            userIsActive: input.userIsActive === true,
+            companyUuid: input.companyUuid ?? null,
+            deviceUuid: input.deviceUuid ?? null,
+            serverDeviceId: input.serverDeviceId ?? null
+          }
+        },
+        clear: () => undefined
+      },
+      {
+        getStatus: () => ({ encryptionAvailable: true }),
+        getSecret: () => 'stored-token',
+        setSecret: () => undefined,
+        deleteSecret: () => undefined
+      }
+    )
+
+    await service.ensureCatalogReadContext()
+
+    expect(context).toEqual({
+      isAuthenticated: true,
+      userUuid: '11111111-1111-4111-8111-111111111111',
+      userIsActive: true,
+      companyUuid: '22222222-2222-4222-8222-222222222222',
+      deviceUuid: identity.deviceUuid,
+      serverDeviceId: 'server-device-uuid'
+    })
   })
 })

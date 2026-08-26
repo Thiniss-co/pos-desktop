@@ -20,7 +20,9 @@ import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { ActivationService } from '../services/activation.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
 import { BootstrapService } from '../services/bootstrap.service'
+import { CatalogReadAccessService } from '../services/catalogReadAccess.service'
 import { CatalogService } from '../services/catalog.service'
+import { CatalogTrustedClockService } from '../services/catalogTrustedClock.service'
 import { CompanyUsersService } from '../services/companyUsers.service'
 import { CommercialAccessService } from '../services/commercialAccess.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
@@ -145,15 +147,28 @@ export function createApplicationServices(): ApplicationServices {
     connectivity
   })
   commercialAccessPublisher = new CommercialAccessPublisher(commercialAccess)
+  const catalogReadAccess = new CatalogReadAccessService({
+    identity: deviceIdentityRepository,
+    deviceRegistration: deviceRegistrationRepository,
+    session: sessionMetadata,
+    secrets: secureStorage,
+    company: bootstrapSnapshot,
+    permissions: bootstrapSnapshot
+  })
+  const catalogClock = new CatalogTrustedClockService(appSettings)
+  const catalog = new CatalogService(catalogRepository, catalogReadAccess, catalogClock)
   const bootstrap = new BootstrapService(
     apiClient,
     deviceIdentityRepository,
     commercialAccess,
-    bootstrapState,
     bootstrapSnapshot,
-    () => commercialAccessPublisher?.publishCurrent()
+    (result) => {
+      if (result.catalogRevision) {
+        catalog.markPublished(result.catalogRevision)
+      }
+      commercialAccessPublisher?.publishCurrent()
+    }
   )
-  const catalog = new CatalogService(catalogRepository, commercialAccess)
   const shiftPermissions = new ShiftPermissions(bootstrapSnapshot)
   const shifts = new ShiftService(apiClient, commercialAccess, shiftPermissions)
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)

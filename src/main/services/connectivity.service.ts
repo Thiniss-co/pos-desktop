@@ -8,17 +8,25 @@ import {
 import { createApiTracer, type ApiTracer } from '../http/apiTrace'
 
 const DEFAULT_TIMEOUT_MS = 5_000
-const DEFAULT_HEALTHY_INTERVAL_MS = 30_000
+// How long a settled observation stays authoritative for `ensureFresh()`. There is no healthy
+// polling loop: a fleet of idle devices must generate no periodic backend load at all, so a fresh
+// verdict is only produced when something is about to talk to the backend.
+const DEFAULT_FRESHNESS_TTL_MS = 60_000
 const DEFAULT_BACKOFF_BASE_MS = 5_000
-const DEFAULT_BACKOFF_MAX_MS = 60_000
+// The unreachable retry loop is now the only recurring probe traffic in the app, so it settles at
+// one attempt per five minutes per device instead of per minute.
+const DEFAULT_BACKOFF_MAX_MS = 300_000
 const DEFAULT_CHECK_NOW_MIN_GAP_MS = 2_000
+// A 5xx proves a transport path exists but says nothing trustworthy about backend health; only a
+// non-server-error response counts as the backend actually serving this device.
+const SERVER_ERROR_STATUS_FLOOR = 500
 
 export interface ConnectivityServiceDependencies {
   readonly apiOrigin: URL | null
   readonly isOnline: () => boolean
   readonly fetchImplementation: typeof fetch
   readonly timeoutMs?: number
-  readonly healthyIntervalMs?: number
+  readonly freshnessTtlMs?: number
   readonly backoffBaseMs?: number
   readonly backoffMaxMs?: number
   readonly checkNowMinGapMs?: number
@@ -50,7 +58,7 @@ function snapshotsMeaningfullyDiffer(
 
 export class ConnectivityService {
   private readonly timeoutMs: number
-  private readonly healthyIntervalMs: number
+  private readonly freshnessTtlMs: number
   private readonly backoffBaseMs: number
   private readonly backoffMaxMs: number
   private readonly checkNowMinGapMs: number
@@ -64,6 +72,9 @@ export class ConnectivityService {
   // A monotonic clock, immune to a backward wall-clock adjustment (NTP sync, DST, manual clock
   // change) incorrectly re-opening or extending the retry throttle window.
   private lastProbeStartedAt: number | null = null
+  // Also monotonic: when the connectivity verdict was last backed by real evidence, whether that
+  // came from an /up probe or from an observed business response. Drives `ensureFresh()`.
+  private lastObservationAt: number | null = null
   private failureCount = 0
   private generation = 0
   private started = false
@@ -71,7 +82,7 @@ export class ConnectivityService {
 
   constructor(private readonly dependencies: ConnectivityServiceDependencies) {
     this.timeoutMs = dependencies.timeoutMs ?? DEFAULT_TIMEOUT_MS
-    this.healthyIntervalMs = dependencies.healthyIntervalMs ?? DEFAULT_HEALTHY_INTERVAL_MS
+    this.freshnessTtlMs = dependencies.freshnessTtlMs ?? DEFAULT_FRESHNESS_TTL_MS
     this.backoffBaseMs = dependencies.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS
     this.backoffMaxMs = dependencies.backoffMaxMs ?? DEFAULT_BACKOFF_MAX_MS
     this.checkNowMinGapMs = dependencies.checkNowMinGapMs ?? DEFAULT_CHECK_NOW_MIN_GAP_MS
@@ -108,27 +119,41 @@ export class ConnectivityService {
     return this.requestCheck(false)
   }
 
+  /**
+   * The demand-driven entry point: call it immediately before interacting with the backend, or when
+   * the operator is about to look at connectivity state again. It probes only when the current
+   * verdict is unsettled or older than the freshness TTL, so ordinary use costs no extra requests —
+   * real API traffic keeps the verdict fresh through `reportRequestOutcome`.
+   */
+  ensureFresh(maxAgeMs?: number): Promise<ConnectivitySnapshot> {
+    if (!this.dependencies.apiOrigin || this.stopped) {
+      return Promise.resolve(this.snapshot)
+    }
+
+    if (this.inFlight) {
+      return this.inFlight
+    }
+
+    const ttl = maxAgeMs ?? this.freshnessTtlMs
+
+    if (
+      this.snapshot.status !== 'checking' &&
+      this.lastObservationAt !== null &&
+      performance.now() - this.lastObservationAt < ttl
+    ) {
+      return Promise.resolve(this.snapshot)
+    }
+
+    return this.requestCheck(false)
+  }
+
   reportRequestOutcome(outcome: ConnectivityRequestOutcome): void {
     if (this.stopped || !this.dependencies.apiOrigin) {
       return
     }
 
     if (outcome.kind === 'http_response') {
-      // Only the diagnostic "last reachable" timestamp is refreshed here — `checkedAt` is left to
-      // actual /up probes so it keeps a single, unambiguous meaning ("last time the health probe
-      // ran") rather than blending in unrelated business-request timing.
-      this.updateSnapshot({
-        ...this.snapshot,
-        lastBackendReachableAt: nowIsoSecond()
-      })
-
-      if (this.snapshot.status === 'backend_unreachable') {
-        // Not `force`: a request-driven recheck still respects the manual-retry throttle, so a
-        // burst of failing business requests cannot drive the probe rate past what the documented
-        // backoff allows. `force` is reserved for startup, resume, and an explicit user retry.
-        void this.requestCheck(false)
-      }
-
+      this.observeHttpResponse(outcome.status)
       return
     }
 
@@ -266,7 +291,9 @@ export class ConnectivityService {
 
       this.failureCount = 0
       this.commitProbeResult(generation, 'online', true, true, 'probe_succeeded', true)
-      this.scheduleNext(this.healthyIntervalMs)
+      // Deliberately no follow-up schedule. A healthy device stays quiet until something needs a
+      // fresh verdict again (`ensureFresh`), the operator retries, the machine resumes, or a real
+      // request reports its own outcome.
       return this.snapshot
     } catch (error) {
       if (generation !== this.generation || this.stopped) {
@@ -294,6 +321,48 @@ export class ConnectivityService {
     }
   }
 
+  /**
+   * A real desktop API response is stronger evidence than /up: it proves this device reached the
+   * backend with its own credentials. Treating it as the health observation is what removes the
+   * need for a polling loop — an actively used device never probes /up at all.
+   */
+  private observeHttpResponse(status: number): void {
+    if (status >= SERVER_ERROR_STATUS_FLOOR) {
+      // Transport worked, but a 5xx is not a health verdict. Refresh only the diagnostic
+      // timestamp and let /up decide, throttled the same as any request-driven recheck.
+      this.updateSnapshot({ ...this.snapshot, lastBackendReachableAt: nowIsoSecond() })
+
+      if (this.snapshot.status !== 'online') {
+        void this.requestCheck(false)
+      }
+
+      return
+    }
+
+    this.failureCount = 0
+    this.lastObservationAt = performance.now()
+
+    if (this.snapshot.status === 'online' && this.snapshot.backendReachable === true) {
+      // Only the diagnostic "last reachable" timestamp is refreshed here — `checkedAt` is left to
+      // actual /up probes so it keeps a single, unambiguous meaning ("last time the health probe
+      // ran") rather than blending in unrelated business-request timing. The reason is left alone
+      // too, so steady traffic never broadcasts a redundant snapshot.
+      this.updateSnapshot({ ...this.snapshot, lastBackendReachableAt: nowIsoSecond() })
+      return
+    }
+
+    // A pending backoff retry has nothing left to discover.
+    this.clearScheduledCheck()
+    this.updateSnapshot({
+      ...this.snapshot,
+      status: 'online',
+      networkAvailable: true,
+      backendReachable: true,
+      lastBackendReachableAt: nowIsoSecond(),
+      reason: 'request_observed'
+    })
+  }
+
   private readNetworkAvailability(): boolean {
     try {
       return this.dependencies.isOnline()
@@ -314,6 +383,7 @@ export class ConnectivityService {
       return
     }
 
+    this.lastObservationAt = performance.now()
     this.updateSnapshot({
       status,
       networkAvailable,
@@ -334,14 +404,19 @@ export class ConnectivityService {
     return Math.min(Math.round(raw * jitter), this.backoffMaxMs)
   }
 
+  private clearScheduledCheck(): void {
+    if (this.scheduledCheck) {
+      clearTimeout(this.scheduledCheck)
+      this.scheduledCheck = null
+    }
+  }
+
   private scheduleNext(delayMs: number): void {
     if (!this.started || this.stopped || !this.dependencies.apiOrigin) {
       return
     }
 
-    if (this.scheduledCheck) {
-      clearTimeout(this.scheduledCheck)
-    }
+    this.clearScheduledCheck()
 
     this.scheduledCheck = setTimeout(() => {
       this.scheduledCheck = null

@@ -3,7 +3,7 @@ import type { DesktopBootstrapResource } from '../../http/desktopResources.contr
 export function desktopBootstrapFixture(
   overrides: Partial<DesktopBootstrapResource> = {}
 ): DesktopBootstrapResource {
-  return {
+  const resource: DesktopBootstrapResource = {
     server_time: '2026-01-01T00:00:00+00:00',
     company: { id: '11111111-1111-4111-8111-111111111111', name: 'Example Shop', is_active: true },
     device: {
@@ -30,7 +30,7 @@ export function desktopBootstrapFixture(
     subscription: null,
     features: { pos: true },
     limits: { users: 5 },
-    permissions: ['pos.sell'],
+    permissions: ['pos.view', 'pos.sell'],
     role: { name: 'cashier' },
     loyalty: null,
     branch: null,
@@ -47,7 +47,20 @@ export function desktopBootstrapFixture(
       maximum_invoice_total: 900_000_000_000_000,
       mixed_tax_mode_policy: 'single_invoice_mode'
     },
-    sync: { snapshot_version: '20260101000000', full_sync_required: true, entities: {} },
+    sync: {
+      snapshot_version: '20260101000000',
+      full_sync_required: true,
+      entities: {
+        categories: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
+        products: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
+        product_barcodes: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
+        product_prices: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
+        stock_items: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
+        taxes: { count: 0, last_changed_at: null },
+        payment_methods: { count: 0, last_changed_at: null },
+        customers: { count: 0, last_changed_at: null }
+      }
+    },
     categories: [
       { id: '44444444-4444-4444-8444-444444444444', name: 'Beverages', is_active: true }
     ],
@@ -121,8 +134,32 @@ export function desktopBootstrapFixture(
     ],
     taxes: [],
     payment_methods: [],
-    customers: [],
-    ...overrides
+    customers: []
+  }
+
+  const merged = { ...resource, ...overrides }
+  const entityCounts = {
+    categories: merged.categories?.length ?? 0,
+    products: merged.products?.length ?? 0,
+    product_barcodes: merged.product_barcodes?.length ?? 0,
+    product_prices: merged.product_prices?.length ?? 0,
+    stock_items: merged.stock_items?.length ?? 0,
+    taxes: merged.taxes?.length ?? 0,
+    payment_methods: merged.payment_methods?.length ?? 0,
+    customers: merged.customers?.length ?? 0
+  }
+
+  return {
+    ...merged,
+    sync: overrides.sync ?? {
+      ...resource.sync,
+      entities: Object.fromEntries(
+        Object.entries(entityCounts).map(([name, count]) => [
+          name,
+          { count, last_changed_at: count > 0 ? '2026-01-01T00:00:00+00:00' : null }
+        ])
+      )
+    }
   }
 }
 

@@ -1,5 +1,10 @@
 import type {
   CatalogCategory,
+  CatalogBarcodeLookup,
+  CatalogCustomer,
+  CatalogCustomerPage,
+  CatalogCustomerSearchInput,
+  CatalogPaymentMethod,
   CatalogProduct,
   CatalogProductPage,
   CatalogSearchInput,
@@ -26,7 +31,19 @@ export class CatalogRendererService {
     return unwrapIpcResult(await this.gateway.getProduct({ uuid }))
   }
 
-  async findByBarcode(barcode: string): Promise<CatalogProduct> {
-    return unwrapIpcResult(await this.gateway.findByBarcode({ barcode }))
+  async findProductByBarcode(barcode: string): Promise<CatalogBarcodeLookup> {
+    return unwrapIpcResult(await this.gateway.findProductByBarcode({ barcode }))
+  }
+
+  async listPaymentMethods(): Promise<CatalogPaymentMethod[]> {
+    return unwrapIpcResult(await this.gateway.listPaymentMethods())
+  }
+
+  async searchCustomers(input: CatalogCustomerSearchInput): Promise<CatalogCustomerPage> {
+    return unwrapIpcResult(await this.gateway.searchCustomers(input))
+  }
+
+  async getCustomer(uuid: string): Promise<CatalogCustomer> {
+    return unwrapIpcResult(await this.gateway.getCustomer({ uuid }))
   }
 }

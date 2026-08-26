@@ -5,6 +5,11 @@ import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
 import type {
   CatalogCategory,
+  CatalogBarcodeLookup,
+  CatalogCustomer,
+  CatalogCustomerPage,
+  CatalogCustomerSearchInput,
+  CatalogPaymentMethod,
   CatalogProduct,
   CatalogProductPage,
   CatalogSearchInput,
@@ -64,7 +69,10 @@ export interface PosApi {
     listCategories(): Promise<IpcResult<CatalogCategory[]>>
     searchProducts(input: CatalogSearchInput): Promise<IpcResult<CatalogProductPage>>
     getProduct(input: { uuid: string }): Promise<IpcResult<CatalogProduct>>
-    findByBarcode(input: { barcode: string }): Promise<IpcResult<CatalogProduct>>
+    findProductByBarcode(input: { barcode: string }): Promise<IpcResult<CatalogBarcodeLookup>>
+    listPaymentMethods(): Promise<IpcResult<CatalogPaymentMethod[]>>
+    searchCustomers(input: CatalogCustomerSearchInput): Promise<IpcResult<CatalogCustomerPage>>
+    getCustomer(input: { uuid: string }): Promise<IpcResult<CatalogCustomer>>
   }
   readonly shifts: {
     current(): Promise<IpcResult<Shift | null>>
@@ -139,8 +147,13 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.catalogSearchProducts, input),
     getProduct: (input: { uuid: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.catalogGetProduct, input),
-    findByBarcode: (input: { barcode: string }) =>
-      ipcRenderer.invoke(IPC_CHANNELS.catalogFindByBarcode, input)
+    findProductByBarcode: (input: { barcode: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogFindByBarcode, input),
+    listPaymentMethods: () => ipcRenderer.invoke(IPC_CHANNELS.catalogListPaymentMethods),
+    searchCustomers: (input: CatalogCustomerSearchInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogSearchCustomers, input),
+    getCustomer: (input: { uuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogGetCustomer, input)
   }),
   shifts: Object.freeze({
     current: () => ipcRenderer.invoke(IPC_CHANNELS.shiftsCurrent),

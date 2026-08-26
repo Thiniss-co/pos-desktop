@@ -14,6 +14,8 @@ export const connectivityReasonSchema = z.enum([
   'probe_connection_failed',
   'probe_unhealthy',
   'probe_succeeded',
+  // A real desktop API response proved the backend is serving this device, so no /up probe ran.
+  'request_observed',
   'unknown'
 ])
 

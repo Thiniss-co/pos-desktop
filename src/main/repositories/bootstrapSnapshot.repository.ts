@@ -1,3 +1,5 @@
+import { normalizeCatalogSearch } from '@shared/catalog/normalization'
+import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import type { DesktopBootstrapResource } from '../http/desktopResources.contract'
 import type { SqliteDatabase } from '../database/connection'
 
@@ -5,6 +7,8 @@ export interface BootstrapPersistResult {
   readonly snapshotVersion: string
   readonly serverTime: string
   readonly counts: Record<string, number>
+  readonly catalogRevision?: string
+  readonly fetchedAt?: string
 }
 
 export interface BootstrapCompany {
@@ -22,11 +26,63 @@ function decimal(value: number | null | undefined): string | null {
   return value === null || value === undefined ? null : value.toFixed(3)
 }
 
-function normalizeSearch(value: string): string {
-  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US')
+interface CatalogManifest {
+  readonly categories: number
+  readonly products: number
+  readonly barcodes: number
+  readonly priceRevisions: number
+  readonly taxRevisions: number
+  readonly paymentMethods: number
+  readonly customers: number
 }
 
-function assertCatalogSemantics(resource: DesktopBootstrapResource): void {
+function catalogSnapshotError(
+  code: string,
+  message: string
+): ReturnType<typeof publicAppErrorSchema.parse> {
+  return publicAppErrorSchema.parse({
+    category: code === 'CATALOG_REVISION_CONFLICT' ? 'conflict' : 'rejected',
+    message,
+    backendCode: code,
+    retryable: false
+  })
+}
+
+function requireCatalogCollections(
+  resource: DesktopBootstrapResource
+): asserts resource is DesktopBootstrapResource & {
+  readonly categories: NonNullable<DesktopBootstrapResource['categories']>
+  readonly products: NonNullable<DesktopBootstrapResource['products']>
+  readonly product_barcodes: NonNullable<DesktopBootstrapResource['product_barcodes']>
+  readonly product_prices: NonNullable<DesktopBootstrapResource['product_prices']>
+  readonly stock_items: NonNullable<DesktopBootstrapResource['stock_items']>
+  readonly taxes: NonNullable<DesktopBootstrapResource['taxes']>
+  readonly payment_methods: NonNullable<DesktopBootstrapResource['payment_methods']>
+  readonly customers: NonNullable<DesktopBootstrapResource['customers']>
+} {
+  const required = [
+    'categories',
+    'products',
+    'product_barcodes',
+    'product_prices',
+    'stock_items',
+    'taxes',
+    'payment_methods',
+    'customers'
+  ] as const
+
+  for (const collection of required) {
+    if (!Array.isArray(resource[collection])) {
+      throw catalogSnapshotError(
+        'CATALOG_COLLECTION_MISSING',
+        'The downloaded catalog is incomplete and was not applied.'
+      )
+    }
+  }
+}
+
+function assertCatalogSemantics(resource: DesktopBootstrapResource): CatalogManifest {
+  requireCatalogCollections(resource)
   const contract = resource.catalog_contract
   const generatedAt = Date.parse(contract.generated_at)
   const validUntil = Date.parse(contract.valid_until)
@@ -36,12 +92,10 @@ function assertCatalogSemantics(resource: DesktopBootstrapResource): void {
   }
 
   const activeCategories = new Set(
-    (resource.categories ?? [])
-      .filter((category) => category.is_active)
-      .map((category) => category.id)
+    resource.categories.filter((category) => category.is_active).map((category) => category.id)
   )
 
-  for (const product of resource.products ?? []) {
+  for (const product of resource.products) {
     if (!product.is_active) {
       continue
     }
@@ -60,6 +114,8 @@ function assertCatalogSemantics(resource: DesktopBootstrapResource): void {
     const tax = product.resolved_tax
 
     if (
+      !Number.isFinite(Date.parse(price.valid_from)) ||
+      !Number.isFinite(Date.parse(price.valid_until)) ||
       Date.parse(price.valid_from) > generatedAt ||
       price.valid_until !== contract.valid_until ||
       price.amount > contract.maximum_unit_price ||
@@ -68,6 +124,40 @@ function assertCatalogSemantics(resource: DesktopBootstrapResource): void {
     ) {
       throw new Error('A catalog product conflicts with the issued calculation contract')
     }
+  }
+
+  const publishedCollections = {
+    categories: resource.categories.length,
+    products: resource.products.length,
+    product_barcodes: resource.product_barcodes.length,
+    product_prices: resource.product_prices.length,
+    stock_items: resource.stock_items.length,
+    taxes: resource.taxes.length,
+    payment_methods: resource.payment_methods.length,
+    customers: resource.customers.length
+  }
+
+  for (const [name, count] of Object.entries(publishedCollections)) {
+    if (resource.sync.entities[name]?.count !== count) {
+      throw catalogSnapshotError(
+        'CATALOG_COLLECTION_COUNT_MISMATCH',
+        'The downloaded catalog count manifest is invalid and was not applied.'
+      )
+    }
+  }
+
+  const resolvedProducts = resource.products.filter(
+    (product) => product.is_active && product.status === 'active'
+  )
+
+  return {
+    categories: resource.categories.length,
+    products: resource.products.length,
+    barcodes: resource.product_barcodes.length,
+    priceRevisions: resolvedProducts.length,
+    taxRevisions: resolvedProducts.length,
+    paymentMethods: resource.payment_methods.length,
+    customers: resource.customers.length
   }
 }
 
@@ -80,62 +170,57 @@ export class BootstrapSnapshotRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
   persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult {
-    assertCatalogSemantics(resource)
+    const manifest = assertCatalogSemantics(resource)
     const counts: Record<string, number> = {}
+    const current = this.getCatalogMetadata()
+    const incomingGeneratedAt = Date.parse(resource.catalog_contract.generated_at)
+
+    if (current) {
+      const activeGeneratedAt = Date.parse(current.generatedAt)
+
+      if (incomingGeneratedAt < activeGeneratedAt) {
+        throw catalogSnapshotError(
+          'CATALOG_SNAPSHOT_OLDER',
+          'The downloaded catalog is older than the active local catalog.'
+        )
+      }
+
+      if (incomingGeneratedAt === activeGeneratedAt) {
+        if (resource.catalog_contract.revision !== current.revision) {
+          throw catalogSnapshotError(
+            'CATALOG_REVISION_CONFLICT',
+            'The downloaded catalog conflicts with the active local catalog.'
+          )
+        }
+
+        if (JSON.stringify(manifest) !== current.manifestJson || !this.isCatalogIntact(manifest)) {
+          throw catalogSnapshotError(
+            'CATALOG_SNAPSHOT_INTEGRITY_FAILED',
+            'The active local catalog cannot be safely reused.'
+          )
+        }
+
+        const commitIdempotent = this.database.transaction(() => {
+          this.persistBootstrapContext(resource, fetchedAt)
+          this.database
+            .prepare('UPDATE catalog_metadata SET fetched_at = ? WHERE id = 1')
+            .run(fetchedAt)
+          this.markBootstrapComplete(resource, fetchedAt, this.bootstrapCounts(resource, manifest))
+        })
+        commitIdempotent()
+
+        return {
+          snapshotVersion: resource.sync.snapshot_version,
+          serverTime: resource.server_time,
+          counts: this.bootstrapCounts(resource, manifest),
+          catalogRevision: resource.catalog_contract.revision,
+          fetchedAt
+        }
+      }
+    }
 
     const commit = this.database.transaction(() => {
-      this.database
-        .prepare(
-          `
-            INSERT INTO bootstrap_company (id, company_uuid, name, is_active, updated_at)
-            VALUES (1, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-              company_uuid = excluded.company_uuid,
-              name = excluded.name,
-              is_active = excluded.is_active,
-              updated_at = excluded.updated_at
-          `
-        )
-        .run(resource.company.id, resource.company.name, bit(resource.company.is_active), fetchedAt)
-
-      this.replaceBranch(resource.branch, fetchedAt)
-      this.replaceWarehouse(resource.warehouse, fetchedAt)
-      this.replaceSubscription(resource.subscription, fetchedAt)
-      this.persistDeviceRegistration(resource.device, fetchedAt)
-
-      this.database.prepare('DELETE FROM bootstrap_features').run()
-      for (const [code, enabled] of Object.entries(resource.features)) {
-        this.database
-          .prepare(
-            'INSERT INTO bootstrap_features (feature_code, is_enabled, updated_at) VALUES (?, ?, ?)'
-          )
-          .run(code, bit(enabled), fetchedAt)
-      }
-
-      this.database.prepare('DELETE FROM bootstrap_limits').run()
-      for (const [key, value] of Object.entries(resource.limits)) {
-        this.database
-          .prepare(
-            'INSERT INTO bootstrap_limits (limit_key, limit_value, updated_at) VALUES (?, ?, ?)'
-          )
-          .run(key, value, fetchedAt)
-      }
-
-      this.database.prepare('DELETE FROM bootstrap_permissions').run()
-      for (const permission of resource.permissions) {
-        this.database
-          .prepare('INSERT INTO bootstrap_permissions (permission_name, updated_at) VALUES (?, ?)')
-          .run(permission, fetchedAt)
-      }
-
-      this.database
-        .prepare(
-          `
-            INSERT INTO bootstrap_role (id, name, updated_at) VALUES (1, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
-          `
-        )
-        .run(resource.role.name, fetchedAt)
+      this.persistBootstrapContext(resource, fetchedAt)
 
       // The Phase 3 sellable catalogue is isolated from the legacy Phase 2 numeric-ID tables.
       // Existing legacy rows remain available for diagnostics after migration but are never used
@@ -149,8 +234,8 @@ export class BootstrapSnapshotRepository {
             INSERT INTO catalog_metadata (
               id, revision, generated_at, valid_until, quantity_scale, minimum_quantity,
               maximum_quantity, maximum_unit_price, maximum_line_total, maximum_invoice_total,
-              mixed_tax_mode_policy, fetched_at
-            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              mixed_tax_mode_policy, fetched_at, expected_counts_json, is_complete
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
           `
         )
         .run(
@@ -164,7 +249,8 @@ export class BootstrapSnapshotRepository {
           contract.maximum_line_total,
           contract.maximum_invoice_total,
           contract.mixed_tax_mode_policy,
-          fetchedAt
+          fetchedAt,
+          JSON.stringify(manifest)
         )
 
       counts.categories = this.replaceCollection(resource.categories ?? [], (row) =>
@@ -178,7 +264,7 @@ export class BootstrapSnapshotRepository {
           .run(
             row.id,
             row.name,
-            normalizeSearch(row.name),
+            normalizeCatalogSearch(row.name),
             bit(row.is_active),
             row.updated_at ?? null
           )
@@ -200,9 +286,9 @@ export class BootstrapSnapshotRepository {
             row.uuid,
             row.category_uuid,
             row.name,
-            normalizeSearch(row.name),
+            normalizeCatalogSearch(row.name),
             row.sku ?? null,
-            row.sku ? normalizeSearch(row.sku) : null,
+            row.sku ? normalizeCatalogSearch(row.sku) : null,
             row.barcode ?? null,
             row.description ?? null,
             row.status ?? 'inactive',
@@ -303,8 +389,10 @@ export class BootstrapSnapshotRepository {
         this.database
           .prepare(
             `
-              INSERT INTO customers (id, name, email, phone, tax_number, address, notes, is_active, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO customers (
+                id, name, email, phone, tax_number, address, notes, is_active, updated_at,
+                search_name, search_phone
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `
           )
           .run(
@@ -316,9 +404,21 @@ export class BootstrapSnapshotRepository {
             row.address ?? null,
             row.notes ?? null,
             bit(row.is_active),
-            row.updated_at ?? null
+            row.updated_at ?? null,
+            normalizeCatalogSearch(row.name),
+            row.phone ? normalizeCatalogSearch(row.phone) : ''
           )
       )
+
+      if (!this.isCatalogIntact(manifest)) {
+        throw catalogSnapshotError(
+          'CATALOG_SNAPSHOT_INTEGRITY_FAILED',
+          'The downloaded catalog failed local integrity checks and was not applied.'
+        )
+      }
+
+      this.database.prepare('UPDATE catalog_metadata SET is_complete = 1 WHERE id = 1').run()
+      this.markBootstrapComplete(resource, fetchedAt, this.bootstrapCounts(resource, manifest))
     })
 
     commit()
@@ -326,7 +426,9 @@ export class BootstrapSnapshotRepository {
     return {
       snapshotVersion: resource.sync.snapshot_version,
       serverTime: resource.server_time,
-      counts
+      counts,
+      catalogRevision: resource.catalog_contract.revision,
+      fetchedAt
     }
   }
 
@@ -404,6 +506,183 @@ export class BootstrapSnapshotRepository {
     ]) {
       this.database.prepare(`DELETE FROM ${table}`).run()
     }
+
+    this.database.prepare('DELETE FROM payment_methods').run()
+    this.database.prepare('DELETE FROM customers').run()
+  }
+
+  private getCatalogMetadata(): {
+    readonly revision: string
+    readonly generatedAt: string
+    readonly manifestJson: string
+  } | null {
+    const row = this.database
+      .prepare(
+        'SELECT revision, generated_at, expected_counts_json FROM catalog_metadata WHERE id = 1 AND is_complete = 1'
+      )
+      .get() as
+      | {
+          readonly revision: string
+          readonly generated_at: string
+          readonly expected_counts_json: string
+        }
+      | undefined
+
+    return row
+      ? {
+          revision: row.revision,
+          generatedAt: row.generated_at,
+          manifestJson: row.expected_counts_json
+        }
+      : null
+  }
+
+  private isCatalogIntact(manifest: CatalogManifest): boolean {
+    const count = (sql: string): number =>
+      (this.database.prepare(sql).get() as { readonly total: number }).total
+    const actual: CatalogManifest = {
+      categories: count('SELECT COUNT(*) AS total FROM catalog_categories'),
+      products: count('SELECT COUNT(*) AS total FROM catalog_products'),
+      barcodes: count('SELECT COUNT(*) AS total FROM catalog_product_barcodes'),
+      priceRevisions: count(`
+        SELECT COUNT(*) AS total FROM catalog_products
+        WHERE is_active = 1 AND status = 'active'
+          AND price_amount IS NOT NULL AND price_currency IS NOT NULL AND price_revision IS NOT NULL
+          AND price_valid_from IS NOT NULL AND price_valid_until IS NOT NULL
+      `),
+      taxRevisions: count(`
+        SELECT COUNT(*) AS total FROM catalog_products
+        WHERE is_active = 1 AND status = 'active'
+          AND tax_mode IS NOT NULL AND tax_rate_basis_points IS NOT NULL AND tax_revision IS NOT NULL
+      `),
+      paymentMethods: count('SELECT COUNT(*) AS total FROM payment_methods'),
+      customers: count('SELECT COUNT(*) AS total FROM customers')
+    }
+
+    if (JSON.stringify(actual) !== JSON.stringify(manifest)) {
+      return false
+    }
+
+    const invalidRelationships = count(`
+      SELECT COUNT(*) AS total
+      FROM catalog_products AS product
+      LEFT JOIN catalog_categories AS category ON category.uuid = product.category_uuid
+      WHERE product.is_active = 1 AND product.status = 'active'
+        AND (product.category_uuid IS NULL OR category.uuid IS NULL OR category.is_active = 0)
+    `)
+    const invalidValidity = count(`
+      SELECT COUNT(*) AS total
+      FROM catalog_products AS product
+      INNER JOIN catalog_metadata AS metadata ON metadata.id = 1
+      WHERE product.is_active = 1 AND product.status = 'active'
+        AND (
+          product.price_valid_from > metadata.generated_at
+          OR product.price_valid_until <> metadata.valid_until
+          OR product.price_amount < 0
+          OR product.price_amount > metadata.maximum_unit_price
+          OR product.price_currency NOT GLOB '[A-Z][A-Z][A-Z]'
+          OR product.tax_mode NOT IN ('none', 'inclusive', 'exclusive')
+          OR product.tax_rate_basis_points NOT BETWEEN 0 AND 10000
+          OR (product.tax_mode = 'none' AND (product.tax_uuid IS NOT NULL OR product.tax_rate_basis_points <> 0))
+          OR (product.tax_mode <> 'none' AND product.tax_uuid IS NULL)
+        )
+    `)
+
+    return invalidRelationships === 0 && invalidValidity === 0
+  }
+
+  private bootstrapCounts(
+    resource: DesktopBootstrapResource,
+    manifest: CatalogManifest
+  ): Record<string, number> {
+    return {
+      categories: resource.categories?.length ?? 0,
+      products: resource.products?.length ?? 0,
+      product_barcodes: resource.product_barcodes?.length ?? 0,
+      product_prices: resource.product_prices?.length ?? 0,
+      stock_items: resource.stock_items?.length ?? 0,
+      taxes: resource.taxes?.length ?? 0,
+      payment_methods: resource.payment_methods?.length ?? 0,
+      customers: resource.customers?.length ?? 0,
+      catalog_price_revisions: manifest.priceRevisions,
+      catalog_tax_revisions: manifest.taxRevisions
+    }
+  }
+
+  private markBootstrapComplete(
+    resource: DesktopBootstrapResource,
+    fetchedAt: string,
+    counts: Record<string, number>
+  ): void {
+    this.database
+      .prepare(
+        `
+          INSERT INTO bootstrap_state (id, is_complete, updated_at, snapshot_version, server_time, counts_json)
+          VALUES (1, 1, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            is_complete = 1,
+            updated_at = excluded.updated_at,
+            snapshot_version = excluded.snapshot_version,
+            server_time = excluded.server_time,
+            counts_json = excluded.counts_json
+        `
+      )
+      .run(fetchedAt, resource.sync.snapshot_version, resource.server_time, JSON.stringify(counts))
+  }
+
+  private persistBootstrapContext(resource: DesktopBootstrapResource, fetchedAt: string): void {
+    this.database
+      .prepare(
+        `
+          INSERT INTO bootstrap_company (id, company_uuid, name, is_active, updated_at)
+          VALUES (1, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            company_uuid = excluded.company_uuid,
+            name = excluded.name,
+            is_active = excluded.is_active,
+            updated_at = excluded.updated_at
+        `
+      )
+      .run(resource.company.id, resource.company.name, bit(resource.company.is_active), fetchedAt)
+
+    this.replaceBranch(resource.branch, fetchedAt)
+    this.replaceWarehouse(resource.warehouse, fetchedAt)
+    this.replaceSubscription(resource.subscription, fetchedAt)
+    this.persistDeviceRegistration(resource.device, fetchedAt)
+
+    this.database.prepare('DELETE FROM bootstrap_features').run()
+    for (const [code, enabled] of Object.entries(resource.features)) {
+      this.database
+        .prepare(
+          'INSERT INTO bootstrap_features (feature_code, is_enabled, updated_at) VALUES (?, ?, ?)'
+        )
+        .run(code, bit(enabled), fetchedAt)
+    }
+
+    this.database.prepare('DELETE FROM bootstrap_limits').run()
+    for (const [key, value] of Object.entries(resource.limits)) {
+      this.database
+        .prepare(
+          'INSERT INTO bootstrap_limits (limit_key, limit_value, updated_at) VALUES (?, ?, ?)'
+        )
+        .run(key, value, fetchedAt)
+    }
+
+    this.database.prepare('DELETE FROM bootstrap_permissions').run()
+    for (const permission of resource.permissions) {
+      this.database
+        .prepare('INSERT INTO bootstrap_permissions (permission_name, updated_at) VALUES (?, ?)')
+        .run(permission, fetchedAt)
+    }
+
+    this.database
+      .prepare(
+        `
+          INSERT INTO bootstrap_role (id, name, updated_at) VALUES (1, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
+        `
+      )
+      .run(resource.role.name, fetchedAt)
   }
 
   private replaceBranch(branch: DesktopBootstrapResource['branch'], fetchedAt: string): void {

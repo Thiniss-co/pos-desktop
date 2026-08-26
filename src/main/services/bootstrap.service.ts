@@ -20,14 +20,6 @@ export interface BootstrapCommercialAccessChecker {
   assertCanSync(): void
 }
 
-export interface BootstrapStateWriter {
-  markComplete(meta: {
-    snapshotVersion: string
-    serverTime: string
-    counts: Record<string, number>
-  }): void
-}
-
 export interface BootstrapSnapshotWriter {
   persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult
 }
@@ -73,12 +65,34 @@ export class BootstrapService {
     private readonly apiClient: DesktopApiClient,
     private readonly deviceIdentityRepository: BootstrapDeviceIdentityRepository,
     private readonly commercialAccess: BootstrapCommercialAccessChecker,
-    private readonly bootstrapStateRepository: BootstrapStateWriter,
     private readonly bootstrapSnapshotRepository: BootstrapSnapshotWriter,
-    private readonly onSnapshotPersisted?: () => void
+    private readonly onSnapshotPersisted?: (result: BootstrapPersistResult) => void,
+    private readonly now: () => Date = () => new Date()
   ) {}
 
-  async refresh(): Promise<BootstrapResult> {
+  refresh(): Promise<BootstrapResult> {
+    if (this.refreshInFlight) {
+      return this.refreshInFlight
+    }
+
+    const refresh = this.refreshOnce()
+    this.refreshInFlight = refresh
+    void refresh.then(
+      () => this.clearRefresh(refresh),
+      () => this.clearRefresh(refresh)
+    )
+    return refresh
+  }
+
+  private refreshInFlight: Promise<BootstrapResult> | null = null
+
+  private clearRefresh(refresh: Promise<BootstrapResult>): void {
+    if (this.refreshInFlight === refresh) {
+      this.refreshInFlight = null
+    }
+  }
+
+  private async refreshOnce(): Promise<BootstrapResult> {
     const identity = this.deviceIdentityRepository.get()
 
     if (!identity || !identity.isRegistered) {
@@ -101,16 +115,10 @@ export class BootstrapService {
       throw error
     }
 
-    const fetchedAt = new Date().toISOString()
+    const fetchedAt = this.now().toISOString()
 
     const persisted = this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt)
-    this.onSnapshotPersisted?.()
-
-    this.bootstrapStateRepository.markComplete({
-      snapshotVersion: persisted.snapshotVersion,
-      serverTime: persisted.serverTime,
-      counts: persisted.counts
-    })
+    this.onSnapshotPersisted?.(persisted)
 
     return bootstrapResultSchema.parse({
       isComplete: true,

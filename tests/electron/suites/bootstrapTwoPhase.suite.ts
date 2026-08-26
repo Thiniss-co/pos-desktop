@@ -1,4 +1,4 @@
-import { equal, throws } from 'node:assert/strict'
+import { equal } from 'node:assert/strict'
 import { closeDatabase } from '../../../src/main/database/connection'
 import { DesktopApiClient } from '../../../src/main/http/desktopApiClient'
 import { BootstrapService } from '../../../src/main/services/bootstrap.service'
@@ -9,7 +9,7 @@ import { openTestDatabase } from '../support/openTestDatabase'
 import { realRepositories } from '../support/realRepositories'
 
 databaseTest(
-  'bootstrap remains fail-closed when completion fails after the snapshot commits',
+  'bootstrap publishes catalog rows and completion metadata in one transaction',
   async (sandbox) => {
     const database = openTestDatabase(sandbox)
     const repositories = realRepositories(database)
@@ -46,38 +46,17 @@ databaseTest(
       apiClient,
       identities,
       { assertCanSync: () => undefined },
-      {
-        markComplete: () => {
-          throw new Error('completion write failed')
-        }
-      },
       repositories.bootstrapSnapshot
     )
 
-    await throwsAsync(() => service.refresh(), /completion write failed/)
+    await service.refresh()
     closeDatabase(database)
 
     equal(readCommitted(sandbox, 'SELECT * FROM catalog_products').length, 1)
     equal(
       readCommitted<{ is_complete: number }>(sandbox, 'SELECT is_complete FROM bootstrap_state')[0]
         ?.is_complete ?? 0,
-      0
+      1
     )
   }
 )
-
-async function throwsAsync(callback: () => Promise<unknown>, expected: RegExp): Promise<void> {
-  let failure: unknown
-
-  try {
-    await callback()
-  } catch (error) {
-    failure = error
-  }
-
-  throws(() => {
-    if (failure) {
-      throw failure
-    }
-  }, expected)
-}

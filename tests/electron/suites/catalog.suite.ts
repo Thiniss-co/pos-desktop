@@ -1,7 +1,6 @@
-import { deepEqual, equal, match, throws } from 'node:assert/strict'
+import { deepEqual, equal } from 'node:assert/strict'
 import { closeDatabase } from '../../../src/main/database/connection'
 import { CatalogService } from '../../../src/main/services/catalog.service'
-import type { CommercialAccessService } from '../../../src/main/services/commercialAccess.service'
 import { desktopBootstrapFixture } from '../../../src/main/testing/fixtures/desktopBootstrap.fixture'
 import { databaseTest } from '../support/sandbox'
 import { openExistingTestDatabase, openTestDatabase } from '../support/openTestDatabase'
@@ -10,7 +9,13 @@ import { realRepositories } from '../support/realRepositories'
 const allowedAccess = {
   evaluate: () => ({ allowed: true }),
   assertAllowed: () => undefined
-} as unknown as CommercialAccessService
+}
+
+function clock(value: string): { now: () => { now: Date; rollbackDetected: boolean } } {
+  return {
+    now: () => ({ now: new Date(value), rollbackDetected: false })
+  }
+}
 
 databaseTest(
   'the local catalog survives reopen and supports bounded deterministic reads',
@@ -48,41 +53,35 @@ databaseTest(
       { uuid: '44444444-4444-4444-8444-444444444444', name: 'Beverages' }
     ])
 
-    const byName = repository.searchProducts(
-      { query: 'sparkling', categoryUuid: null, limit: 24, offset: 0 },
-      '2026-01-02T00:00:00.000Z'
-    )
+    const byName = repository.searchProducts({
+      query: 'sparkling',
+      categoryUuid: null,
+      limit: 24,
+      offset: 0
+    })
     equal(byName.total, 1)
     equal(byName.items[0]?.price.amount, 1250)
     equal(byName.items[0]?.tax.rateBasisPoints, 1500)
     equal(
-      repository.searchProducts(
-        {
-          query: '',
-          categoryUuid: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-          limit: 24,
-          offset: 0
-        },
-        '2026-01-02T00:00:00.000Z'
-      ).total,
+      repository.searchProducts({
+        query: '',
+        categoryUuid: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        limit: 24,
+        offset: 0
+      }).total,
       0
     )
     equal(
-      repository.searchProducts(
-        { query: 'hidden', categoryUuid: null, limit: 24, offset: 0 },
-        '2026-01-02T00:00:00.000Z'
-      ).total,
+      repository.searchProducts({ query: 'hidden', categoryUuid: null, limit: 24, offset: 0 })
+        .total,
       0
     )
     equal(
-      repository.searchProducts(
-        { query: '%', categoryUuid: null, limit: 24, offset: 0 },
-        '2026-01-02T00:00:00.000Z'
-      ).total,
+      repository.searchProducts({ query: '%', categoryUuid: null, limit: 24, offset: 0 }).total,
       0,
       'LIKE wildcard input must be escaped'
     )
-    equal(repository.findProductsByBarcode('1234567890123', '2026-01-02T00:00:00.000Z').length, 1)
+    equal(repository.findProductsByBarcode('1234567890123').length, 1)
     closeDatabase(reopened)
   }
 )
@@ -129,41 +128,25 @@ databaseTest(
     const atStart = new CatalogService(
       repository,
       allowedAccess,
-      () => new Date('2026-01-01T00:00:00+00:00')
+      clock('2026-01-01T00:00:00+00:00')
     )
-    equal(atStart.getStatus().reason, 'ready')
+    equal(atStart.getStatus().status, 'cached')
     equal(atStart.searchProducts({ query: '', categoryUuid: null, limit: 24, offset: 0 }).total, 2)
     const atExpiry = new CatalogService(
       repository,
       allowedAccess,
-      () => new Date('2026-01-04T00:00:00+00:00')
+      clock('2026-01-04T00:00:00+00:00')
     )
-    equal(atExpiry.getStatus().reason, 'expired')
-    throws(
-      () => atExpiry.searchProducts({ query: '', categoryUuid: null, limit: 24, offset: 0 }),
-      (error: unknown) => {
-        match(JSON.stringify(error), /CATALOG_EXPIRED/)
-        return true
-      }
-    )
+    equal(atExpiry.getStatus().status, 'stale')
+    equal(atExpiry.searchProducts({ query: '', categoryUuid: null, limit: 24, offset: 0 }).total, 2)
 
-    const valid = new CatalogService(
-      repository,
-      allowedAccess,
-      () => new Date('2026-01-02T00:00:00+00:00')
-    )
+    const valid = new CatalogService(repository, allowedAccess, clock('2026-01-02T00:00:00+00:00'))
     const firstPage = valid.searchProducts({ query: '', categoryUuid: null, limit: 1, offset: 0 })
     const secondPage = valid.searchProducts({ query: '', categoryUuid: null, limit: 1, offset: 1 })
     equal(firstPage.total, 2)
     equal(firstPage.items[0]?.name, 'Sparkling Water')
     equal(secondPage.items[0]?.name, 'Still Water')
-    throws(
-      () => valid.findByBarcode('1234567890123'),
-      (error: unknown) => {
-        match(JSON.stringify(error), /CATALOG_BARCODE_AMBIGUOUS/)
-        return true
-      }
-    )
+    equal(valid.findProductByBarcode('1234567890123').outcome, 'ambiguous')
     closeDatabase(database)
   }
 )

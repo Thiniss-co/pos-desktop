@@ -66,6 +66,9 @@ databaseTest(
     }
     deepEqual(indexes, [
       'idx_catalog_categories_active_name',
+      'idx_catalog_customers_active_name',
+      'idx_catalog_customers_search_name',
+      'idx_catalog_customers_search_phone',
       'idx_catalog_product_barcodes_lookup',
       'idx_catalog_products_barcode',
       'idx_catalog_products_browse',

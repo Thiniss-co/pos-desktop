@@ -7,7 +7,11 @@ import type { LocaleCode } from '@shared/contracts/preferences.contract'
 import type { ShiftPhase } from '@renderer/shared/components/pos/types'
 import { useBootstrapStore } from '@renderer/modules/bootstrap/store'
 import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
-import { formatCurrency } from '@renderer/shared/utils/format'
+import {
+  formatCurrency,
+  formatDateTime,
+  formatRelativeDateTime
+} from '@renderer/shared/utils/format'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
@@ -24,13 +28,22 @@ import PosWorkspaceShell from '@renderer/shared/components/pos/PosWorkspaceShell
 import ProductCard from '@renderer/shared/components/pos/ProductCard.vue'
 import ProductSearchBar from '@renderer/shared/components/pos/ProductSearchBar.vue'
 import ShiftStatusControl from '@renderer/shared/components/pos/ShiftStatusControl.vue'
+import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.vue'
+import PaymentMethodTile from '@renderer/shared/components/pos/PaymentMethodTile.vue'
 import { useCartStore } from '../cart.store'
 import { useCatalogStore } from '../catalog.store'
 import { useShiftStore } from '../shift.store'
 import { useBarcodeScanner } from '../useBarcodeScanner'
 import { usePosShortcuts } from '../usePosShortcuts'
 
-type DialogMode = 'open' | 'pause' | 'close' | 'help' | null
+type DialogMode = 'open' | 'pause' | 'close' | 'help' | 'customers' | 'payment-methods' | null
+
+/**
+ * Phase 3C ships a read-only catalog. Cart line building and total calculation belong to Phase 3D,
+ * so every path that would populate or price a draft sale is disabled behind this one constant.
+ * The cart store and calculator stay fully implemented and tested; Phase 3D flips this to `true`.
+ */
+const PHASE_3D_CART_ENABLED = false
 
 const { t } = useI18n()
 const localeStore = useLocaleStore()
@@ -45,6 +58,11 @@ const {
   selectedCategoryUuid,
   isLoading: catalogLoading,
   isAvailable: catalogAvailable,
+  status: catalogState,
+  paymentMethods,
+  customers,
+  customerQuery,
+  selectedCustomerUuid,
   error: catalogError
 } = storeToRefs(catalog)
 const { lines, calculation, error: cartError } = storeToRefs(cart)
@@ -55,8 +73,14 @@ const dialogMode = ref<DialogMode>(null)
 const cashAmount = ref('0.00')
 const cashError = ref<string | null>(null)
 const note = ref('')
-const lastBarcode = ref<{ code: string; found: boolean } | null>(null)
+const lastBarcode = ref<{
+  code: string
+  outcome: 'found' | 'not-found' | 'ambiguous' | 'stale-catalog' | 'unavailable-catalog'
+} | null>(null)
 let searchTimer: number | undefined
+let customerSearchTimer: number | undefined
+let synchronizationAgeTimer: number | undefined
+const synchronizationReferenceTime = ref(Date.now())
 
 const activeCurrency = computed(() => lines.value[0]?.product.price.currency ?? 'EGP')
 const shiftPhase = computed<ShiftPhase>(
@@ -65,6 +89,38 @@ const shiftPhase = computed<ShiftPhase>(
 const shiftPhaseLabel = computed(() =>
   freshness.value === 'unknown' ? t('pos.shiftUnknown') : t(`pos.shift.${shiftPhase.value}`)
 )
+const catalogStatus = computed(() => catalogState.value?.status ?? 'unavailable')
+const catalogStatusVariant = computed(() => {
+  if (catalogStatus.value === 'fresh') {
+    return 'success'
+  }
+
+  if (catalogStatus.value === 'cached') {
+    return 'information'
+  }
+
+  return catalogStatus.value === 'stale' ? 'warning' : 'error'
+})
+const catalogUsableForDraft = computed(() => catalogState.value?.catalogValid === true)
+const lastSyncedAt = computed(() => {
+  const value = catalogState.value?.lastSyncedAt
+  return value
+    ? formatDateTime(value, localeStore.locale as LocaleCode, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })
+    : null
+})
+const lastSyncedRelative = computed(() => {
+  const value = catalogState.value?.lastSyncedAt
+  return value
+    ? formatRelativeDateTime(
+        value,
+        localeStore.locale as LocaleCode,
+        synchronizationReferenceTime.value
+      )
+    : null
+})
 const cartDisplayLines = computed(() =>
   lines.value.map((line, index) => ({
     id: line.id,
@@ -78,6 +134,14 @@ const cartDisplayLines = computed(() =>
 
 function money(amount: number, currency = activeCurrency.value): string {
   return formatCurrency(amount / 100, localeStore.locale as LocaleCode, currency)
+}
+
+function paymentMethodKind(
+  value: string | null
+): 'cash' | 'card' | 'wallet' | 'store-credit' | 'other' {
+  return value === 'cash' || value === 'card' || value === 'wallet' || value === 'store-credit'
+    ? value
+    : 'other'
 }
 
 function stock(product: CatalogProduct): {
@@ -102,7 +166,7 @@ function stock(product: CatalogProduct): {
 }
 
 async function addSelectedProduct(uuid: string): Promise<void> {
-  if (canSell.value) {
+  if (PHASE_3D_CART_ENABLED && canSell.value && catalogUsableForDraft.value) {
     const currentProduct = await catalog.getProduct(uuid)
 
     if (currentProduct) {
@@ -169,16 +233,27 @@ async function resumeShift(): Promise<void> {
 }
 
 async function handleBarcode(barcode: string): Promise<void> {
-  const product = await catalog.findByBarcode(barcode)
-  const found = product !== null && canSell.value && cart.addProduct(product)
-  lastBarcode.value = { code: barcode, found }
+  const result = await catalog.findProductByBarcode(barcode)
+
+  if (
+    PHASE_3D_CART_ENABLED &&
+    result.outcome === 'found' &&
+    canSell.value &&
+    catalogUsableForDraft.value
+  ) {
+    cart.addProduct(result.product)
+  }
+
+  // The scan outcome is always reported: Phase 3C must still distinguish found, not-found,
+  // ambiguous, stale-catalog, and unavailable-catalog without building a draft line.
+  lastBarcode.value = { code: barcode, outcome: result.outcome }
 }
 
 async function refreshCatalog(): Promise<void> {
   if (await bootstrap.runBootstrap()) {
     await catalog.initialize()
-
-    if (catalog.status?.contract) {
+    console.log('Catalog refreshed successfully')
+    if (PHASE_3D_CART_ENABLED && catalog.status?.catalogValid && catalog.status.contract) {
       cart.setContract(catalog.status.contract)
     }
   }
@@ -195,12 +270,24 @@ watch(query, () => {
   searchTimer = window.setTimeout(() => void catalog.search(), 180)
 })
 
-onBeforeUnmount(() => window.clearTimeout(searchTimer))
+watch(customerQuery, () => {
+  window.clearTimeout(customerSearchTimer)
+  customerSearchTimer = window.setTimeout(() => void catalog.searchCustomers(), 180)
+})
+
+onBeforeUnmount(() => {
+  window.clearTimeout(searchTimer)
+  window.clearTimeout(customerSearchTimer)
+  window.clearInterval(synchronizationAgeTimer)
+})
 
 onMounted(async () => {
+  synchronizationAgeTimer = window.setInterval(() => {
+    synchronizationReferenceTime.value = Date.now()
+  }, 60_000)
   await Promise.all([shift.loadCurrent(), catalog.initialize()])
 
-  if (catalog.status?.contract) {
+  if (PHASE_3D_CART_ENABLED && catalog.status?.catalogValid && catalog.status.contract) {
     cart.setContract(catalog.status.contract)
   }
 })
@@ -216,9 +303,12 @@ onMounted(async () => {
             <h2>{{ t('pos.title') }}</h2>
           </div>
           <div class="pos-page__status-row">
-            <AppStatusChip :variant="catalogAvailable ? 'success' : 'error'">
-              {{ catalogAvailable ? t('pos.catalogReady') : t('pos.catalogBlocked') }}
+            <AppStatusChip :variant="catalogStatusVariant">
+              {{ t(`pos.catalogStatus.${catalogStatus}`) }}
             </AppStatusChip>
+            <span v-if="lastSyncedAt && lastSyncedRelative" class="pos-page__last-synced numeric">
+              {{ t('pos.lastSyncedAt', { relative: lastSyncedRelative, absolute: lastSyncedAt }) }}
+            </span>
             <AppStatusChip variant="information">{{ t('pos.syncPlaceholder') }}</AppStatusChip>
             <template v-if="freshness !== 'loading'">
               <template v-if="freshness === 'error'">
@@ -254,6 +344,9 @@ onMounted(async () => {
         <AppInlineError v-if="freshness === 'unknown'">{{
           t('pos.shiftUnknownHelp')
         }}</AppInlineError>
+        <AppInlineError v-if="catalogStatus === 'stale'">{{
+          t('pos.catalogStaleWarning')
+        }}</AppInlineError>
         <ProductSearchBar
           ref="searchRef"
           v-model="query"
@@ -268,15 +361,23 @@ onMounted(async () => {
           :all-label="t('pos.allCategories')"
           @select="catalog.selectCategory"
         />
+        <div class="pos-page__catalog-actions">
+          <AppButton variant="ghost" :disabled="!catalogAvailable" @click="openDialog('customers')">
+            {{ t('pos.browseCustomers') }}
+          </AppButton>
+          <AppButton
+            variant="ghost"
+            :disabled="!catalogAvailable"
+            @click="openDialog('payment-methods')"
+          >
+            {{ t('pos.viewPaymentMethods') }}
+          </AppButton>
+        </div>
       </template>
 
       <template #catalog>
-        <BarcodeFeedback
-          v-if="lastBarcode"
-          :outcome="lastBarcode.found ? 'found' : 'not-found'"
-          :code="lastBarcode.code"
-        >
-          {{ lastBarcode.found ? t('pos.barcodeAdded') : t('pos.barcodeNotFound') }}
+        <BarcodeFeedback v-if="lastBarcode" :outcome="lastBarcode.outcome" :code="lastBarcode.code">
+          {{ t(`pos.barcode.${lastBarcode.outcome}`) }}
         </BarcodeFeedback>
         <AppInlineError v-if="catalogError">{{ catalogError }}</AppInlineError>
         <AppInlineError v-if="bootstrapError">{{ bootstrapError }}</AppInlineError>
@@ -310,7 +411,7 @@ onMounted(async () => {
               categoryId: product.categoryUuid
             }"
             :stock-label="stock(product).label"
-            :disabled="!canSell"
+            :disabled="!canSell || !catalogUsableForDraft"
             @select="addSelectedProduct(product.uuid)"
           />
         </div>
@@ -323,42 +424,59 @@ onMounted(async () => {
               <p class="pos-page__eyebrow">{{ t('pos.currentSale') }}</p>
               <h3>{{ t('pos.cartTitle') }}</h3>
             </div>
-            <AppButton variant="ghost" :disabled="lines.length === 0" @click="cart.clear">
+            <AppButton
+              v-if="PHASE_3D_CART_ENABLED"
+              variant="ghost"
+              :disabled="lines.length === 0"
+              @click="cart.clear"
+            >
               {{ t('pos.clearCart') }}
             </AppButton>
           </div>
-          <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
-          <p v-if="!canSell" class="pos-page__cart-guard">{{ t('pos.openShiftToSell') }}</p>
-          <CartPanel
-            :lines="cartDisplayLines"
-            :empty-title="t('pos.emptyCart')"
-            :empty-description="t('pos.emptyCartDescription')"
-          >
-            <CartLineItem
-              v-for="line in cartDisplayLines"
-              :key="line.id"
-              :line="line"
-              :decrease-label="t('pos.decreaseQuantity')"
-              :increase-label="t('pos.increaseQuantity')"
-              :remove-label="t('pos.removeLine')"
-              @decrease="cart.changeQuantity(line.id, -1000n)"
-              @increase="cart.changeQuantity(line.id, 1000n)"
-              @remove="cart.remove(line.id)"
-            />
-            <template #footer>
-              <OrderTotals
-                :subtotal-label="t('pos.subtotal')"
-                :subtotal="money(calculation.subtotalAmount)"
-                :tax-label="t('pos.tax')"
-                :tax="money(calculation.taxTotalAmount)"
-                :total-label="t('pos.total')"
-                :total="money(calculation.grandTotalAmount)"
+          <AppEmptyState
+            v-if="!PHASE_3D_CART_ENABLED"
+            :title="t('pos.cartPhaseFour')"
+            :description="t('pos.cartPhaseFourDescription')"
+          />
+          <template v-else>
+            <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
+            <p v-if="!canSell" class="pos-page__cart-guard">{{ t('pos.openShiftToSell') }}</p>
+            <CartPanel
+              :lines="cartDisplayLines"
+              :empty-title="t('pos.emptyCart')"
+              :empty-description="t('pos.emptyCartDescription')"
+            >
+              <CartLineItem
+                v-for="line in cartDisplayLines"
+                :key="line.id"
+                :line="line"
+                :decrease-label="t('pos.decreaseQuantity')"
+                :increase-label="t('pos.increaseQuantity')"
+                :remove-label="t('pos.removeLine')"
+                @decrease="cart.changeQuantity(line.id, -1000n)"
+                @increase="cart.changeQuantity(line.id, 1000n)"
+                @remove="cart.remove(line.id)"
               />
-              <AppButton class="pos-page__future-action" variant="transaction" full-width disabled>
-                {{ t('pos.checkoutPhaseFour') }}
-              </AppButton>
-            </template>
-          </CartPanel>
+              <template #footer>
+                <OrderTotals
+                  :subtotal-label="t('pos.subtotal')"
+                  :subtotal="money(calculation.subtotalAmount)"
+                  :tax-label="t('pos.tax')"
+                  :tax="money(calculation.taxTotalAmount)"
+                  :total-label="t('pos.total')"
+                  :total="money(calculation.grandTotalAmount)"
+                />
+                <AppButton
+                  class="pos-page__future-action"
+                  variant="transaction"
+                  full-width
+                  disabled
+                >
+                  {{ t('pos.checkoutPhaseFour') }}
+                </AppButton>
+              </template>
+            </CartPanel>
+          </template>
         </div>
       </template>
     </PosWorkspaceShell>
@@ -370,7 +488,11 @@ onMounted(async () => {
             ? ''
             : dialogMode === 'help'
               ? t('pos.shortcutsTitle')
-              : t(`pos.dialog.${dialogMode}`)
+              : dialogMode === 'customers'
+                ? t('pos.customersTitle')
+                : dialogMode === 'payment-methods'
+                  ? t('pos.paymentMethodsTitle')
+                  : t(`pos.dialog.${dialogMode}`)
         }}
       </template>
       <template v-if="dialogMode === 'help'">
@@ -385,6 +507,43 @@ onMounted(async () => {
           </div>
         </dl>
       </template>
+      <template v-else-if="dialogMode === 'customers'">
+        <CustomerSelector
+          v-model:query="customerQuery"
+          :results="
+            customers.map((customer) => ({
+              id: customer.uuid,
+              name: customer.name,
+              detail: customer.phone ?? undefined
+            }))
+          "
+          :selected-id="selectedCustomerUuid"
+          :search-label="t('pos.customerSearchLabel')"
+          :empty-title="t('pos.noCustomers')"
+          @select="
+            (uuid) => {
+              catalog.selectCustomer(uuid)
+              dialogMode = null
+            }
+          "
+        />
+      </template>
+      <template v-else-if="dialogMode === 'payment-methods'">
+        <p class="pos-page__read-only-note">{{ t('pos.paymentMethodsReadOnly') }}</p>
+        <div class="pos-page__payment-methods">
+          <PaymentMethodTile
+            v-for="method in paymentMethods"
+            :key="method.uuid"
+            :method="{ id: method.uuid, kind: paymentMethodKind(method.type), label: method.name }"
+            disabled
+          />
+        </div>
+        <AppEmptyState
+          v-if="paymentMethods.length === 0"
+          :title="t('pos.noPaymentMethods')"
+          :description="t('pos.paymentMethodsReadOnly')"
+        />
+      </template>
       <template v-else>
         <AppInput
           v-if="dialogMode !== 'pause'"
@@ -397,7 +556,9 @@ onMounted(async () => {
       <template #actions>
         <AppButton variant="ghost" @click="dialogMode = null">{{ t('common.cancel') }}</AppButton>
         <AppButton
-          v-if="dialogMode !== 'help'"
+          v-if="
+            dialogMode !== 'help' && dialogMode !== 'customers' && dialogMode !== 'payment-methods'
+          "
           variant="secondary"
           :loading="mutation !== null"
           @click="submitDialog"
@@ -423,6 +584,24 @@ onMounted(async () => {
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
+}
+
+.pos-page__catalog-actions,
+.pos-page__payment-methods {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.pos-page__payment-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+}
+
+.pos-page__last-synced,
+.pos-page__read-only-note {
+  color: var(--color-on-surface-variant);
+  font-size: var(--text-body-sm-size);
 }
 
 .pos-page__heading h2 {

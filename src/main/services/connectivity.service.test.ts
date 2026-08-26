@@ -97,7 +97,7 @@ describe('ConnectivityService', () => {
     expect(fetchImplementation).toHaveBeenCalledTimes(1)
   })
 
-  it('backs off failed probes and does not emit unchanged healthy snapshots repeatedly', async () => {
+  it('backs off failed probes and then stays silent instead of polling the healthy backend', async () => {
     vi.useFakeTimers()
     const onChange = vi.fn()
     const fetchImplementation = vi
@@ -115,11 +115,91 @@ describe('ConnectivityService', () => {
 
     expect(service.getSnapshot().status).toBe('online')
     expect(onChange).toHaveBeenCalledTimes(2)
+    expect(fetchImplementation).toHaveBeenCalledTimes(2)
+
+    // No healthy polling loop: an idle fleet must put no periodic load on the backend at all.
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+
+    expect(fetchImplementation).toHaveBeenCalledTimes(2)
+    expect(onChange).toHaveBeenCalledTimes(2)
+  })
+
+  it('serves a fresh verdict from cache and only re-probes once it is stale', async () => {
+    vi.useFakeTimers()
+    const fetchImplementation = vi.fn(async () => healthyResponse()) as typeof fetch
+    const service = createService({ fetchImplementation, freshnessTtlMs: 60_000 })
+
+    service.start()
+    await vi.runAllTicks()
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
 
     await vi.advanceTimersByTimeAsync(30_000)
+    await service.ensureFresh()
 
-    expect(fetchImplementation).toHaveBeenCalledTimes(3)
-    expect(onChange).toHaveBeenCalledTimes(2)
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(31_000)
+    await service.ensureFresh()
+
+    expect(fetchImplementation).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats a real API response as the health observation instead of probing again', async () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    const fetchImplementation = vi.fn(
+      async () => new Response('down', { status: 503 })
+    ) as typeof fetch
+    const service = createService({
+      fetchImplementation,
+      onChange,
+      freshnessTtlMs: 60_000
+    })
+
+    service.start()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(service.getSnapshot().status).toBe('backend_unreachable')
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+
+    service.reportRequestOutcome({ kind: 'http_response', status: 200 })
+
+    expect(service.getSnapshot()).toMatchObject({
+      status: 'online',
+      networkAvailable: true,
+      backendReachable: true,
+      reason: 'request_observed'
+    })
+
+    // The pending backoff retry has nothing left to discover, so it is cancelled: an idle device
+    // that recovered through its own traffic issues no further /up probe on its own.
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+
+    // Only a demand-driven check, once the observation has aged past the TTL, probes again.
+    await service.ensureFresh()
+
+    expect(fetchImplementation).toHaveBeenCalledTimes(2)
+  })
+
+  it('never lets a 5xx business response promote the backend to healthy', async () => {
+    vi.useFakeTimers()
+    const fetchImplementation = vi.fn(
+      async () => new Response('down', { status: 503 })
+    ) as typeof fetch
+    const service = createService({ fetchImplementation })
+
+    service.start()
+    await vi.advanceTimersByTimeAsync(0)
+
+    service.reportRequestOutcome({ kind: 'http_response', status: 500 })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(service.getSnapshot()).toMatchObject({
+      status: 'backend_unreachable',
+      reason: 'probe_unhealthy'
+    })
+    expect(service.getSnapshot().lastBackendReachableAt).not.toBeNull()
   })
 
   it('aborts an in-flight probe during shutdown and never emits the aborted result', async () => {

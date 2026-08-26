@@ -9,8 +9,14 @@ import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
 import { isDeviceTransitionError, isSessionEndingError } from '@shared/constants/sessionTransitions'
 import { isPublicAppError } from '../http/apiError'
 import type { DesktopApiClient } from '../http/desktopApiClient'
-import { desktopSessionResourceSchema } from '../http/desktopResources.contract'
-import type { SessionEstablishInput } from '../repositories/sessionMetadata.repository'
+import {
+  desktopSessionResourceSchema,
+  desktopUserContextResourceSchema
+} from '../http/desktopResources.contract'
+import type {
+  SessionContext,
+  SessionEstablishInput
+} from '../repositories/sessionMetadata.repository'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 import { DESKTOP_LICENSE_JWT_KEY } from './license.service'
 import { DESKTOP_ACCESS_TOKEN_KEY, type SessionService } from './session.service'
@@ -23,6 +29,7 @@ export interface AuthDeviceIdentityRepository {
 
 export interface AuthSessionMetadataRepository {
   getSummary(): SessionSummary
+  getContext(): SessionContext
   establish(input: SessionEstablishInput): void
   clear(): void
 }
@@ -36,6 +43,10 @@ export interface AuthSecureStorage {
 
 function configurationError(message: string): PublicAppError {
   return publicAppErrorSchema.parse({ category: 'configuration', message, retryable: false })
+}
+
+function authorizationError(message: string): PublicAppError {
+  return publicAppErrorSchema.parse({ category: 'authorization', message, retryable: false })
 }
 
 export class AuthService {
@@ -73,7 +84,12 @@ export class AuthService {
     try {
       this.sessionMetadataRepository.establish({
         userName: resource.user.name,
-        userEmail: resource.user.email
+        userEmail: resource.user.email,
+        userUuid: resource.user.uuid,
+        userIsActive: resource.user.is_active,
+        companyUuid: resource.company?.id ?? null,
+        deviceUuid: resource.device.device_uuid,
+        serverDeviceId: resource.device.id
       })
     } catch (error) {
       this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
@@ -98,8 +114,20 @@ export class AuthService {
     }
 
     try {
-      await this.apiClient.request(DESKTOP_API_ROUTES.authMe)
-      return existing
+      const resource = desktopUserContextResourceSchema.parse(
+        await this.apiClient.request(DESKTOP_API_ROUTES.authMe)
+      )
+      this.sessionMetadataRepository.establish({
+        userName: resource.user.name,
+        userEmail: resource.user.email,
+        userUuid: resource.user.uuid,
+        userIsActive: resource.user.is_active,
+        companyUuid: resource.company.id,
+        deviceUuid: resource.device.device_uuid,
+        serverDeviceId: resource.device.id
+      })
+
+      return this.sessionMetadataRepository.getSummary()
     } catch (error) {
       if (isPublicAppError(error) && isSessionEndingError(error.backendCode)) {
         this.endSession()
@@ -113,6 +141,31 @@ export class AuthService {
       }
 
       throw error
+    }
+  }
+
+  /**
+   * Phase 3C adds server-proven session bindings to the local session record. Older app versions
+   * persisted only a display name/email, so hydrate those bindings from the existing bound token
+   * before a catalog refresh rather than treating a valid, upgraded session as anonymous.
+   */
+  async ensureCatalogReadContext(): Promise<void> {
+    const context = this.sessionMetadataRepository.getContext()
+
+    if (
+      context.isAuthenticated &&
+      context.userIsActive &&
+      context.companyUuid !== null &&
+      context.deviceUuid !== null &&
+      context.serverDeviceId !== null
+    ) {
+      return
+    }
+
+    await this.refreshSession()
+
+    if (!this.sessionMetadataRepository.getContext().isAuthenticated) {
+      throw authorizationError('Sign in again before refreshing workstation data.')
     }
   }
 

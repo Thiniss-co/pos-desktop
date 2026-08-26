@@ -3,6 +3,7 @@ import { activationInputSchema } from '@shared/contracts/activation.contract'
 import { loginInputSchema } from '@shared/contracts/auth.contract'
 import {
   catalogBarcodeInputSchema,
+  catalogCustomerSearchInputSchema,
   catalogProductIdInputSchema,
   catalogSearchInputSchema
 } from '@shared/contracts/catalog.contract'
@@ -39,6 +40,9 @@ export const catalogListCategoriesInputSchema = z.undefined()
 export const catalogSearchProductsInputSchema = catalogSearchInputSchema
 export const catalogGetProductInputSchema = catalogProductIdInputSchema
 export const catalogFindByBarcodeInputSchema = catalogBarcodeInputSchema
+export const catalogListPaymentMethodsInputSchema = z.undefined()
+export const catalogSearchCustomersInputSchema = catalogCustomerSearchInputSchema
+export const catalogGetCustomerInputSchema = catalogProductIdInputSchema
 export const shiftsCurrentInputSchema = z.undefined()
 export const shiftsGetInputSchema = shiftIdInputSchema
 export const shiftsOpenInputSchema = openShiftInputSchema

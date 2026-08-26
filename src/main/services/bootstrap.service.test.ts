@@ -73,7 +73,6 @@ describe('BootstrapService.refresh', () => {
       createApiClient(bootstrapSuccessEnvelope()),
       { get: () => null },
       syncAllowed,
-      { markComplete: () => undefined },
       { persistSnapshot: () => ({ snapshotVersion: 'x', serverTime: 'x', counts: {} }) }
     )
 
@@ -93,7 +92,6 @@ describe('BootstrapService.refresh', () => {
           }
         }
       },
-      { markComplete: () => undefined },
       { persistSnapshot: () => ({ snapshotVersion: 'x', serverTime: 'x', counts: {} }) }
     )
 
@@ -103,10 +101,9 @@ describe('BootstrapService.refresh', () => {
     })
   })
 
-  it('persists the snapshot then marks bootstrap complete, returning sanitized counts', async () => {
+  it('publishes only after the snapshot transaction succeeds, returning sanitized counts', async () => {
     let persistedCalledBefore = false
     let publishedAfterPersist = false
-    let markCompleteCalled = false
 
     const service = new BootstrapService(
       createApiClient(
@@ -118,12 +115,6 @@ describe('BootstrapService.refresh', () => {
       ),
       { get: () => identity },
       syncAllowed,
-      {
-        markComplete: () => {
-          expect(persistedCalledBefore).toBe(true)
-          markCompleteCalled = true
-        }
-      },
       {
         persistSnapshot: () => {
           persistedCalledBefore = true
@@ -142,7 +133,6 @@ describe('BootstrapService.refresh', () => {
 
     const result = await service.refresh()
 
-    expect(markCompleteCalled).toBe(true)
     expect(publishedAfterPersist).toBe(true)
     expect(result).toEqual({
       isComplete: true,
@@ -159,17 +149,10 @@ describe('BootstrapService.refresh', () => {
   })
 
   it('completes bootstrap when loyalty points never expire', async () => {
-    let markCompleteCalls = 0
-
     const service = new BootstrapService(
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(null) })),
       { get: () => identity },
       syncAllowed,
-      {
-        markComplete: () => {
-          markCompleteCalls += 1
-        }
-      },
       {
         persistSnapshot: (resource) => {
           expect(resource.loyalty?.points_expire_after_days).toBeNull()
@@ -180,7 +163,6 @@ describe('BootstrapService.refresh', () => {
     )
 
     await expect(service.refresh()).resolves.toMatchObject({ isComplete: true })
-    expect(markCompleteCalls).toBe(1)
   })
 
   it('preserves a positive loyalty expiry during bootstrap parsing', async () => {
@@ -190,7 +172,6 @@ describe('BootstrapService.refresh', () => {
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(30) })),
       { get: () => identity },
       syncAllowed,
-      { markComplete: () => undefined },
       {
         persistSnapshot: (resource) => {
           persisted = true
@@ -205,9 +186,40 @@ describe('BootstrapService.refresh', () => {
     expect(persisted).toBe(true)
   })
 
+  it('coalesces concurrent refresh calls into one validated publication attempt', async () => {
+    let requests = 0
+    let persistCalls = 0
+    let resolveResponse: (value: unknown) => void = () => {
+      throw new Error('The deferred bootstrap response has not been initialized.')
+    }
+    const response = new Promise<unknown>((resolve) => {
+      resolveResponse = resolve
+    })
+    const apiClient = {
+      request: () => {
+        requests += 1
+        return response
+      }
+    } as unknown as DesktopApiClient
+    const service = new BootstrapService(apiClient, { get: () => identity }, syncAllowed, {
+      persistSnapshot: () => {
+        persistCalls += 1
+        return { snapshotVersion: 'x', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+      }
+    })
+
+    const first = service.refresh()
+    const second = service.refresh()
+    expect(first).toBe(second)
+    resolveResponse(desktopBootstrapFixture())
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2)
+    expect(requests).toBe(1)
+    expect(persistCalls).toBe(1)
+  })
+
   it('maps an invalid bootstrap payload to a non-retryable public error without partial completion', async () => {
     let persisted = false
-    let marked = false
     const originalTraceSetting = process.env.POS_API_TRACE
     process.env.POS_API_TRACE = '1'
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -216,11 +228,6 @@ describe('BootstrapService.refresh', () => {
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings('never') })),
       { get: () => identity },
       syncAllowed,
-      {
-        markComplete: () => {
-          marked = true
-        }
-      },
       {
         persistSnapshot: () => {
           persisted = true
@@ -249,7 +256,6 @@ describe('BootstrapService.refresh', () => {
         '[pos-api] category=bootstrap_payload_contract_invalid field_path=loyalty.points_expire_after_days'
       )
       expect(persisted).toBe(false)
-      expect(marked).toBe(false)
     } finally {
       consoleError.mockRestore()
 

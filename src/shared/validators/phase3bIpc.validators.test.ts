@@ -26,7 +26,7 @@ describe('Phase 3B IPC input contracts', () => {
         companyId: 42
       }).success
     ).toBe(false)
-    expect(catalogFindByBarcodeInputSchema.safeParse({ barcode: '12' }).success).toBe(false)
+    expect(catalogFindByBarcodeInputSchema.safeParse({ barcode: '12' }).success).toBe(true)
   })
 
   it('keeps shift IDs, notes, and integer cash strictly bounded', () => {

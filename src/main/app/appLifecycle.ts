@@ -28,6 +28,13 @@ export function bootstrapApp(): void {
       registerIpcHandlers(services)
       services.connectivity.start()
 
+      // Connectivity is demand-driven: there is no polling loop. Regaining focus is the moment the
+      // operator is about to act on backend-dependent state, so the verdict is refreshed then —
+      // and only if it is already stale, so window churn costs nothing.
+      app.on('browser-window-focus', () => {
+        void services?.connectivity.ensureFresh()
+      })
+
       createMainWindow()
 
       app.on('activate', function () {

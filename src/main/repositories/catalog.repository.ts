@@ -1,13 +1,46 @@
 import {
   catalogCategorySchema,
   catalogContractSchema,
+  catalogCustomerPageSchema,
+  catalogCustomerSchema,
+  catalogPaymentMethodSchema,
   catalogProductSchema,
   type CatalogCategory,
   type CatalogContract,
+  type CatalogCustomer,
+  type CatalogCustomerPage,
+  type CatalogCustomerSearchInput,
+  type CatalogPaymentMethod,
   type CatalogProduct,
   type CatalogSearchInput
 } from '@shared/contracts/catalog.contract'
+import {
+  catalogPrefixUpperBound,
+  normalizeCatalogBarcode,
+  normalizeCatalogSearch
+} from '@shared/catalog/normalization'
+import { z } from 'zod'
 import type { SqliteDatabase } from '../database/connection'
+
+const catalogManifestSchema = z
+  .object({
+    categories: z.number().int().nonnegative(),
+    products: z.number().int().nonnegative(),
+    barcodes: z.number().int().nonnegative(),
+    priceRevisions: z.number().int().nonnegative(),
+    taxRevisions: z.number().int().nonnegative(),
+    paymentMethods: z.number().int().nonnegative(),
+    customers: z.number().int().nonnegative()
+  })
+  .strict()
+
+type CatalogManifest = z.infer<typeof catalogManifestSchema>
+
+export interface CatalogSnapshot {
+  readonly contract: CatalogContract
+  readonly fetchedAt: string
+  readonly manifest: CatalogManifest
+}
 
 interface CatalogProductRow {
   readonly uuid: string
@@ -42,21 +75,31 @@ interface CatalogContractRow {
   readonly maximum_line_total: number
   readonly maximum_invoice_total: number
   readonly mixed_tax_mode_policy: string
+  readonly fetched_at: string
+  readonly expected_counts_json: string
+  readonly is_complete: number
 }
 
-function normalizeSearch(value: string): string {
-  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US')
-}
+const LIST_LIMIT = 100
 
 export class CatalogRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
   getContract(): CatalogContract | null {
+    return this.getSnapshot()?.contract ?? null
+  }
+
+  getSnapshot(): CatalogSnapshot | null {
     const row = this.database.prepare('SELECT * FROM catalog_metadata WHERE id = 1').get() as
       CatalogContractRow | undefined
 
-    return row
-      ? catalogContractSchema.parse({
+    if (!row || row.is_complete !== 1) {
+      return null
+    }
+
+    try {
+      return {
+        contract: catalogContractSchema.parse({
           revision: row.revision,
           generatedAt: row.generated_at,
           validUntil: row.valid_until,
@@ -67,8 +110,71 @@ export class CatalogRepository {
           maximumLineTotal: row.maximum_line_total,
           maximumInvoiceTotal: row.maximum_invoice_total,
           mixedTaxModePolicy: row.mixed_tax_mode_policy
-        })
-      : null
+        }),
+        fetchedAt: z.iso.datetime({ offset: true }).parse(row.fetched_at),
+        manifest: catalogManifestSchema.parse(JSON.parse(row.expected_counts_json))
+      }
+    } catch {
+      return null
+    }
+  }
+
+  isSnapshotIntact(snapshot: CatalogSnapshot): boolean {
+    const count = (sql: string): number =>
+      (this.database.prepare(sql).get() as { readonly total: number }).total
+    const actual: CatalogManifest = {
+      categories: count('SELECT COUNT(*) AS total FROM catalog_categories'),
+      products: count('SELECT COUNT(*) AS total FROM catalog_products'),
+      barcodes: count('SELECT COUNT(*) AS total FROM catalog_product_barcodes'),
+      priceRevisions: count(`
+        SELECT COUNT(*) AS total FROM catalog_products
+        WHERE is_active = 1 AND status = 'active'
+          AND price_amount IS NOT NULL AND price_currency IS NOT NULL AND price_revision IS NOT NULL
+          AND price_valid_from IS NOT NULL AND price_valid_until IS NOT NULL
+      `),
+      taxRevisions: count(`
+        SELECT COUNT(*) AS total FROM catalog_products
+        WHERE is_active = 1 AND status = 'active'
+          AND tax_mode IS NOT NULL AND tax_rate_basis_points IS NOT NULL AND tax_revision IS NOT NULL
+      `),
+      paymentMethods: count('SELECT COUNT(*) AS total FROM payment_methods'),
+      customers: count('SELECT COUNT(*) AS total FROM customers')
+    }
+
+    if (JSON.stringify(actual) !== JSON.stringify(snapshot.manifest)) {
+      return false
+    }
+
+    const invalidRows = count(`
+      SELECT COUNT(*) AS total
+      FROM catalog_products AS product
+      LEFT JOIN catalog_categories AS category ON category.uuid = product.category_uuid
+      CROSS JOIN catalog_metadata AS metadata
+      WHERE metadata.id = 1
+        AND product.is_active = 1
+        AND product.status = 'active'
+        AND (
+          product.category_uuid IS NULL
+          OR category.uuid IS NULL
+          OR category.is_active = 0
+          OR product.price_valid_from > metadata.generated_at
+          OR product.price_valid_until <> metadata.valid_until
+          OR product.price_amount NOT BETWEEN 0 AND metadata.maximum_unit_price
+          OR product.price_currency NOT GLOB '[A-Z][A-Z][A-Z]'
+          OR product.tax_mode NOT IN ('none', 'inclusive', 'exclusive')
+          OR product.tax_rate_basis_points NOT BETWEEN 0 AND 10000
+          OR (product.tax_mode = 'none' AND (product.tax_uuid IS NOT NULL OR product.tax_rate_basis_points <> 0))
+          OR (product.tax_mode <> 'none' AND product.tax_uuid IS NULL)
+        )
+    `)
+    const danglingBarcodes = count(`
+      SELECT COUNT(*) AS total
+      FROM catalog_product_barcodes AS barcode
+      LEFT JOIN catalog_products AS product ON product.uuid = barcode.product_uuid
+      WHERE product.uuid IS NULL
+    `)
+
+    return invalidRows === 0 && danglingBarcodes === 0
   }
 
   listCategories(): CatalogCategory[] {
@@ -84,28 +190,24 @@ export class CatalogRepository {
             AND product.price_amount IS NOT NULL
             AND product.tax_mode IS NOT NULL
           ORDER BY category.search_name ASC, category.uuid ASC
+          LIMIT ?
         `
       )
-      .all() as Array<{ readonly uuid: string; readonly name: string }>
+      .all(LIST_LIMIT) as Array<{ readonly uuid: string; readonly name: string }>
 
     return rows.map((row) => catalogCategorySchema.parse(row))
   }
 
-  searchProducts(
-    input: CatalogSearchInput,
-    now: string
-  ): { items: CatalogProduct[]; total: number } {
+  searchProducts(input: CatalogSearchInput): { items: CatalogProduct[]; total: number } {
     const clauses = [
       'product.is_active = 1',
       "product.status = 'active'",
       'category.is_active = 1',
       'product.price_amount IS NOT NULL',
-      'product.tax_mode IS NOT NULL',
-      'julianday(product.price_valid_from) <= julianday(?)',
-      'julianday(product.price_valid_until) > julianday(?)'
+      'product.tax_mode IS NOT NULL'
     ]
-    const values: Array<string | number> = [now, now]
-    const query = normalizeSearch(input.query)
+    const values: Array<string | number> = []
+    const query = normalizeCatalogSearch(input.query)
 
     if (input.categoryUuid) {
       clauses.push('product.category_uuid = ?')
@@ -113,15 +215,17 @@ export class CatalogRepository {
     }
 
     if (query) {
-      clauses.push(
-        `(
-          (product.search_name >= ? AND product.search_name < ?)
-          OR (product.search_sku >= ? AND product.search_sku < ?)
-          OR product.barcode = ?
-        )`
-      )
-      const upperBound = `${query}\uffff`
-      values.push(query, upperBound, query, upperBound, input.query)
+      const upperBound = catalogPrefixUpperBound(query)
+      clauses.push(`
+        product.uuid IN (
+          SELECT uuid FROM catalog_products WHERE search_name >= ? AND search_name < ?
+          UNION
+          SELECT uuid FROM catalog_products WHERE search_sku >= ? AND search_sku < ?
+          UNION
+          SELECT uuid FROM catalog_products WHERE barcode = ?
+        )
+      `)
+      values.push(query, upperBound, query, upperBound, normalizeCatalogBarcode(input.query))
     }
 
     const where = clauses.join(' AND ')
@@ -149,7 +253,7 @@ export class CatalogRepository {
     return { items: rows.map((row) => this.mapProduct(row)), total: total.total }
   }
 
-  getProduct(uuid: string, now: string): CatalogProduct | null {
+  getProduct(uuid: string): CatalogProduct | null {
     const row = this.database
       .prepare(
         `
@@ -158,16 +262,15 @@ export class CatalogRepository {
             AND product.is_active = 1
             AND product.status = 'active'
             AND category.is_active = 1
-            AND julianday(product.price_valid_from) <= julianday(?)
-            AND julianday(product.price_valid_until) > julianday(?)
         `
       )
-      .get(uuid, now, now) as CatalogProductRow | undefined
+      .get(uuid) as CatalogProductRow | undefined
 
     return row ? this.mapProduct(row) : null
   }
 
-  findProductsByBarcode(barcode: string, now: string): CatalogProduct[] {
+  findProductsByBarcode(barcode: string): CatalogProduct[] {
+    const exactBarcode = normalizeCatalogBarcode(barcode)
     const rows = this.database
       .prepare(
         `
@@ -181,14 +284,88 @@ export class CatalogRepository {
             AND product.is_active = 1
             AND product.status = 'active'
             AND category.is_active = 1
-            AND julianday(product.price_valid_from) <= julianday(?)
-            AND julianday(product.price_valid_until) > julianday(?)
           ORDER BY product.uuid ASC
         `
       )
-      .all(barcode, barcode, now, now) as CatalogProductRow[]
+      .all(exactBarcode, exactBarcode) as CatalogProductRow[]
 
     return rows.map((row) => this.mapProduct(row))
+  }
+
+  listPaymentMethods(): CatalogPaymentMethod[] {
+    const rows = this.database
+      .prepare(
+        `
+          SELECT id AS uuid, name, code, type
+          FROM payment_methods
+          WHERE is_active = 1
+          ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
+          LIMIT ?
+        `
+      )
+      .all(LIST_LIMIT) as Array<{
+      readonly uuid: string
+      readonly name: string
+      readonly code: string | null
+      readonly type: string | null
+    }>
+
+    return rows.map((row) => catalogPaymentMethodSchema.parse(row))
+  }
+
+  searchCustomers(input: CatalogCustomerSearchInput): CatalogCustomerPage {
+    const query = normalizeCatalogSearch(input.query)
+    const values: Array<string | number> = []
+    let match = ''
+
+    if (query) {
+      const upperBound = catalogPrefixUpperBound(query)
+      match = `
+        AND customer.id IN (
+          SELECT id FROM customers WHERE is_active = 1 AND search_name >= ? AND search_name < ?
+          UNION
+          SELECT id FROM customers WHERE is_active = 1 AND search_phone >= ? AND search_phone < ?
+        )
+      `
+      values.push(query, upperBound, query, upperBound)
+    }
+
+    const total = this.database
+      .prepare(
+        `SELECT COUNT(*) AS total FROM customers AS customer WHERE customer.is_active = 1 ${match}`
+      )
+      .get(...values) as { readonly total: number }
+    const rows = this.database
+      .prepare(
+        `
+          SELECT id AS uuid, name, phone
+          FROM customers AS customer
+          WHERE customer.is_active = 1 ${match}
+          ORDER BY customer.search_name ASC, customer.id ASC
+          LIMIT ? OFFSET ?
+        `
+      )
+      .all(...values, input.limit, input.offset) as Array<{
+      readonly uuid: string
+      readonly name: string
+      readonly phone: string | null
+    }>
+
+    return catalogCustomerPageSchema.parse({
+      items: rows.map((row) => catalogCustomerSchema.parse(row)),
+      total: total.total,
+      limit: input.limit,
+      offset: input.offset
+    })
+  }
+
+  getCustomer(uuid: string): CatalogCustomer | null {
+    const row = this.database
+      .prepare('SELECT id AS uuid, name, phone FROM customers WHERE id = ? AND is_active = 1')
+      .get(uuid) as
+      { readonly uuid: string; readonly name: string; readonly phone: string | null } | undefined
+
+    return row ? catalogCustomerSchema.parse(row) : null
   }
 
   private productSelect(): string {
