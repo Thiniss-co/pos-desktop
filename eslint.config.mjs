@@ -36,5 +36,15 @@ export default defineConfig(
       ]
     }
   },
+  {
+    // @electron-toolkit/eslint-config-ts only exempts plain JS/MJS at the project root
+    // (files: ['*.js', '*.mjs'], which is non-recursive); this restates that same exemption for
+    // scripts/, where these files actually live — plain ESM scripts have no TS pipeline and cannot
+    // carry return-type annotations.
+    files: ['scripts/**/*.{js,mjs}'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off'
+    }
+  },
   eslintConfigPrettier
 )

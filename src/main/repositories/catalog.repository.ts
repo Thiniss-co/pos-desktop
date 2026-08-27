@@ -5,6 +5,7 @@ import {
   catalogCustomerSchema,
   catalogPaymentMethodSchema,
   catalogProductSchema,
+  checkoutResolutionSchema,
   type CatalogCategory,
   type CatalogContract,
   type CatalogCustomer,
@@ -12,7 +13,8 @@ import {
   type CatalogCustomerSearchInput,
   type CatalogPaymentMethod,
   type CatalogProduct,
-  type CatalogSearchInput
+  type CatalogSearchInput,
+  type CheckoutResolution
 } from '@shared/contracts/catalog.contract'
 import {
   catalogPrefixUpperBound,
@@ -64,10 +66,29 @@ interface CatalogProductRow {
   readonly tax_revision: string
 }
 
+interface PaymentMethodRow {
+  readonly uuid: string
+  readonly name: string
+  readonly code: string | null
+  readonly type: string | null
+  readonly is_active: number
+  readonly allows_change: number
+  readonly requires_reference: number
+  readonly sort_order: number
+}
+
+export interface CheckoutResolutionInput {
+  readonly productUuids: readonly string[]
+  readonly paymentMethodUuids: readonly string[]
+  readonly customerUuid: string | null
+}
+
 interface CatalogContractRow {
   readonly revision: string
   readonly generated_at: string
   readonly valid_until: string
+  readonly currency: string
+  readonly currency_exponent: number
   readonly quantity_scale: number
   readonly minimum_quantity: string
   readonly maximum_quantity: string
@@ -103,6 +124,8 @@ export class CatalogRepository {
           revision: row.revision,
           generatedAt: row.generated_at,
           validUntil: row.valid_until,
+          currency: row.currency,
+          currencyExponent: row.currency_exponent,
           quantityScale: row.quantity_scale,
           minimumQuantity: row.minimum_quantity,
           maximumQuantity: row.maximum_quantity,
@@ -161,6 +184,7 @@ export class CatalogRepository {
           OR product.price_valid_until <> metadata.valid_until
           OR product.price_amount NOT BETWEEN 0 AND metadata.maximum_unit_price
           OR product.price_currency NOT GLOB '[A-Z][A-Z][A-Z]'
+          OR product.price_currency <> metadata.currency
           OR product.tax_mode NOT IN ('none', 'inclusive', 'exclusive')
           OR product.tax_rate_basis_points NOT BETWEEN 0 AND 10000
           OR (product.tax_mode = 'none' AND (product.tax_uuid IS NOT NULL OR product.tax_rate_basis_points <> 0))
@@ -296,21 +320,89 @@ export class CatalogRepository {
     const rows = this.database
       .prepare(
         `
-          SELECT id AS uuid, name, code, type
+          SELECT id AS uuid, name, code, type, is_active, allows_change, requires_reference, sort_order
           FROM payment_methods
           WHERE is_active = 1
           ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
           LIMIT ?
         `
       )
-      .all(LIST_LIMIT) as Array<{
-      readonly uuid: string
-      readonly name: string
-      readonly code: string | null
-      readonly type: string | null
-    }>
+      .all(LIST_LIMIT) as PaymentMethodRow[]
 
-    return rows.map((row) => catalogPaymentMethodSchema.parse(row))
+    return rows.map((row) => this.mapPaymentMethod(row))
+  }
+
+  /**
+   * One synchronous transaction snapshot for checkout validation. Products and a requested
+   * customer must all resolve or the whole result fails closed (`null`); an unresolved payment
+   * method uuid is left out of `paymentMethods` rather than failing the snapshot, so
+   * `PAYMENT_METHOD_UNKNOWN` can be raised per-row one layer up. Deliberately does not filter
+   * payment methods by `is_active` — that is what makes a resolved-but-inactive method
+   * distinguishable from an absent one, unlike `listPaymentMethods()`.
+   */
+  resolveForCheckout(input: CheckoutResolutionInput): CheckoutResolution | null {
+    const resolve = this.database.transaction((): CheckoutResolution | null => {
+      const snapshot = this.getSnapshot()
+      if (!snapshot || !this.isSnapshotIntact(snapshot)) {
+        return null
+      }
+
+      const productUuids = [...new Set(input.productUuids)]
+      const products =
+        productUuids.length === 0
+          ? []
+          : (
+              this.database
+                .prepare(
+                  `
+                    ${this.productSelect()}
+                    WHERE product.uuid IN (${productUuids.map(() => '?').join(', ')})
+                      AND product.is_active = 1
+                      AND product.status = 'active'
+                      AND category.is_active = 1
+                  `
+                )
+                .all(...productUuids) as CatalogProductRow[]
+            ).map((row) => this.mapProduct(row))
+
+      if (products.length !== productUuids.length) {
+        return null
+      }
+
+      const paymentMethodUuids = [...new Set(input.paymentMethodUuids)]
+      const paymentMethods =
+        paymentMethodUuids.length === 0
+          ? []
+          : (
+              this.database
+                .prepare(
+                  `
+                    SELECT id AS uuid, name, code, type, is_active, allows_change, requires_reference, sort_order
+                    FROM payment_methods
+                    WHERE id IN (${paymentMethodUuids.map(() => '?').join(', ')})
+                  `
+                )
+                .all(...paymentMethodUuids) as PaymentMethodRow[]
+            ).map((row) => this.mapPaymentMethod(row))
+
+      let customer: CatalogCustomer | null = null
+      if (input.customerUuid) {
+        customer = this.getCustomer(input.customerUuid)
+        if (!customer) {
+          return null
+        }
+      }
+
+      return checkoutResolutionSchema.parse({
+        contract: snapshot.contract,
+        products,
+        paymentMethods,
+        customer,
+        snapshotRevision: snapshot.contract.revision
+      })
+    })
+
+    return resolve()
   }
 
   searchCustomers(input: CatalogCustomerSearchInput): CatalogCustomerPage {
@@ -384,6 +476,19 @@ export class CatalogRepository {
       FROM catalog_products AS product
       INNER JOIN catalog_categories AS category ON category.uuid = product.category_uuid
     `
+  }
+
+  private mapPaymentMethod(row: PaymentMethodRow): CatalogPaymentMethod {
+    return catalogPaymentMethodSchema.parse({
+      uuid: row.uuid,
+      name: row.name,
+      code: row.code,
+      type: row.type,
+      isActive: row.is_active === 1,
+      allowsChange: row.allows_change === 1,
+      requiresReference: row.requires_reference === 1,
+      sortOrder: row.sort_order
+    })
   }
 
   private mapProduct(row: CatalogProductRow): CatalogProduct {

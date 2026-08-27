@@ -24,7 +24,11 @@ withDefaults(
   }
 )
 
-const emit = defineEmits<{ 'update:modelValue': [string] }>()
+const emit = defineEmits<{
+  'update:modelValue': [string]
+  blur: [FocusEvent]
+  keydown: [KeyboardEvent]
+}>()
 
 const inputId = useId()
 const hintId = useId()
@@ -52,6 +56,8 @@ const errorId = useId()
         undefined
       "
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @blur="emit('blur', $event)"
+      @keydown="emit('keydown', $event)"
     />
     <p v-if="hint && !error" :id="hintId" class="app-field__hint">{{ hint }}</p>
     <p v-if="error" :id="errorId" class="app-field__error" role="alert">{{ error }}</p>

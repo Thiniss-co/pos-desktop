@@ -8,6 +8,8 @@ export const catalogContractSchema = z
     revision: revisionSchema,
     generatedAt: isoDateTimeSchema,
     validUntil: isoDateTimeSchema,
+    currency: z.string().regex(/^[A-Z]{3}$/),
+    currencyExponent: z.number().int().min(0).max(3),
     quantityScale: z.literal(3),
     minimumQuantity: z.literal('0.001'),
     maximumQuantity: z.literal('999999.999'),
@@ -116,12 +118,42 @@ export const catalogCustomerPageSchema = z
   })
   .strict()
 
+export const paymentMethodTypeSchema = z.enum([
+  'cash',
+  'card',
+  'bank_transfer',
+  'wallet',
+  'loyalty',
+  'other'
+])
+
 export const catalogPaymentMethodSchema = z
   .object({
     uuid: z.uuid(),
     name: z.string(),
     code: z.string().nullable(),
-    type: z.string().nullable()
+    type: paymentMethodTypeSchema.nullable(),
+    isActive: z.boolean(),
+    allowsChange: z.boolean(),
+    requiresReference: z.boolean(),
+    sortOrder: z.number().int()
+  })
+  .strict()
+
+/**
+ * The result of one main-owned, single-transaction snapshot read used by checkout validation.
+ * Never exposed over IPC directly; only `CheckoutPreviewService` reads it. A missing product or a
+ * requested customer that fails to resolve fails the whole snapshot (`null`, never partial); an
+ * unresolved payment method uuid is simply absent from `paymentMethods` so `PAYMENT_METHOD_UNKNOWN`
+ * can be raised one layer up instead of here.
+ */
+export const checkoutResolutionSchema = z
+  .object({
+    contract: catalogContractSchema,
+    products: z.array(catalogProductSchema),
+    paymentMethods: z.array(catalogPaymentMethodSchema),
+    customer: catalogCustomerSchema.nullable(),
+    snapshotRevision: revisionSchema
   })
   .strict()
 
@@ -142,5 +174,7 @@ export type CatalogProductPage = z.infer<typeof catalogProductPageSchema>
 export type CatalogCustomer = z.infer<typeof catalogCustomerSchema>
 export type CatalogCustomerSearchInput = z.infer<typeof catalogCustomerSearchInputSchema>
 export type CatalogCustomerPage = z.infer<typeof catalogCustomerPageSchema>
+export type PaymentMethodType = z.infer<typeof paymentMethodTypeSchema>
 export type CatalogPaymentMethod = z.infer<typeof catalogPaymentMethodSchema>
+export type CheckoutResolution = z.infer<typeof checkoutResolutionSchema>
 export type CatalogBarcodeLookup = z.infer<typeof catalogBarcodeLookupSchema>

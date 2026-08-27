@@ -70,11 +70,15 @@ export class DesktopApiClient {
   }
 
   async requestWithMeta<T>(route: DesktopApiRoute, body?: unknown): Promise<DesktopApiResponse<T>> {
-    if (!this.dependencies.apiOrigin) {
+    this.assertRequestPreconditions(route)
+
+    const apiOrigin = this.dependencies.apiOrigin
+
+    if (!apiOrigin) {
       throw backendNotConfiguredError()
     }
 
-    const url = resolveDesktopApiUrl(this.dependencies.apiOrigin, route.path)
+    const url = resolveDesktopApiUrl(apiOrigin, route.path)
     const startedAt = performance.now()
     this.tracer.start({ method: route.method, url })
     const headers = new Headers({ Accept: 'application/json' })
@@ -84,20 +88,8 @@ export class DesktopApiClient {
     }
 
     if (route.requiresAuth) {
-      const token = this.dependencies.getAccessToken()
-      const deviceUuid = this.dependencies.getDeviceUuid()
-
-      if (!token || !deviceUuid) {
-        throw createPublicError(
-          'authentication',
-          'A protected desktop request requires a session and device identity.',
-          false,
-          { backendCode: 'DESKTOP_LOCAL_IDENTITY_MISSING' }
-        )
-      }
-
-      headers.set('Authorization', `Bearer ${token}`)
-      headers.set('X-Device-UUID', deviceUuid)
+      headers.set('Authorization', `Bearer ${this.dependencies.getAccessToken()}`)
+      headers.set('X-Device-UUID', this.dependencies.getDeviceUuid() as string)
     }
 
     const controller = new AbortController()
@@ -178,6 +170,32 @@ export class DesktopApiClient {
     } finally {
       clearTimeout(timeout)
       this.abortControllers.delete(controller)
+    }
+  }
+
+  /**
+   * Lets mutation services complete every local rejection before they write fail-closed recovery
+   * state. requestWithMeta calls the same check immediately before dispatch.
+   */
+  assertRequestPreconditions(route: DesktopApiRoute): void {
+    if (!this.dependencies.apiOrigin) {
+      throw backendNotConfiguredError()
+    }
+
+    resolveDesktopApiUrl(this.dependencies.apiOrigin, route.path)
+
+    if (route.requiresAuth) {
+      const token = this.dependencies.getAccessToken()
+      const deviceUuid = this.dependencies.getDeviceUuid()
+
+      if (!token || !deviceUuid) {
+        throw createPublicError(
+          'authentication',
+          'A protected desktop request requires a session and device identity.',
+          false,
+          { backendCode: 'DESKTOP_LOCAL_IDENTITY_MISSING' }
+        )
+      }
     }
   }
 

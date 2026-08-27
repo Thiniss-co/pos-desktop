@@ -16,6 +16,8 @@ const expectedTables = [
   'device_identity',
   'secure_secrets',
   'auth_session_metadata',
+  'session_epoch',
+  'shift_observation',
   'license_state_metadata',
   'bootstrap_state',
   'sync_queue',
@@ -32,7 +34,6 @@ const expectedTables = [
   'categories',
   'products',
   'product_barcodes',
-  'product_prices',
   'stock_items',
   'taxes',
   'payment_methods',
@@ -64,6 +65,7 @@ databaseTest(
     for (const table of expectedTables) {
       ok(tables.includes(table), `missing table ${table}`)
     }
+    equal(tables.includes('product_prices'), false)
     deepEqual(indexes, [
       'idx_catalog_categories_active_name',
       'idx_catalog_customers_active_name',
@@ -78,7 +80,6 @@ databaseTest(
       'idx_catalog_stock_items_warehouse',
       'idx_product_barcodes_barcode',
       'idx_product_barcodes_product_id',
-      'idx_product_prices_product_id',
       'idx_stock_items_product_id',
       'idx_stock_items_warehouse_id'
     ])

@@ -54,7 +54,6 @@ function requireCatalogCollections(
   readonly categories: NonNullable<DesktopBootstrapResource['categories']>
   readonly products: NonNullable<DesktopBootstrapResource['products']>
   readonly product_barcodes: NonNullable<DesktopBootstrapResource['product_barcodes']>
-  readonly product_prices: NonNullable<DesktopBootstrapResource['product_prices']>
   readonly stock_items: NonNullable<DesktopBootstrapResource['stock_items']>
   readonly taxes: NonNullable<DesktopBootstrapResource['taxes']>
   readonly payment_methods: NonNullable<DesktopBootstrapResource['payment_methods']>
@@ -64,7 +63,6 @@ function requireCatalogCollections(
     'categories',
     'products',
     'product_barcodes',
-    'product_prices',
     'stock_items',
     'taxes',
     'payment_methods',
@@ -118,6 +116,7 @@ function assertCatalogSemantics(resource: DesktopBootstrapResource): CatalogMani
       !Number.isFinite(Date.parse(price.valid_until)) ||
       Date.parse(price.valid_from) > generatedAt ||
       price.valid_until !== contract.valid_until ||
+      price.currency !== contract.currency ||
       price.amount > contract.maximum_unit_price ||
       (tax.mode === 'none' && (tax.id !== null || tax.rate_basis_points !== 0)) ||
       (tax.mode !== 'none' && tax.id === null)
@@ -130,7 +129,6 @@ function assertCatalogSemantics(resource: DesktopBootstrapResource): CatalogMani
     categories: resource.categories.length,
     products: resource.products.length,
     product_barcodes: resource.product_barcodes.length,
-    product_prices: resource.product_prices.length,
     stock_items: resource.stock_items.length,
     taxes: resource.taxes.length,
     payment_methods: resource.payment_methods.length,
@@ -233,9 +231,10 @@ export class BootstrapSnapshotRepository {
           `
             INSERT INTO catalog_metadata (
               id, revision, generated_at, valid_until, quantity_scale, minimum_quantity,
-              maximum_quantity, maximum_unit_price, maximum_line_total, maximum_invoice_total,
+              maximum_quantity, maximum_unit_price, maximum_line_total, maximum_invoice_total, currency,
+              currency_exponent,
               mixed_tax_mode_policy, fetched_at, expected_counts_json, is_complete
-            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
           `
         )
         .run(
@@ -248,6 +247,8 @@ export class BootstrapSnapshotRepository {
           contract.maximum_unit_price,
           contract.maximum_line_total,
           contract.maximum_invoice_total,
+          contract.currency,
+          contract.currency_exponent,
           contract.mixed_tax_mode_policy,
           fetchedAt,
           JSON.stringify(manifest)
@@ -329,10 +330,6 @@ export class BootstrapSnapshotRepository {
             row.updated_at ?? null
           )
       )
-
-      // Raw ProductPrice and Tax collections are deliberately non-authoritative. Their exact
-      // calculation-ready values are persisted on catalog_products from resolved_price/tax.
-      counts.product_prices = resource.product_prices?.length ?? 0
 
       counts.stock_items = this.replaceCollection(resource.stock_items ?? [], (row) =>
         this.database
@@ -581,6 +578,7 @@ export class BootstrapSnapshotRepository {
           OR product.price_amount < 0
           OR product.price_amount > metadata.maximum_unit_price
           OR product.price_currency NOT GLOB '[A-Z][A-Z][A-Z]'
+          OR product.price_currency <> metadata.currency
           OR product.tax_mode NOT IN ('none', 'inclusive', 'exclusive')
           OR product.tax_rate_basis_points NOT BETWEEN 0 AND 10000
           OR (product.tax_mode = 'none' AND (product.tax_uuid IS NOT NULL OR product.tax_rate_basis_points <> 0))
@@ -599,7 +597,6 @@ export class BootstrapSnapshotRepository {
       categories: resource.categories?.length ?? 0,
       products: resource.products?.length ?? 0,
       product_barcodes: resource.product_barcodes?.length ?? 0,
-      product_prices: resource.product_prices?.length ?? 0,
       stock_items: resource.stock_items?.length ?? 0,
       taxes: resource.taxes?.length ?? 0,
       payment_methods: resource.payment_methods?.length ?? 0,

@@ -1,0 +1,175 @@
+{
+    "schemaVersion": 1,
+    "calculationVersion": "3d-largest-remainder-v1",
+    "generatedFrom": {
+        "repo": "pos-backend",
+        "commit": "d9351bccbdb2114d81a9a2c70216fd2a2a92754b"
+    },
+    "cases": [
+        {
+            "name": "discount-fixed-exceeds-amount",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": "fixed",
+                        "discountValue": 1001,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": []
+            },
+            "rejects": {
+                "rule": "discount_exceeds_amount"
+            }
+        },
+        {
+            "name": "discount-percentage-over-maximum",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": "percentage",
+                "invoiceDiscountValue": 10001,
+                "payments": []
+            },
+            "rejects": {
+                "rule": "discount_percentage_over_maximum"
+            }
+        },
+        {
+            "name": "discount-type-required",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 1,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": []
+            },
+            "rejects": {
+                "rule": "discount_type_required"
+            }
+        },
+        {
+            "name": "payment-negative",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": -1
+                    }
+                ]
+            },
+            "rejects": {
+                "rule": "payment_negative"
+            }
+        },
+        {
+            "name": "payment-total-over-maximum",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 900000000000001
+                    }
+                ]
+            },
+            "rejects": {
+                "rule": "payment_total_limit"
+            }
+        },
+        {
+            "name": "quantity-malformed",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.0000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": []
+            },
+            "rejects": {
+                "rule": "quantity_invalid"
+            }
+        },
+        {
+            "name": "tax-none-with-rate",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 1
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": []
+            },
+            "rejects": {
+                "rule": "tax_rate_not_allowed_for_mode"
+            }
+        }
+    ],
+    "sha256": "d06f68e26980bb74f32adbac9095039e86b0936a3b544849a93a3d9e2337f630"
+}

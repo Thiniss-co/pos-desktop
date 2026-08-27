@@ -8,6 +8,8 @@ const contract: CatalogContract = {
   revision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   generatedAt: '2026-01-01T00:00:00Z',
   validUntil: '2026-01-04T00:00:00Z',
+  currency: 'EGP',
+  currencyExponent: 2,
   quantityScale: 3,
   minimumQuantity: '0.001',
   maximumQuantity: '999999.999',
@@ -79,13 +81,13 @@ describe('useCartStore', () => {
 
     expect(store.addProduct(taxed)).toBe(false)
     expect(store.lines).toHaveLength(1)
-    expect(store.calculation.grandTotalAmount).toBe(1000)
+    expect(store.calculation?.grandTotalAmount).toBe(1000)
     expect(store.error).toBe('Products with different tax modes cannot share this cart.')
     i18n.global.locale.value = 'ar'
     expect(store.error).toBe('لا يمكن جمع منتجات ذات أوضاع ضريبية مختلفة في هذه السلة.')
   })
 
-  it('clears an unsaved draft when a different catalog revision is installed', () => {
+  it('retains a frozen draft and marks it catalog-changed when a new revision is installed', () => {
     const store = useCartStore()
     store.setContract(contract)
     store.addProduct(product())
@@ -94,7 +96,52 @@ describe('useCartStore', () => {
       revision: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
     })
 
+    expect(store.lines).toHaveLength(1)
+    expect(store.cartState.kind).toBe('invalid')
+    expect(store.error).toBe(
+      'The catalog changed. Clear, remove, or explicitly rebuild this draft.'
+    )
+  })
+
+  it('clears the invoice discount when the final line is removed', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    store.addProduct(product())
+
+    expect(store.setInvoiceDiscount('fixed', 1000)).toBe(true)
+    expect(store.remove(store.lines[0]!.id)).toBe(true)
     expect(store.lines).toEqual([])
-    expect(store.error).toBe('The catalog changed, so the previous unsaved draft was cleared.')
+    expect(store.invoiceDiscountType).toBeNull()
+    expect(store.invoiceDiscountValue).toBe(0)
+  })
+
+  it('blocks commercial mutations while a stale catalog remains readable', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    store.addProduct(product())
+    const lineId = store.lines[0]!.id
+
+    store.setCatalogValidity(false)
+
+    expect(store.incrementQuantity(lineId)).toBe(false)
+    expect(store.setInvoiceDiscount('fixed', 100)).toBe(false)
+    expect(store.addProduct(product())).toBe(false)
+    expect(store.lines[0]?.quantity).toBe('1.000')
+    expect(store.remove(lineId)).toBe(true)
+    expect(store.lines).toEqual([])
+  })
+
+  it('explicitly resets a draft before a store is recreated on the same Pinia instance', () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useCartStore()
+    store.setContract(contract)
+    store.addProduct(product())
+    store.resetDraft('logout')
+    store.$dispose()
+
+    const recreated = useCartStore(pinia)
+    expect(recreated.lines).toEqual([])
+    expect(recreated.cartState).toEqual({ kind: 'empty' })
   })
 })

@@ -65,7 +65,6 @@ databaseTest(
         },
         products: [],
         product_barcodes: [],
-        product_prices: [],
         stock_items: []
       }),
       '2026-01-02T00:01:00+00:00'

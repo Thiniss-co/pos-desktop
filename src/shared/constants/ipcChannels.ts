@@ -25,6 +25,7 @@ export const IPC_CHANNELS = Object.freeze({
   shiftsPause: 'shifts:pause',
   shiftsResume: 'shifts:resume',
   shiftsClose: 'shifts:close',
+  checkoutValidate: 'checkout:validate',
   syncGetStatus: 'sync:get-status',
   connectivityGetState: 'connectivity:get-state',
   connectivityCheckNow: 'connectivity:check-now',

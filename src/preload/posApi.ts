@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract'
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
+import type { CheckoutIntent, CheckoutPreviewOutcome } from '@shared/contracts/checkout.contract'
 import type {
   CatalogCategory,
   CatalogBarcodeLookup,
@@ -81,6 +82,9 @@ export interface PosApi {
     pause(input: PauseShiftInput): Promise<IpcResult<Shift>>
     resume(input: ResumeShiftInput): Promise<IpcResult<Shift>>
     close(input: CloseShiftInput): Promise<IpcResult<Shift>>
+  }
+  readonly checkout: {
+    validate(input: CheckoutIntent): Promise<IpcResult<CheckoutPreviewOutcome>>
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
@@ -162,6 +166,9 @@ export const posApi: PosApi = Object.freeze({
     pause: (input: PauseShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsPause, input),
     resume: (input: ResumeShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsResume, input),
     close: (input: CloseShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsClose, input)
+  }),
+  checkout: Object.freeze({
+    validate: (input: CheckoutIntent) => ipcRenderer.invoke(IPC_CHANNELS.checkoutValidate, input)
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus)

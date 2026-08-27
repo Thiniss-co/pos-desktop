@@ -1,0 +1,367 @@
+{
+    "schemaVersion": 2,
+    "calculationVersion": "3d-largest-remainder-v1",
+    "generatedFrom": {
+        "repo": "pos-backend",
+        "commit": "d9351bccbdb2114d81a9a2c70216fd2a2a92754b"
+    },
+    "cases": [
+        {
+            "name": "fractional-inclusive",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.500",
+                        "unitPriceAmount": 115,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "inclusive",
+                        "taxRateBasisPoints": 1500
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 173,
+                        "discountAmount": 0,
+                        "taxAmount": 23,
+                        "totalAmount": 173
+                    }
+                ],
+                "subtotalAmount": 173,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 23,
+                "grandTotalAmount": 173
+            }
+        },
+        {
+            "name": "largest-remainder-mixed-rates",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000003",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 333,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 667,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 1500
+                    }
+                ],
+                "invoiceDiscountType": "fixed",
+                "invoiceDiscountValue": 101
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 333,
+                        "discountAmount": 34,
+                        "taxAmount": 15,
+                        "totalAmount": 314
+                    },
+                    {
+                        "subtotalAmount": 667,
+                        "discountAmount": 67,
+                        "taxAmount": 90,
+                        "totalAmount": 690
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 101,
+                "taxTotalAmount": 105,
+                "grandTotalAmount": 1004
+            }
+        },
+        {
+            "name": "line-and-invoice-discounts",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": "fixed",
+                        "discountValue": 100,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": "percentage",
+                "invoiceDiscountValue": 1000
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 190,
+                        "taxAmount": 0,
+                        "totalAmount": 810
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 190,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 810
+            }
+        },
+        {
+            "name": "no-tax-baseline",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 1000
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 1000
+            }
+        },
+        {
+            "name": "payment-cash-exact",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 1000
+                    }
+                ]
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 1000
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 1000,
+                "paidTotalAmount": 1000,
+                "changeDueAmount": 0,
+                "dueAmount": 0
+            }
+        },
+        {
+            "name": "payment-cash-overpayment",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 1500
+                    }
+                ]
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 1000
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 1000,
+                "paidTotalAmount": 1500,
+                "changeDueAmount": 500,
+                "dueAmount": 0
+            }
+        },
+        {
+            "name": "payment-duplicate-cash-rows",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 500
+                    },
+                    {
+                        "type": "cash",
+                        "amount": 500
+                    }
+                ]
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 1000
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 1000,
+                "paidTotalAmount": 1000,
+                "changeDueAmount": 0,
+                "dueAmount": 0
+            }
+        },
+        {
+            "name": "payment-split-cash-card",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 600
+                    },
+                    {
+                        "type": "card",
+                        "amount": 400
+                    }
+                ]
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 1000
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 1000,
+                "paidTotalAmount": 1000,
+                "changeDueAmount": 0,
+                "dueAmount": 0
+            }
+        },
+        {
+            "name": "payment-zero-total-zero-cash",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": "percentage",
+                "invoiceDiscountValue": 10000,
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 0
+                    }
+                ]
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 1000,
+                        "taxAmount": 0,
+                        "totalAmount": 0
+                    }
+                ],
+                "subtotalAmount": 1000,
+                "discountTotalAmount": 1000,
+                "taxTotalAmount": 0,
+                "grandTotalAmount": 0,
+                "paidTotalAmount": 0,
+                "changeDueAmount": 0,
+                "dueAmount": 0
+            }
+        }
+    ],
+    "sha256": "259b083a6bf2940d2f1d3076578b65c51a934fd8901e243788ff7b2d3b2c40d2"
+}

@@ -8,7 +8,9 @@ import { SqliteDeviceIdentityRepository } from '../../../src/main/repositories/d
 import { DeviceRegistrationRepository } from '../../../src/main/repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../../../src/main/repositories/licenseMetadata.repository'
 import { SecureSecretsRepository } from '../../../src/main/repositories/secureSecrets.repository'
+import { SessionEpochRepository } from '../../../src/main/repositories/sessionEpoch.repository'
 import { SqliteSessionMetadataRepository } from '../../../src/main/repositories/sessionMetadata.repository'
+import { ShiftObservationRepository } from '../../../src/main/repositories/shiftObservation.repository'
 import { SyncQueueRepository } from '../../../src/main/repositories/syncQueue.repository'
 
 export interface RealRepositories {
@@ -20,7 +22,9 @@ export interface RealRepositories {
   readonly deviceRegistration: DeviceRegistrationRepository
   readonly licenseMetadata: LicenseMetadataRepository
   readonly secureSecrets: SecureSecretsRepository
+  readonly sessionEpoch: SessionEpochRepository
   readonly sessionMetadata: SqliteSessionMetadataRepository
+  readonly shiftObservations: ShiftObservationRepository
   readonly syncQueue: SyncQueueRepository
 }
 
@@ -34,7 +38,9 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
     deviceRegistration: new DeviceRegistrationRepository(database),
     licenseMetadata: new LicenseMetadataRepository(database),
     secureSecrets: new SecureSecretsRepository(database),
+    sessionEpoch: new SessionEpochRepository(database),
     sessionMetadata: new SqliteSessionMetadataRepository(database),
+    shiftObservations: new ShiftObservationRepository(database),
     syncQueue: new SyncQueueRepository(database)
   }
 
@@ -46,7 +52,9 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
   assert.ok(repositories.deviceRegistration instanceof DeviceRegistrationRepository)
   assert.ok(repositories.licenseMetadata instanceof LicenseMetadataRepository)
   assert.ok(repositories.secureSecrets instanceof SecureSecretsRepository)
+  assert.ok(repositories.sessionEpoch instanceof SessionEpochRepository)
   assert.ok(repositories.sessionMetadata instanceof SqliteSessionMetadataRepository)
+  assert.ok(repositories.shiftObservations instanceof ShiftObservationRepository)
   assert.ok(repositories.syncQueue instanceof SyncQueueRepository)
 
   return repositories

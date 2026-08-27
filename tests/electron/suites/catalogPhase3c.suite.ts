@@ -360,7 +360,16 @@ databaseTest(
     deepEqual(Object.keys(customers.items[0] ?? {}).sort(), ['name', 'phone', 'uuid'])
     equal(normalizeCatalogSearch('  Åsa   Market '), 'åsa market')
     deepEqual(repositories.catalog.listPaymentMethods(), [
-      { uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Cash', code: 'cash', type: 'cash' }
+      {
+        uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        name: 'Cash',
+        code: 'cash',
+        type: 'cash',
+        isActive: true,
+        allowsChange: true,
+        requiresReference: false,
+        sortOrder: 1
+      }
     ])
 
     const plan = database
@@ -379,6 +388,173 @@ databaseTest(
       plan.some((row) => row.detail.includes('idx_catalog_customers')),
       true
     )
+    closeDatabase(database)
+  }
+)
+
+const CHECKOUT_PRODUCT_UUID = '55555555-5555-4555-8555-555555555555'
+const CHECKOUT_ACTIVE_METHOD_UUID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+const CHECKOUT_INACTIVE_METHOD_UUID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+const CHECKOUT_CUSTOMER_UUID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+const CHECKOUT_UNKNOWN_UUID = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+
+function checkoutResolutionFixture(): ReturnType<typeof desktopBootstrapFixture> {
+  return desktopBootstrapFixture({
+    payment_methods: [
+      {
+        id: CHECKOUT_ACTIVE_METHOD_UUID,
+        name: 'Cash',
+        code: 'cash',
+        type: 'cash',
+        is_active: true,
+        allows_change: true,
+        requires_reference: false,
+        sort_order: 1,
+        updated_at: '2026-01-01T00:00:00+00:00'
+      },
+      {
+        id: CHECKOUT_INACTIVE_METHOD_UUID,
+        name: 'Retired Card Reader',
+        code: 'card-old',
+        type: 'card',
+        is_active: false,
+        allows_change: false,
+        requires_reference: true,
+        sort_order: 2,
+        updated_at: '2026-01-01T00:00:00+00:00'
+      }
+    ],
+    customers: [
+      {
+        id: CHECKOUT_CUSTOMER_UUID,
+        name: 'Walk-in',
+        email: null,
+        phone: null,
+        tax_number: null,
+        address: null,
+        notes: null,
+        is_active: true,
+        updated_at: '2026-01-01T00:00:00+00:00'
+      }
+    ]
+  })
+}
+
+databaseTest(
+  'resolveForCheckout returns a mutually consistent snapshot in one transaction',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const repositories = realRepositories(database)
+    const resource = checkoutResolutionFixture()
+    repositories.bootstrapSnapshot.persistSnapshot(resource, '2026-01-01T00:01:00+00:00')
+
+    const resolution = repositories.catalog.resolveForCheckout({
+      productUuids: [CHECKOUT_PRODUCT_UUID],
+      paymentMethodUuids: [CHECKOUT_ACTIVE_METHOD_UUID],
+      customerUuid: CHECKOUT_CUSTOMER_UUID
+    })
+
+    equal(resolution?.contract.revision, resource.catalog_contract.revision)
+    equal(resolution?.snapshotRevision, resource.catalog_contract.revision)
+    equal(resolution?.products.length, 1)
+    equal(resolution?.products[0]?.uuid, CHECKOUT_PRODUCT_UUID)
+    equal(resolution?.products[0]?.price.revision, resource.products?.[0]?.resolved_price?.revision)
+    equal(resolution?.products[0]?.tax.revision, resource.products?.[0]?.resolved_tax?.revision)
+    equal(resolution?.customer?.uuid, CHECKOUT_CUSTOMER_UUID)
+    closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'resolveForCheckout resolves an inactive payment method as data while the picker omits it',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const repositories = realRepositories(database)
+    repositories.bootstrapSnapshot.persistSnapshot(
+      checkoutResolutionFixture(),
+      '2026-01-01T00:01:00+00:00'
+    )
+
+    const picker = repositories.catalog.listPaymentMethods()
+    equal(
+      picker.some((method) => method.uuid === CHECKOUT_INACTIVE_METHOD_UUID),
+      false
+    )
+
+    const resolution = repositories.catalog.resolveForCheckout({
+      productUuids: [CHECKOUT_PRODUCT_UUID],
+      paymentMethodUuids: [CHECKOUT_ACTIVE_METHOD_UUID, CHECKOUT_INACTIVE_METHOD_UUID],
+      customerUuid: null
+    })
+
+    equal(resolution?.paymentMethods.length, 2)
+    const inactive = resolution?.paymentMethods.find(
+      (method) => method.uuid === CHECKOUT_INACTIVE_METHOD_UUID
+    )
+    equal(inactive?.isActive, false)
+    const active = resolution?.paymentMethods.find(
+      (method) => method.uuid === CHECKOUT_ACTIVE_METHOD_UUID
+    )
+    equal(active?.isActive, true)
+    closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'resolveForCheckout leaves an unresolved payment method absent rather than failing the snapshot',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const repositories = realRepositories(database)
+    repositories.bootstrapSnapshot.persistSnapshot(
+      checkoutResolutionFixture(),
+      '2026-01-01T00:01:00+00:00'
+    )
+
+    const resolution = repositories.catalog.resolveForCheckout({
+      productUuids: [CHECKOUT_PRODUCT_UUID],
+      paymentMethodUuids: [CHECKOUT_ACTIVE_METHOD_UUID, CHECKOUT_UNKNOWN_UUID],
+      customerUuid: null
+    })
+
+    equal(resolution?.paymentMethods.length, 1)
+    equal(resolution?.paymentMethods[0]?.uuid, CHECKOUT_ACTIVE_METHOD_UUID)
+    closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'resolveForCheckout fails the whole snapshot closed on a missing product or a missing customer',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const repositories = realRepositories(database)
+    repositories.bootstrapSnapshot.persistSnapshot(
+      checkoutResolutionFixture(),
+      '2026-01-01T00:01:00+00:00'
+    )
+
+    equal(
+      repositories.catalog.resolveForCheckout({
+        productUuids: [CHECKOUT_PRODUCT_UUID, CHECKOUT_UNKNOWN_UUID],
+        paymentMethodUuids: [],
+        customerUuid: null
+      }),
+      null
+    )
+    equal(
+      repositories.catalog.resolveForCheckout({
+        productUuids: [CHECKOUT_PRODUCT_UUID],
+        paymentMethodUuids: [],
+        customerUuid: CHECKOUT_UNKNOWN_UUID
+      }),
+      null
+    )
+    // A null customerUuid is not a request for a customer at all, so it never fails resolution.
+    const withoutCustomer = repositories.catalog.resolveForCheckout({
+      productUuids: [CHECKOUT_PRODUCT_UUID],
+      paymentMethodUuids: [],
+      customerUuid: null
+    })
+    equal(withoutCustomer?.customer, null)
     closeDatabase(database)
   }
 )

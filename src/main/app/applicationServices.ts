@@ -14,7 +14,9 @@ import { SqliteDeviceIdentityRepository } from '../repositories/deviceIdentity.r
 import { DeviceRegistrationRepository } from '../repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../repositories/licenseMetadata.repository'
 import { SecureSecretsRepository } from '../repositories/secureSecrets.repository'
+import { SessionEpochRepository } from '../repositories/sessionEpoch.repository'
 import { SqliteSessionMetadataRepository } from '../repositories/sessionMetadata.repository'
+import { ShiftObservationRepository } from '../repositories/shiftObservation.repository'
 import { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { ActivationService } from '../services/activation.service'
@@ -23,12 +25,14 @@ import { BootstrapService } from '../services/bootstrap.service'
 import { CatalogReadAccessService } from '../services/catalogReadAccess.service'
 import { CatalogService } from '../services/catalog.service'
 import { CatalogTrustedClockService } from '../services/catalogTrustedClock.service'
+import { CheckoutPreviewService } from '../services/checkoutPreview.service'
 import { CompanyUsersService } from '../services/companyUsers.service'
 import { CommercialAccessService } from '../services/commercialAccess.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
+import { ShiftAuthorityService } from '../services/shiftAuthority.service'
 import { ShiftService } from '../services/shift.service'
 import { ShiftPermissions } from '../services/shiftPermissions'
 import { ConnectivityService } from '../services/connectivity.service'
@@ -55,7 +59,9 @@ export interface ApplicationServices {
   readonly commercialAccessPublisher: CommercialAccessPublisher
   readonly bootstrap: BootstrapService
   readonly catalog: CatalogService
+  readonly shiftAuthority: ShiftAuthorityService
   readonly shifts: ShiftService
+  readonly checkoutPreview: CheckoutPreviewService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   getRuntimeInfo(): RuntimeInfo
@@ -78,6 +84,8 @@ export function createApplicationServices(): ApplicationServices {
   const deviceRegistrationRepository = new DeviceRegistrationRepository(database)
   const secureSecrets = new SecureSecretsRepository(database)
   const sessionMetadata = new SqliteSessionMetadataRepository(database)
+  const sessionEpoch = new SessionEpochRepository(database)
+  const shiftObservations = new ShiftObservationRepository(database)
   const licenseMetadata = new LicenseMetadataRepository(database)
   const bootstrapState = new BootstrapStateRepository(database)
   const bootstrapSnapshot = new BootstrapSnapshotRepository(database)
@@ -91,7 +99,11 @@ export function createApplicationServices(): ApplicationServices {
     appVersion: app.getVersion()
   })
   const secureStorage = new SecureStorageService(secureSecrets, safeStorage)
-  const session = new SessionService(sessionMetadata, secureStorage)
+  const session = new SessionService(sessionMetadata, secureStorage, {
+    database,
+    epoch: sessionEpoch,
+    observations: shiftObservations
+  })
   let commercialAccessPublisher: CommercialAccessPublisher | null = null
   const connectivity = new ConnectivityService({
     apiOrigin: runtimeConfig.apiOrigin,
@@ -170,7 +182,20 @@ export function createApplicationServices(): ApplicationServices {
     }
   )
   const shiftPermissions = new ShiftPermissions(bootstrapSnapshot)
-  const shifts = new ShiftService(apiClient, commercialAccess, shiftPermissions)
+  const shiftAuthority = new ShiftAuthorityService({
+    observations: shiftObservations,
+    session: sessionMetadata,
+    company: bootstrapSnapshot,
+    device: deviceIdentity,
+    epoch: sessionEpoch
+  })
+  const shifts = new ShiftService(apiClient, commercialAccess, shiftPermissions, shiftAuthority)
+  const checkoutPreview = new CheckoutPreviewService({
+    commercialAccess,
+    permissions: bootstrapSnapshot,
+    shiftAuthority,
+    catalog
+  })
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
   return {
@@ -193,7 +218,9 @@ export function createApplicationServices(): ApplicationServices {
     commercialAccessPublisher,
     bootstrap,
     catalog,
+    shiftAuthority,
     shifts,
+    checkoutPreview,
     companyUsers,
     connectivity,
     getRuntimeInfo: () =>

@@ -55,7 +55,10 @@ export class AuthService {
     private readonly deviceIdentityRepository: AuthDeviceIdentityRepository,
     private readonly sessionMetadataRepository: AuthSessionMetadataRepository,
     private readonly secureStorage: AuthSecureStorage,
-    private readonly session?: Pick<SessionService, 'endSession' | 'getSummary'>
+    private readonly session?: Pick<
+      SessionService,
+      'endSession' | 'getSummary' | 'refreshSession' | 'startSession'
+    >
   ) {}
 
   async login(rawInput: LoginInput): Promise<SessionSummary> {
@@ -82,7 +85,7 @@ export class AuthService {
     this.secureStorage.setSecret(DESKTOP_ACCESS_TOKEN_KEY, resource.token)
 
     try {
-      this.sessionMetadataRepository.establish({
+      this.establishSession({
         userName: resource.user.name,
         userEmail: resource.user.email,
         userUuid: resource.user.uuid,
@@ -117,7 +120,7 @@ export class AuthService {
       const resource = desktopUserContextResourceSchema.parse(
         await this.apiClient.request(DESKTOP_API_ROUTES.authMe)
       )
-      this.sessionMetadataRepository.establish({
+      this.refreshEstablishedSession({
         userName: resource.user.name,
         userEmail: resource.user.email,
         userUuid: resource.user.uuid,
@@ -186,6 +189,24 @@ export class AuthService {
 
     this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
     this.sessionMetadataRepository.clear()
+  }
+
+  private establishSession(input: SessionEstablishInput): void {
+    if (this.session) {
+      this.session.startSession(input)
+      return
+    }
+
+    this.sessionMetadataRepository.establish(input)
+  }
+
+  private refreshEstablishedSession(input: SessionEstablishInput): void {
+    if (this.session) {
+      this.session.refreshSession(input)
+      return
+    }
+
+    this.sessionMetadataRepository.establish(input)
   }
 
   private getSessionSummary(): SessionSummary {

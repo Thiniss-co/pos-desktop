@@ -2,6 +2,7 @@ import type { ApplicationServices } from '../app/applicationServices'
 import { registerAuthIpcHandlers } from './auth.ipc'
 import { registerBootstrapIpcHandlers } from './bootstrap.ipc'
 import { registerCatalogIpcHandlers } from './catalog.ipc'
+import { registerCheckoutIpcHandlers } from './checkout.ipc'
 import { registerCompanyUsersIpcHandlers } from './company-users.ipc'
 import { registerDeviceIpcHandlers } from './device.ipc'
 import { registerLicenseIpcHandlers } from './license.ipc'
@@ -25,6 +26,7 @@ export function registerIpcHandlers(services: ApplicationServices): void {
   registerBootstrapIpcHandlers(services)
   registerCatalogIpcHandlers(services)
   registerShiftIpcHandlers(services)
+  registerCheckoutIpcHandlers(services)
   registerCompanyUsersIpcHandlers(services)
   registerSyncIpcHandlers(services)
   registerConnectivityIpcHandlers(services)

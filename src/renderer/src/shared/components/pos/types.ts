@@ -42,7 +42,7 @@ export interface DisplayCustomer {
   detail?: string
 }
 
-export type PaymentMethodKind = 'cash' | 'card' | 'wallet' | 'store-credit' | 'other'
+export type PaymentMethodKind = 'cash' | 'card' | 'wallet' | 'bank_transfer' | 'loyalty' | 'other'
 
 export interface DisplayPaymentMethod {
   id: string
@@ -50,11 +50,22 @@ export interface DisplayPaymentMethod {
   label: string
 }
 
+/** One method tile as the payment panel renders it — eligibility is a checkout-only concern. */
+export interface DisplayPaymentMethodOption {
+  method: DisplayPaymentMethod
+  /** `false` for a method whose type cannot be tendered at checkout (bank_transfer/wallet/loyalty). */
+  eligible: boolean
+  /** Shown as the disabled tile's reason (e.g. a native `title`) when `eligible` is `false`. */
+  ineligibleReason?: string
+}
+
 export interface DisplaySplitPayment {
   id: string
   methodLabel: string
   /** Pre-formatted amount. */
   amount: string
+  /** Pre-formatted reference, when the row carries one. */
+  reference?: string
 }
 
 export type ShiftPhase =

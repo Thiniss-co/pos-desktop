@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
 import { useAuthStore } from '@renderer/modules/auth/store'
+import { useCartStore } from '@renderer/modules/pos/cart.store'
+import { usePaymentStore } from '@renderer/modules/pos/payment.store'
 import { useCompanyUsersStore } from '@renderer/modules/companyUsers/store'
 import ConnectivityBanner from '@renderer/modules/connectivity/components/ConnectivityBanner.vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
@@ -16,6 +18,8 @@ import { getStartupRouteName } from '../router/guards'
 const companyUsers = useCompanyUsersStore()
 const { access } = storeToRefs(companyUsers)
 const auth = useAuthStore()
+const cart = useCartStore()
+const payment = usePaymentStore()
 const { session, isSubmitting } = storeToRefs(auth)
 const startup = useStartupStore()
 const router = useRouter()
@@ -28,6 +32,8 @@ onMounted(() => {
 
 async function handleLogout(): Promise<void> {
   await auth.logout()
+  cart.resetDraft('logout')
+  payment.resetPayment()
   await startup.refresh()
   await router.push({ name: getStartupRouteName(startup.state) })
 }

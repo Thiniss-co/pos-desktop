@@ -59,6 +59,8 @@ const snapshot: CatalogSnapshot = {
     revision: REVISION,
     generatedAt: '2026-01-01T00:00:00+00:00',
     validUntil: '2026-01-05T00:00:00+00:00',
+    currency: 'SAR',
+    currencyExponent: 2,
     quantityScale: 3,
     minimumQuantity: '0.001',
     maximumQuantity: '999999.999',

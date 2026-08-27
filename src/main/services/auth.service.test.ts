@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import type {
   SessionContext,
@@ -220,6 +220,36 @@ describe('AuthService.login', () => {
     )
   })
 
+  it('starts a fresh main-owned session after successful login', async () => {
+    const sessionMetadata = createFakeSessionMetadata()
+    const startSession = vi.fn((input: SessionEstablishInput) => sessionMetadata.establish(input))
+    const service = new AuthService(
+      {
+        request: async () => loginSuccessEnvelope().data
+      } as unknown as DesktopApiClient,
+      { get: () => identity },
+      sessionMetadata,
+      createFakeSecureStorage(),
+      {
+        endSession: () => undefined,
+        getSummary: () => sessionMetadata.getSummary(),
+        refreshSession: (input) => sessionMetadata.establish(input),
+        startSession
+      }
+    )
+
+    await service.login({ email: 'cashier@example.test', password: 'hunter2' })
+
+    expect(startSession).toHaveBeenCalledTimes(1)
+    expect(startSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userUuid: '11111111-1111-4111-8111-111111111111',
+        companyUuid: null,
+        deviceUuid: identity.deviceUuid
+      })
+    )
+  })
+
   it('rejects login before device activation has completed', async () => {
     const apiClient = new DesktopApiClient({
       apiOrigin: new URL('https://api.example.test'),
@@ -287,6 +317,40 @@ describe('AuthService.login', () => {
 })
 
 describe('AuthService.refreshSession', () => {
+  it('does not start a new session epoch for a routine refresh', async () => {
+    const sessionMetadata = createFakeSessionMetadata()
+    sessionMetadata.establish({
+      userName: 'Cashier One',
+      userEmail: 'cashier@example.test',
+      userUuid: '11111111-1111-4111-8111-111111111111',
+      userIsActive: true,
+      companyUuid: '22222222-2222-4222-8222-222222222222',
+      deviceUuid: identity.deviceUuid,
+      serverDeviceId: 'server-device-uuid'
+    })
+    const startSession = vi.fn()
+    const secureStorage = createFakeSecureStorage()
+    secureStorage.setSecret(DESKTOP_ACCESS_TOKEN_KEY, 'stored-token')
+    const service = new AuthService(
+      {
+        request: async () => userContextSuccessEnvelope().data
+      } as unknown as DesktopApiClient,
+      { get: () => identity },
+      sessionMetadata,
+      secureStorage,
+      {
+        endSession: () => undefined,
+        getSummary: () => sessionMetadata.getSummary(),
+        refreshSession: (input) => sessionMetadata.establish(input),
+        startSession
+      }
+    )
+
+    await service.refreshSession()
+
+    expect(startSession).not.toHaveBeenCalled()
+  })
+
   it('clears the local session when the stored token is missing or corrupt', async () => {
     const apiClient = new DesktopApiClient({
       apiOrigin: new URL('https://api.example.test'),

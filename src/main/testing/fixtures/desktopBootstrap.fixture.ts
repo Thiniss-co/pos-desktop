@@ -39,6 +39,8 @@ export function desktopBootstrapFixture(
       revision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       generated_at: '2026-01-01T00:00:00+00:00',
       valid_until: '2026-01-04T00:00:00+00:00',
+      currency: 'EGP',
+      currency_exponent: 2,
       quantity_scale: 3,
       minimum_quantity: '0.001',
       maximum_quantity: '999999.999',
@@ -54,7 +56,6 @@ export function desktopBootstrapFixture(
         categories: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
         products: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
         product_barcodes: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
-        product_prices: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
         stock_items: { count: 1, last_changed_at: '2026-01-01T00:00:00+00:00' },
         taxes: { count: 0, last_changed_at: null },
         payment_methods: { count: 0, last_changed_at: null },
@@ -104,20 +105,6 @@ export function desktopBootstrapFixture(
         updated_at: '2026-01-01T00:00:00+00:00'
       }
     ],
-    product_prices: [
-      {
-        id: '77777777-7777-4777-8777-777777777777',
-        product_id: 101,
-        label: 'Retail',
-        amount: 1250,
-        currency: 'EGP',
-        price_type: 'retail',
-        is_active: true,
-        starts_at: null,
-        ends_at: null,
-        updated_at: '2026-01-01T00:00:00+00:00'
-      }
-    ],
     stock_items: [
       {
         id: '88888888-8888-4888-8888-888888888888',
@@ -142,7 +129,6 @@ export function desktopBootstrapFixture(
     categories: merged.categories?.length ?? 0,
     products: merged.products?.length ?? 0,
     product_barcodes: merged.product_barcodes?.length ?? 0,
-    product_prices: merged.product_prices?.length ?? 0,
     stock_items: merged.stock_items?.length ?? 0,
     taxes: merged.taxes?.length ?? 0,
     payment_methods: merged.payment_methods?.length ?? 0,

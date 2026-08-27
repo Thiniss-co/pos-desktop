@@ -213,21 +213,6 @@ const productBarcodeResourceSchema = z
   })
   .strict()
 
-const productPriceResourceSchema = z
-  .object({
-    id: z.uuid(),
-    product_id: z.number().int(),
-    label: z.string().nullable().optional(),
-    amount: z.number().int(),
-    currency: z.string(),
-    price_type: z.string().nullable().optional(),
-    is_active: z.boolean(),
-    starts_at: z.string().nullable().optional(),
-    ends_at: z.string().nullable().optional(),
-    updated_at: z.string().nullable().optional()
-  })
-  .passthrough()
-
 const stockItemResourceSchema = z
   .object({
     id: z.uuid(),
@@ -317,6 +302,8 @@ export const desktopBootstrapResourceSchema = z
         revision: sha256RevisionSchema,
         generated_at: isoSecondTimestampSchema,
         valid_until: isoSecondTimestampSchema,
+        currency: currencySchema,
+        currency_exponent: z.number().int().min(0).max(3),
         quantity_scale: z.literal(3),
         minimum_quantity: z.literal('0.001'),
         maximum_quantity: z.literal('999999.999'),
@@ -336,7 +323,6 @@ export const desktopBootstrapResourceSchema = z
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),
-    product_prices: z.array(productPriceResourceSchema).optional(),
     stock_items: z.array(stockItemResourceSchema).optional(),
     taxes: z.array(taxResourceSchema).optional(),
     payment_methods: z.array(paymentMethodResourceSchema).optional(),

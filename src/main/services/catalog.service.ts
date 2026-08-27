@@ -12,9 +12,14 @@ import {
   type CatalogProduct,
   type CatalogProductPage,
   type CatalogSearchInput,
-  type CatalogStatus
+  type CatalogStatus,
+  type CheckoutResolution
 } from '@shared/contracts/catalog.contract'
-import type { CatalogRepository, CatalogSnapshot } from '../repositories/catalog.repository'
+import type {
+  CatalogRepository,
+  CatalogSnapshot,
+  CheckoutResolutionInput
+} from '../repositories/catalog.repository'
 import type { CatalogReadAccess } from './catalogReadAccess.service'
 import type { CatalogTrustedClock } from './catalogTrustedClock.service'
 
@@ -122,6 +127,16 @@ export class CatalogService {
   searchCustomers(input: CatalogCustomerSearchInput): CatalogCustomerPage {
     this.assertReadable()
     return this.repository.searchCustomers(input)
+  }
+
+  /**
+   * Internal to the checkout preview authority. Deliberately not registered as an IPC channel:
+   * the renderer never picks its own products/methods/customer, it only ever names uuids that a
+   * later authoritative resolution re-checks from scratch.
+   */
+  resolveForCheckout(input: CheckoutResolutionInput): CheckoutResolution | null {
+    this.assertReadable()
+    return this.repository.resolveForCheckout(input)
   }
 
   getCustomer(uuid: string): CatalogCustomer {

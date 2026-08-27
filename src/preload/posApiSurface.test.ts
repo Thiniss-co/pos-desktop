@@ -53,6 +53,11 @@ describe('posApi surface', () => {
     expect(source).toContain('close')
   })
 
+  it('contains the single checkout preview method', () => {
+    expect(source).toContain('checkout')
+    expect(source).toContain('checkoutValidate')
+  })
+
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)

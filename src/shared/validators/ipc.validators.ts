@@ -7,6 +7,7 @@ import {
   catalogProductIdInputSchema,
   catalogSearchInputSchema
 } from '@shared/contracts/catalog.contract'
+import { checkoutIntentSchema } from '@shared/contracts/checkout.contract'
 import { localeCodeSchema, themePreferenceSchema } from '@shared/contracts/preferences.contract'
 import {
   closeShiftInputSchema,
@@ -49,6 +50,7 @@ export const shiftsOpenInputSchema = openShiftInputSchema
 export const shiftsPauseInputSchema = pauseShiftInputSchema
 export const shiftsResumeInputSchema = resumeShiftInputSchema
 export const shiftsCloseInputSchema = closeShiftInputSchema
+export const checkoutValidateInputSchema = checkoutIntentSchema
 export const syncGetStatusInputSchema = z.undefined()
 export const connectivityGetStateInputSchema = z.undefined()
 export const connectivityCheckNowInputSchema = z.undefined()

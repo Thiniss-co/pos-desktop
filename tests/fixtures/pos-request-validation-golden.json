@@ -1,0 +1,259 @@
+{
+    "schemaVersion": 1,
+    "calculationVersion": "3d-largest-remainder-v1",
+    "generatedFrom": {
+        "repo": "pos-backend",
+        "commit": "d9351bccbdb2114d81a9a2c70216fd2a2a92754b"
+    },
+    "cases": [
+        {
+            "name": "payment-card-overpayment",
+            "payload": {
+                "idempotency_key": "golden-fixture-request",
+                "local_invoice_uuid": "00000000-0000-4000-8000-000000000010",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sold_at": "2026-08-26T12:00:00Z",
+                "currency": "EGP",
+                "tax_mode": "none",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unit_price_amount": 1000,
+                        "currency": "EGP",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_mode": "none",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "type": "card",
+                        "amount": 1200
+                    }
+                ]
+            },
+            "rejects": [
+                {
+                    "field": "payments",
+                    "rule": "payment_non_cash_overpayment"
+                }
+            ]
+        },
+        {
+            "name": "payment-cash-insufficient-tender",
+            "payload": {
+                "idempotency_key": "golden-fixture-request",
+                "local_invoice_uuid": "00000000-0000-4000-8000-000000000010",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sold_at": "2026-08-26T12:00:00Z",
+                "currency": "EGP",
+                "tax_mode": "none",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unit_price_amount": 1000,
+                        "currency": "EGP",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_mode": "none",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 600
+                    }
+                ]
+            },
+            "rejects": [
+                {
+                    "field": "payments",
+                    "rule": "payment_coverage_insufficient"
+                }
+            ]
+        },
+        {
+            "name": "payment-mixed-overpayment",
+            "payload": {
+                "idempotency_key": "golden-fixture-request",
+                "local_invoice_uuid": "00000000-0000-4000-8000-000000000010",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sold_at": "2026-08-26T12:00:00Z",
+                "currency": "EGP",
+                "tax_mode": "none",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unit_price_amount": 1000,
+                        "currency": "EGP",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_mode": "none",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 800
+                    },
+                    {
+                        "type": "card",
+                        "amount": 400
+                    }
+                ]
+            },
+            "rejects": [
+                {
+                    "field": "payments",
+                    "rule": "payment_non_cash_overpayment"
+                }
+            ]
+        },
+        {
+            "name": "payment-negative-amount",
+            "payload": {
+                "idempotency_key": "golden-fixture-request",
+                "local_invoice_uuid": "00000000-0000-4000-8000-000000000010",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sold_at": "2026-08-26T12:00:00Z",
+                "currency": "EGP",
+                "tax_mode": "none",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unit_price_amount": 1000,
+                        "currency": "EGP",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_mode": "none",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": -100
+                    }
+                ]
+            },
+            "rejects": [
+                {
+                    "field": "payments.0.amount",
+                    "rule": "min",
+                    "parameters": [
+                        "0"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "payment-zero-cash-tender",
+            "payload": {
+                "idempotency_key": "golden-fixture-request",
+                "local_invoice_uuid": "00000000-0000-4000-8000-000000000010",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sold_at": "2026-08-26T12:00:00Z",
+                "currency": "EGP",
+                "tax_mode": "none",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unit_price_amount": 1000,
+                        "currency": "EGP",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_mode": "none",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "type": "cash",
+                        "amount": 0
+                    }
+                ]
+            },
+            "rejects": [
+                {
+                    "field": "payments",
+                    "rule": "payment_coverage_insufficient"
+                }
+            ]
+        },
+        {
+            "name": "payments-empty",
+            "payload": {
+                "idempotency_key": "golden-fixture-request",
+                "local_invoice_uuid": "00000000-0000-4000-8000-000000000010",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sold_at": "2026-08-26T12:00:00Z",
+                "currency": "EGP",
+                "tax_mode": "none",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unit_price_amount": 1000,
+                        "currency": "EGP",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_mode": "none",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": []
+            },
+            "rejects": [
+                {
+                    "field": "payments",
+                    "rule": "required"
+                }
+            ]
+        }
+    ],
+    "sha256": "83c0e6cc967d7ee14d6c18600f6aab4f172075c5c846e6b4ba1e3d7a2d008a5c"
+}

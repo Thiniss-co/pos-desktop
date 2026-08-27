@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
 
-function getDevelopmentRendererUrl(): URL | undefined {
+export function getDevelopmentRendererUrl(): URL | undefined {
   const rendererUrl = process.env['ELECTRON_RENDERER_URL']
 
   if (!is.dev || !rendererUrl) {
@@ -15,7 +15,7 @@ function getDevelopmentRendererUrl(): URL | undefined {
   }
 }
 
-function isAllowedNavigation(url: string, developmentRendererUrl: URL | undefined): boolean {
+export function isAllowedNavigation(url: string, developmentRendererUrl: URL | undefined): boolean {
   try {
     const target = new URL(url)
 

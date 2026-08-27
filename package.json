@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "smoke:database": "node scripts/runElectronNode.mjs scripts/databaseSmoke.ts",
     "test:sqlite:electron": "node scripts/runElectronNode.mjs tests/electron/index.ts",
+    "verify:fixture": "node scripts/verifyFixtureParity.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "dev:linux": "electron-vite dev -- --ozone-platform=x11",

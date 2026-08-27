@@ -11,6 +11,8 @@ const expectedTables = [
   'device_identity',
   'secure_secrets',
   'auth_session_metadata',
+  'session_epoch',
+  'shift_observation',
   'license_state_metadata',
   'bootstrap_state',
   'sync_queue',
@@ -27,7 +29,6 @@ const expectedTables = [
   'categories',
   'products',
   'product_barcodes',
-  'product_prices',
   'stock_items',
   'taxes',
   'payment_methods',
@@ -61,6 +62,10 @@ try {
     if (!tableNames.has(tableName)) {
       throw new Error(`Database smoke test is missing ${tableName}`)
     }
+  }
+
+  if (tableNames.has('product_prices')) {
+    throw new Error('Database smoke test found the retired product_prices table')
   }
 
   function columnNames(table: string): Set<string> {

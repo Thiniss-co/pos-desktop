@@ -3,6 +3,7 @@ import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import { desktopShiftFixture } from '../testing/fixtures/desktopShift.fixture'
 import type { CommercialAccessService } from './commercialAccess.service'
+import type { ShiftObservationAuthority } from './shiftAuthority.service'
 import type { ShiftPermissions } from './shiftPermissions'
 import { ShiftService } from './shift.service'
 
@@ -26,10 +27,22 @@ function setup(): Setup {
     events.push('request')
     return resource
   })
+  const authority: ShiftObservationAuthority = {
+    captureContext: () => ({
+      companyUuid: '11111111-1111-4111-8111-111111111111',
+      deviceUuid: '22222222-2222-4222-8222-222222222222',
+      userUuid: '33333333-3333-4333-8333-333333333333',
+      sessionEpoch: 1
+    }),
+    recordCurrent: () => undefined,
+    markReconciliationRequired: () => undefined,
+    recordMutation: () => undefined
+  }
   const service = new ShiftService(
     { request } as unknown as DesktopApiClient,
     { assertAllowed } as unknown as CommercialAccessService,
-    { assertShiftPermission } as unknown as ShiftPermissions
+    { assertShiftPermission } as unknown as ShiftPermissions,
+    authority
   )
 
   return { service, events, assertAllowed, assertShiftPermission, request }
@@ -190,5 +203,254 @@ describe('ShiftService', () => {
     test.request.mockResolvedValue(desktopShiftFixture({ status: 'cancelled' }))
 
     await expect(test.service.current()).rejects.toThrow()
+  })
+
+  it('persists reconciliation_required before dispatching a shift mutation', async () => {
+    const events: string[] = []
+    const authority: ShiftObservationAuthority = {
+      captureContext: () => ({
+        companyUuid: '11111111-1111-4111-8111-111111111111',
+        deviceUuid: '22222222-2222-4222-8222-222222222222',
+        userUuid: '33333333-3333-4333-8333-333333333333',
+        sessionEpoch: 1
+      }),
+      markReconciliationRequired: (_context, source) => events.push(`mark:${source}`),
+      recordMutation: (_context, source) => events.push(`record:${source}`),
+      recordCurrent: () => events.push('record:current')
+    }
+    const service = new ShiftService(
+      {
+        request: async () => {
+          events.push('request')
+          return resource
+        }
+      } as unknown as DesktopApiClient,
+      { assertAllowed: () => undefined } as unknown as CommercialAccessService,
+      { assertShiftPermission: () => undefined } as unknown as ShiftPermissions,
+      authority
+    )
+
+    await service.close({ uuid: resource.uuid, actualCashAmount: 1000 })
+
+    expect(events).toEqual(['mark:close', 'request', 'record:close'])
+  })
+
+  it('does not pre-write recovery state for a local dispatch precondition failure', async () => {
+    const markReconciliationRequired = vi.fn()
+    const request = vi.fn()
+    const authority: ShiftObservationAuthority = {
+      captureContext: () => ({
+        companyUuid: '11111111-1111-4111-8111-111111111111',
+        deviceUuid: '22222222-2222-4222-8222-222222222222',
+        userUuid: '33333333-3333-4333-8333-333333333333',
+        sessionEpoch: 1
+      }),
+      markReconciliationRequired,
+      recordMutation: () => undefined,
+      recordCurrent: () => undefined
+    }
+    const service = new ShiftService(
+      {
+        assertRequestPreconditions: () => {
+          throw publicAppErrorSchema.parse({
+            category: 'configuration',
+            message: 'Backend is not configured',
+            retryable: false
+          })
+        },
+        request
+      } as unknown as DesktopApiClient,
+      { assertAllowed: () => undefined } as unknown as CommercialAccessService,
+      { assertShiftPermission: () => undefined } as unknown as ShiftPermissions,
+      authority
+    )
+
+    await expect(service.open({ openingCashAmount: 1000 })).rejects.toMatchObject({
+      category: 'configuration'
+    })
+
+    expect(markReconciliationRequired).not.toHaveBeenCalled()
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'DESKTOP_SHIFT_ALREADY_OPEN',
+    'DESKTOP_SHIFT_NOT_OPEN',
+    'DESKTOP_SHIFT_ALREADY_PAUSED',
+    'DESKTOP_SHIFT_NOT_PAUSED',
+    'DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND'
+  ])('retains reconciliation_required when %s cannot reconcile', async (backendCode) => {
+    let authorityState = 'open'
+    const request = vi.fn().mockRejectedValue(
+      publicAppErrorSchema.parse({
+        category: 'conflict',
+        message: 'The shift state changed.',
+        backendCode,
+        retryable: false
+      })
+    )
+    const authority: ShiftObservationAuthority = {
+      captureContext: () => ({
+        companyUuid: '11111111-1111-4111-8111-111111111111',
+        deviceUuid: '22222222-2222-4222-8222-222222222222',
+        userUuid: '33333333-3333-4333-8333-333333333333',
+        sessionEpoch: 1
+      }),
+      markReconciliationRequired: () => {
+        authorityState = 'reconciliation_required'
+      },
+      recordMutation: () => {
+        authorityState = 'shift'
+      },
+      recordCurrent: () => {
+        authorityState = 'current'
+      }
+    }
+    const service = new ShiftService(
+      { request } as unknown as DesktopApiClient,
+      { assertAllowed: () => undefined } as unknown as CommercialAccessService,
+      { assertShiftPermission: () => undefined } as unknown as ShiftPermissions,
+      authority
+    )
+
+    await expect(
+      service.close({ uuid: resource.uuid, actualCashAmount: 1000 })
+    ).rejects.toMatchObject({
+      backendCode
+    })
+
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(authorityState).toBe('reconciliation_required')
+  })
+
+  it('replaces reconciliation_required only after a successful current reconciliation', async () => {
+    const conflict = publicAppErrorSchema.parse({
+      category: 'conflict',
+      message: 'The shift is not open.',
+      backendCode: 'DESKTOP_SHIFT_NOT_OPEN',
+      retryable: false
+    })
+    const request = vi.fn().mockRejectedValueOnce(conflict).mockResolvedValueOnce(resource)
+    const recorded: string[] = []
+    const authority: ShiftObservationAuthority = {
+      captureContext: () => ({
+        companyUuid: '11111111-1111-4111-8111-111111111111',
+        deviceUuid: '22222222-2222-4222-8222-222222222222',
+        userUuid: '33333333-3333-4333-8333-333333333333',
+        sessionEpoch: 1
+      }),
+      markReconciliationRequired: () => recorded.push('reconciliation_required'),
+      recordMutation: () => recorded.push('mutation'),
+      recordCurrent: () => recorded.push('current')
+    }
+    const service = new ShiftService(
+      { request } as unknown as DesktopApiClient,
+      { assertAllowed: () => undefined } as unknown as CommercialAccessService,
+      { assertShiftPermission: () => undefined } as unknown as ShiftPermissions,
+      authority
+    )
+
+    await expect(service.close({ uuid: resource.uuid, actualCashAmount: 1000 })).rejects.toEqual(
+      conflict
+    )
+
+    expect(recorded).toEqual(['reconciliation_required', 'current'])
+    expect(request).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains reconciliation_required when shifts.view is absent during reconciliation', async () => {
+    const request = vi.fn().mockRejectedValue(
+      publicAppErrorSchema.parse({
+        category: 'conflict',
+        message: 'The shift is not open.',
+        backendCode: 'DESKTOP_SHIFT_NOT_OPEN',
+        retryable: false
+      })
+    )
+    const recorded: string[] = []
+    const authority: ShiftObservationAuthority = {
+      captureContext: () => ({
+        companyUuid: '11111111-1111-4111-8111-111111111111',
+        deviceUuid: '22222222-2222-4222-8222-222222222222',
+        userUuid: '33333333-3333-4333-8333-333333333333',
+        sessionEpoch: 1
+      }),
+      markReconciliationRequired: () => recorded.push('reconciliation_required'),
+      recordMutation: () => recorded.push('mutation'),
+      recordCurrent: () => recorded.push('current')
+    }
+    const service = new ShiftService(
+      { request } as unknown as DesktopApiClient,
+      { assertAllowed: () => undefined } as unknown as CommercialAccessService,
+      {
+        assertShiftPermission: (permission) => {
+          if (permission === 'shifts.view') {
+            throw publicAppErrorSchema.parse({
+              category: 'authorization',
+              message: 'Missing shifts.view',
+              retryable: false
+            })
+          }
+        }
+      } as unknown as ShiftPermissions,
+      authority
+    )
+
+    await expect(
+      service.close({ uuid: resource.uuid, actualCashAmount: 1000 })
+    ).rejects.toMatchObject({
+      backendCode: 'DESKTOP_SHIFT_NOT_OPEN'
+    })
+
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(recorded).toEqual(['reconciliation_required'])
+  })
+
+  it.each([
+    publicAppErrorSchema.parse({
+      category: 'transport',
+      message: 'Timed out',
+      retryable: true
+    }),
+    publicAppErrorSchema.parse({
+      category: 'transport',
+      message: 'Server failure',
+      backendCode: 'SERVER_ERROR',
+      retryable: true
+    }),
+    publicAppErrorSchema.parse({
+      category: 'unexpected',
+      message: 'Invalid envelope',
+      backendCode: 'response_envelope_invalid',
+      retryable: false
+    }),
+    new Error('Malformed successful shift response')
+  ])('retains reconciliation_required for ambiguous outcomes', async (failure) => {
+    const request = vi.fn().mockRejectedValue(failure)
+    const recorded: string[] = []
+    const authority: ShiftObservationAuthority = {
+      captureContext: () => ({
+        companyUuid: '11111111-1111-4111-8111-111111111111',
+        deviceUuid: '22222222-2222-4222-8222-222222222222',
+        userUuid: '33333333-3333-4333-8333-333333333333',
+        sessionEpoch: 1
+      }),
+      markReconciliationRequired: () => recorded.push('reconciliation_required'),
+      recordMutation: () => recorded.push('mutation'),
+      recordCurrent: () => recorded.push('current')
+    }
+    const service = new ShiftService(
+      { request } as unknown as DesktopApiClient,
+      { assertAllowed: () => undefined } as unknown as CommercialAccessService,
+      { assertShiftPermission: () => undefined } as unknown as ShiftPermissions,
+      authority
+    )
+
+    await expect(service.close({ uuid: resource.uuid, actualCashAmount: 1000 })).rejects.toBe(
+      failure
+    )
+
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(recorded).toEqual(['reconciliation_required'])
   })
 })

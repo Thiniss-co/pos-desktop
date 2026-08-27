@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
+import type { SessionContext } from '../repositories/sessionMetadata.repository'
 import type { SessionSummary } from '@shared/contracts/auth.contract'
 import { DESKTOP_ACCESS_TOKEN_KEY, SessionService } from './session.service'
 
@@ -43,6 +44,57 @@ function createService(): {
 }
 
 describe('SessionService', () => {
+  it('keeps the epoch stable on refresh and clears authority only when the binding changes', () => {
+    let context: SessionContext = {
+      isAuthenticated: true,
+      userUuid: '11111111-1111-4111-8111-111111111111',
+      userIsActive: true,
+      companyUuid: '22222222-2222-4222-8222-222222222222',
+      deviceUuid: '33333333-3333-4333-8333-333333333333',
+      serverDeviceId: '44444444-4444-4444-8444-444444444444'
+    }
+    const increment = vi.fn()
+    const clearObservation = vi.fn()
+    const service = new SessionService(
+      {
+        getSummary: () => ({
+          isAuthenticated: context.isAuthenticated,
+          userName: 'Cashier',
+          userEmail: 'cashier@example.test'
+        }),
+        getContext: () => context,
+        establish: (input) => {
+          context = {
+            isAuthenticated: true,
+            userUuid: input.userUuid ?? null,
+            userIsActive: input.userIsActive === true,
+            companyUuid: input.companyUuid ?? null,
+            deviceUuid: input.deviceUuid ?? null,
+            serverDeviceId: input.serverDeviceId ?? null
+          }
+        },
+        clear: () => undefined
+      },
+      { deleteSecret: () => undefined },
+      { epoch: { increment }, observations: { clear: clearObservation } }
+    )
+    const input = {
+      userName: 'Cashier',
+      userEmail: 'cashier@example.test',
+      userUuid: '11111111-1111-4111-8111-111111111111',
+      userIsActive: true,
+      companyUuid: '22222222-2222-4222-8222-222222222222',
+      deviceUuid: '33333333-3333-4333-8333-333333333333',
+      serverDeviceId: '44444444-4444-4444-8444-444444444444'
+    }
+
+    service.refreshSession(input)
+    service.refreshSession({ ...input, companyUuid: '55555555-5555-4555-8555-555555555555' })
+
+    expect(increment).not.toHaveBeenCalled()
+    expect(clearObservation).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['USER_INACTIVE', 'SESSION_REVOKED', 'UNAUTHENTICATED', 'DESKTOP_TOKEN_NOT_BOUND'])(
     'ends only the current session for %s',
     (backendCode) => {
