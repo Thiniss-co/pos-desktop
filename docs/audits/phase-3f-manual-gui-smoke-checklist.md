@@ -99,9 +99,22 @@ invoice; movement `synced` being impossible.
   make is `POST /api/v1/desktop/stock-allocations/top-up` — in particular **no invoice upload is
   attempted**.
 
-> **D20 has an expiry date.** It is true only while Phase 3G has not shipped. The moment the
-> controlled-upload worker lands (CP-3G-3), D20 inverts: invoice upload *must* be attempted. Run this
-> checklist **before** starting 3G implementation, or record which items were run after it.
+> **D20 has expired as written — decided 2026-09-02.** It was true only while Phase 3G had no
+> worker. **CP-3G-3 (commit on this branch) ships the upload worker**, so on current `main` an
+> invoice upload *is* attempted, by design. The user was asked and chose to continue rather than
+> block 3G on this checklist.
+>
+> To run **D20** as written, check out the last commit before the worker existed:
+>
+> ```
+> git checkout ca3ce84    # CP-3G-2: queue repository, still no dispatcher
+> npm run dev
+> # ...run D20, then: git checkout main
+> ```
+>
+> Every other item (A1–A3, B1–B7, C8–C17, D18–D19) is unaffected by the worker and can be run on
+> current `main`. On `main`, D20's replacement is: the only outbound calls are `/api/v1/desktop/*`,
+> and an invoice upload **is** attempted once a sale is queued and the device is online.
 
 ---
 

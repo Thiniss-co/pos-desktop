@@ -12,6 +12,13 @@ export interface SaleCompletionDependencies {
   >
   readonly acquisition: Pick<AllocationAcquisitionService, 'acquire'>
   readonly now?: () => Date
+  /**
+   * Fired after a sale actually commits, so the upload worker can drain the row that was just
+   * queued instead of waiting for an unrelated trigger. Purely a scheduling hint: it grants no
+   * authority, and the worker re-runs its whole authorization gate regardless. Never throws into
+   * the sale path — a sale is complete whether or not anything is listening.
+   */
+  readonly onSaleCommitted?: () => void
 }
 
 /**
@@ -118,6 +125,17 @@ export class SaleCompletionService {
       }
     }
 
-    return this.dependencies.localSale.runPrepared(prepared)
+    const outcome = this.dependencies.localSale.runPrepared(prepared)
+
+    if (outcome.outcome === 'committed') {
+      try {
+        this.dependencies.onSaleCommitted?.()
+      } catch {
+        // The sale is committed and durable. A listener that throws must never turn a completed
+        // sale into a failed one.
+      }
+    }
+
+    return outcome
   }
 }

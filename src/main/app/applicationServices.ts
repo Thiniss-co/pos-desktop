@@ -23,6 +23,9 @@ import { ShiftObservationRepository } from '../repositories/shiftObservation.rep
 import { StockAllocationRepository } from '../repositories/stockAllocation.repository'
 import { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../repositories/syncQueue.repository'
+import { InvoiceUploadOutcomeRecorder } from '../sync/invoiceUploadOutcome'
+import { InvoiceUploadWorker } from '../sync/invoiceUploadWorker'
+import { uploadInvoice } from '../sync/invoiceUpload.client'
 import { ActivationService } from '../services/activation.service'
 import { AllocationAcquisitionService } from '../services/allocationAcquisition.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
@@ -76,6 +79,7 @@ export interface ApplicationServices {
   readonly saleCompletion: SaleCompletionService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
+  readonly invoiceUploads: InvoiceUploadWorker
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -121,6 +125,8 @@ export function createApplicationServices(): ApplicationServices {
     observations: shiftObservations
   })
   let commercialAccessPublisher: CommercialAccessPublisher | null = null
+  // Assigned once the upload worker exists; the connectivity service is constructed before it.
+  let invoiceUploadTrigger: (() => void) | null = null
   const connectivity = new ConnectivityService({
     apiOrigin: runtimeConfig.apiOrigin,
     isOnline: () => net.isOnline(),
@@ -132,6 +138,11 @@ export function createApplicationServices(): ApplicationServices {
     onChange: (snapshot) => {
       broadcastConnectivityChanged(snapshot)
       commercialAccessPublisher?.publishCurrent()
+
+      if (snapshot.status === 'online') {
+        // Coming back online is the single most likely moment for a queue to be drainable.
+        invoiceUploadTrigger?.()
+      }
     }
   })
 
@@ -258,9 +269,25 @@ export function createApplicationServices(): ApplicationServices {
     allocationService,
     connectivity
   })
+  const invoiceUploads = new InvoiceUploadWorker({
+    syncQueue,
+    recorder: new InvoiceUploadOutcomeRecorder({
+      database,
+      syncQueue,
+      localSale: localSaleRepository,
+      syncConflicts
+    }),
+    commercialAccess,
+    permissions: bootstrapSnapshot,
+    session: sessionMetadata,
+    upload: (payloadJson) => uploadInvoice(apiClient, payloadJson)
+  })
+  invoiceUploadTrigger = () => invoiceUploads.requestRun()
   const saleCompletion = new SaleCompletionService({
     localSale,
-    acquisition: allocationAcquisition
+    acquisition: allocationAcquisition,
+    // A sale that just queued a row should not wait for an unrelated trigger to be uploaded.
+    onSaleCommitted: () => invoiceUploads.requestRun()
   })
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
@@ -292,6 +319,7 @@ export function createApplicationServices(): ApplicationServices {
     saleCompletion,
     companyUsers,
     connectivity,
+    invoiceUploads,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),
@@ -302,6 +330,7 @@ export function createApplicationServices(): ApplicationServices {
         apiConfiguration: runtimeConfig.apiConfiguration
       }),
     shutdown: () => {
+      invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()
       closeDatabase(database)

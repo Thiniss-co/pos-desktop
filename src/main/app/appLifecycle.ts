@@ -28,6 +28,11 @@ export function bootstrapApp(): void {
       registerIpcHandlers(services)
       services.connectivity.start()
 
+      // Drain anything left queued by a previous run. Deliberately after registerIpcHandlers, so a
+      // reclaim or a pause is already observable by the time the renderer can ask for status. The
+      // worker re-runs its own authorization gate, so starting it here grants it nothing.
+      services.invoiceUploads.requestRun()
+
       // Connectivity is demand-driven: there is no polling loop. Regaining focus is the moment the
       // operator is about to act on backend-dependent state, so the verdict is refreshed then —
       // and only if it is already stale, so window churn costs nothing.
