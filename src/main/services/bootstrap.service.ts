@@ -49,13 +49,21 @@ function traceBootstrapContractError(error: ZodError): void {
     return
   }
 
-  const issuePath = error.issues[0]?.path.join('.')
+  const issue = error.issues[0]
+  const issuePath = issue?.path.join('.')
   const fieldPath =
     issuePath && traceableBootstrapContractPaths.has(issuePath) ? issuePath : '<redacted-path>'
+  // A backend that adds a field the desktop build does not know about fails the strict parse with
+  // no usable path, which is indistinguishable from a real contract break in the trace. The key
+  // names are backend schema shape, never payload values, so they are safe to name here.
+  const unknownKeys =
+    issue?.code === 'unrecognized_keys' && issue.keys.length > 0
+      ? ` unknown_keys=${[...issue.keys].sort().join(',')}`
+      : ''
 
   console.error(
     redactSensitiveText(
-      `[pos-api] category=bootstrap_payload_contract_invalid field_path=${fieldPath}`
+      `[pos-api] category=bootstrap_payload_contract_invalid field_path=${fieldPath}${unknownKeys}`
     )
   )
 }

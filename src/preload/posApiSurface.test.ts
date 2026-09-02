@@ -53,14 +53,28 @@ describe('posApi surface', () => {
     expect(source).toContain('close')
   })
 
-  it('contains the single checkout preview method', () => {
+  it('contains the checkout preview method and the five Phase 3F completion/recovery methods', () => {
     expect(source).toContain('checkout')
     expect(source).toContain('checkoutValidate')
+    expect(source).toContain('complete')
+    expect(source).toContain('retryAttempt')
+    expect(source).toContain('abandonAttempt')
+    expect(source).toContain('acknowledgeAttempt')
+    expect(source).toContain('pendingAttempts')
   })
 
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)
+  })
+
+  it('exposes no stock-allocation request, grant, or revision capability (CP-5D)', () => {
+    // Allocation acquisition is main-only and reachable solely as a side effect of
+    // `checkout:complete`/`checkout:retry-attempt`; the renderer can neither ask for a grant nor
+    // name one.
+    expect(source).not.toMatch(/allocation/i)
+    expect(source).not.toMatch(/top-?up/i)
+    expect(source).not.toMatch(/idempotency/i)
   })
 
   it('keeps runtime validation out of the sandboxed preload bundle', () => {

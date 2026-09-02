@@ -1,7 +1,14 @@
 import { normalizeCatalogSearch } from '@shared/catalog/normalization'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
-import type { DesktopBootstrapResource } from '../http/desktopResources.contract'
+import type {
+  DesktopBootstrapResource,
+  StockAllocationResource
+} from '../http/desktopResources.contract'
 import type { SqliteDatabase } from '../database/connection'
+import type {
+  BootstrapStockAllocationGrant,
+  StockAllocationRepository
+} from './stockAllocation.repository'
 
 export interface BootstrapPersistResult {
   readonly snapshotVersion: string
@@ -13,6 +20,20 @@ export interface BootstrapPersistResult {
 
 export interface BootstrapCompany {
   readonly companyUuid: string
+  readonly name: string
+  readonly isActive: boolean
+  readonly updatedAt: string
+}
+
+export interface BootstrapBranch {
+  readonly branchUuid: string
+  readonly name: string
+  readonly isActive: boolean
+  readonly updatedAt: string
+}
+
+export interface BootstrapWarehouse {
+  readonly warehouseUuid: string
   readonly name: string
   readonly isActive: boolean
   readonly updatedAt: string
@@ -35,6 +56,14 @@ interface CatalogManifest {
   readonly paymentMethods: number
   readonly customers: number
 }
+
+type AllocationSnapshot =
+  | { readonly state: 'unavailable' }
+  | {
+      readonly state: 'supported'
+      readonly revision: number
+      readonly grants: readonly BootstrapStockAllocationGrant[]
+    }
 
 function catalogSnapshotError(
   code: string,
@@ -159,16 +188,121 @@ function assertCatalogSemantics(resource: DesktopBootstrapResource): CatalogMani
   }
 }
 
+function allocationContractError(message: string): ReturnType<typeof publicAppErrorSchema.parse> {
+  return publicAppErrorSchema.parse({
+    category: 'rejected',
+    message,
+    backendCode: 'BOOTSTRAP_ALLOCATION_CONTRACT_INVALID',
+    retryable: false
+  })
+}
+
+/**
+ * Validates the capability pair and every server envelope before *any* durable bootstrap write.
+ * A full bootstrap omission only makes an old grant unusable; it never deletes the evidence or
+ * silently turns it into a release.
+ */
+function resolveAllocationSnapshot(resource: DesktopBootstrapResource): AllocationSnapshot {
+  const allocationsPresent = Object.hasOwn(resource, 'stock_allocations')
+  const revisionPresent = Object.hasOwn(resource, 'stock_allocation_revision')
+  if (allocationsPresent !== revisionPresent) {
+    throw allocationContractError(
+      'The workstation allocation capability is incomplete. Refresh after updating the backend.'
+    )
+  }
+  if (!allocationsPresent) {
+    return { state: 'unavailable' }
+  }
+
+  const allocations = resource.stock_allocations
+  const revision = resource.stock_allocation_revision
+  if (!allocations || revision === undefined) {
+    throw allocationContractError('The workstation allocation capability is malformed.')
+  }
+
+  const products = new Set((resource.products ?? []).map((product) => product.uuid))
+  const stockItems = new Set(
+    (resource.stock_items ?? []).map((item) => `${item.product_uuid}:${item.warehouse_uuid}`)
+  )
+  const allocationUuids = new Set<string>()
+  const grants = allocations.map((allocation) => {
+    assertAllocationEnvelope(resource, allocation, products, stockItems, allocationUuids)
+    return {
+      allocationUuid: allocation.id,
+      contractVersion: allocation.contract_version,
+      companyUuid: allocation.company_uuid,
+      deviceUuid: allocation.device_uuid,
+      warehouseUuid: allocation.warehouse_uuid,
+      productUuid: allocation.product_uuid,
+      serverSequence: allocation.server_sequence,
+      rightsGeneration: allocation.rights_generation,
+      lifecycleGeneration: allocation.lifecycle_generation,
+      grantedQuantityMilli: allocation.granted_quantity_milli,
+      consumedQuantityMilli: allocation.consumed_quantity_milli,
+      remainingQuantityMilli: allocation.remaining_quantity_milli,
+      consumeUntil: allocation.consume_until,
+      status: allocation.status,
+      envelopeHash: allocation.envelope_hash,
+      sealNonce: allocation.seal_nonce,
+      finalConsumptionSequence: allocation.final_consumption_sequence,
+      finalConsumptionHash: allocation.final_consumption_hash,
+      receivedAt: resource.server_time,
+      sealedAt: allocation.sealed_at,
+      acknowledgedAt: allocation.acknowledged_at,
+      releasedAt: allocation.released_at
+    }
+  })
+
+  return { state: 'supported', revision, grants }
+}
+
+function assertAllocationEnvelope(
+  resource: DesktopBootstrapResource,
+  allocation: StockAllocationResource,
+  products: ReadonlySet<string>,
+  stockItems: ReadonlySet<string>,
+  allocationUuids: Set<string>
+): void {
+  if (allocationUuids.has(allocation.id)) {
+    throw allocationContractError('The allocation snapshot contains a duplicate grant.')
+  }
+  allocationUuids.add(allocation.id)
+
+  if (
+    allocation.company_uuid !== resource.company.id ||
+    allocation.device_uuid !== resource.device.device_uuid ||
+    !products.has(allocation.product_uuid) ||
+    !stockItems.has(`${allocation.product_uuid}:${allocation.warehouse_uuid}`)
+  ) {
+    throw allocationContractError('The allocation snapshot contains a foreign or unknown grant.')
+  }
+  if (
+    allocation.lifecycle_generation < allocation.rights_generation ||
+    allocation.consumed_quantity_milli > allocation.granted_quantity_milli ||
+    allocation.remaining_quantity_milli !==
+      allocation.granted_quantity_milli - allocation.consumed_quantity_milli
+  ) {
+    throw allocationContractError('The allocation snapshot contains inconsistent grant quantities.')
+  }
+}
+
 /**
  * Persists a full desktop bootstrap snapshot as one atomic replace-in-transaction. Phase 2 only
  * performs full (non-incremental) bootstrap, so each entity table is fully replaced; incremental
  * upsert/tombstone handling is deferred to a later phase.
  */
 export class BootstrapSnapshotRepository {
-  constructor(private readonly database: SqliteDatabase) {}
+  constructor(
+    private readonly database: SqliteDatabase,
+    private readonly stockAllocations?: Pick<
+      StockAllocationRepository,
+      'ingestBootstrapSnapshot' | 'markCapabilityUnavailable'
+    >
+  ) {}
 
   persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult {
     const manifest = assertCatalogSemantics(resource)
+    const allocationSnapshot = resolveAllocationSnapshot(resource)
     const counts: Record<string, number> = {}
     const current = this.getCatalogMetadata()
     const incomingGeneratedAt = Date.parse(resource.catalog_contract.generated_at)
@@ -200,6 +334,7 @@ export class BootstrapSnapshotRepository {
 
         const commitIdempotent = this.database.transaction(() => {
           this.persistBootstrapContext(resource, fetchedAt)
+          this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
           this.database
             .prepare('UPDATE catalog_metadata SET fetched_at = ? WHERE id = 1')
             .run(fetchedAt)
@@ -407,6 +542,8 @@ export class BootstrapSnapshotRepository {
           )
       )
 
+      this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
+
       if (!this.isCatalogIntact(manifest)) {
         throw catalogSnapshotError(
           'CATALOG_SNAPSHOT_INTEGRITY_FAILED',
@@ -462,6 +599,58 @@ export class BootstrapSnapshotRepository {
     return row
       ? {
           companyUuid: row.company_uuid,
+          name: row.name,
+          isActive: row.is_active === 1,
+          updatedAt: row.updated_at
+        }
+      : null
+  }
+
+  /**
+   * Phase 3F plan §5.4/§3.8: the singleton branch assignment, so completion/attribution can be
+   * captured in main without a duplicate unscoped reader. Returns null when the device has no
+   * current branch assignment — every completion requires this to be present.
+   */
+  getBranch(): BootstrapBranch | null {
+    const row = this.database
+      .prepare('SELECT branch_uuid, name, is_active, updated_at FROM bootstrap_branch WHERE id = 1')
+      .get() as
+      | {
+          readonly branch_uuid: string
+          readonly name: string
+          readonly is_active: number
+          readonly updated_at: string
+        }
+      | undefined
+
+    return row
+      ? {
+          branchUuid: row.branch_uuid,
+          name: row.name,
+          isActive: row.is_active === 1,
+          updatedAt: row.updated_at
+        }
+      : null
+  }
+
+  /** Phase 3F plan §5.4/§3.8: the singleton warehouse assignment (see getBranch()). */
+  getWarehouse(): BootstrapWarehouse | null {
+    const row = this.database
+      .prepare(
+        'SELECT warehouse_uuid, name, is_active, updated_at FROM bootstrap_warehouse WHERE id = 1'
+      )
+      .get() as
+      | {
+          readonly warehouse_uuid: string
+          readonly name: string
+          readonly is_active: number
+          readonly updated_at: string
+        }
+      | undefined
+
+    return row
+      ? {
+          warehouseUuid: row.warehouse_uuid,
           name: row.name,
           isActive: row.is_active === 1,
           updatedAt: row.updated_at
@@ -604,6 +793,19 @@ export class BootstrapSnapshotRepository {
       catalog_price_revisions: manifest.priceRevisions,
       catalog_tax_revisions: manifest.taxRevisions
     }
+  }
+
+  private persistAllocationSnapshot(snapshot: AllocationSnapshot, fetchedAt: string): void {
+    if (!this.stockAllocations) {
+      throw new Error('Bootstrap allocation persistence is not configured')
+    }
+
+    if (snapshot.state === 'unavailable') {
+      this.stockAllocations.markCapabilityUnavailable(fetchedAt)
+      return
+    }
+
+    this.stockAllocations.ingestBootstrapSnapshot(snapshot.revision, snapshot.grants, fetchedAt)
   }
 
   private markBootstrapComplete(

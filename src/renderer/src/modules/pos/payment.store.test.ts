@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import type { CheckoutIntent, CheckoutPreviewOutcome } from '@shared/contracts/checkout.contract'
+import type {
+  CheckoutCompletionOutcome,
+  CheckoutIntent,
+  CheckoutPreviewOutcome,
+  CheckoutRecoveryState
+} from '@shared/contracts/checkout.contract'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
-import type { CheckoutRendererService } from './checkout.service'
+import { CheckoutRendererService } from './checkout.service'
 import { usePaymentStore } from './payment.store'
 
 function baseIntent(): CheckoutIntent {
@@ -232,5 +237,613 @@ describe('usePaymentStore', () => {
 
     expect(store.previewOutcome).toBeNull()
     expect(store.previewError).not.toBeNull()
+  })
+
+  it('generates an attemptKey on the first complete() call and clears the cart on commit', async () => {
+    const store = usePaymentStore()
+    const outcome: CheckoutCompletionOutcome = {
+      outcome: 'committed',
+      attemptKey: 'irrelevant-to-the-store',
+      invoice: {} as never,
+      items: [],
+      payments: [],
+      replay: false
+    }
+    let calledWithKey: string | null = null
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => {
+        calledWithKey = key
+        return outcome
+      }
+    }
+    let cleared = false
+
+    expect(store.attemptKey).toBeNull()
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => (cleared = true),
+      service
+    )
+
+    expect(store.attemptKey).not.toBeNull()
+    expect(calledWithKey).toBe(store.attemptKey)
+    expect(cleared).toBe(true)
+    expect(store.completionOutcome).toEqual(outcome)
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('clears completionPending when the committed callback changes the cart token', async () => {
+    const store = usePaymentStore()
+    let cartToken = 'cart-before-commit'
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => ({
+        outcome: 'committed',
+        attemptKey: key,
+        invoice: {} as never,
+        items: [],
+        payments: [],
+        replay: false
+      })
+    }
+
+    await store.complete(
+      () => cartToken,
+      baseIntent(),
+      () => (cartToken = 'cart-cleared-after-commit'),
+      service
+    )
+
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('does not submit a committed completion a second time', async () => {
+    const store = usePaymentStore()
+    const keysSeen: string[] = []
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => {
+        keysSeen.push(key)
+        return {
+          outcome: 'committed',
+          attemptKey: key,
+          invoice: {} as never,
+          items: [],
+          payments: [],
+          replay: false
+        }
+      }
+    }
+
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(keysSeen).toHaveLength(1)
+  })
+
+  it('retains the same attempt key when an allocation acquisition is left unresolved', async () => {
+    const store = usePaymentStore()
+    const keysSeen: string[] = []
+    const cartToken = 'unresolved-acquisition-cart'
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => {
+        keysSeen.push(key)
+        return {
+          outcome: 'failed',
+          code: 'allocation-acquisition-unresolved',
+          attemptKey: key
+        }
+      }
+    }
+
+    await store.complete(
+      () => cartToken,
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    // CP-5D-C/F5: an ambiguous acquisition is not a T3 rejection. The key survives so the retry
+    // replays the identical backend request instead of minting one that could double-reserve stock.
+    const firstKey = store.attemptKey
+    expect(firstKey).not.toBeNull()
+    expect(store.completionPending).toBe(false)
+    expect(store.completionOutcome).toMatchObject({
+      outcome: 'failed',
+      code: 'allocation-acquisition-unresolved'
+    })
+
+    await store.complete(
+      () => cartToken,
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(store.attemptKey).toBe(firstKey)
+    expect(keysSeen).toEqual([firstKey, firstKey])
+  })
+
+  it('keeps the draft and permits an explicit new-key retry after a definite rejection', async () => {
+    const store = usePaymentStore()
+    const keysSeen: string[] = []
+    const cartToken = 'unchanged-rejected-cart'
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => {
+        keysSeen.push(key)
+        return {
+          outcome: 'rejected',
+          attemptKey: key,
+          failureCode: 'stock-allocation-unavailable'
+        }
+      }
+    }
+
+    await store.complete(
+      () => cartToken,
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(store.attemptKey).toBeNull()
+    expect(store.completionOutcome).toMatchObject({ outcome: 'rejected' })
+    expect(store.completionPending).toBe(false)
+
+    await store.complete(
+      () => cartToken,
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(keysSeen).toHaveLength(2)
+    expect(keysSeen[0]).not.toBe(keysSeen[1])
+  })
+
+  it('clears completionPending for a terminal failed outcome', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async () => ({
+        outcome: 'failed',
+        code: 'permission-denied',
+        attemptKey: null
+      })
+    }
+
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(store.completionOutcome).toMatchObject({ outcome: 'failed' })
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('records the blocking attempt key when a fresh key is refused as attempt-blocked', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async () => ({
+        outcome: 'failed',
+        code: 'attempt-blocked',
+        attemptKey: null,
+        blockingAttemptKey: 'stuck-attempt-key'
+      })
+    }
+
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(store.isBlocked).toBe(true)
+    expect(store.blockingAttemptKey).toBe('stuck-attempt-key')
+  })
+
+  it('never calls the service twice while a completion is already pending (no double submit)', async () => {
+    let resolveFirst!: (value: CheckoutCompletionOutcome) => void
+    const first = new Promise<CheckoutCompletionOutcome>((resolve) => {
+      resolveFirst = resolve
+    })
+    let calls = 0
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: () => {
+        calls += 1
+        return first
+      }
+    }
+
+    const pending = store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+    resolveFirst({
+      outcome: 'committed',
+      attemptKey: 'k',
+      invoice: {} as never,
+      items: [],
+      payments: [],
+      replay: false
+    })
+    await pending
+
+    expect(calls).toBe(1)
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('drops a stale completion reply when the cart context changes while in flight', async () => {
+    let resolveFirst!: (value: CheckoutCompletionOutcome) => void
+    const first = new Promise<CheckoutCompletionOutcome>((resolve) => {
+      resolveFirst = resolve
+    })
+    const store = usePaymentStore()
+    let token = 'context-1'
+    const service: Pick<CheckoutRendererService, 'complete'> = { complete: () => first }
+    let cleared = false
+
+    const pending = store.complete(
+      () => token,
+      baseIntent(),
+      () => (cleared = true),
+      service
+    )
+    token = 'context-2'
+    resolveFirst({
+      outcome: 'committed',
+      attemptKey: 'k',
+      invoice: {} as never,
+      items: [],
+      payments: [],
+      replay: false
+    })
+    await pending
+
+    expect(cleared).toBe(false)
+    expect(store.completionOutcome).toBeNull()
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('surfaces a thrown backend error as a localized completion error', async () => {
+    const store = usePaymentStore()
+    const error = publicAppErrorSchema.parse({
+      category: 'rejected',
+      message: 'Denied',
+      backendCode: 'CHECKOUT_PERMISSION_DENIED',
+      retryable: false
+    })
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async () => {
+        throw error
+      }
+    }
+
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(store.completionOutcome).toBeNull()
+    expect(store.completionError).not.toBeNull()
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('keeps the same attempt key after a transport ambiguity', async () => {
+    const store = usePaymentStore()
+    const keysSeen: string[] = []
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => {
+        keysSeen.push(key)
+        if (keysSeen.length === 1) {
+          throw new Error('response lost')
+        }
+
+        return { outcome: 'failed', code: 'attempt-unresolved', attemptKey: key }
+      }
+    }
+
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(keysSeen).toHaveLength(2)
+    expect(keysSeen[1]).toBe(keysSeen[0])
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('rejects a malformed completion response and clears completionPending', async () => {
+    const store = usePaymentStore()
+    const service = new CheckoutRendererService({
+      complete: async () => ({
+        ok: true,
+        data: { outcome: 'committed' }
+      })
+    } as unknown as Window['posApi']['checkout'])
+
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    expect(store.completionOutcome).toBeNull()
+    expect(store.completionError).not.toBeNull()
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('retryAttempt clears the blocking key on a successful commit', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async () => ({
+        outcome: 'failed',
+        code: 'attempt-blocked',
+        attemptKey: null,
+        blockingAttemptKey: 'stuck-attempt-key'
+      })
+    }
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+    expect(store.blockingAttemptKey).toBe('stuck-attempt-key')
+
+    const retryService: Pick<CheckoutRendererService, 'retryAttempt'> = {
+      retryAttempt: async () => ({
+        outcome: 'committed',
+        attemptKey: 'stuck-attempt-key',
+        invoice: {} as never,
+        items: [],
+        payments: [],
+        replay: false
+      })
+    }
+    await store.retryAttempt('stuck-attempt-key', retryService)
+
+    expect(store.blockingAttemptKey).toBeNull()
+  })
+
+  it('drops a stale retryAttempt reply if the owner context changed while it was in flight', async () => {
+    let resolveFirst!: (value: CheckoutCompletionOutcome) => void
+    const first = new Promise<CheckoutCompletionOutcome>((resolve) => {
+      resolveFirst = resolve
+    })
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'retryAttempt'> = { retryAttempt: () => first }
+
+    const pending = store.retryAttempt('stuck-attempt-key', service)
+    store.resetPayment() // simulates logout/device-recovery/cashier change mid-flight
+    resolveFirst({
+      outcome: 'committed',
+      attemptKey: 'stuck-attempt-key',
+      invoice: {} as never,
+      items: [],
+      payments: [],
+      replay: false
+    })
+    await pending
+
+    // The stale reply must never re-populate state for whoever the owner is now.
+    expect(store.completionOutcome).toBeNull()
+    expect(store.blockingAttemptKey).toBeNull()
+  })
+
+  it('abandonAttempt frees both the blocking key and a matching current attemptKey', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async () => ({
+        outcome: 'failed',
+        code: 'attempt-blocked',
+        attemptKey: null,
+        blockingAttemptKey: 'stuck-attempt-key'
+      })
+    }
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+    const key = store.attemptKey as unknown as string
+
+    const abandonService: Pick<CheckoutRendererService, 'abandonAttempt'> = {
+      abandonAttempt: async () => ({ outcome: 'abandoned', attemptKey: 'stuck-attempt-key' })
+    }
+    await store.abandonAttempt('stuck-attempt-key', abandonService)
+
+    expect(store.blockingAttemptKey).toBeNull()
+    // Only clears the store's own attemptKey when it matches the abandoned key exactly.
+    expect(store.attemptKey === null || store.attemptKey === key).toBe(true)
+  })
+
+  it('acknowledgeAttempt removes the key from pendingResults and frees a matching attemptKey', async () => {
+    const store = usePaymentStore()
+    const discoverService: Pick<CheckoutRendererService, 'pendingAttempts'> = {
+      pendingAttempts: async (): Promise<CheckoutRecoveryState> => ({
+        blockingAttempt: null,
+        unacknowledgedResults: [
+          { attemptKey: 'committed-key', committedAt: '2026-01-01T00:00:00Z' }
+        ],
+        nextCursor: null
+      })
+    }
+    await store.discoverPending(discoverService)
+    expect(store.pendingResults).toHaveLength(1)
+
+    const ackService: Pick<CheckoutRendererService, 'acknowledgeAttempt'> = {
+      acknowledgeAttempt: async () => ({
+        outcome: 'acknowledged',
+        attemptKey: 'committed-key',
+        invoice: {} as never,
+        items: [],
+        payments: [],
+        replay: false
+      })
+    }
+    await store.acknowledgeAttempt('committed-key', ackService)
+
+    expect(store.pendingResults).toHaveLength(0)
+  })
+
+  it("acknowledging this draft's own sale clears the tendered rows for the next customer", async () => {
+    const store = usePaymentStore()
+    store.beginAddRow('method-cash')
+    store.setDraftAmountText('10.00')
+    store.commitDraftRow(2)
+    expect(store.rows).toHaveLength(1)
+
+    const completeService: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async (key) => ({
+        outcome: 'committed',
+        attemptKey: key,
+        invoice: {} as never,
+        items: [],
+        payments: [],
+        replay: false
+      })
+    }
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      completeService
+    )
+    const key = store.attemptKey
+    expect(key).not.toBeNull()
+    // The committed result — and the change due it carries — stays on screen until acknowledged.
+    expect(store.rows).toHaveLength(1)
+
+    const ackService: Pick<CheckoutRendererService, 'acknowledgeAttempt'> = {
+      acknowledgeAttempt: async (ackKey) => ({
+        outcome: 'acknowledged',
+        attemptKey: ackKey,
+        invoice: {} as never,
+        items: [],
+        payments: [],
+        replay: false
+      })
+    }
+    await store.acknowledgeAttempt(key as string, ackService)
+
+    expect(store.rows).toHaveLength(0)
+    expect(store.paidTotalAmount).toBe(0)
+    expect(store.attemptKey).toBeNull()
+    expect(store.completionOutcome).toBeNull()
+    expect(store.previewOutcome).toBeNull()
+    expect(store.isEditingDraft).toBe(false)
+  })
+
+  it('acknowledging an unrelated recovery result leaves the current draft alone', async () => {
+    const store = usePaymentStore()
+    store.beginAddRow('method-cash')
+    store.setDraftAmountText('10.00')
+    store.commitDraftRow(2)
+
+    const ackService: Pick<CheckoutRendererService, 'acknowledgeAttempt'> = {
+      acknowledgeAttempt: async () => ({
+        outcome: 'acknowledged',
+        attemptKey: 'someone-elses-crash-key',
+        invoice: {} as never,
+        items: [],
+        payments: [],
+        replay: false
+      })
+    }
+    await store.acknowledgeAttempt('someone-elses-crash-key', ackService)
+
+    expect(store.rows).toHaveLength(1)
+    expect(store.paidTotalAmount).toBe(1000)
+  })
+
+  it('discoverPending populates blockingAttemptKey and pendingResults from a fresh read', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'pendingAttempts'> = {
+      pendingAttempts: async (): Promise<CheckoutRecoveryState> => ({
+        blockingAttempt: {
+          attemptKey: 'claimed-key',
+          state: 'claimed',
+          claimedAt: '2026-01-01T00:00:00Z'
+        },
+        unacknowledgedResults: [],
+        nextCursor: null
+      })
+    }
+
+    await store.discoverPending(service)
+
+    expect(store.blockingAttemptKey).toBe('claimed-key')
+    expect(store.isBlocked).toBe(true)
+  })
+
+  it('discoverPending swallows a thrown error rather than rejecting the caller', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'pendingAttempts'> = {
+      pendingAttempts: async () => {
+        throw new Error('not yet authenticated')
+      }
+    }
+
+    await expect(store.discoverPending(service)).resolves.toBeUndefined()
+    expect(store.blockingAttemptKey).toBeNull()
+  })
+
+  it('resetPayment clears completion and recovery state alongside the payment draft', async () => {
+    const store = usePaymentStore()
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: async () => ({
+        outcome: 'failed',
+        code: 'attempt-blocked',
+        attemptKey: null,
+        blockingAttemptKey: 'stuck-attempt-key'
+      })
+    }
+    await store.complete(
+      () => 'cart-token',
+      baseIntent(),
+      () => undefined,
+      service
+    )
+
+    store.resetPayment()
+
+    expect(store.attemptKey).toBeNull()
+    expect(store.completionOutcome).toBeNull()
+    expect(store.blockingAttemptKey).toBeNull()
+    expect(store.pendingResults).toHaveLength(0)
   })
 })

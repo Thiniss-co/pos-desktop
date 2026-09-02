@@ -53,9 +53,17 @@ branch         { id, name, is_active } | null
 warehouse      { id, name, is_active } | null
 sync           { snapshot_version, full_sync_required, entities: { <name>: { count,
                   last_changed_at } } }
+stock_allocations         StockAllocationResource[] — device-bound allocation envelopes the
+                  server currently holds for this device (read-only here; bootstrap never grants,
+                  seals, or releases). Absent on a backend predating the allocation contract.
+stock_allocation_revision int — the device's latest allocation lifecycle-audit id
 categories, products, product_barcodes, product_prices, stock_items, taxes,
 payment_methods, customers   — arrays, present when requested (Phase 2 requests all)
 ```
+
+`stock_items` rows also carry `allocation_reserved_quantity` (the slice of `reserved_quantity`
+held by allocation envelopes). It is parsed but not persisted locally yet — `available_quantity`
+remains the sellable figure the local snapshot stores.
 
 Full field-level entity shapes are transcribed in
 `src/main/http/desktopResources.contract.ts` (main-process-only — this file is intentionally not

@@ -13,16 +13,22 @@ import { CatalogRepository } from '../repositories/catalog.repository'
 import { SqliteDeviceIdentityRepository } from '../repositories/deviceIdentity.repository'
 import { DeviceRegistrationRepository } from '../repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../repositories/licenseMetadata.repository'
+import { LocalSaleRepository } from '../repositories/localSale.repository'
+import { LocalStockRepository } from '../repositories/localStock.repository'
+import { SaleAttemptRepository } from '../repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../repositories/secureSecrets.repository'
 import { SessionEpochRepository } from '../repositories/sessionEpoch.repository'
 import { SqliteSessionMetadataRepository } from '../repositories/sessionMetadata.repository'
 import { ShiftObservationRepository } from '../repositories/shiftObservation.repository'
+import { StockAllocationRepository } from '../repositories/stockAllocation.repository'
 import { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { ActivationService } from '../services/activation.service'
+import { AllocationAcquisitionService } from '../services/allocationAcquisition.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
 import { BootstrapService } from '../services/bootstrap.service'
 import { CatalogReadAccessService } from '../services/catalogReadAccess.service'
+import { CatalogRefreshService } from '../services/catalogRefresh.service'
 import { CatalogService } from '../services/catalog.service'
 import { CatalogTrustedClockService } from '../services/catalogTrustedClock.service'
 import { CheckoutPreviewService } from '../services/checkoutPreview.service'
@@ -30,11 +36,14 @@ import { CompanyUsersService } from '../services/companyUsers.service'
 import { CommercialAccessService } from '../services/commercialAccess.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
+import { LocalSaleService } from '../services/localSale.service'
+import { SaleCompletionService } from '../services/saleCompletion.service'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
 import { ShiftAuthorityService } from '../services/shiftAuthority.service'
 import { ShiftService } from '../services/shift.service'
 import { ShiftPermissions } from '../services/shiftPermissions'
+import { StockAllocationService } from '../services/stockAllocation.service'
 import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
 import { CommercialAccessPublisher } from '../ipc/license.ipc'
@@ -59,9 +68,12 @@ export interface ApplicationServices {
   readonly commercialAccessPublisher: CommercialAccessPublisher
   readonly bootstrap: BootstrapService
   readonly catalog: CatalogService
+  readonly catalogRefresh: CatalogRefreshService
   readonly shiftAuthority: ShiftAuthorityService
   readonly shifts: ShiftService
   readonly checkoutPreview: CheckoutPreviewService
+  readonly localSale: LocalSaleService
+  readonly saleCompletion: SaleCompletionService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   getRuntimeInfo(): RuntimeInfo
@@ -88,10 +100,14 @@ export function createApplicationServices(): ApplicationServices {
   const shiftObservations = new ShiftObservationRepository(database)
   const licenseMetadata = new LicenseMetadataRepository(database)
   const bootstrapState = new BootstrapStateRepository(database)
-  const bootstrapSnapshot = new BootstrapSnapshotRepository(database)
+  const stockAllocations = new StockAllocationRepository(database)
+  const bootstrapSnapshot = new BootstrapSnapshotRepository(database, stockAllocations)
   const catalogRepository = new CatalogRepository(database)
   const syncQueue = new SyncQueueRepository(database)
   const syncConflicts = new SyncConflictRepository(database)
+  const saleAttempts = new SaleAttemptRepository(database)
+  const localSaleRepository = new LocalSaleRepository(database)
+  const localStock = new LocalStockRepository(database)
   const deviceIdentity = new DeviceIdentityService(deviceIdentityRepository, {
     deviceName: hostname(),
     platform: platform(),
@@ -168,7 +184,12 @@ export function createApplicationServices(): ApplicationServices {
     permissions: bootstrapSnapshot
   })
   const catalogClock = new CatalogTrustedClockService(appSettings)
-  const catalog = new CatalogService(catalogRepository, catalogReadAccess, catalogClock)
+  const catalog = new CatalogService(
+    catalogRepository,
+    catalogReadAccess,
+    catalogClock,
+    stockAllocations
+  )
   const bootstrap = new BootstrapService(
     apiClient,
     deviceIdentityRepository,
@@ -190,11 +211,56 @@ export function createApplicationServices(): ApplicationServices {
     epoch: sessionEpoch
   })
   const shifts = new ShiftService(apiClient, commercialAccess, shiftPermissions, shiftAuthority)
+  // The final `shifts.current()` occurs after license/session/bootstrap refresh work, so a
+  // confirmed open shift is recorded under the context completion will actually use.
+  const catalogRefresh = new CatalogRefreshService({
+    license,
+    authorizer: { ensureCatalogReadContext: () => auth.ensureCatalogReadContext() },
+    source: bootstrap,
+    shiftReconciler: shifts,
+    catalog,
+    access: commercialAccess,
+    accessPublisher: {
+      begin: () => commercialAccessPublisher?.begin() ?? 0,
+      publish: (revision) => commercialAccessPublisher?.publish(revision)
+    },
+    stockAllocations
+  })
   const checkoutPreview = new CheckoutPreviewService({
     commercialAccess,
     permissions: bootstrapSnapshot,
     shiftAuthority,
     catalog
+  })
+  const allocationService = new StockAllocationService(stockAllocations)
+  const localSale = new LocalSaleService({
+    database,
+    saleAttempts,
+    localSale: localSaleRepository,
+    localStock,
+    stockAllocations,
+    allocationService,
+    commercialAccess,
+    permissions: bootstrapSnapshot,
+    shiftAuthority,
+    bootstrapSnapshot,
+    catalog,
+    connectivity,
+    syncQueue
+  })
+  // CP-5D: the only production caller of `POST /api/v1/desktop/stock-allocations/top-up`. It is
+  // main-only and reachable exclusively through `checkout:complete` / `checkout:retry-attempt`;
+  // nothing in preload exposes an allocation request, a raw payload, or a generic HTTP method.
+  const allocationAcquisition = new AllocationAcquisitionService({
+    database,
+    apiClient,
+    stockAllocations,
+    allocationService,
+    connectivity
+  })
+  const saleCompletion = new SaleCompletionService({
+    localSale,
+    acquisition: allocationAcquisition
   })
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
@@ -218,9 +284,12 @@ export function createApplicationServices(): ApplicationServices {
     commercialAccessPublisher,
     bootstrap,
     catalog,
+    catalogRefresh,
     shiftAuthority,
     shifts,
     checkoutPreview,
+    localSale,
+    saleCompletion,
     companyUsers,
     connectivity,
     getRuntimeInfo: () =>

@@ -112,6 +112,7 @@ export function desktopBootstrapFixture(
         warehouse_uuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         quantity: 10,
         reserved_quantity: 0,
+        allocation_reserved_quantity: 0,
         available_quantity: 10,
         minimum_quantity: null,
         maximum_quantity: null,
@@ -121,7 +122,9 @@ export function desktopBootstrapFixture(
     ],
     taxes: [],
     payment_methods: [],
-    customers: []
+    customers: [],
+    stock_allocations: [],
+    stock_allocation_revision: 0
   }
 
   const merged = { ...resource, ...overrides }

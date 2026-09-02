@@ -7,7 +7,9 @@ import type { CheckoutIntent } from '@shared/contracts/checkout.contract'
 import type { LocaleCode } from '@shared/contracts/preferences.contract'
 import type {
   DisplayPaymentMethodOption,
+  DisplayRecoveryResult,
   DisplaySplitPayment,
+  PaymentPanelRecoveryState,
   ShiftPhase
 } from '@renderer/shared/components/pos/types'
 import { useBootstrapStore } from '@renderer/modules/bootstrap/store'
@@ -28,6 +30,7 @@ import AppInput from '@renderer/shared/components/forms/AppInput.vue'
 import AppSelect from '@renderer/shared/components/forms/AppSelect.vue'
 import BarcodeFeedback from '@renderer/shared/components/pos/BarcodeFeedback.vue'
 import CartLineItem from '@renderer/shared/components/pos/CartLineItem.vue'
+import CatalogRefreshPanel from '@renderer/shared/components/pos/CatalogRefreshPanel.vue'
 import CartPanel from '@renderer/shared/components/pos/CartPanel.vue'
 import CategorySelector from '@renderer/shared/components/pos/CategorySelector.vue'
 import OrderTotals from '@renderer/shared/components/pos/OrderTotals.vue'
@@ -38,6 +41,7 @@ import ShiftStatusControl from '@renderer/shared/components/pos/ShiftStatusContr
 import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.vue'
 import PaymentMethodTile from '@renderer/shared/components/pos/PaymentMethodTile.vue'
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
+import SaleRecoveryBanner from '@renderer/shared/components/pos/SaleRecoveryBanner.vue'
 import { useCartStore } from '../cart.store'
 import { useCatalogStore } from '../catalog.store'
 import { usePaymentStore } from '../payment.store'
@@ -58,7 +62,7 @@ type DialogMode =
 
 type InvoiceDiscountSelection = 'none' | 'fixed' | 'percentage'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const localeStore = useLocaleStore()
 const bootstrap = useBootstrapStore()
 const catalog = useCatalogStore()
@@ -77,7 +81,11 @@ const {
   customers,
   customerQuery,
   selectedCustomerUuid,
-  error: catalogError
+  error: catalogError,
+  isRefreshing: catalogRefreshing,
+  lastRefreshedAt: catalogLastRefreshedAt,
+  lastRefreshRevisionChanged: catalogRevisionChanged,
+  refreshError: catalogRefreshError
 } = storeToRefs(catalog)
 const {
   lines,
@@ -101,7 +109,13 @@ const {
   paidTotalAmount,
   previewOutcome,
   previewPending,
-  previewError
+  previewError,
+  completionPending,
+  completionOutcome,
+  completionError,
+  blockingAttemptKey,
+  pendingResults,
+  isBlocked
 } = storeToRefs(payment)
 const { isRunning: isRefreshingCatalog, error: bootstrapError } = storeToRefs(bootstrap)
 const searchRef = ref<InstanceType<typeof ProductSearchBar> | null>(null)
@@ -150,6 +164,28 @@ const catalogStatusVariant = computed(() => {
   return catalogStatus.value === 'stale' ? 'warning' : 'error'
 })
 const catalogUsableForDraft = computed(() => catalogState.value?.catalogValid === true)
+const catalogLastRefreshedLabel = computed(() => {
+  const value = catalogLastRefreshedAt.value
+  return value
+    ? t('pos.catalogRefresh.lastRefreshed', {
+        time: formatDateTime(value, localeStore.locale as LocaleCode, {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        })
+      })
+    : null
+})
+/**
+ * Only surfaced while a draft actually exists: a revision change with an empty cart needs no
+ * cashier action, and telling them to rebuild nothing would be noise. With lines present the cart
+ * store has already invalidated the draft (`CART_CATALOG_CHANGED`), so this message names the
+ * resolution the page already offers — rebuild or clear — and never a silent reprice.
+ */
+const catalogRevisionChangedMessage = computed(() =>
+  catalogRevisionChanged.value && lines.value.length > 0
+    ? t('pos.catalogRefresh.revisionChanged')
+    : null
+)
 const lastSyncedAt = computed(() => {
   const value = catalogState.value?.lastSyncedAt
   return value
@@ -306,6 +342,147 @@ const previewMessage = computed<string | undefined>(() => {
     )
   )
 })
+
+const completionEnabled = computed(
+  () => canSell.value && !isBlocked.value && previewOutcome.value?.outcome === 'valid'
+)
+
+const completionRefreshAvailable = computed(
+  () =>
+    completionOutcome.value?.outcome === 'rejected' &&
+    completionOutcome.value.failureCode === 'stock-allocation-unavailable'
+)
+
+function localizedCompletionCode(namespace: 'rejected' | 'failed', code: string): string {
+  const key = `pos.payment.completion.${namespace}.${code}`
+  return te(key) ? String(t(key)) : String(t('pos.payment.completion.genericFailure'))
+}
+
+const completionIsError = computed(() => {
+  if (completionError.value) {
+    return true
+  }
+
+  const outcome = completionOutcome.value
+  return (
+    outcome !== null &&
+    outcome.outcome !== 'committed' &&
+    outcome.outcome !== 'acknowledged' &&
+    !(outcome.outcome === 'failed' && outcome.code === 'attempt-blocked')
+  )
+})
+
+const completionMessage = computed<string | undefined>(() => {
+  if (completionError.value) {
+    return completionError.value
+  }
+
+  const outcome = completionOutcome.value
+  if (!outcome) {
+    return undefined
+  }
+
+  if (outcome.outcome === 'rejected') {
+    const message = localizedCompletionCode('rejected', outcome.failureCode)
+    if (outcome.failureCode === 'stock-allocation-unavailable' && outcome.affectedLineIds?.length) {
+      const affectedIds = new Set(outcome.affectedLineIds)
+      const productNames = lines.value
+        .filter((line) => affectedIds.has(line.id))
+        .map((line) => line.product.name)
+
+      if (productNames.length > 0) {
+        return `${t('pos.payment.completion.affectedProducts', {
+          products: productNames.join(', ')
+        })} ${message}`
+      }
+    }
+
+    return message
+  }
+
+  // `attempt-blocked` is shown through `paymentPanelRecoveryState` instead, never as an inline
+  // error alongside a completion control the cashier cannot use while blocked.
+  if (outcome.outcome === 'failed' && outcome.code !== 'attempt-blocked') {
+    return localizedCompletionCode('failed', outcome.code)
+  }
+
+  return undefined
+})
+
+const paymentPanelRecoveryState = computed<PaymentPanelRecoveryState>(() => {
+  if (isBlocked.value) {
+    return { kind: 'blocked', message: String(t('pos.payment.completion.blocked')) }
+  }
+
+  const outcome = completionOutcome.value
+  if (outcome && outcome.outcome === 'committed') {
+    return {
+      kind: 'awaiting-acknowledgment',
+      message: String(
+        t('pos.payment.completion.committed', { offlineNumber: outcome.invoice.offlineNumber })
+      )
+    }
+  }
+
+  return { kind: 'clear' }
+})
+
+const displayUnacknowledgedResults = computed<DisplayRecoveryResult[]>(() =>
+  pendingResults.value.map((result) => ({
+    attemptKey: result.attemptKey,
+    committedAtLabel: formatDateTime(result.committedAt, localeStore.locale as LocaleCode, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    })
+  }))
+)
+
+function handleComplete(): void {
+  if (!checkoutIntent.value) {
+    return
+  }
+
+  const intent = checkoutIntent.value
+  void payment.complete(
+    () => cart.captureContext(),
+    intent,
+    () => cart.clear()
+  )
+}
+
+/**
+ * Runs the authoritative workstation-data refresh. The store refuses a duplicate while one is in
+ * flight, so a double-click cannot start two. The cart is deliberately left alone: if the refresh
+ * moved the catalog revision, the existing `catalogState.contract` watcher hands the new contract
+ * to `cart.setContract()`, which invalidates the draft with `CART_CATALOG_CHANGED` and leaves the
+ * cashier the explicit rebuild-or-clear choice this page already implements.
+ */
+function handleRefreshCatalog(): void {
+  void catalog.refresh()
+}
+
+function handleRetryAttempt(key: string | null = blockingAttemptKey.value): void {
+  if (key) {
+    void payment.retryAttempt(key)
+  }
+}
+
+function handleAbandonAttempt(key: string | null = blockingAttemptKey.value): void {
+  if (key) {
+    void payment.abandonAttempt(key)
+  }
+}
+
+function handleAcknowledgeAttempt(
+  key: string | null = completionOutcome.value?.outcome === 'committed' ||
+  completionOutcome.value?.outcome === 'acknowledged'
+    ? completionOutcome.value.attemptKey
+    : null
+): void {
+  if (key) {
+    void payment.acknowledgeAttempt(key)
+  }
+}
 
 function schedulePaymentPreview(): void {
   window.clearTimeout(previewTimer)
@@ -702,7 +879,7 @@ onMounted(async () => {
   synchronizationAgeTimer = window.setInterval(() => {
     synchronizationReferenceTime.value = Date.now()
   }, 60_000)
-  await Promise.all([shift.loadCurrent(), catalog.initialize()])
+  await Promise.all([shift.loadCurrent(), catalog.initialize(), payment.discoverPending()])
 
   if (catalog.status?.catalogValid && catalog.status.contract) {
     cart.setContract(catalog.status.contract)
@@ -712,6 +889,23 @@ onMounted(async () => {
 
 <template>
   <section class="pos-page">
+    <SaleRecoveryBanner
+      class="pos-page__recovery-banner"
+      :blocking-attempt-key="blockingAttemptKey"
+      :blocked-message="t('pos.payment.completion.blocked')"
+      :retry-label="t('pos.payment.completion.retry')"
+      :abandon-label="t('pos.payment.completion.abandon')"
+      :unacknowledged-results="displayUnacknowledgedResults"
+      :unacknowledged-message="t('pos.recovery.unacknowledgedPrefix')"
+      :acknowledge-label="t('pos.payment.completion.acknowledge')"
+      :abandon-warning="t('pos.payment.completion.abandonWarning')"
+      :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
+      :cancel-confirm-label="t('common.cancel')"
+      @retry="handleRetryAttempt"
+      @abandon="handleAbandonAttempt"
+      @acknowledge="handleAcknowledgeAttempt"
+    />
+
     <PosWorkspaceShell>
       <template #toolbar>
         <div class="pos-page__heading">
@@ -761,9 +955,17 @@ onMounted(async () => {
         <AppInlineError v-if="freshness === 'unknown'">{{
           t('pos.shiftUnknownHelp')
         }}</AppInlineError>
-        <AppInlineError v-if="catalogStatus === 'stale'">{{
-          t('pos.catalogStaleWarning')
-        }}</AppInlineError>
+        <CatalogRefreshPanel
+          :pending="catalogRefreshing"
+          :stale="catalogStatus === 'stale'"
+          :stale-message="t('pos.catalogStaleWarning')"
+          :refresh-label="t('pos.catalogRefresh.action')"
+          :pending-label="t('pos.catalogRefresh.pending')"
+          :last-refreshed-label="catalogLastRefreshedLabel"
+          :error-message="catalogRefreshError"
+          :revision-changed-message="catalogRevisionChangedMessage"
+          @refresh="handleRefreshCatalog"
+        />
         <ProductSearchBar
           ref="searchRef"
           v-model="query"
@@ -952,6 +1154,21 @@ onMounted(async () => {
       :preview-message="previewMessage"
       :preview-is-error="previewIsError"
       :completion-label="t('pos.payment.completeSale')"
+      :completion-enabled="completionEnabled"
+      :completion-pending="completionPending"
+      :completion-pending-label="t('pos.payment.completion.pending')"
+      :completion-message="completionMessage"
+      :completion-is-error="completionIsError"
+      :completion-refresh-available="completionRefreshAvailable"
+      :completion-refresh-pending="catalogRefreshing"
+      :refresh-workstation-label="t('pos.catalogRefresh.action')"
+      :recovery-state="paymentPanelRecoveryState"
+      :retry-label="t('pos.payment.completion.retry')"
+      :abandon-label="t('pos.payment.completion.abandon')"
+      :acknowledge-label="t('pos.payment.completion.acknowledge')"
+      :abandon-warning="t('pos.payment.completion.abandonWarning')"
+      :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
+      :cancel-confirm-label="t('common.cancel')"
       @close="closePaymentPanel"
       @select-method="selectPaymentMethod"
       @edit-row="editPaymentRow"
@@ -960,6 +1177,11 @@ onMounted(async () => {
       @update:draft-reference="payment.setDraftReferenceText"
       @commit-draft="commitPaymentDraft"
       @cancel-draft="payment.cancelDraftRow"
+      @complete="handleComplete"
+      @refresh-workstation="handleRefreshCatalog"
+      @retry="handleRetryAttempt"
+      @abandon="handleAbandonAttempt"
+      @acknowledge="handleAcknowledgeAttempt"
     >
       <template #actions>
         <AppButton variant="ghost" @click="closePaymentPanel">{{ t('common.close') }}</AppButton>
@@ -1109,6 +1331,10 @@ onMounted(async () => {
 .pos-page {
   block-size: calc(100vh - 11rem);
   min-block-size: 34rem;
+}
+
+.pos-page__recovery-banner {
+  margin-block-end: var(--space-3);
 }
 
 .pos-page__heading,

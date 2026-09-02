@@ -209,6 +209,9 @@
     "shortcutsTitle": "Counter shortcuts",
     "shortcutHelp": "Show this shortcut guide",
     "shortcutSearch": "Focus catalog search",
+    "recovery": {
+      "unacknowledgedPrefix": "Sale complete"
+    },
     "payment": {
       "title": "Payment",
       "statusChip": "Validation preview — this sale has not been saved",
@@ -224,7 +227,7 @@
       "changeDue": "Change due",
       "dueAmount": "Amount due",
       "validating": "Validating…",
-      "completeSale": "Complete sale — not available in this phase",
+      "completeSale": "Complete sale",
       "unknownMethod": "Unknown method",
       "refreshRequired": "The catalog changed. Refresh workstation data before continuing.",
       "contextChanged": "Something changed while validating. Review the payment and try again.",
@@ -247,6 +250,45 @@
         "MONEY_INPUT_MULTILINE": "Enter a single-line amount.",
         "MONEY_INPUT_TOO_LONG": "This amount is too long.",
         "MONEY_INPUT_OUT_OF_RANGE": "This amount is outside the allowed range."
+      },
+      "completion": {
+        "pending": "Completing sale…",
+        "retry": "Retry",
+        "abandon": "Abandon",
+        "acknowledge": "Done",
+        "abandonWarning": "Abandoning does not mean cash was returned or a card charge was voided. Verify the till independently before confirming.",
+        "confirmAbandon": "Confirm abandon",
+        "blocked": "You have an unresolved sale on this till. Retry it or abandon it before starting a new one. A failed or abandoned sale does not mean cash was returned — verify the till independently.",
+        "committed": "Sale complete. Offline receipt number {offlineNumber}. This number is local and not a fiscal receipt until synced.",
+        "affectedProducts": "Affected products: {products}.",
+        "unavailable": "The sale could not be completed. Try again.",
+        "genericFailure": "The sale could not be completed. Review the payment and try again.",
+        "rejected": {
+          "invalid-request": "This sale could not be validated. Review the cart and payment, then try again under a new attempt.",
+          "stock-allocation-unavailable": "One or more tracked products do not have enough stock allocated to this workstation. Adjust the quantity, or refresh workstation data after an allocation is issued. Refreshing does not create or top up an allocation.",
+          "invariant": "An unexpected error stopped this sale. Nothing was charged or saved. Try again."
+        },
+        "failed": {
+          "permission-denied": "This workstation session cannot take payment right now.",
+          "shift-unavailable": "The shift is no longer open. Open a shift before completing this sale.",
+          "shift-not-open": "The shift is paused, closed, or cancelled. Resume or open a shift before completing this sale.",
+          "shift-none": "No current shift was found for this workstation. Open a shift before completing this sale.",
+          "shift-reconciliation-required": "The shift changed and must be refreshed before completing this sale.",
+          "shift-observation-foreign": "Your session or workstation changed. Refresh workstation data before completing this sale.",
+          "shift-observation-unknown": "The shift status has not been confirmed. Refresh workstation data before completing this sale.",
+          "workstation-unassigned": "This workstation has no branch or warehouse assignment. Assign it and refresh workstation data before completing this sale.",
+          "allocation-data-unavailable": "Tracked stock allocation data is unavailable. Update the backend and refresh workstation data before completing this sale.",
+          "allocation-acquisition-unresolved": "This sale could not confirm its stock allocation with the server. Nothing was charged or saved. Retry this same sale — retrying is safe and cannot allocate stock twice — or abandon it and verify the till.",
+          "context-changed": "The shift or workstation assignment changed. Refresh before completing this sale.",
+          "refresh-required": "The catalog changed. Refresh workstation data — this sale is never repriced automatically.",
+          "attempt-conflict": "The cart changed since this sale was started. Review it and try again.",
+          "attempt-key-unavailable": "This attempt could not be started. Try again.",
+          "not-found": "This sale attempt is no longer available.",
+          "already-committed": "This sale was already completed.",
+          "attempt-unresolved": "This sale is still being resolved.",
+          "integrity-inconsistency": "This sale's recorded state could not be verified. Contact support before retrying.",
+          "policy-blocked": "This action is not currently authorized on this device or session."
+        }
       }
     },
     "errors": {
@@ -274,6 +316,13 @@
       "PAYMENT_INSUFFICIENT_TENDER": "The tendered amount does not cover the total.",
       "PAYMENT_NON_CASH_OVERPAYMENT": "Only cash payments may exceed the total. Reduce the non-cash amount.",
       "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit."
+    },
+    "catalogRefresh": {
+      "action": "Refresh workstation data",
+      "pending": "Refreshing workstation data…",
+      "lastRefreshed": "Workstation data refreshed {time}",
+      "failed": "Workstation data could not be refreshed. Check the connection and try again.",
+      "revisionChanged": "The refreshed catalog changed. Rebuild or clear the current cart before selling — prices are never updated on an open cart automatically."
     }
   },
   "sync": {

@@ -37,7 +37,14 @@ const expectedTables = [
   'catalog_categories',
   'catalog_products',
   'catalog_product_barcodes',
-  'catalog_stock_items'
+  'catalog_stock_items',
+  'sale_attempts',
+  'local_invoices',
+  'local_invoice_items',
+  'local_invoice_payments',
+  'stock_allocation_grants',
+  'local_stock_allocation_consumptions',
+  'local_stock_movements'
 ]
 
 const expectedBootstrapStateColumns = ['snapshot_version', 'server_time', 'counts_json']

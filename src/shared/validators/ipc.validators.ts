@@ -7,7 +7,14 @@ import {
   catalogProductIdInputSchema,
   catalogSearchInputSchema
 } from '@shared/contracts/catalog.contract'
-import { checkoutIntentSchema } from '@shared/contracts/checkout.contract'
+import {
+  checkoutAbandonAttemptInputSchema as checkoutAbandonAttemptContractSchema,
+  checkoutAcknowledgeAttemptInputSchema as checkoutAcknowledgeAttemptContractSchema,
+  checkoutCompleteInputSchema as checkoutCompleteContractSchema,
+  checkoutIntentSchema,
+  checkoutPendingAttemptsInputSchema as checkoutPendingAttemptsContractSchema,
+  checkoutRetryAttemptInputSchema as checkoutRetryAttemptContractSchema
+} from '@shared/contracts/checkout.contract'
 import { localeCodeSchema, themePreferenceSchema } from '@shared/contracts/preferences.contract'
 import {
   closeShiftInputSchema,
@@ -37,6 +44,13 @@ export const licenseGetAccessInputSchema = z.undefined()
 export const bootstrapGetStatusInputSchema = z.undefined()
 export const bootstrapRefreshInputSchema = z.undefined()
 export const catalogGetStatusInputSchema = z.undefined()
+/**
+ * `catalog:refresh` takes no caller-supplied field at all — not even an empty object. Every
+ * identity the refresh acts on (company, device, user, and the authorization to refresh) is
+ * re-derived main-side from the authenticated session and the bound device, so the renderer has
+ * nothing legitimate to send and any payload is rejected.
+ */
+export const catalogRefreshInputSchema = z.undefined()
 export const catalogListCategoriesInputSchema = z.undefined()
 export const catalogSearchProductsInputSchema = catalogSearchInputSchema
 export const catalogGetProductInputSchema = catalogProductIdInputSchema
@@ -51,6 +65,11 @@ export const shiftsPauseInputSchema = pauseShiftInputSchema
 export const shiftsResumeInputSchema = resumeShiftInputSchema
 export const shiftsCloseInputSchema = closeShiftInputSchema
 export const checkoutValidateInputSchema = checkoutIntentSchema
+export const checkoutCompleteInputSchema = checkoutCompleteContractSchema
+export const checkoutPendingAttemptsInputSchema = checkoutPendingAttemptsContractSchema
+export const checkoutRetryAttemptInputSchema = checkoutRetryAttemptContractSchema
+export const checkoutAbandonAttemptInputSchema = checkoutAbandonAttemptContractSchema
+export const checkoutAcknowledgeAttemptInputSchema = checkoutAcknowledgeAttemptContractSchema
 export const syncGetStatusInputSchema = z.undefined()
 export const connectivityGetStateInputSchema = z.undefined()
 export const connectivityCheckNowInputSchema = z.undefined()

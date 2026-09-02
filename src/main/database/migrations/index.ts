@@ -4,6 +4,8 @@ import { sellableCatalogMigration } from './0003_sellable_catalog'
 import { catalogSnapshotIntegrityMigration } from './0004_catalog_snapshot_integrity'
 import { currencyContractMigration } from './0005_currency_contract'
 import { shiftObservationMigration } from './0006_shift_observation'
+import { localSalePersistenceMigration } from './0007_local_sale_persistence'
+import { bootstrapStockAllocationsMigration } from './0008_bootstrap_stock_allocations'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -11,5 +13,7 @@ export const databaseMigrations = [
   sellableCatalogMigration,
   catalogSnapshotIntegrityMigration,
   currencyContractMigration,
-  shiftObservationMigration
+  shiftObservationMigration,
+  localSalePersistenceMigration,
+  bootstrapStockAllocationsMigration
 ] as const

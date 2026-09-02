@@ -86,6 +86,12 @@ export const DESKTOP_API_ROUTES = Object.freeze({
     requiresAuth: true,
     requiresDeviceUuid: true
   },
+  stockAllocationsTopUp: {
+    path: '/stock-allocations/top-up',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
   invoicesUpload: {
     path: '/invoices/upload',
     method: 'POST',

@@ -42,7 +42,15 @@ const expectedTables = [
   'catalog_categories',
   'catalog_products',
   'catalog_product_barcodes',
-  'catalog_stock_items'
+  'catalog_stock_items',
+  'bootstrap_allocation_capability',
+  'sale_attempts',
+  'local_invoices',
+  'local_invoice_items',
+  'local_invoice_payments',
+  'stock_allocation_grants',
+  'local_stock_allocation_consumptions',
+  'local_stock_movements'
 ]
 
 databaseTest(
@@ -78,10 +86,23 @@ databaseTest(
       'idx_catalog_products_search_sku',
       'idx_catalog_stock_items_product',
       'idx_catalog_stock_items_warehouse',
+      'idx_local_allocation_consumptions_grant',
+      'idx_local_allocation_consumptions_invoice',
+      'idx_local_invoice_items_invoice',
+      'idx_local_invoice_payments_invoice',
+      'idx_local_invoices_sold_at',
+      'idx_local_invoices_sync_status',
+      'idx_local_stock_movements_invoice',
+      'idx_local_stock_movements_projection',
       'idx_product_barcodes_barcode',
       'idx_product_barcodes_product_id',
+      'idx_sale_attempts_one_blocking',
+      'idx_sale_attempts_owner_state',
+      'idx_stock_allocation_grants_available',
+      'idx_stock_allocation_grants_bootstrap_authority',
       'idx_stock_items_product_id',
-      'idx_stock_items_warehouse_id'
+      'idx_stock_items_warehouse_id',
+      'idx_sync_queue_invoice_upload'
     ])
     equal(
       (

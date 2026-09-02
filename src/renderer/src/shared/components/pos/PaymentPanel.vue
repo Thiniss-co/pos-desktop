@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
@@ -8,15 +9,18 @@ import NumericAmountInput from './NumericAmountInput.vue'
 import OrderTotals from './OrderTotals.vue'
 import PaymentMethodTile from './PaymentMethodTile.vue'
 import SplitPaymentRow from './SplitPaymentRow.vue'
-import type { DisplayPaymentMethodOption, DisplaySplitPayment } from './types'
+import type {
+  DisplayPaymentMethodOption,
+  DisplaySplitPayment,
+  PaymentPanelRecoveryState
+} from './types'
 
 /**
  * Pure presentation: every value here is already computed and formatted upstream. This panel
- * never reads a store, never calls the preload bridge, and the completion control below has no
- * `@click` binding anywhere in this file — enabling it is out of scope for this phase, and no prop
- * here can turn it on.
+ * never reads a store and never calls the preload bridge directly — every action is a bare emit
+ * the parent page resolves against the real attempt key.
  */
-withDefaults(
+const props = withDefaults(
   defineProps<{
     open: boolean
     title: string
@@ -56,6 +60,21 @@ withDefaults(
     previewMessage?: string
     previewIsError: boolean
     completionLabel: string
+    completionEnabled: boolean
+    completionPending: boolean
+    completionPendingLabel: string
+    completionMessage?: string
+    completionIsError: boolean
+    completionRefreshAvailable: boolean
+    completionRefreshPending: boolean
+    refreshWorkstationLabel: string
+    recoveryState: PaymentPanelRecoveryState
+    retryLabel: string
+    abandonLabel: string
+    acknowledgeLabel: string
+    abandonWarning: string
+    confirmAbandonLabel: string
+    cancelConfirmLabel: string
   }>(),
   {
     discountLabel: undefined,
@@ -66,7 +85,8 @@ withDefaults(
     changeDue: undefined,
     dueLabel: undefined,
     due: undefined,
-    previewMessage: undefined
+    previewMessage: undefined,
+    completionMessage: undefined
   }
 )
 
@@ -79,7 +99,40 @@ const emit = defineEmits<{
   'update:draftReference': [string]
   commitDraft: []
   cancelDraft: []
+  complete: []
+  refreshWorkstation: []
+  retry: []
+  abandon: []
+  acknowledge: []
 }>()
+
+/**
+ * Plan §1.9: abandoning requires explicit confirmation and the tender warning — a bare click can
+ * never fire the actual `abandon` emit. Resets whenever the blocked attempt itself changes (a
+ * retry, a fresh abandon elsewhere, or a new blocking attempt) so a stale confirmation can never
+ * apply to a different attempt than the one the cashier saw the warning for.
+ */
+const confirmingAbandon = ref(false)
+
+watch(
+  () => props.recoveryState,
+  () => {
+    confirmingAbandon.value = false
+  }
+)
+
+function requestAbandon(): void {
+  confirmingAbandon.value = true
+}
+
+function cancelAbandonConfirmation(): void {
+  confirmingAbandon.value = false
+}
+
+function confirmAbandon(): void {
+  confirmingAbandon.value = false
+  emit('abandon')
+}
 
 /**
  * `SplitPaymentRow` emits a bare `remove` (no event payload), so its own click already bubbles
@@ -192,23 +245,80 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
       </div>
     </dl>
 
-    <p v-if="previewPending" class="payment-panel__pending" role="status">
-      {{ previewPendingLabel }}
-    </p>
-    <AppInlineError v-else-if="previewMessage && previewIsError">
-      {{ previewMessage }}
-    </AppInlineError>
-    <p v-else-if="previewMessage" class="payment-panel__hint">{{ previewMessage }}</p>
+    <template v-if="recoveryState.kind === 'blocked'">
+      <AppInlineError class="payment-panel__recovery-message">
+        {{ recoveryState.message }}
+      </AppInlineError>
 
-    <AppButton
-      class="payment-panel__complete"
-      variant="transaction"
-      full-width
-      disabled
-      aria-disabled="true"
-    >
-      {{ completionLabel }}
-    </AppButton>
+      <template v-if="confirmingAbandon">
+        <AppInlineError class="payment-panel__recovery-message">
+          {{ abandonWarning }}
+        </AppInlineError>
+        <div class="payment-panel__recovery-actions">
+          <AppButton variant="ghost" @click="cancelAbandonConfirmation">
+            {{ cancelConfirmLabel }}
+          </AppButton>
+          <AppButton variant="danger" @click="confirmAbandon">{{ confirmAbandonLabel }}</AppButton>
+        </div>
+      </template>
+      <div v-else class="payment-panel__recovery-actions">
+        <AppButton variant="ghost" @click="requestAbandon">{{ abandonLabel }}</AppButton>
+        <AppButton variant="secondary" @click="emit('retry')">{{ retryLabel }}</AppButton>
+      </div>
+    </template>
+
+    <template v-else-if="recoveryState.kind === 'awaiting-acknowledgment'">
+      <AppStatusChip variant="success" class="payment-panel__recovery-message">
+        {{ recoveryState.message }}
+      </AppStatusChip>
+      <AppButton
+        class="payment-panel__complete"
+        variant="transaction"
+        full-width
+        @click="emit('acknowledge')"
+      >
+        {{ acknowledgeLabel }}
+      </AppButton>
+    </template>
+
+    <template v-else>
+      <p v-if="previewPending" class="payment-panel__pending" role="status">
+        {{ previewPendingLabel }}
+      </p>
+      <AppInlineError v-else-if="previewMessage && previewIsError">
+        {{ previewMessage }}
+      </AppInlineError>
+      <p v-else-if="previewMessage" class="payment-panel__hint">{{ previewMessage }}</p>
+
+      <p v-if="completionPending" class="payment-panel__pending" role="status">
+        {{ completionPendingLabel }}
+      </p>
+      <AppInlineError v-else-if="completionMessage && completionIsError">
+        {{ completionMessage }}
+      </AppInlineError>
+      <p v-else-if="completionMessage" class="payment-panel__hint">{{ completionMessage }}</p>
+
+      <AppButton
+        v-if="completionRefreshAvailable"
+        variant="secondary"
+        full-width
+        :loading="completionRefreshPending"
+        @click="emit('refreshWorkstation')"
+      >
+        {{ refreshWorkstationLabel }}
+      </AppButton>
+
+      <AppButton
+        class="payment-panel__complete"
+        variant="transaction"
+        full-width
+        :disabled="!completionEnabled || completionPending"
+        :aria-disabled="!completionEnabled || completionPending ? 'true' : undefined"
+        @click="emit('complete')"
+      >
+        {{ completionLabel }}
+      </AppButton>
+    </template>
 
     <template #actions>
       <slot name="actions" />
@@ -311,5 +421,15 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
 
 .payment-panel__complete {
   margin-block-start: var(--space-2);
+}
+
+.payment-panel__recovery-message {
+  margin-block-end: var(--space-3);
+}
+
+.payment-panel__recovery-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
 }
 </style>

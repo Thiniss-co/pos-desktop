@@ -1,0 +1,530 @@
+{
+    "schemaVersion": 1,
+    "allocationContractVersion": 1,
+    "canonicalization": {
+        "algorithm": "recursive-key-sort-json-unescaped-slashes-v1",
+        "excludedFields": [
+            "canonicalSha256"
+        ],
+        "arrayOrdering": "StockAllocationStatus declaration order; resource collections preserve case order"
+    },
+    "generatedFrom": {
+        "repo": "pos-backend",
+        "resource": "App\\Modules\\Inventory\\Http\\Resources\\StockAllocationResource",
+        "statusEnum": "App\\Modules\\Inventory\\Enums\\StockAllocationStatus"
+    },
+    "resourceKeys": [
+        "id",
+        "contract_version",
+        "company_uuid",
+        "device_uuid",
+        "warehouse_uuid",
+        "product_uuid",
+        "server_sequence",
+        "rights_generation",
+        "lifecycle_generation",
+        "granted_quantity_milli",
+        "consumed_quantity_milli",
+        "remaining_quantity_milli",
+        "consume_until",
+        "status",
+        "envelope_hash",
+        "seal_nonce",
+        "final_consumption_sequence",
+        "final_consumption_hash",
+        "sealed_at",
+        "acknowledged_at",
+        "released_at"
+    ],
+    "fieldContract": {
+        "id": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "lowercase-rfc4122-uuid"
+        },
+        "contract_version": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "allocation-contract-version"
+        },
+        "company_uuid": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "lowercase-rfc4122-uuid"
+        },
+        "device_uuid": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "lowercase-rfc4122-uuid"
+        },
+        "warehouse_uuid": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "lowercase-rfc4122-uuid"
+        },
+        "product_uuid": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "lowercase-rfc4122-uuid"
+        },
+        "server_sequence": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "non-negative-integer"
+        },
+        "rights_generation": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "non-negative-integer"
+        },
+        "lifecycle_generation": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "non-negative-integer"
+        },
+        "granted_quantity_milli": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "integer-thousandths"
+        },
+        "consumed_quantity_milli": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "integer-thousandths"
+        },
+        "remaining_quantity_milli": {
+            "jsonType": "integer",
+            "nullable": false,
+            "semantics": "integer-thousandths"
+        },
+        "consume_until": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "iso-8601-offset-timestamp"
+        },
+        "status": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "App\\Modules\\Inventory\\Enums\\StockAllocationStatus::value"
+        },
+        "envelope_hash": {
+            "jsonType": "string",
+            "nullable": false,
+            "semantics": "lowercase-sha256-hex"
+        },
+        "seal_nonce": {
+            "jsonType": "string",
+            "nullable": true,
+            "semantics": "lowercase-rfc4122-uuid"
+        },
+        "final_consumption_sequence": {
+            "jsonType": "integer",
+            "nullable": true,
+            "semantics": "non-negative-integer"
+        },
+        "final_consumption_hash": {
+            "jsonType": "string",
+            "nullable": true,
+            "semantics": "lowercase-sha256-hex"
+        },
+        "sealed_at": {
+            "jsonType": "string",
+            "nullable": true,
+            "semantics": "iso-8601-offset-timestamp"
+        },
+        "acknowledged_at": {
+            "jsonType": "string",
+            "nullable": true,
+            "semantics": "iso-8601-offset-timestamp"
+        },
+        "released_at": {
+            "jsonType": "string",
+            "nullable": true,
+            "semantics": "iso-8601-offset-timestamp"
+        }
+    },
+    "statuses": [
+        "active",
+        "revocation_pending",
+        "seal_acknowledged",
+        "released",
+        "consumed"
+    ],
+    "cases": [
+        {
+            "status": "active",
+            "resource": {
+                "id": "00000000-0000-4000-8000-000000000011",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 101,
+                "rights_generation": 7,
+                "lifecycle_generation": 7,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 500,
+                "remaining_quantity_milli": 4500,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "active",
+                "envelope_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "seal_nonce": null,
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": null,
+                "acknowledged_at": null,
+                "released_at": null
+            }
+        },
+        {
+            "status": "revocation_pending",
+            "resource": {
+                "id": "00000000-0000-4000-8000-000000000012",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 102,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 1000,
+                "remaining_quantity_milli": 4000,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "revocation_pending",
+                "envelope_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+                "seal_nonce": "00000000-0000-4000-8000-000000000032",
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": null,
+                "released_at": null
+            }
+        },
+        {
+            "status": "seal_acknowledged",
+            "resource": {
+                "id": "00000000-0000-4000-8000-000000000013",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 103,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 1500,
+                "remaining_quantity_milli": 3500,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "seal_acknowledged",
+                "envelope_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+                "seal_nonce": "00000000-0000-4000-8000-000000000033",
+                "final_consumption_sequence": 3,
+                "final_consumption_hash": "8888888888888888888888888888888888888888888888888888888888888888",
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": "2026-01-03T05:05:06+00:00",
+                "released_at": null
+            }
+        },
+        {
+            "status": "released",
+            "resource": {
+                "id": "00000000-0000-4000-8000-000000000014",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 104,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 2000,
+                "remaining_quantity_milli": 3000,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "released",
+                "envelope_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+                "seal_nonce": "00000000-0000-4000-8000-000000000034",
+                "final_consumption_sequence": 4,
+                "final_consumption_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": "2026-01-03T05:05:06+00:00",
+                "released_at": "2026-01-03T06:05:06+00:00"
+            }
+        },
+        {
+            "status": "consumed",
+            "resource": {
+                "id": "00000000-0000-4000-8000-000000000015",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 105,
+                "rights_generation": 7,
+                "lifecycle_generation": 7,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 5000,
+                "remaining_quantity_milli": 0,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "consumed",
+                "envelope_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "seal_nonce": null,
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": null,
+                "acknowledged_at": null,
+                "released_at": null
+            }
+        }
+    ],
+    "topUpFragment": {
+        "success": true,
+        "code": "STOCK_ALLOCATIONS_GRANTED",
+        "data": [
+            {
+                "id": "00000000-0000-4000-8000-000000000011",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 101,
+                "rights_generation": 7,
+                "lifecycle_generation": 7,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 500,
+                "remaining_quantity_milli": 4500,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "active",
+                "envelope_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "seal_nonce": null,
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": null,
+                "acknowledged_at": null,
+                "released_at": null
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000012",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 102,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 1000,
+                "remaining_quantity_milli": 4000,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "revocation_pending",
+                "envelope_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+                "seal_nonce": "00000000-0000-4000-8000-000000000032",
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": null,
+                "released_at": null
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000013",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 103,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 1500,
+                "remaining_quantity_milli": 3500,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "seal_acknowledged",
+                "envelope_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+                "seal_nonce": "00000000-0000-4000-8000-000000000033",
+                "final_consumption_sequence": 3,
+                "final_consumption_hash": "8888888888888888888888888888888888888888888888888888888888888888",
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": "2026-01-03T05:05:06+00:00",
+                "released_at": null
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000014",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 104,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 2000,
+                "remaining_quantity_milli": 3000,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "released",
+                "envelope_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+                "seal_nonce": "00000000-0000-4000-8000-000000000034",
+                "final_consumption_sequence": 4,
+                "final_consumption_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": "2026-01-03T05:05:06+00:00",
+                "released_at": "2026-01-03T06:05:06+00:00"
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000015",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 105,
+                "rights_generation": 7,
+                "lifecycle_generation": 7,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 5000,
+                "remaining_quantity_milli": 0,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "consumed",
+                "envelope_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "seal_nonce": null,
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": null,
+                "acknowledged_at": null,
+                "released_at": null
+            }
+        ],
+        "meta": {
+            "allocation_revision": 500
+        }
+    },
+    "bootstrapFragment": {
+        "stock_allocations": [
+            {
+                "id": "00000000-0000-4000-8000-000000000011",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 101,
+                "rights_generation": 7,
+                "lifecycle_generation": 7,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 500,
+                "remaining_quantity_milli": 4500,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "active",
+                "envelope_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                "seal_nonce": null,
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": null,
+                "acknowledged_at": null,
+                "released_at": null
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000012",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 102,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 1000,
+                "remaining_quantity_milli": 4000,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "revocation_pending",
+                "envelope_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+                "seal_nonce": "00000000-0000-4000-8000-000000000032",
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": null,
+                "released_at": null
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000013",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 103,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 1500,
+                "remaining_quantity_milli": 3500,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "seal_acknowledged",
+                "envelope_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+                "seal_nonce": "00000000-0000-4000-8000-000000000033",
+                "final_consumption_sequence": 3,
+                "final_consumption_hash": "8888888888888888888888888888888888888888888888888888888888888888",
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": "2026-01-03T05:05:06+00:00",
+                "released_at": null
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000014",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 104,
+                "rights_generation": 7,
+                "lifecycle_generation": 8,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 2000,
+                "remaining_quantity_milli": 3000,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "released",
+                "envelope_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+                "seal_nonce": "00000000-0000-4000-8000-000000000034",
+                "final_consumption_sequence": 4,
+                "final_consumption_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+                "sealed_at": "2026-01-03T04:05:06+00:00",
+                "acknowledged_at": "2026-01-03T05:05:06+00:00",
+                "released_at": "2026-01-03T06:05:06+00:00"
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000015",
+                "contract_version": 1,
+                "company_uuid": "00000000-0000-4000-8000-000000000001",
+                "device_uuid": "00000000-0000-4000-8000-000000000002",
+                "warehouse_uuid": "00000000-0000-4000-8000-000000000003",
+                "product_uuid": "00000000-0000-4000-8000-000000000004",
+                "server_sequence": 105,
+                "rights_generation": 7,
+                "lifecycle_generation": 7,
+                "granted_quantity_milli": 5000,
+                "consumed_quantity_milli": 5000,
+                "remaining_quantity_milli": 0,
+                "consume_until": "2026-02-03T04:05:06+00:00",
+                "status": "consumed",
+                "envelope_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+                "seal_nonce": null,
+                "final_consumption_sequence": null,
+                "final_consumption_hash": null,
+                "sealed_at": null,
+                "acknowledged_at": null,
+                "released_at": null
+            }
+        ],
+        "stock_allocation_revision": 500
+    },
+    "canonicalSha256": "bdd091b018a08155b81f258167d56a926bd4520a88097a7c6f09c8b8ae9ae83b"
+}

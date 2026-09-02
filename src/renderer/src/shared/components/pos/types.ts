@@ -73,3 +73,22 @@ export type ShiftPhase =
 
 export type SyncQueueDisplayState =
   'pending' | 'uploading' | 'retryable-error' | 'conflict' | 'rejected'
+
+/**
+ * `PaymentPanel`'s local completion-recovery display state (Phase 3F CP-4). `blocked` is an
+ * existing claimed attempt for this cashier that must be retried or explicitly abandoned before a
+ * new sale can start (D1-A); `awaiting-acknowledgment` is a just-committed sale whose receipt the
+ * cashier must explicitly dismiss (T7) before starting another. Both messages are already
+ * localized upstream — this folder never imports i18n directly.
+ */
+export type PaymentPanelRecoveryState =
+  | { readonly kind: 'clear' }
+  | { readonly kind: 'blocked'; readonly message: string }
+  | { readonly kind: 'awaiting-acknowledgment'; readonly message: string }
+
+/** One committed-but-unacknowledged sale as `SaleRecoveryBanner` renders it. */
+export interface DisplayRecoveryResult {
+  readonly attemptKey: string
+  /** Pre-formatted, locale-aware display string — never a raw ISO timestamp. */
+  readonly committedAtLabel: string
+}

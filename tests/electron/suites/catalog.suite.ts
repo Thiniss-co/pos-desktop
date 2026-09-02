@@ -150,3 +150,69 @@ databaseTest(
     closeDatabase(database)
   }
 )
+
+databaseTest(
+  'getAllocationRemaining overlays the real allocation-remaining quantity, never a cached/shared stock number',
+  (sandbox) => {
+    const companyUuid = '11111111-1111-4111-8111-111111111111'
+    const deviceUuid = '33333333-3333-4333-8333-333333333333'
+    const warehouseUuid = '88888888-8888-4888-8888-888888888888'
+    const trackedProductUuid = '55555555-5555-4555-8555-555555555555'
+    const untrackedProductUuid = '66666666-6666-4666-8666-666666666666'
+
+    const database = openTestDatabase(sandbox)
+    const repositories = realRepositories(database)
+    const fixture = desktopBootstrapFixture()
+    const [trackedProduct] = fixture.products ?? []
+    if (!trackedProduct) {
+      throw new Error('Catalog fixture must contain one product')
+    }
+
+    repositories.bootstrapSnapshot.persistSnapshot(
+      desktopBootstrapFixture({
+        branch: { id: '77777777-7777-4777-8777-777777777777', name: 'Main', is_active: true },
+        warehouse: { id: warehouseUuid, name: 'Main Warehouse', is_active: true },
+        products: [
+          trackedProduct,
+          { ...trackedProduct, uuid: untrackedProductUuid, track_stock: false, barcode: null }
+        ]
+      }),
+      '2026-01-01T00:01:00+00:00'
+    )
+    repositories.stockAllocations.upsertGrant({
+      allocationUuid: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      contractVersion: 1,
+      companyUuid,
+      deviceUuid,
+      warehouseUuid,
+      productUuid: trackedProductUuid,
+      serverSequence: 1,
+      lifecycleGeneration: 1,
+      grantedQuantityMilli: 5500,
+      consumeUntil: '2027-01-01T00:00:00.000Z',
+      envelopeHash: 'a'.repeat(64),
+      receivedAt: '2026-01-01T00:00:00.000Z'
+    })
+
+    const catalog = new CatalogService(
+      repositories.catalog,
+      allowedAccess,
+      clock('2026-01-02T00:00:00+00:00'),
+      repositories.stockAllocations
+    )
+    const owner = { companyUuid, deviceUuid, warehouseUuid }
+
+    equal(catalog.getAllocationRemaining(owner, trackedProductUuid), '5.500')
+    equal(
+      catalog.getAllocationRemaining(owner, untrackedProductUuid),
+      null,
+      'an untracked product is never overlaid'
+    )
+    equal(
+      catalog.getAllocationRemaining(owner, 'ffffffff-ffff-4fff-8fff-ffffffffffff'),
+      null,
+      'an unknown product is never overlaid'
+    )
+    closeDatabase(database)
+  }
+)

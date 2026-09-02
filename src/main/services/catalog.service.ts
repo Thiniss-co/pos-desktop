@@ -20,8 +20,16 @@ import type {
   CatalogSnapshot,
   CheckoutResolutionInput
 } from '../repositories/catalog.repository'
+import type { StockAllocationRepository } from '../repositories/stockAllocation.repository'
+import { milliToQuantity } from './localSale.fingerprint'
 import type { CatalogReadAccess } from './catalogReadAccess.service'
 import type { CatalogTrustedClock } from './catalogTrustedClock.service'
+
+export interface CatalogAllocationOwner {
+  readonly companyUuid: string
+  readonly deviceUuid: string
+  readonly warehouseUuid: string
+}
 
 function catalogError(code: string, message: string): PublicAppError {
   return publicAppErrorSchema.parse({
@@ -49,7 +57,11 @@ export class CatalogService {
   constructor(
     private readonly repository: CatalogRepository,
     private readonly readAccess: CatalogReadAccess,
-    private readonly clock: CatalogTrustedClock
+    private readonly clock: CatalogTrustedClock,
+    private readonly stockAllocations?: Pick<
+      StockAllocationRepository,
+      'usableGrantsForProduct' | 'remainingMilli'
+    >
   ) {}
 
   markPublished(revision: string): void {
@@ -137,6 +149,43 @@ export class CatalogService {
   resolveForCheckout(input: CheckoutResolutionInput): CheckoutResolution | null {
     this.assertReadable()
     return this.repository.resolveForCheckout(input)
+  }
+
+  /**
+   * D2-B: the sellable-remaining quantity for one tracked product at one device/warehouse, computed
+   * the same way the commit-time allocation split is (`usableGrantsForProduct` + `remainingMilli`
+   * over immutable grants and committed local consumptions — never a cached/shared-stock number).
+   * `null` for an untracked product, when no trusted time is available, or when the product does not
+   * exist — the caller falls back to the product's plain cached `availableQuantity` in that case,
+   * never to an unreserved warehouse total.
+   */
+  getAllocationRemaining(owner: CatalogAllocationOwner, productUuid: string): string | null {
+    if (!this.stockAllocations) {
+      throw new Error('CatalogService was constructed without a stock allocation repository')
+    }
+
+    this.assertReadable()
+    const product = this.repository.getProduct(productUuid)
+    if (!product || !product.trackStock) {
+      return null
+    }
+
+    const trustedTime = this.clock.now()
+    if (!trustedTime) {
+      return null
+    }
+
+    const grants = this.stockAllocations.usableGrantsForProduct(
+      owner,
+      productUuid,
+      trustedTime.now.toISOString()
+    )
+    const totalMilli = grants.reduce(
+      (sum, grant) => sum + this.stockAllocations!.remainingMilli(grant.allocationUuid),
+      0
+    )
+
+    return milliToQuantity(totalMilli)
   }
 
   getCustomer(uuid: string): CatalogCustomer {

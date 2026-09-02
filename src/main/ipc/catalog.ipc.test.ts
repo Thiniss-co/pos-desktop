@@ -22,6 +22,9 @@ vi.mock('electron', () => ({
   }
 }))
 
+const { assertTrustedSender } = vi.hoisted(() => ({ assertTrustedSender: vi.fn() }))
+vi.mock('./assertTrustedSender', () => ({ assertTrustedSender }))
+
 import { registerCatalogIpcHandlers } from './catalog.ipc'
 
 const DEVICE_UUID = '33333333-3333-4333-8333-333333333333'
@@ -288,5 +291,125 @@ describe('catalog IPC input contracts', () => {
     for (const query of Object.values(repository)) {
       expect(query).not.toHaveBeenCalled()
     }
+  })
+})
+
+/**
+ * `catalog:refresh` is the only catalog channel that mutates durable state and reaches the
+ * network, so it carries the same security shape as the checkout write channels: trusted sender
+ * asserted *before* the payload is parsed, a `.strict()` empty input, and no caller-supplied
+ * identity of any kind.
+ */
+describe('catalog:refresh IPC security', () => {
+  interface RefreshHarness {
+    readonly refresh: ReturnType<typeof vi.fn>
+    invoke(input?: unknown): Promise<unknown>
+  }
+
+  function refreshHarness(result: unknown = { ok: true }): RefreshHarness {
+    const refresh = vi.fn(async () => result)
+    handlers.clear()
+    assertTrustedSender.mockReset()
+    registerCatalogIpcHandlers({
+      catalogRefresh: { refresh }
+    } as unknown as ApplicationServices)
+
+    return {
+      refresh,
+      invoke: async (input) => {
+        const handler = handlers.get(IPC_CHANNELS.catalogRefresh)
+        expect(handler, 'no handler registered for catalog:refresh').toBeDefined()
+        return handler?.({}, input)
+      }
+    }
+  }
+
+  it('registers the refresh channel', () => {
+    refreshHarness()
+    expect(handlers.has(IPC_CHANNELS.catalogRefresh)).toBe(true)
+  })
+
+  it('asserts the trusted sender before the service is reached', async () => {
+    const { invoke, refresh } = refreshHarness()
+    assertTrustedSender.mockImplementation(() => {
+      throw {
+        category: 'authorization',
+        message: 'This request could not be verified.',
+        retryable: false
+      }
+    })
+
+    await expect(invoke()).resolves.toMatchObject({
+      ok: false,
+      error: { category: 'authorization', retryable: false }
+    })
+    // The only thing on the mock is the throw, so "never called" is a genuine ordering proof.
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('asserts the trusted sender before the payload is parsed', async () => {
+    const { invoke, refresh } = refreshHarness()
+    assertTrustedSender.mockImplementation(() => {
+      throw {
+        category: 'authorization',
+        message: 'This request could not be verified.',
+        retryable: false
+      }
+    })
+
+    // A payload that would also fail validation must still surface the authorization refusal,
+    // proving the sender check ran first rather than the schema.
+    await expect(invoke({ companyUuid: 'anything' })).resolves.toMatchObject({
+      ok: false,
+      error: { category: 'authorization' }
+    })
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a fabricated company', { companyUuid: '11111111-1111-4111-8111-111111111111' }],
+    ['a fabricated device', { deviceUuid: '33333333-3333-4333-8333-333333333333' }],
+    ['a fabricated warehouse', { warehouseUuid: '88888888-8888-4888-8888-888888888888' }],
+    ['a caller-chosen catalog revision', { revision: 'b'.repeat(64) }],
+    ['a force flag', { force: true }],
+    ['a non-object payload', 'ignored'],
+    // Not even an empty object: the channel takes no argument whatsoever.
+    ['an empty object', {}]
+  ])('rejects %s before the service is reached', async (_label, input) => {
+    const { invoke, refresh } = refreshHarness()
+
+    await expect(invoke(input)).resolves.toMatchObject({
+      ok: false,
+      error: { category: 'validation', retryable: false }
+    })
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('delegates an authorized empty request to the refresh service unmodified', async () => {
+    const outcome = {
+      status: {
+        status: 'fresh',
+        isReadable: true,
+        catalogValid: true,
+        lastSyncedAt: '2026-01-01T00:00:00+00:00',
+        contract: null
+      },
+      refreshedAt: '2026-01-01T00:00:00+00:00',
+      previousRevision: null,
+      revisionChanged: false,
+      counts: {},
+      access: {
+        sell: { allowed: true, reason: null, warning: null, action: 'sell' },
+        sync: { allowed: true, reason: null, warning: null, action: 'sync' }
+      },
+      licenseValidatedAt: '2026-01-01T00:00:00+00:00'
+    }
+    const { invoke, refresh } = refreshHarness(outcome)
+
+    // Exactly how `posApi.catalog.refresh()` invokes it: no argument at all.
+    await expect(invoke()).resolves.toEqual({ ok: true, data: outcome })
+    expect(refresh).toHaveBeenCalledTimes(1)
+    // Argument-free by contract: main derives every identity itself.
+    expect(refresh).toHaveBeenCalledWith()
   })
 })

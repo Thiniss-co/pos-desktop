@@ -3,7 +3,17 @@ import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract'
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
-import type { CheckoutIntent, CheckoutPreviewOutcome } from '@shared/contracts/checkout.contract'
+import type {
+  CheckoutAbandonAttemptInput,
+  CheckoutAcknowledgeAttemptInput,
+  CheckoutCompleteInput,
+  CheckoutCompletionOutcome,
+  CheckoutIntent,
+  CheckoutPendingAttemptsInput,
+  CheckoutPreviewOutcome,
+  CheckoutRecoveryState,
+  CheckoutRetryAttemptInput
+} from '@shared/contracts/checkout.contract'
 import type {
   CatalogCategory,
   CatalogBarcodeLookup,
@@ -13,6 +23,7 @@ import type {
   CatalogPaymentMethod,
   CatalogProduct,
   CatalogProductPage,
+  CatalogRefreshResult,
   CatalogSearchInput,
   CatalogStatus
 } from '@shared/contracts/catalog.contract'
@@ -67,6 +78,7 @@ export interface PosApi {
   }
   readonly catalog: {
     getStatus(): Promise<IpcResult<CatalogStatus>>
+    refresh(): Promise<IpcResult<CatalogRefreshResult>>
     listCategories(): Promise<IpcResult<CatalogCategory[]>>
     searchProducts(input: CatalogSearchInput): Promise<IpcResult<CatalogProductPage>>
     getProduct(input: { uuid: string }): Promise<IpcResult<CatalogProduct>>
@@ -85,6 +97,15 @@ export interface PosApi {
   }
   readonly checkout: {
     validate(input: CheckoutIntent): Promise<IpcResult<CheckoutPreviewOutcome>>
+    complete(input: CheckoutCompleteInput): Promise<IpcResult<CheckoutCompletionOutcome>>
+    retryAttempt(input: CheckoutRetryAttemptInput): Promise<IpcResult<CheckoutCompletionOutcome>>
+    abandonAttempt(
+      input: CheckoutAbandonAttemptInput
+    ): Promise<IpcResult<CheckoutCompletionOutcome>>
+    acknowledgeAttempt(
+      input: CheckoutAcknowledgeAttemptInput
+    ): Promise<IpcResult<CheckoutCompletionOutcome>>
+    pendingAttempts(input: CheckoutPendingAttemptsInput): Promise<IpcResult<CheckoutRecoveryState>>
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
@@ -146,6 +167,7 @@ export const posApi: PosApi = Object.freeze({
   }),
   catalog: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.catalogGetStatus),
+    refresh: () => ipcRenderer.invoke(IPC_CHANNELS.catalogRefresh),
     listCategories: () => ipcRenderer.invoke(IPC_CHANNELS.catalogListCategories),
     searchProducts: (input: CatalogSearchInput) =>
       ipcRenderer.invoke(IPC_CHANNELS.catalogSearchProducts, input),
@@ -168,7 +190,17 @@ export const posApi: PosApi = Object.freeze({
     close: (input: CloseShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsClose, input)
   }),
   checkout: Object.freeze({
-    validate: (input: CheckoutIntent) => ipcRenderer.invoke(IPC_CHANNELS.checkoutValidate, input)
+    validate: (input: CheckoutIntent) => ipcRenderer.invoke(IPC_CHANNELS.checkoutValidate, input),
+    complete: (input: CheckoutCompleteInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutComplete, input),
+    retryAttempt: (input: CheckoutRetryAttemptInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutRetryAttempt, input),
+    abandonAttempt: (input: CheckoutAbandonAttemptInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutAbandonAttempt, input),
+    acknowledgeAttempt: (input: CheckoutAcknowledgeAttemptInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutAcknowledgeAttempt, input),
+    pendingAttempts: (input: CheckoutPendingAttemptsInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutPendingAttempts, input)
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus)

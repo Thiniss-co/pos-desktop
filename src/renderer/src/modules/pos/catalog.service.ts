@@ -7,6 +7,7 @@ import type {
   CatalogPaymentMethod,
   CatalogProduct,
   CatalogProductPage,
+  CatalogRefreshResult,
   CatalogSearchInput,
   CatalogStatus
 } from '@shared/contracts/catalog.contract'
@@ -17,6 +18,15 @@ export class CatalogRendererService {
 
   async getStatus(): Promise<CatalogStatus> {
     return unwrapIpcResult(await this.gateway.getStatus())
+  }
+
+  /**
+   * The authoritative workstation-data refresh. Narrow and argument-free by design: the renderer
+   * cannot name a company, device, warehouse, or catalog revision to refresh — main derives all of
+   * that from the authenticated session and the bound device.
+   */
+  async refresh(): Promise<CatalogRefreshResult> {
+    return unwrapIpcResult(await this.gateway.refresh())
   }
 
   async listCategories(): Promise<CatalogCategory[]> {

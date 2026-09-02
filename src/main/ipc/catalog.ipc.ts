@@ -7,16 +7,41 @@ import {
   catalogGetStatusInputSchema,
   catalogListCategoriesInputSchema,
   catalogListPaymentMethodsInputSchema,
+  catalogRefreshInputSchema,
   catalogSearchCustomersInputSchema,
   catalogSearchProductsInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
+import { isPublicAppError } from '../http/apiError'
+import { ipcFailure } from '@shared/contracts/ipc.contract'
+import { assertTrustedSender } from './assertTrustedSender'
 import { handleIpcRequest } from './handleIpcRequest'
+
+const unexpectedError = {
+  category: 'unexpected',
+  message: 'The request could not be completed',
+  retryable: false
+} as const
 
 export function registerCatalogIpcHandlers(services: ApplicationServices): void {
   ipcMain.handle(IPC_CHANNELS.catalogGetStatus, (_event, input: unknown) =>
     handleIpcRequest(input, catalogGetStatusInputSchema, () => services.catalog.getStatus())
   )
+  // `catalog:refresh` is the only catalog channel that changes durable state and reaches the
+  // network, so it is the only one that carries the trusted-sender check — asserted *before* the
+  // payload is parsed, exactly like the checkout write channels.
+  ipcMain.handle(IPC_CHANNELS.catalogRefresh, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+
+    return handleIpcRequest(input, catalogRefreshInputSchema, () =>
+      services.catalogRefresh.refresh()
+    )
+  })
+
   ipcMain.handle(IPC_CHANNELS.catalogListCategories, (_event, input: unknown) =>
     handleIpcRequest(input, catalogListCategoriesInputSchema, () =>
       services.catalog.listCategories()

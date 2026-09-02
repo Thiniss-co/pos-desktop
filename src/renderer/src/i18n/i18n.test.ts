@@ -53,6 +53,40 @@ describe('i18n catalogs', () => {
     )
   })
 
+  it('explains workstation allocation rejection safely in English and Arabic', () => {
+    i18n.global.locale.value = 'en'
+    expect(i18n.global.t('pos.payment.completion.rejected.stock-allocation-unavailable')).toBe(
+      'One or more tracked products do not have enough stock allocated to this workstation. Adjust the quantity, or refresh workstation data after an allocation is issued. Refreshing does not create or top up an allocation.'
+    )
+    expect(i18n.global.t('pos.payment.completion.affectedProducts', { products: 'Water' })).toBe(
+      'Affected products: Water.'
+    )
+
+    i18n.global.locale.value = 'ar'
+    expect(i18n.global.t('pos.payment.completion.rejected.stock-allocation-unavailable')).toBe(
+      'لا يتوفر لمنتج متتبّع واحد أو أكثر مخزون كافٍ مخصّص لمحطة العمل هذه. عدّل الكمية، أو حدّث بيانات محطة العمل بعد إصدار تخصيص. التحديث لا ينشئ تخصيصًا ولا يزيده.'
+    )
+    expect(i18n.global.t('pos.payment.completion.affectedProducts', { products: 'مياه' })).toBe(
+      'المنتجات المتأثرة: مياه.'
+    )
+  })
+
+  it('tells the cashier an unresolved allocation retry is safe, in English and Arabic', () => {
+    const key = 'pos.payment.completion.failed.allocation-acquisition-unresolved'
+
+    i18n.global.locale.value = 'en'
+    const english = String(i18n.global.t(key))
+    expect(english).toContain('Nothing was charged or saved')
+    expect(english).toContain('Retry this same sale')
+    // It must never imply a refresh creates or increases an allocation.
+    expect(english).not.toMatch(/refresh/i)
+
+    i18n.global.locale.value = 'ar'
+    const arabic = String(i18n.global.t(key))
+    expect(arabic).not.toBe(key)
+    expect(arabic).toContain('إعادة المحاولة آمنة')
+  })
+
   it('falls back to the safe backend message when a backendCode has no catalog entry', () => {
     // The main-process normalizer (apiError.ts) strips backendCode entirely for a code this app
     // doesn't recognize (see apiError.test.ts), so it never reaches localizeAppError with a

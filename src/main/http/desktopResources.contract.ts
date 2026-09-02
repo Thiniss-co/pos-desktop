@@ -218,11 +218,14 @@ const stockItemResourceSchema = z
     id: z.uuid(),
     product_uuid: z.uuid(),
     warehouse_uuid: z.uuid(),
-    quantity: z.number(),
-    reserved_quantity: z.number(),
-    available_quantity: z.number(),
-    minimum_quantity: z.number().nullable().optional(),
-    maximum_quantity: z.number().nullable().optional(),
+    quantity: z.number().finite(),
+    reserved_quantity: z.number().finite(),
+    // Laravel's DesktopStockItemResource casts decimal quantities to float. Keep that exact wire
+    // type here; it is retained only as a stock projection, never as allocation sale authority.
+    allocation_reserved_quantity: z.number().finite(),
+    available_quantity: z.number().finite(),
+    minimum_quantity: z.number().finite().nullable(),
+    maximum_quantity: z.number().finite().nullable(),
     is_active: z.boolean(),
     updated_at: z.string().nullable().optional()
   })
@@ -268,6 +271,63 @@ const customerResourceSchema = z
     updated_at: z.string().nullable().optional()
   })
   .passthrough()
+
+/**
+ * One device-bound stock allocation envelope (backend `StockAllocationResource`). Bootstrap is
+ * read-only for allocations: it reports the envelopes the server currently holds for this device
+ * and never grants or mutates them. This is an exact, versioned cross-runtime contract: a server
+ * field added without a desktop update must fail bootstrap deliberately, never be discarded.
+ */
+export const stockAllocationResourceSchema = z
+  .object({
+    id: z.uuid(),
+    contract_version: z.number().int().positive(),
+    company_uuid: z.uuid(),
+    device_uuid: z.uuid(),
+    warehouse_uuid: z.uuid(),
+    product_uuid: z.uuid(),
+    server_sequence: z.number().int().positive(),
+    rights_generation: z.number().int().positive(),
+    lifecycle_generation: z.number().int().positive(),
+    granted_quantity_milli: z.number().int().positive(),
+    consumed_quantity_milli: z.number().int().nonnegative(),
+    remaining_quantity_milli: z.number().int().nonnegative(),
+    consume_until: isoSecondTimestampSchema,
+    status: z.enum(['active', 'revocation_pending', 'seal_acknowledged', 'released', 'consumed']),
+    envelope_hash: sha256RevisionSchema,
+    seal_nonce: z.uuid().nullable(),
+    final_consumption_sequence: z.number().int().nonnegative().nullable(),
+    final_consumption_hash: sha256RevisionSchema.nullable(),
+    sealed_at: isoSecondTimestampSchema.nullable(),
+    acknowledged_at: isoSecondTimestampSchema.nullable(),
+    released_at: isoSecondTimestampSchema.nullable()
+  })
+  .strict()
+
+export type StockAllocationResource = z.infer<typeof stockAllocationResourceSchema>
+
+/**
+ * `POST /api/v1/desktop/stock-allocations/top-up` response body (`data`), transcribed from
+ * `DesktopStockAllocationController::topUp()`: `StockAllocationResource::collection(...)` unwrapped
+ * by `ApiResponse::resource()`, so `data` is the bare array of the same envelopes bootstrap
+ * publishes. Reusing `stockAllocationResourceSchema` verbatim is deliberate — there is exactly one
+ * desktop allocation envelope contract, and an added server field must fail both paths identically
+ * rather than being silently discarded on one of them.
+ */
+export const desktopStockAllocationTopUpDataSchema = z.array(stockAllocationResourceSchema)
+
+/**
+ * The controller merges `['allocation_revision' => $result['revision']]` into the envelope meta,
+ * alongside the `trace_id` every `ApiResponse` adds. `allocation_revision` is authority (it is the
+ * server's monotonic lifecycle-audit high-water mark for this device) and is therefore required and
+ * strictly typed; other meta keys are diagnostics owned by the shared envelope, not by this route,
+ * so they are tolerated exactly as `parseApiEnvelope` already tolerates them.
+ */
+export const desktopStockAllocationTopUpMetaSchema = z.object({
+  allocation_revision: z.number().int().nonnegative()
+})
+
+export type DesktopStockAllocationTopUpData = z.infer<typeof desktopStockAllocationTopUpDataSchema>
 
 export const desktopBootstrapResourceSchema = z
   .object({
@@ -320,6 +380,9 @@ export const desktopBootstrapResourceSchema = z
         entities: z.record(z.string(), syncEntityCountResourceSchema)
       })
       .passthrough(),
+    // Optional: a backend that predates the allocation contract omits both keys.
+    stock_allocations: z.array(stockAllocationResourceSchema).optional(),
+    stock_allocation_revision: z.number().int().nonnegative().optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),
@@ -329,6 +392,18 @@ export const desktopBootstrapResourceSchema = z
     customers: z.array(customerResourceSchema).optional()
   })
   .strict()
+  .superRefine((resource, context) => {
+    const allocationsPresent = Object.hasOwn(resource, 'stock_allocations')
+    const revisionPresent = Object.hasOwn(resource, 'stock_allocation_revision')
+
+    if (allocationsPresent !== revisionPresent) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'stock_allocations and stock_allocation_revision must be present together or both be absent'
+      })
+    }
+  })
 
 export type DesktopBootstrapResource = z.infer<typeof desktopBootstrapResourceSchema>
 
