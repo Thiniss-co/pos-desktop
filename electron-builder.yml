@@ -9,6 +9,13 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # CP-3G-5 is a source-only live-test harness. Its database, private fixture and authorization
+  # material must never cross the application packaging boundary.
+  - '!scripts/cp3g5LiveUpload.mjs'
+  - '!tests/electron/support/cp3g5/**'
+  - '!**/pos-desktop-cp3g5-*'
+  - '!**/cp3g5-backend.sqlite'
+  - '!**/cp3g5-fixture.json'
 asarUnpack:
   - resources/**
 win:

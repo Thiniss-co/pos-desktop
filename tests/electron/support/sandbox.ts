@@ -88,11 +88,23 @@ export function createSandbox(): DatabaseSandbox {
   }
 }
 
+export interface DatabaseTestOptions {
+  /**
+   * Skip this case, with a reason.
+   *
+   * Used by suites that need something the harness cannot manufacture — CP-3G-5 needs a live
+   * Laravel server on a disposable database. Skipping keeps `npm run test:sqlite:electron`
+   * runnable with no backend, and a skip is reported as a skip rather than as a silent pass.
+   */
+  readonly skip?: boolean | string
+}
+
 export function databaseTest(
   name: string,
-  callback: (sandbox: DatabaseSandbox) => void | Promise<void>
+  callback: (sandbox: DatabaseSandbox) => void | Promise<void>,
+  options: DatabaseTestOptions = {}
 ): void {
-  test(name, async () => {
+  test(name, { skip: options.skip ?? false }, async () => {
     const sandbox = createSandbox()
 
     try {

@@ -40,7 +40,9 @@ describe('Electron SQLite harness integrity', () => {
 
   it('contains native filesystem and database entry points only in their sanctioned support modules', () => {
     const allowances: Record<string, readonly string[]> = {
-      'new Database(': ['support/committedState.ts'],
+      // `liveUploadBackend.ts` opens the CP-3G-5 disposable *backend* database read-only, to count
+      // real server rows mid-test. It never opens the desktop database.
+      'new Database(': ['support/committedState.ts', 'support/liveUploadBackend.ts'],
       'openDatabase(': ['support/openTestDatabase.ts'],
       'runMigrations(': ['support/openTestDatabase.ts'],
       'rmSync(': ['support/sandbox.ts']
