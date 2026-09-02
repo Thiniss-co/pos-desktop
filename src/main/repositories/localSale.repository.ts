@@ -317,6 +317,82 @@ export class LocalSaleRepository {
     return mapPaymentRow(row)
   }
 
+  /**
+   * Records a server-accepted upload.
+   *
+   * `sync_status`, `synced_at` and `remote_uuid` move in a **single** UPDATE because migration 0007
+   * pins them to each other:
+   *   CHECK ((sync_status = 'synced') = (synced_at IS NOT NULL))
+   *   CHECK (sync_status = 'synced' OR remote_uuid IS NULL)
+   * Writing them in stages would violate one CHECK or the other mid-way, so there is no legal
+   * partial success — which is exactly the intent.
+   *
+   * Called for a 201 and for a 200 duplicate alike: both mean the server holds exactly one invoice
+   * for this idempotency key. `sync_attempts` is not touched here; it was already incremented when
+   * the row was claimed for dispatch.
+   */
+  markInvoiceSynced(
+    localUuid: string,
+    result: {
+      readonly remoteUuid: string
+      readonly serverNumber: string
+      readonly syncedAt: string
+    }
+  ): void {
+    const updated = this.database
+      .prepare(
+        `
+          UPDATE local_invoices
+          SET sync_status = 'synced', remote_uuid = ?, server_number = ?, synced_at = ?,
+              last_sync_error = NULL, updated_at = ?
+          WHERE local_uuid = ?
+        `
+      )
+      .run(result.remoteUuid, result.serverNumber, result.syncedAt, result.syncedAt, localUuid) as {
+      readonly changes: number
+    }
+
+    if (updated.changes !== 1) {
+      throw new Error('Local invoice was not found when recording a successful upload')
+    }
+  }
+
+  /**
+   * Records a non-success upload outcome.
+   *
+   * `remote_uuid` and `synced_at` are deliberately left untouched: a failure never claims a server
+   * identity, and the schema would reject the row if it tried. The local invoice, its items,
+   * payments, stock movements and allocation consumptions are never negated or deleted here — a
+   * rejection means the server refused the upload, not that the sale did not happen.
+   */
+  markInvoiceUploadFailed(
+    localUuid: string,
+    failure: {
+      readonly syncStatus: Extract<
+        LocalInvoiceRow['syncStatus'],
+        'pending' | 'retryable_error' | 'conflict' | 'rejected'
+      >
+      readonly lastSyncError: string | null
+      readonly updatedAt: string
+    }
+  ): void {
+    const updated = this.database
+      .prepare(
+        `
+          UPDATE local_invoices
+          SET sync_status = ?, last_sync_error = ?, updated_at = ?
+          WHERE local_uuid = ?
+        `
+      )
+      .run(failure.syncStatus, failure.lastSyncError, failure.updatedAt, localUuid) as {
+      readonly changes: number
+    }
+
+    if (updated.changes !== 1) {
+      throw new Error('Local invoice was not found when recording a failed upload')
+    }
+  }
+
   findInvoiceByLocalUuid(localUuid: string): LocalInvoiceRow | null {
     const row = this.database
       .prepare('SELECT * FROM local_invoices WHERE local_uuid = ?')

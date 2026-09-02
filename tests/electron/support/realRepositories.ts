@@ -15,6 +15,7 @@ import { SessionEpochRepository } from '../../../src/main/repositories/sessionEp
 import { SqliteSessionMetadataRepository } from '../../../src/main/repositories/sessionMetadata.repository'
 import { ShiftObservationRepository } from '../../../src/main/repositories/shiftObservation.repository'
 import { StockAllocationRepository } from '../../../src/main/repositories/stockAllocation.repository'
+import { SyncConflictRepository } from '../../../src/main/repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../../../src/main/repositories/syncQueue.repository'
 
 export interface RealRepositories {
@@ -34,6 +35,7 @@ export interface RealRepositories {
   readonly shiftObservations: ShiftObservationRepository
   readonly stockAllocations: StockAllocationRepository
   readonly syncQueue: SyncQueueRepository
+  readonly syncConflicts: SyncConflictRepository
 }
 
 export function realRepositories(database: SqliteDatabase): RealRepositories {
@@ -54,7 +56,8 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
     sessionMetadata: new SqliteSessionMetadataRepository(database),
     shiftObservations: new ShiftObservationRepository(database),
     stockAllocations,
-    syncQueue: new SyncQueueRepository(database)
+    syncQueue: new SyncQueueRepository(database),
+    syncConflicts: new SyncConflictRepository(database)
   }
 
   assert.ok(repositories.appSettings instanceof AppSettingsRepository)
