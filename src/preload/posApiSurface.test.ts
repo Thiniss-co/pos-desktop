@@ -79,5 +79,36 @@ describe('posApi surface', () => {
 
   it('keeps runtime validation out of the sandboxed preload bundle', () => {
     expect(source).not.toContain('connectivitySnapshotSchema')
+    expect(source).not.toContain('syncStatusSchema')
+    expect(source).not.toContain('syncFailurePageSchema')
+  })
+
+  it('exposes exactly the four named sync capabilities (CP-3G-4)', () => {
+    expect(source).toContain('uploadNow')
+    expect(source).toContain('listFailures')
+    expect(source).toContain('syncGetStatus')
+    expect(source).toContain('syncUploadNow')
+    expect(source).toContain('syncListFailures')
+    expect(source).toContain('syncChanged')
+  })
+
+  it('validates a pushed sync status structurally before calling a renderer listener', () => {
+    // The listener is called only from inside the guard, so neither a malformed payload nor the
+    // Electron event object can reach renderer code.
+    expect(source).toContain('isSyncStatusShape')
+    expect(source).toMatch(/if \(isSyncStatusShape\(payload\)\) \{\s*listener\(payload\)/)
+  })
+
+  it('exposes no sync mutation beyond an unparameterised scheduling hint', () => {
+    // `uploadNow` takes no argument at all: the renderer cannot name a queue row, an invoice, an
+    // owner or a state, so no preload call can retry, resolve or revive a terminal failure.
+    expect(source).toContain('uploadNow: () => ipcRenderer.invoke(IPC_CHANNELS.syncUploadNow)')
+    expect(source).not.toMatch(/retryUpload|resolveConflict|deleteFailure|markResolved/i)
+  })
+
+  it('never registers an inbound handler for the push-only sync channel', () => {
+    // `sync:changed` is main-to-renderer only; the preload may listen, never send.
+    expect(source).not.toMatch(/send\(IPC_CHANNELS\.syncChanged/)
+    expect(source).not.toMatch(/invoke\(IPC_CHANNELS\.syncChanged/)
   })
 })

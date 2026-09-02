@@ -3,7 +3,15 @@ import {
   isSyncQueueState,
   isSyncQueueTransitionAllowed
 } from '@shared/constants/syncQueueStates'
-import type { SyncCounts, SyncStatus } from '@shared/contracts/sync.contract'
+import {
+  SYNC_FAILURE_PAGE_DEFAULT_SIZE,
+  SYNC_FAILURE_PAGE_MAX_SIZE,
+  type SyncCounts,
+  type SyncFailure,
+  type SyncFailureCursor,
+  type SyncFailurePage,
+  type SyncStatus
+} from '@shared/contracts/sync.contract'
 import type { SqliteDatabase } from '../database/connection'
 
 export interface NewSyncQueueItem {
@@ -92,6 +100,58 @@ interface SyncQueueUploadDbRow {
   readonly local_queue_uuid: string
   readonly payload_json: string
   readonly payload_hash: string
+}
+
+interface UploadFailureDbRow {
+  readonly local_queue_uuid: string
+  readonly state: string
+  readonly last_error_code: string | null
+  readonly last_error_details: string | null
+  readonly created_at: string
+  readonly invoice_local_uuid: string | null
+  readonly offline_number: string | null
+  readonly grand_total_amount: number | null
+  readonly currency: string | null
+  readonly currency_exponent: number | null
+  readonly sold_at: string | null
+  readonly user_uuid: string | null
+  readonly shift_uuid: string | null
+}
+
+/**
+ * Reads the two renderer-safe fields out of the persisted `last_error_details` JSON.
+ *
+ * Anything unparseable degrades to nulls rather than throwing: a malformed diagnostic blob must not
+ * make a real failed sale invisible to the operator reviewing it.
+ */
+function readErrorDetails(raw: string | null): {
+  readonly traceId: string | null
+  readonly message: string | null
+  readonly backendCode: string | null
+} {
+  const empty = { traceId: null, message: null, backendCode: null }
+
+  if (raw === null) {
+    return empty
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw)
+
+    if (typeof parsed !== 'object' || parsed === null) {
+      return empty
+    }
+
+    const record = parsed as Record<string, unknown>
+
+    return {
+      traceId: typeof record.traceId === 'string' ? record.traceId : null,
+      message: typeof record.message === 'string' ? record.message : null,
+      backendCode: typeof record.backendCode === 'string' ? record.backendCode : null
+    }
+  } catch {
+    return empty
+  }
 }
 
 interface SyncCountRow {
@@ -392,6 +452,94 @@ export class SyncQueueRepository {
 
       return rows.map((row) => row.local_queue_uuid)
     })()
+  }
+
+  /**
+   * The terminal `conflict` / `rejected` invoice uploads for one company+device, oldest first.
+   *
+   * Three properties are load-bearing:
+   *
+   * 1. **Ownership is enforced in SQL**, exactly as `claimNextInvoiceUpload` does it — the caller
+   *    cannot forget it, and another device's failed sale is unreachable rather than merely
+   *    unselected. Cross-*user* rows on this device stay visible: a delayed upload is device-owned
+   *    and the backend attributes it from the immutable shift, so a colleague's stranded sale is
+   *    exactly what this till's operator needs to see.
+   * 2. **Keyset, not offset.** The tuple is the drain order (`created_at`, then `local_queue_uuid`),
+   *    so a row reaching a terminal state between two pages cannot make the reader skip or repeat a
+   *    real sale.
+   * 3. **`local_invoices` is LEFT JOINed.** A queue row whose invoice is missing stays listed with
+   *    null invoice fields — visible and diagnosable — rather than silently disappearing.
+   *
+   * This is a pure read: it opens no transaction, writes nothing, and never touches the network.
+   */
+  listUploadFailures(
+    owner: SyncQueueUploadOwner,
+    cursor: SyncFailureCursor | null = null,
+    limit: number = SYNC_FAILURE_PAGE_DEFAULT_SIZE
+  ): SyncFailurePage {
+    const size = Math.min(Math.max(Math.trunc(limit), 1), SYNC_FAILURE_PAGE_MAX_SIZE)
+    const parameters: unknown[] = [owner.companyUuid, owner.deviceUuid]
+    let keyset = ''
+
+    if (cursor !== null) {
+      // Strictly after the cursor in the same total order the ORDER BY establishes.
+      keyset = ' AND (q.created_at > ? OR (q.created_at = ? AND q.local_queue_uuid > ?))'
+      parameters.push(cursor.createdAt, cursor.createdAt, cursor.localQueueUuid)
+    }
+
+    // One extra row decides whether another page exists, without a second COUNT query.
+    parameters.push(size + 1)
+
+    const rows = this.database
+      .prepare(
+        `
+          SELECT q.local_queue_uuid, q.state, q.last_error_code, q.last_error_details, q.created_at,
+                 i.local_uuid AS invoice_local_uuid, i.offline_number, i.grand_total_amount,
+                 i.currency, i.currency_exponent, i.sold_at, i.user_uuid, i.shift_uuid
+          FROM sync_queue q
+          LEFT JOIN local_invoices i ON i.local_uuid = q.local_aggregate_uuid
+          WHERE q.aggregate_type = 'invoice'
+            AND q.operation = 'upload'
+            AND q.state IN ('conflict', 'rejected')
+            AND i.company_uuid = ?
+            AND i.device_uuid = ?${keyset}
+          ORDER BY q.created_at ASC, q.local_queue_uuid ASC
+          LIMIT ?
+        `
+      )
+      .all(...parameters) as UploadFailureDbRow[]
+
+    const page = rows.slice(0, size)
+    const items: SyncFailure[] = page.map((row) => {
+      const details = readErrorDetails(row.last_error_details)
+
+      return {
+        localQueueUuid: row.local_queue_uuid,
+        invoiceLocalUuid: row.invoice_local_uuid,
+        offlineNumber: row.offline_number,
+        totalAmount: row.grand_total_amount,
+        currency: row.currency,
+        currencyExponent: row.currency_exponent,
+        soldAt: row.sold_at,
+        cashierUuid: row.user_uuid,
+        shiftUuid: row.shift_uuid,
+        // The CHECK constraint pins this to the two terminal states the WHERE clause selected.
+        state: row.state === 'conflict' ? 'conflict' : 'rejected',
+        backendCode: row.last_error_code ?? details.backendCode,
+        message: details.message,
+        traceId: details.traceId,
+        queuedAt: row.created_at
+      }
+    })
+    const last = page.at(-1)
+
+    return {
+      items,
+      nextCursor:
+        rows.length > size && last
+          ? { createdAt: last.created_at, localQueueUuid: last.local_queue_uuid }
+          : null
+    }
   }
 
   /**

@@ -22,8 +22,28 @@ interface CommercialAccessDescriber {
 export class CommercialAccessPublisher {
   private newestRevision = 0
   private publishedRevision = 0
+  private readonly listeners = new Set<() => void>()
 
   constructor(private readonly access: CommercialAccessDescriber) {}
+
+  /**
+   * Observes *actual* access publications in the main process.
+   *
+   * This is the authoritative access-change signal: licence validation, bootstrap completion,
+   * catalog refresh and connectivity transitions all publish through `publish()`, so one
+   * subscription here covers every one of them. Listeners fire only when a publication is really
+   * applied — a superseded revision notifies nobody, which is what keeps a burst of overlapping
+   * refreshes from fanning out into a burst of scheduling hints.
+   *
+   * A listener is a **hint only**. It carries no authority: it says "access may have changed",
+   * never "access is granted". The renderer cannot reach this, and nothing it receives is trusted.
+   */
+  onPublished(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
 
   begin(): number {
     this.newestRevision += 1
@@ -50,6 +70,15 @@ export class CommercialAccessPublisher {
     }
 
     this.publishedRevision = revision
+
+    for (const listener of this.listeners) {
+      try {
+        listener()
+      } catch {
+        // A hint consumer must never be able to break access publication for the renderer or for
+        // the other listeners. The worker re-derives its own authority regardless.
+      }
+    }
   }
 
   publishCurrent(): void {

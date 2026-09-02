@@ -43,7 +43,11 @@ import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import type { IpcResult } from '@shared/contracts/ipc.contract'
 import type { CommercialAccessSnapshot } from '@shared/contracts/license.contract'
 import type { LocaleCode, ThemePreference } from '@shared/contracts/preferences.contract'
-import type { SyncStatus } from '@shared/contracts/sync.contract'
+import type {
+  SyncFailureCursor,
+  SyncFailurePage,
+  SyncStatus
+} from '@shared/contracts/sync.contract'
 import type { RuntimeInfo } from '@shared/contracts/system.contract'
 import type {
   CloseShiftInput,
@@ -109,6 +113,9 @@ export interface PosApi {
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
+    uploadNow(): Promise<IpcResult<SyncStatus>>
+    listFailures(cursor?: SyncFailureCursor | null): Promise<IpcResult<SyncFailurePage>>
+    onChanged(listener: (status: SyncStatus) => void): () => void
   }
   readonly connectivity: {
     getState(): Promise<IpcResult<ConnectivitySnapshot>>
@@ -131,6 +138,37 @@ export interface PosApi {
     setEnabled(input: SetEnabledInput): Promise<IpcResult<CompanyUser>>
     listAssignableRoles(): Promise<IpcResult<AssignableRoles>>
   }
+}
+
+function isCountShape(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const counts = value as Record<string, unknown>
+
+  return (
+    typeof counts.pending === 'number' &&
+    typeof counts.uploading === 'number' &&
+    typeof counts.retryableError === 'number' &&
+    typeof counts.conflict === 'number' &&
+    typeof counts.rejected === 'number'
+  )
+}
+
+/** Dependency-free structural guard for a pushed status; keeps the sandboxed bundle import-free. */
+function isSyncStatusShape(value: unknown): value is SyncStatus {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const status = value as Record<string, unknown>
+
+  return (
+    (status.state === 'idle' || status.state === 'paused') &&
+    (status.pausedReason === null || typeof status.pausedReason === 'string') &&
+    isCountShape(status.counts)
+  )
 }
 
 export const posApi: PosApi = Object.freeze({
@@ -203,7 +241,26 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.checkoutPendingAttempts, input)
   }),
   sync: Object.freeze({
-    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus)
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus),
+    uploadNow: () => ipcRenderer.invoke(IPC_CHANNELS.syncUploadNow),
+    // The cursor is the only thing a caller may name. There is no owner and no filter here, and
+    // no numeric row index: main resolves the company/device pair from its own session.
+    listFailures: (cursor?: SyncFailureCursor | null) =>
+      ipcRenderer.invoke(IPC_CHANNELS.syncListFailures, { cursor: cursor ?? null }),
+    onChanged: (listener: (status: SyncStatus) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        // Main validates the status against its schema before every send. This second, structural
+        // check is deliberately hand-written rather than a shared schema import: the preload runs
+        // sandboxed, so it stays dependency-free (see posApiSurface.test.ts). It also guarantees
+        // the Electron event object itself is never handed to a renderer listener.
+        if (isSyncStatusShape(payload)) {
+          listener(payload)
+        }
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.syncChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.syncChanged, subscription)
+    }
   }),
   connectivity: Object.freeze({
     getState: () => ipcRenderer.invoke(IPC_CHANNELS.connectivityGetState),

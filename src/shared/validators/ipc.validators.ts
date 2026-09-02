@@ -16,6 +16,7 @@ import {
   checkoutRetryAttemptInputSchema as checkoutRetryAttemptContractSchema
 } from '@shared/contracts/checkout.contract'
 import { localeCodeSchema, themePreferenceSchema } from '@shared/contracts/preferences.contract'
+import { syncListFailuresInputSchema as syncListFailuresContractSchema } from '@shared/contracts/sync.contract'
 import {
   closeShiftInputSchema,
   openShiftInputSchema,
@@ -71,6 +72,8 @@ export const checkoutRetryAttemptInputSchema = checkoutRetryAttemptContractSchem
 export const checkoutAbandonAttemptInputSchema = checkoutAbandonAttemptContractSchema
 export const checkoutAcknowledgeAttemptInputSchema = checkoutAcknowledgeAttemptContractSchema
 export const syncGetStatusInputSchema = z.undefined()
+export const syncUploadNowInputSchema = z.undefined()
+export const syncListFailuresInputSchema = syncListFailuresContractSchema
 export const connectivityGetStateInputSchema = z.undefined()
 export const connectivityCheckNowInputSchema = z.undefined()
 export const preferencesGetLocaleInputSchema = z.undefined()

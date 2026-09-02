@@ -13,6 +13,7 @@ import type {
   ShiftPhase
 } from '@renderer/shared/components/pos/types'
 import { useBootstrapStore } from '@renderer/modules/bootstrap/store'
+import { useSyncStore } from '@renderer/modules/sync/store'
 import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
 import { formatDateTime, formatRelativeDateTime } from '@renderer/shared/utils/format'
 import {
@@ -69,6 +70,25 @@ const catalog = useCatalogStore()
 const cart = useCartStore()
 const shift = useShiftStore()
 const payment = usePaymentStore()
+const sync = useSyncStore()
+// Live queue visibility in the till shell. Deliberately independent of connectivity: an offline
+// cashier must still see what is waiting, and POS rendering never depends on the network.
+const syncChipVariant = computed(() => {
+  if (sync.failedCount > 0) {
+    return 'error' as const
+  }
+
+  return sync.isPaused ? ('warning' as const) : ('information' as const)
+})
+const syncChipLabel = computed(() => {
+  if (sync.failedCount > 0) {
+    return t('pos.syncReview', { count: sync.failedCount })
+  }
+
+  return sync.isPaused
+    ? t('pos.syncPaused', { count: sync.queuedCount })
+    : t('pos.syncIdle', { count: sync.queuedCount })
+})
 const {
   categories,
   products,
@@ -873,13 +893,20 @@ onBeforeUnmount(() => {
   window.clearTimeout(customerSearchTimer)
   window.clearTimeout(previewTimer)
   window.clearInterval(synchronizationAgeTimer)
+  sync.dispose()
 })
 
 onMounted(async () => {
   synchronizationAgeTimer = window.setInterval(() => {
     synchronizationReferenceTime.value = Date.now()
   }, 60_000)
-  await Promise.all([shift.loadCurrent(), catalog.initialize(), payment.discoverPending()])
+  await Promise.all([
+    shift.loadCurrent(),
+    catalog.initialize(),
+    payment.discoverPending(),
+    // Subscribes before its first read, so an upload finishing during startup is not missed.
+    sync.initialize()
+  ])
 
   if (catalog.status?.catalogValid && catalog.status.contract) {
     cart.setContract(catalog.status.contract)
@@ -920,7 +947,7 @@ onMounted(async () => {
             <span v-if="lastSyncedAt && lastSyncedRelative" class="pos-page__last-synced numeric">
               {{ t('pos.lastSyncedAt', { relative: lastSyncedRelative, absolute: lastSyncedAt }) }}
             </span>
-            <AppStatusChip variant="information">{{ t('pos.syncPlaceholder') }}</AppStatusChip>
+            <AppStatusChip :variant="syncChipVariant">{{ syncChipLabel }}</AppStatusChip>
             <template v-if="freshness !== 'loading'">
               <template v-if="freshness === 'error'">
                 <AppStatusChip variant="error">{{ t('pos.shiftUnavailable') }}</AppStatusChip>

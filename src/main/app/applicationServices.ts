@@ -23,6 +23,8 @@ import { ShiftObservationRepository } from '../repositories/shiftObservation.rep
 import { StockAllocationRepository } from '../repositories/stockAllocation.repository'
 import { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../repositories/syncQueue.repository'
+import { InvoiceUploadFailureReader } from '../sync/invoiceUploadFailures'
+import { subscribeInvoiceUploadTriggers } from '../sync/invoiceUploadTriggers'
 import { InvoiceUploadOutcomeRecorder } from '../sync/invoiceUploadOutcome'
 import { InvoiceUploadWorker } from '../sync/invoiceUploadWorker'
 import { uploadInvoice } from '../sync/invoiceUpload.client'
@@ -50,6 +52,7 @@ import { StockAllocationService } from '../services/stockAllocation.service'
 import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
 import { CommercialAccessPublisher } from '../ipc/license.ipc'
+import { broadcastSyncChanged } from '../ipc/sync.ipc'
 
 export interface ApplicationServices {
   readonly runtimeConfig: RuntimeConfig
@@ -80,6 +83,7 @@ export interface ApplicationServices {
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   readonly invoiceUploads: InvoiceUploadWorker
+  readonly invoiceUploadFailures: InvoiceUploadFailureReader
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -280,9 +284,36 @@ export function createApplicationServices(): ApplicationServices {
     commercialAccess,
     permissions: bootstrapSnapshot,
     session: sessionMetadata,
-    upload: (payloadJson) => uploadInvoice(apiClient, payloadJson)
+    upload: (payloadJson) => uploadInvoice(apiClient, payloadJson),
+    // Every worker-visible change — claim, success, retry scheduling, conflict, rejection, pause,
+    // resume — reaches the renderer through the one sanitized status contract. A send failure is
+    // swallowed by the broadcaster: the queue write has already committed, and a renderer teardown
+    // race must never surface as a worker fault.
+    onStatusChanged: () => {
+      broadcastSyncChanged(invoiceUploads.getStatus())
+    }
+  })
+  const invoiceUploadFailures = new InvoiceUploadFailureReader({
+    syncQueue,
+    session: sessionMetadata
   })
   invoiceUploadTrigger = () => invoiceUploads.requestRun()
+  // CP-3G-4A. Closes the verified gap where restoring authority while already online left the
+  // worker paused until backoff, a restart, another sale, or a manual trigger.
+  //
+  // `CommercialAccessPublisher.publish()` is the authoritative main-owned access-change point:
+  // licence validation, **bootstrap-refresh completion** (which is what restores a revoked
+  // `pos.invoice.upload`), catalog refresh and connectivity all route through it, so this single
+  // subscription covers permission restoration as well — no polling, and no fabricated event.
+  //
+  // It is a scheduling hint and nothing more. The worker still re-runs `assertAllowed('sync')`,
+  // the `pos.invoice.upload` check, session ownership, row eligibility and payload integrity
+  // immediately before every dispatch, so a hint that arrives while access is still denied simply
+  // re-pauses without sending anything.
+  const unsubscribeAccessTrigger = subscribeInvoiceUploadTriggers({
+    accessPublisher: commercialAccessPublisher,
+    worker: invoiceUploads
+  })
   const saleCompletion = new SaleCompletionService({
     localSale,
     acquisition: allocationAcquisition,
@@ -320,6 +351,7 @@ export function createApplicationServices(): ApplicationServices {
     companyUsers,
     connectivity,
     invoiceUploads,
+    invoiceUploadFailures,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),
@@ -330,6 +362,7 @@ export function createApplicationServices(): ApplicationServices {
         apiConfiguration: runtimeConfig.apiConfiguration
       }),
     shutdown: () => {
+      unsubscribeAccessTrigger()
       invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()

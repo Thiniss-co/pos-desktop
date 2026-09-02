@@ -116,7 +116,6 @@
     },
     "lastSyncedAt": "Last synchronized {relative}: {absolute}",
     "catalogStaleWarning": "This catalog is stale. You can browse it, but refresh while connected before starting a new sale.",
-    "syncPlaceholder": "Sync visibility only",
     "catalogUnavailable": "The local catalog is unavailable.",
     "catalogUnavailableTitle": "No verified catalog is available",
     "catalogUnavailableDescription": "This workstation cannot safely read a complete local catalog. Check the session and refresh while connected.",
@@ -323,13 +322,65 @@
       "lastRefreshed": "Workstation data refreshed {time}",
       "failed": "Workstation data could not be refreshed. Check the connection and try again.",
       "revisionChanged": "The refreshed catalog changed. Rebuild or clear the current cart before selling — prices are never updated on an open cart automatically."
-    }
+    },
+    "syncIdle": "Sync: {count} queued",
+    "syncPaused": "Sync paused: {count} queued",
+    "syncReview": "{count} need review"
   },
   "sync": {
-    "label": "Sync visibility",
+    "label": "Sync",
     "queuedRecords": "{count} queued records",
-    "description": "Background sync is intentionally not started during the foundation phase.",
-    "statusUnavailable": "Sync status is unavailable"
+    "description": "Completed sales upload in the background. Selling never waits for this.",
+    "statusUnavailable": "Sync status is unavailable",
+    "uploadUnavailable": "The upload could not be requested",
+    "failuresUnavailable": "The failure list could not be loaded",
+    "state": {
+      "idle": "Running",
+      "paused": "Paused"
+    },
+    "counts": {
+      "pending": "Pending",
+      "uploading": "Uploading",
+      "retryableError": "Waiting to retry",
+      "conflict": "Conflicts",
+      "rejected": "Rejected"
+    },
+    "pausedReason": {
+      "title": "Uploading is paused",
+      "license-denied": "The licence does not currently allow syncing.",
+      "permission-denied": "This account does not have the invoice upload permission.",
+      "feature-not-enabled": "The POS feature is not enabled on this plan.",
+      "session-invalid": "The session is no longer valid. Sign in again.",
+      "session-revoked": "The session was revoked. Sign in again.",
+      "device-blocked": "This device is blocked from syncing.",
+      "company-inactive": "The company account is inactive.",
+      "offline": "The device is offline.",
+      "not-configured": "The backend address is not configured.",
+      "unknown": "Uploading is paused. Contact your manager if this persists."
+    },
+    "uploadNow": "Upload now",
+    "uploadNowBusy": "Requesting…",
+    "uploadNowDisabledPaused": "Uploading is paused, so this cannot run yet.",
+    "uploadNowDisabledBusy": "An upload request is already in progress.",
+    "failures": {
+      "title": "Needs review",
+      "empty": "No uploads need review.",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "state": {
+        "conflict": "Conflict",
+        "rejected": "Rejected"
+      },
+      "code": "Code",
+      "traceId": "Trace ID",
+      "soldAt": "Sold",
+      "cashier": "Cashier",
+      "shift": "Shift",
+      "unknownInvoice": "Invoice details unavailable",
+      "noMessage": "No further detail was returned.",
+      "preservationTitle": "The sale and its payment were not reversed",
+      "preservation": "Money already changed hands. This sale, its payments and its stock records are preserved on this device exactly as they were rung. Nothing was refunded or voided automatically — verify these sales manually with your manager."
+    }
   },
   "settings": {
     "label": "Workstation settings",

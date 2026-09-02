@@ -28,4 +28,25 @@ describe('PosPage Phase 3B–3E boundary', () => {
     expect(source).toContain('shift.loadCurrent()')
     expect(source).toContain("t('pos.shiftUnavailable')")
   })
+
+  it('shows a live sync indicator instead of the CP-3G-4 placeholder', () => {
+    expect(source).not.toContain('pos.syncPlaceholder')
+    expect(source).toContain('syncChipLabel')
+    expect(source).toContain('syncChipVariant')
+    expect(source).toContain('sync.queuedCount')
+    expect(source).toContain('sync.failedCount')
+    expect(source).toContain('sync.isPaused')
+  })
+
+  it('subscribes and disposes the sync store with the page lifecycle', () => {
+    expect(source).toContain('sync.initialize()')
+    expect(source).toContain('sync.dispose()')
+  })
+
+  it('never makes till rendering depend on connectivity, and never uploads from the renderer', () => {
+    // The chip reads queue state only. A cashier offline must still see what is waiting, and the
+    // renderer may never dispatch or authorize an upload.
+    expect(source).not.toMatch(/uploadNow|listFailures|invoicesUpload/)
+    expect(source).not.toMatch(/v-if="[^"]*connectivity[^"]*"/)
+  })
 })
