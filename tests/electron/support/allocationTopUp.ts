@@ -145,7 +145,14 @@ export function buildTopUpHarness(params: {
           throw new Error('No transport was configured for this test')
         }
 
-        return params.transport(call, attempt) as { data: T; meta: Record<string, unknown> }
+        // The client contract now also carries the success envelope's code/message (CP-3G-1).
+        // AllocationAcquisitionService does not read them, but the double must still answer with
+        // what the real endpoint returns rather than an invented shape.
+        return {
+          ...(params.transport(call, attempt) as { data: T; meta: Record<string, unknown> }),
+          code: 'STOCK_ALLOCATIONS_GRANTED',
+          message: 'Stock allocations granted.'
+        }
       }
     },
     stockAllocations: params.repositories.stockAllocations,

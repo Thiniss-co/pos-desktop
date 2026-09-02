@@ -178,4 +178,55 @@ describe('API error normalization', () => {
       'A future backend code the desktop app does not recognize yet.'
     )
   })
+
+  describe('invoice upload codes (CP-3G-1)', () => {
+    function normalize(
+      code: string,
+      message = 'Rejected.'
+    ): ReturnType<typeof normalizeApiEnvelopeError> {
+      return normalizeApiEnvelopeError({ success: false, message, code, errors: {}, meta: {} })
+    }
+
+    it('maps DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN to a non-retryable authorization failure', () => {
+      expect(normalize('DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN')).toMatchObject({
+        category: 'authorization',
+        retryable: false
+      })
+    })
+
+    it.each(['DESKTOP_ALLOCATION_PROOF_REQUIRED', 'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED'])(
+      'maps %s to a non-retryable terminal rejection',
+      (code) => {
+        expect(normalize(code)).toMatchObject({ category: 'rejected', retryable: false })
+      }
+    )
+
+    it.each([
+      'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN',
+      'DESKTOP_ALLOCATION_PROOF_REQUIRED',
+      'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED'
+    ])('preserves %s as backendCode so the upload worker can branch on it', (code) => {
+      // The point of listing these in apiErrorCodes.ts. Before CP-3G-1 they were unknown codes and
+      // normalizeApiEnvelopeError stripped backendCode entirely, leaving a terminal rejection
+      // indistinguishable from any other failure.
+      expect(normalize(code).backendCode).toBe(code)
+    })
+
+    it('keeps validation field errors on a plain upload VALIDATION_ERROR', () => {
+      expect(
+        normalizeApiEnvelopeError({
+          success: false,
+          message: 'The given data was invalid.',
+          code: 'VALIDATION_ERROR',
+          errors: { shift_uuid: ['A cancelled shift cannot receive an invoice upload.'] },
+          meta: { trace_id: 'trace-9' }
+        })
+      ).toMatchObject({
+        category: 'validation',
+        retryable: false,
+        traceId: 'trace-9',
+        fieldErrors: { shift_uuid: ['A cancelled shift cannot receive an invoice upload.'] }
+      })
+    })
+  })
 })

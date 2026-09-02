@@ -46,9 +46,21 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     code === 'DESKTOP_CONTEXT_REQUIRED' ||
     code === 'DESKTOP_ACCESS_FORBIDDEN' ||
     code === 'DESKTOP_SHIFT_ACCESS_DENIED' ||
+    // The shift is unknown to this company, or belongs to another device. The backend returns one
+    // opaque response for both on purpose, so the desktop must not try to distinguish them.
+    code === 'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN' ||
     code === 'ROLE_ASSIGNMENT_FORBIDDEN'
   ) {
     return 'authorization'
+  }
+
+  // Terminal 422s from invoice upload. They are business rejections of this exact payload, never
+  // transient: re-sending the identical frozen payload can only produce the identical rejection.
+  if (
+    code === 'DESKTOP_ALLOCATION_PROOF_REQUIRED' ||
+    code === 'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED'
+  ) {
+    return 'rejected'
   }
 
   if (code === 'VALIDATION_ERROR' || code === 'COMPANY_LIMIT_REACHED') {

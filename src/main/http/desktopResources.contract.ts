@@ -511,3 +511,73 @@ export const paginationMetaResourceSchema = z
     last_page: z.number().int().positive()
   })
   .passthrough()
+
+const invoiceMoneySchema = z.number().int().min(0).max(2_147_483_647)
+
+/**
+ * `POST /api/v1/desktop/invoices/upload` response body (`data`), transcribed from
+ * `DesktopInvoiceResource::toArray()` in pos-backend. The same resource is returned for a fresh
+ * commit (201) and for an idempotent replay (200) — only the envelope `code` distinguishes them.
+ *
+ * `id` is the server invoice uuid and becomes `local_invoices.remote_uuid`; `server_number` is the
+ * fiscal number and becomes `local_invoices.server_number`. Those two are the only load-bearing
+ * fields: the desktop never recomputes totals from this response, because the server is authority
+ * for them and the local row already holds what was actually rung.
+ *
+ * `items` and `payments` are `whenLoaded(...)`, so the resource omits them entirely when the
+ * relations are not eager-loaded. Both upload branches do load them, but they are modelled as
+ * optional rather than required so a backend that stops loading them degrades into "no receipt
+ * detail" instead of a hard contract failure on an invoice the server has already accepted.
+ */
+export const desktopInvoiceUploadResourceSchema = z
+  .object({
+    id: z.uuid(),
+    server_number: z.string().min(1),
+    offline_number: z.string().nullable(),
+    status: z.string(),
+    payment_status: z.string(),
+    currency: currencySchema,
+    subtotal_amount: invoiceMoneySchema,
+    discount_total_amount: invoiceMoneySchema,
+    tax_total_amount: invoiceMoneySchema,
+    grand_total_amount: invoiceMoneySchema,
+    paid_total_amount: invoiceMoneySchema,
+    change_due_amount: invoiceMoneySchema,
+    due_amount: invoiceMoneySchema,
+    sold_at: isoSecondTimestampSchema.nullable(),
+    items: z
+      .array(
+        z
+          .object({
+            id: z.uuid(),
+            product_uuid: z.uuid(),
+            quantity: z.string(),
+            total_amount: invoiceMoneySchema
+          })
+          .passthrough()
+      )
+      .optional(),
+    payments: z
+      .array(
+        z
+          .object({
+            id: z.uuid(),
+            type: z.string(),
+            amount: invoiceMoneySchema,
+            reference: z.string().nullable()
+          })
+          .passthrough()
+      )
+      .optional()
+  })
+  .passthrough()
+
+export type DesktopInvoiceUploadResource = z.infer<typeof desktopInvoiceUploadResourceSchema>
+
+/**
+ * The two success codes `DesktopInvoiceController::upload()` can return. They are a closed set:
+ * any other success code on this route means the backend contract moved underneath us and must be
+ * treated as a contract error, never guessed at.
+ */
+export const DESKTOP_INVOICE_UPLOADED_CODE = 'DESKTOP_INVOICE_UPLOADED' as const
+export const DESKTOP_INVOICE_ALREADY_UPLOADED_CODE = 'DESKTOP_INVOICE_ALREADY_UPLOADED' as const

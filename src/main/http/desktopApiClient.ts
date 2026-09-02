@@ -29,6 +29,15 @@ export interface DesktopApiClientDependencies {
 export interface DesktopApiResponse<T> {
   readonly data: T
   readonly meta: Record<string, unknown>
+  /**
+   * The success envelope's `code`. Two endpoints answer one request with two different success
+   * codes and the same body — invoice upload returns `DESKTOP_INVOICE_UPLOADED` (201) or
+   * `DESKTOP_INVOICE_ALREADY_UPLOADED` (200) — so the code is the only thing that distinguishes a
+   * fresh commit from an idempotent replay. Without it a caller cannot tell them apart.
+   */
+  readonly code: string
+  /** The success envelope's `message`. Display/diagnostic text only; never branch on it. */
+  readonly message: string
 }
 
 export function resolveDesktopApiUrl(apiOrigin: URL, path: string): URL {
@@ -139,7 +148,9 @@ export class DesktopApiClient {
 
       return {
         data: unwrapApiEnvelope<T>(payload),
-        meta: envelope.meta
+        meta: envelope.meta,
+        code: envelope.code,
+        message: envelope.message
       }
     } catch (error) {
       if (!receivedHttpResponse) {

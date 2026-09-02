@@ -87,9 +87,11 @@ IPC channel lets the renderer set an access decision.
 - Phase 4 must resolve the authoritative current shift in main, require its status to be exactly
   `open`, and call `assertAllowed('sell')` immediately before and inside its atomic local
   invoice/payment/outbox transaction. Renderer-supplied shift state is never trusted.
-- Upload and manual retry call `assertAllowed('sync')` immediately before sending. Invoice upload must
-  also assert `pos.sell`, matching the backend route contract; the generic sync guard intentionally does
-  not add that sell-only rule.
+- Upload and manual retry call `assertAllowed('sync')` immediately before sending, plus a separate
+  `pos.invoice.upload` permission check. **Invoice upload does not require `pos.sell`** — the backend
+  route is `desktop.context:sync,pos,pos.invoice.upload` (`pos-backend/routes/desktop.php:50-52`), and
+  a delayed upload may legitimately follow a revoked `pos.sell`. An earlier revision of this document
+  claimed the opposite; it was written before BE-3F-3 and is corrected here (CP-3G-1).
 
 The decision is fail-closed and ordered: device registration/status, session, valid persisted license and
 trusted clock, grace and validation deadline, bootstrap/company, POS feature, license capability,

@@ -17,6 +17,12 @@ export const API_ERROR_CODES = [
   'DESKTOP_ACCESS_FORBIDDEN',
   'DESKTOP_CATALOG_UNAVAILABLE',
   'DESKTOP_CATALOG_REVISION_INVALID',
+  // Invoice upload (BE-3F-3). These must be listed here, not merely categorized: an unlisted code
+  // is stripped from PublicAppError.backendCode by normalizeApiEnvelopeError, which would leave the
+  // upload worker unable to tell a terminal rejection from any other failure.
+  'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN',
+  'DESKTOP_ALLOCATION_PROOF_REQUIRED',
+  'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED',
   'DESKTOP_SHIFT_ALREADY_OPEN',
   'DESKTOP_SHIFT_NOT_OPEN',
   'DESKTOP_SHIFT_ACCESS_DENIED',

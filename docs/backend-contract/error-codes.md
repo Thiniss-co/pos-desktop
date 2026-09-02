@@ -17,6 +17,9 @@ rather than guessing meaning for an unfamiliar code.
 | `DESKTOP_CONTEXT_REQUIRED` | Auth/request shape | Required desktop context (likely a header) missing from the request — client bug if seen, since the central client should always attach it |
 | `DESKTOP_ACCESS_FORBIDDEN` | Authorization | Authenticated, but desktop access itself is forbidden for this account |
 | `IDEMPOTENCY_CONFLICT` | Sync | Idempotency key reused with a different payload — preserve both payloads for `conflict` review, do not auto-retry |
+| `DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN` | Invoice upload | The `shift_uuid` is not available to this company/device — one opaque response covers both causes; terminal `rejected` |
+| `DESKTOP_ALLOCATION_PROOF_REQUIRED` | Invoice upload | A tracked line carried no allocation proof — terminal `rejected` |
+| `DESKTOP_LEGACY_CONTRACT_UNSUPPORTED` | Invoice upload | Legacy v1 payload sent after the server cutoff — terminal `rejected`, app upgrade required |
 | `DESKTOP_SHIFT_ALREADY_OPEN` | Shift state | Attempted to open a shift while one is already open — reconcile local shift state with backend |
 | `DESKTOP_SHIFT_NOT_OPEN` | Shift state | Attempted an action requiring an open shift when none is open |
 | `DESKTOP_SHIFT_ALREADY_PAUSED` | Shift state | Attempted to pause a shift that is already paused |

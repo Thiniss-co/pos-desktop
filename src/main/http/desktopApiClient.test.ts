@@ -114,6 +114,32 @@ describe('DesktopApiClient diagnostics', () => {
     })
   })
 
+  it('surfaces the success envelope code and message, not only data and meta', async () => {
+    // Invoice upload answers one request with two different success codes and the same body, so
+    // the code is the only signal separating a fresh commit (201 DESKTOP_INVOICE_UPLOADED) from an
+    // idempotent replay (200 DESKTOP_INVOICE_ALREADY_UPLOADED).
+    const client = createClient({
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Desktop invoice was already uploaded.',
+            code: 'DESKTOP_INVOICE_ALREADY_UPLOADED',
+            data: { id: 'invoice-uuid' },
+            meta: { trace_id: 'trace-77' }
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+    })
+
+    await expect(client.requestWithMeta(deviceRegisterRoute, {})).resolves.toEqual({
+      data: { id: 'invoice-uuid' },
+      meta: { trace_id: 'trace-77' },
+      code: 'DESKTOP_INVOICE_ALREADY_UPLOADED',
+      message: 'Desktop invoice was already uploaded.'
+    })
+  })
+
   it('emits one start and one terminal trace event without credentials', async () => {
     const lines: string[] = []
     const tracer: ApiTracer = {
