@@ -29,6 +29,10 @@ interface SyncQueueRow {
   readonly state: string
 }
 
+/** The one code an interrupted dispatch is recorded under, and the operator-facing reason. */
+const UPLOAD_LEASE_EXPIRED_CODE = 'upload_lease_expired'
+const UPLOAD_LEASE_EXPIRED_MESSAGE = 'The upload lease expired before an answer was recorded.'
+
 /**
  * The company/device pair an upload is allowed to act for. Ownership is enforced in SQL rather than
  * left to the caller: a queued invoice belonging to another company or another device must never be
@@ -324,15 +328,27 @@ export class SyncQueueRepository {
   }
 
   /**
-   * Frees rows left `uploading` by a crash or a killed process.
+   * Frees **this owner's** rows left `uploading` by a crash or a killed process.
    *
    * The reclaim target is **`retryable_error`, not `pending`** — `uploading -> pending` is not a
    * legal transition, and going through `retryable_error` is also the honest description of what
    * happened: the dispatch did not complete. Backoff then returns the row to `pending` on its own
    * schedule. Reclaiming is only safe because re-sending carries the same idempotency key, so a
    * request that did reach the server converges on its duplicate answer instead of duplicating.
+   *
+   * **Ownership is scoped exactly as `claimNextInvoiceUpload` scopes it**, and for the same reason:
+   * a queued invoice belonging to another company or another device is not this session's to touch.
+   * Sending nothing is not sufficient isolation — writing a foreign row's state at all is a
+   * cross-owner mutation, so the company/device predicate is carried **inside the UPDATE**, not
+   * merely applied by an earlier read. A row that stops matching between the read and the write is
+   * left alone rather than reclaimed.
+   *
+   * Cross-*user* is deliberately not part of this. The backend attributes an upload from the
+   * immutable shift row, so a sale queued by a colleague — or before a logout, a re-login or a
+   * session-epoch change on this same till — is still this device's to recover.
    */
   reclaimExpiredUploadLeases(
+    owner: SyncQueueUploadOwner,
     nowIso: string = this.now(),
     isExpired: (leaseClaimedAt: string | null, now: Date) => boolean
   ): readonly string[] {
@@ -340,13 +356,15 @@ export class SyncQueueRepository {
       const rows = this.database
         .prepare(
           `
-            SELECT local_queue_uuid, upload_lease_at
-            FROM sync_queue
-            WHERE aggregate_type = 'invoice' AND operation = 'upload' AND state = 'uploading'
-            ORDER BY local_queue_uuid ASC
+            SELECT q.local_queue_uuid, q.upload_lease_at
+            FROM sync_queue q
+            JOIN local_invoices i ON i.local_uuid = q.local_aggregate_uuid
+            WHERE q.aggregate_type = 'invoice' AND q.operation = 'upload' AND q.state = 'uploading'
+              AND i.company_uuid = ? AND i.device_uuid = ?
+            ORDER BY q.local_queue_uuid ASC
           `
         )
-        .all() as ExpiredLeaseRow[]
+        .all(owner.companyUuid, owner.deviceUuid) as ExpiredLeaseRow[]
       const now = new Date(nowIso)
       const reclaimed: string[] = []
 
@@ -355,11 +373,36 @@ export class SyncQueueRepository {
           continue
         }
 
-        this.failUpload(row.local_queue_uuid, 'retryable_error', nowIso, {
-          errorCode: 'upload_lease_expired',
-          details: { message: 'The upload lease expired before an answer was recorded.' },
-          nextAttemptAt: nowIso
-        })
+        const updated = this.database
+          .prepare(
+            `
+              UPDATE sync_queue
+              SET state = 'retryable_error', upload_lease_at = NULL, next_attempt_at = ?,
+                  last_error_code = ?, last_error_details = ?, updated_at = ?
+              WHERE local_queue_uuid = ?
+                AND aggregate_type = 'invoice' AND operation = 'upload'
+                AND state = 'uploading'
+                AND EXISTS (
+                  SELECT 1 FROM local_invoices i
+                  WHERE i.local_uuid = sync_queue.local_aggregate_uuid
+                    AND i.company_uuid = ? AND i.device_uuid = ?
+                )
+            `
+          )
+          .run(
+            nowIso,
+            UPLOAD_LEASE_EXPIRED_CODE,
+            serializeErrorDetails({ message: UPLOAD_LEASE_EXPIRED_MESSAGE }),
+            nowIso,
+            row.local_queue_uuid,
+            owner.companyUuid,
+            owner.deviceUuid
+          ) as UpdateResult
+
+        if (updated.changes !== 1) {
+          throw new Error('Sync queue item changed before its expired lease could be reclaimed')
+        }
+
         reclaimed.push(row.local_queue_uuid)
       }
 
@@ -419,35 +462,54 @@ export class SyncQueueRepository {
   }
 
   /**
-   * `retryable_error -> pending`, only once the backoff deadline has passed. Returns the rows
-   * released so a caller can log how many became eligible rather than guessing.
+   * `retryable_error -> pending` for **this owner's** rows, only once the backoff deadline has
+   * passed. Returns the rows released so a caller can log how many became eligible rather than
+   * guessing.
+   *
+   * Owner-scoped for the same reason as the reclaim above: this is the other half of the same
+   * startup reconciliation, and moving a foreign row's state is a cross-owner mutation even though
+   * nothing is dispatched. The predicate is carried inside the UPDATE as well as the read.
    */
-  releaseDueRetries(nowIso: string = this.now()): readonly string[] {
+  releaseDueRetries(owner: SyncQueueUploadOwner, nowIso: string = this.now()): readonly string[] {
     return this.database.transaction((): readonly string[] => {
       const rows = this.database
         .prepare(
           `
-            SELECT local_queue_uuid
-            FROM sync_queue
-            WHERE aggregate_type = 'invoice' AND operation = 'upload'
-              AND state = 'retryable_error'
-              AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
-            ORDER BY created_at ASC, local_queue_uuid ASC
+            SELECT q.local_queue_uuid
+            FROM sync_queue q
+            JOIN local_invoices i ON i.local_uuid = q.local_aggregate_uuid
+            WHERE q.aggregate_type = 'invoice' AND q.operation = 'upload'
+              AND q.state = 'retryable_error'
+              AND (q.next_attempt_at IS NULL OR q.next_attempt_at <= ?)
+              AND i.company_uuid = ? AND i.device_uuid = ?
+            ORDER BY q.created_at ASC, q.local_queue_uuid ASC
           `
         )
-        .all(nowIso) as { readonly local_queue_uuid: string }[]
+        .all(nowIso, owner.companyUuid, owner.deviceUuid) as {
+        readonly local_queue_uuid: string
+      }[]
 
       for (const row of rows) {
-        this.updateGuarded(
-          row.local_queue_uuid,
-          'retryable_error',
-          `
-            UPDATE sync_queue
-            SET state = 'pending', updated_at = ?
-            WHERE local_queue_uuid = ? AND state = 'retryable_error'
-          `,
-          [nowIso, row.local_queue_uuid]
-        )
+        const updated = this.database
+          .prepare(
+            `
+              UPDATE sync_queue
+              SET state = 'pending', updated_at = ?
+              WHERE local_queue_uuid = ?
+                AND aggregate_type = 'invoice' AND operation = 'upload'
+                AND state = 'retryable_error'
+                AND EXISTS (
+                  SELECT 1 FROM local_invoices i
+                  WHERE i.local_uuid = sync_queue.local_aggregate_uuid
+                    AND i.company_uuid = ? AND i.device_uuid = ?
+                )
+            `
+          )
+          .run(nowIso, row.local_queue_uuid, owner.companyUuid, owner.deviceUuid) as UpdateResult
+
+        if (updated.changes !== 1) {
+          throw new Error('Sync queue item changed before its retry could be released')
+        }
       }
 
       return rows.map((row) => row.local_queue_uuid)

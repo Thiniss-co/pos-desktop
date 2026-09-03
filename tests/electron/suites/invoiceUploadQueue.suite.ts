@@ -306,11 +306,11 @@ databaseTest('a transient failure backs off and only then becomes claimable agai
   })
 
   // Still in backoff: releasing does nothing and the row stays unclaimable.
-  deepEqual(repositories.syncQueue.releaseDueRetries('2026-09-02T10:05:30.000Z'), [])
+  deepEqual(repositories.syncQueue.releaseDueRetries(OWNER, '2026-09-02T10:05:30.000Z'), [])
   equal(repositories.syncQueue.claimNextInvoiceUpload(OWNER, '2026-09-02T10:05:30.000Z'), null)
 
   // Past the deadline it returns to pending and the next claim increments the attempt count.
-  equal(repositories.syncQueue.releaseDueRetries('2026-09-02T10:06:01.000Z').length, 1)
+  equal(repositories.syncQueue.releaseDueRetries(OWNER, '2026-09-02T10:06:01.000Z').length, 1)
   const second = repositories.syncQueue.claimNextInvoiceUpload(OWNER, '2026-09-02T10:06:02.000Z')
   ok(second !== null)
   equal(second.attemptCount, 2)
@@ -332,8 +332,10 @@ databaseTest('an upload lease orphaned by a crash is reclaimed, not lost', (sand
 
   // A fresh lease is not reclaimable.
   deepEqual(
-    repositories.syncQueue.reclaimExpiredUploadLeases('2026-09-02T10:05:10.000Z', (leaseAt, now) =>
-      isUploadLeaseExpired(leaseAt, now)
+    repositories.syncQueue.reclaimExpiredUploadLeases(
+      OWNER,
+      '2026-09-02T10:05:10.000Z',
+      (leaseAt, now) => isUploadLeaseExpired(leaseAt, now)
     ),
     []
   )
@@ -341,8 +343,10 @@ databaseTest('an upload lease orphaned by a crash is reclaimed, not lost', (sand
   // An expired one goes to retryable_error — `uploading -> pending` is not a legal transition, and
   // "the dispatch did not finish" is what actually happened.
   deepEqual(
-    repositories.syncQueue.reclaimExpiredUploadLeases('2026-09-02T10:10:00.000Z', (leaseAt, now) =>
-      isUploadLeaseExpired(leaseAt, now)
+    repositories.syncQueue.reclaimExpiredUploadLeases(
+      OWNER,
+      '2026-09-02T10:10:00.000Z',
+      (leaseAt, now) => isUploadLeaseExpired(leaseAt, now)
     ),
     [queueUuid]
   )
@@ -353,7 +357,7 @@ databaseTest('an upload lease orphaned by a crash is reclaimed, not lost', (sand
   equal(reclaimedRow.last_error_code, 'upload_lease_expired')
 
   // It becomes claimable again under the same idempotency key.
-  equal(repositories.syncQueue.releaseDueRetries('2026-09-02T10:10:01.000Z').length, 1)
+  equal(repositories.syncQueue.releaseDueRetries(OWNER, '2026-09-02T10:10:01.000Z').length, 1)
   const retried = repositories.syncQueue.claimNextInvoiceUpload(OWNER, '2026-09-02T10:10:02.000Z')
   ok(retried !== null && retried.idempotencyKey === claimed.idempotencyKey)
 
@@ -466,7 +470,7 @@ databaseTest('a terminal rejection preserves the sale and refuses to be retried'
   })
 
   // Terminal: neither the backoff release nor a fresh claim can resurrect it.
-  deepEqual(repositories.syncQueue.releaseDueRetries('2026-09-03T10:00:00.000Z'), [])
+  deepEqual(repositories.syncQueue.releaseDueRetries(OWNER, '2026-09-03T10:00:00.000Z'), [])
   equal(repositories.syncQueue.claimNextInvoiceUpload(OWNER, '2026-09-03T10:00:00.000Z'), null)
 
   // No conflict row: a rejection is not a disagreement about payloads.

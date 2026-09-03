@@ -130,17 +130,30 @@ export class InvoiceUploadWorker {
     let failed = 0
 
     const nowIso = this.now().toISOString()
-    // Rows left `uploading` by a crash are freed first, so a killed process cannot strand a sale.
-    const reclaimed = this.dependencies.syncQueue.reclaimExpiredUploadLeases(
-      nowIso,
-      (leaseAt, now) => isUploadLeaseExpired(leaseAt, now, UPLOAD_LEASE_DURATION_MS)
-    )
+    // Startup reconciliation acts only for the authoritative company/device this session belongs
+    // to. Until that owner exists there is nothing this process has authority over, so it does
+    // nothing at all rather than performing a global sweep: another company's or another device's
+    // rows are not ours to move, and writing their state would be a cross-owner mutation even
+    // though no request is sent. The owner is read from main-owned session metadata; no renderer
+    // or IPC payload can supply it.
+    const reconciliationOwner = this.currentUploadOwner()
 
-    if (reclaimed.length > 0) {
-      this.log(`reclaimed-expired-leases ${reclaimed.length}`)
+    if (reconciliationOwner === null) {
+      this.log('reconciliation-skipped no-session-owner')
+    } else {
+      // Rows left `uploading` by a crash are freed first, so a killed process cannot strand a sale.
+      const reclaimed = this.dependencies.syncQueue.reclaimExpiredUploadLeases(
+        reconciliationOwner,
+        nowIso,
+        (leaseAt, now) => isUploadLeaseExpired(leaseAt, now, UPLOAD_LEASE_DURATION_MS)
+      )
+
+      if (reclaimed.length > 0) {
+        this.log(`reclaimed-expired-leases ${reclaimed.length}`)
+      }
+
+      this.dependencies.syncQueue.releaseDueRetries(reconciliationOwner, nowIso)
     }
-
-    this.dependencies.syncQueue.releaseDueRetries(nowIso)
 
     while (!this.stopped) {
       const owner = this.authorize()
@@ -202,10 +215,29 @@ export class InvoiceUploadWorker {
       return null
     }
 
+    const owner = this.currentUploadOwner()
+
+    if (owner === null) {
+      this.setPaused('session-invalid')
+      return null
+    }
+
+    return owner
+  }
+
+  /**
+   * The authoritative company/device this process may act for, or null when there is none.
+   *
+   * Read from main-owned session metadata on every call — never cached, never passed in, and never
+   * sourced from the renderer. `user_uuid` and the session epoch are deliberately **not** part of
+   * the tuple: the backend attributes an upload from the immutable shift row, so a sale queued by
+   * a colleague, or before a logout and a re-login on this same till, must still be recoverable
+   * and uploadable here.
+   */
+  private currentUploadOwner(): SyncQueueUploadOwner | null {
     const context = this.dependencies.session.getContext()
 
     if (!context.isAuthenticated || !context.companyUuid || !context.deviceUuid) {
-      this.setPaused('session-invalid')
       return null
     }
 

@@ -174,3 +174,111 @@ export function readBackendSnapshot(): BackendSnapshot {
 export function liveUploadBackendAvailable(): boolean {
   return liveUploadFixture() !== null && Boolean(process.env.CP3G5_BACKEND_DB)
 }
+
+/** The per-scenario server-side effects of one uploaded invoice. */
+export interface BackendScenarioEffects {
+  /** Server invoices carrying this payload's offline number — must never exceed one. */
+  readonly invoicesForOfflineNumber: number
+  readonly itemsForOfflineNumber: number
+  readonly paymentsForOfflineNumber: number
+  /** Uploader audit rows (BE-3F-3) recorded for this local invoice uuid. */
+  readonly uploadAuditsForInvoice: number
+  readonly movementsForOfflineNumber: number
+  readonly consumptionsForAllocation: number
+  readonly postCloseAdjustmentsForOfflineNumber: number
+  readonly allocationConsumedMilli: number | null
+  readonly stockQuantity: string | null
+  readonly stockAvailableQuantity: string | null
+  readonly invoiceUuid: string | null
+  readonly serverNumber: string | null
+}
+
+/**
+ * Counts the effects of exactly one scenario, keyed by that payload's own offline number and its
+ * own allocation grant.
+ *
+ * CP-3G-5 mints one product, stock item and allocation per payload, so a per-scenario read is the
+ * only honest way to say "this invoice consumed stock once" when many scenarios share one disposable
+ * server. Read-only, exactly like `readBackendSnapshot`.
+ */
+export function readScenarioEffects(
+  offlineNumber: string,
+  allocationUuid: string,
+  localInvoiceUuid: string
+): BackendScenarioEffects {
+  const databasePath = process.env.CP3G5_BACKEND_DB
+
+  if (!databasePath) {
+    throw new Error('CP3G5_BACKEND_DB is required to read the live backend state')
+  }
+
+  const database = new Database(databasePath, { readonly: true })
+
+  try {
+    const scalar = (sql: string, ...parameters: readonly unknown[]): number =>
+      (database.prepare(sql).get(...parameters) as { total: number }).total
+
+    const invoice = database
+      .prepare('SELECT id, uuid, server_number FROM pos_invoices WHERE offline_number = ?')
+      .get(offlineNumber) as { id: number; uuid: string; server_number: string } | undefined
+
+    const allocation = database
+      .prepare(
+        'SELECT id, stock_item_id, consumed_quantity_milli FROM stock_allocations WHERE uuid = ?'
+      )
+      .get(allocationUuid) as
+      { id: number; stock_item_id: number; consumed_quantity_milli: number } | undefined
+
+    const stock = allocation
+      ? (database
+          .prepare('SELECT quantity, available_quantity FROM stock_items WHERE id = ?')
+          .get(allocation.stock_item_id) as
+          { quantity: string; available_quantity: string } | undefined)
+      : undefined
+
+    return {
+      invoicesForOfflineNumber: scalar(
+        'SELECT COUNT(*) AS total FROM pos_invoices WHERE offline_number = ?',
+        offlineNumber
+      ),
+      itemsForOfflineNumber: invoice
+        ? scalar(
+            'SELECT COUNT(*) AS total FROM pos_invoice_items WHERE pos_invoice_id = ?',
+            invoice.id
+          )
+        : 0,
+      paymentsForOfflineNumber: invoice
+        ? scalar('SELECT COUNT(*) AS total FROM pos_payments WHERE pos_invoice_id = ?', invoice.id)
+        : 0,
+      uploadAuditsForInvoice: scalar(
+        'SELECT COUNT(*) AS total FROM desktop_invoice_syncs WHERE local_invoice_uuid = ?',
+        localInvoiceUuid
+      ),
+      movementsForOfflineNumber: invoice
+        ? scalar(
+            'SELECT COUNT(*) AS total FROM stock_movements WHERE pos_invoice_id = ?',
+            invoice.id
+          )
+        : 0,
+      consumptionsForAllocation: allocation
+        ? scalar(
+            'SELECT COUNT(*) AS total FROM stock_allocation_consumptions WHERE stock_allocation_id = ?',
+            allocation.id
+          )
+        : 0,
+      postCloseAdjustmentsForOfflineNumber: invoice
+        ? scalar(
+            'SELECT COUNT(*) AS total FROM shift_post_close_adjustments WHERE pos_invoice_id = ?',
+            invoice.id
+          )
+        : 0,
+      allocationConsumedMilli: allocation?.consumed_quantity_milli ?? null,
+      stockQuantity: stock?.quantity ?? null,
+      stockAvailableQuantity: stock?.available_quantity ?? null,
+      invoiceUuid: invoice?.uuid ?? null,
+      serverNumber: invoice?.server_number ?? null
+    }
+  } finally {
+    database.close()
+  }
+}
