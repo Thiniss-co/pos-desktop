@@ -23,6 +23,7 @@ import {
   loopbackPortIsFree,
   processGroupMembers,
   processOwnsSocketInode,
+  parseChildDiagnostics,
   readProcessStat,
   reserveLoopbackPort,
   startOwnedProcessGroup,
@@ -45,8 +46,10 @@ function cleanEnvironment() {
   for (const name of [
     'APP_CONFIG_CACHE',
     'APP_ENV',
+    'CP3G5_DIAGNOSTICS',
     'CP3G5_FAULT',
     'CP3G5_LIVE_HARNESS',
+    'CP3G5_SEED_ONLY',
     'CP3G5_RESPONSE_FILE',
     'CP3G5_RUN_NONCE',
     'CP3G5_TEMP_ROOT',
@@ -207,6 +210,21 @@ function assertNothingSurvives(result) {
   }
 
   assert.deepEqual(processGroupMembers(result.observed.serverGroupId), [])
+  assert.deepEqual(result.sandboxesAfter, [])
+}
+
+/**
+ * The seed-only variant: no server is ever started, so there is no group to observe. Everything
+ * else a full run must prove still has to hold — no surviving process this run created, and no
+ * sandbox left behind.
+ */
+function assertNothingSurvivesSeedOnly(result) {
+  assert.equal(result.observed.serverGroupId, null, 'seed-only mode must never start a server')
+
+  for (const pid of result.observed.serverPids) {
+    assert.equal(isProcessAlive(pid), false, `recorded pid ${pid} survived the run`)
+  }
+
   assert.deepEqual(result.sandboxesAfter, [])
 }
 
@@ -520,6 +538,115 @@ test('a full successful run leaves no child, no grandchild and no sandbox', asyn
   assertNothingSurvives(result)
   assert.equal(await loopbackPortIsFree(result.port), true)
   assert.doesNotMatch(`${result.stdout}${result.stderr}`, SECRET_SHAPES)
+})
+
+// -----------------------------------------------------------------------------------------------
+// CP-3G-7 F2 — fixture-seeding determinism.
+//
+// The proven root cause: the seeder pinned `$soldAt` to the shift's second-precision `opened_at`,
+// written once before the minting loop, while each minted product's catalog-revision validity
+// began at that product's own second-precision `updated_at`.
+// `SellableProductResolver::resolveCurrent()` throws `SellableCatalogUnavailable` when
+// `$asOf->lt($validFrom)`, so seeding only survived while the whole loop stayed inside one
+// wall-clock second. Before the fix a 100-payload seed failed 9 times out of 10; after it, 10/10.
+// -----------------------------------------------------------------------------------------------
+
+test('seeding survives a minting loop that spans several wall-clock seconds', async () => {
+  // 100 is the seeder's maximum and guarantees the loop crosses at least one second boundary on
+  // any machine that could run this suite, which is precisely the condition that used to fail.
+  const result = await runWrapper({ CP3G5_SEED_ONLY: '1', CP3G5_PAYLOADS: '100' })
+
+  assert.equal(result.status, 0, 'a multi-second minting loop must still seed successfully')
+  assert.match(result.stdout, /minted 100 upload fixtures/)
+  assert.doesNotMatch(result.stderr, /sellable-resolve/)
+  assert.doesNotMatch(result.stderr, /fixture-creation-failed/)
+  assertNothingSurvivesSeedOnly(result)
+  assert.doesNotMatch(`${result.stdout}${result.stderr}`, SECRET_SHAPES)
+})
+
+test('seed-only mode still performs the complete cleanup and leaks nothing', async () => {
+  const result = await runWrapper({ CP3G5_SEED_ONLY: '1', CP3G5_PAYLOADS: '21' })
+
+  assert.equal(result.status, 0)
+  assert.match(result.stdout, /seed-only mode: fixture minted, skipping server and suite/)
+  assert.match(result.stdout, /temporary directory removed and verified absent/)
+  // Skipping the server must not skip a single cleanup step.
+  assertNothingSurvivesSeedOnly(result)
+  assert.doesNotMatch(`${result.stdout}${result.stderr}`, SECRET_SHAPES)
+})
+
+test('every run reports a distinct opaque identity, and never its sandbox path or nonce', async () => {
+  const first = await runWrapper({ CP3G5_SEED_ONLY: '1', CP3G5_PAYLOADS: '2' })
+  const second = await runWrapper({ CP3G5_SEED_ONLY: '1', CP3G5_PAYLOADS: '2' })
+
+  const identity = (result) => /run identity ([0-9a-f]{12})/.exec(result.stdout)?.[1] ?? null
+
+  assert.notEqual(identity(first), null)
+  assert.notEqual(identity(second), null)
+  assert.notEqual(identity(first), identity(second), 'two runs must never share an identity')
+
+  for (const result of [first, second]) {
+    const output = `${result.stdout}${result.stderr}`
+
+    assert.doesNotMatch(output, SECRET_SHAPES)
+    // The identity is a digest, never the directory it identifies.
+    assert.doesNotMatch(output, new RegExp(`${SANDBOX_PREFIX}[A-Za-z0-9]+`))
+  }
+})
+
+test('the diagnostic channel accepts only whitelisted, shape-checked fields', () => {
+  // Everything a leak would look like, offered directly to the parser.
+  const hostile = [
+    'CP3G5-DIAG {"phase":"seed","token":"1|abcdefghijklmnopqrstuvwxyz0123456789ABCD"}',
+    'CP3G5-DIAG {"phase":"seed","code":"Bearer secret-value"}',
+    'CP3G5-DIAG {"operation":"seed","identifier":"insert into x values (?, ?)"}',
+    'CP3G5-DIAG {"exception":"a b c"}',
+    'CP3G5-DIAG {"sqlstate":"' + 'x'.repeat(500) + '"}',
+    'CP3G5-DIAG not-json',
+    'CP3G5-DIAG [1,2,3]',
+    'PDOException: SQLSTATE[HY000] near "select": syntax error',
+    '#0 /var/www/html/thinis-pos/pos-backend/vendor/autoload.php(1)'
+  ].join('\n')
+
+  const parsed = parseChildDiagnostics(hostile)
+
+  // Each hostile line either loses its unsafe field and keeps its safe one, or is dropped whole.
+  // Nothing hostile survives in any form.
+  assert.deepEqual(parsed, [{ phase: 'seed' }, { phase: 'seed' }, { operation: 'seed' }])
+
+  for (const record of parsed) {
+    for (const [key, value] of Object.entries(record)) {
+      assert.ok(
+        ['phase', 'operation', 'code', 'exception', 'sqlstate', 'identifier', 'driver_code', 'transaction_level', 'iteration'].includes(key),
+        `unexpected diagnostic key ${key}`
+      )
+      assert.doesNotMatch(String(value), SECRET_SHAPES)
+    }
+  }
+
+  assert.deepEqual(parseChildDiagnostics(undefined), [])
+  assert.deepEqual(parseChildDiagnostics(''), [])
+})
+
+test('a genuine seeder diagnostic survives the parser intact', () => {
+  const parsed = parseChildDiagnostics(
+    'noise before\n' +
+      'CP3G5-DIAG {"phase":"seed","operation":"sellable-resolve","code":"fixture-creation-failed",' +
+      '"exception":"App\\\\Modules\\\\Catalog\\\\Exceptions\\\\SellableCatalogUnavailable",' +
+      '"sqlstate":"23000","driver_code":19,"identifier":"products.sku","iteration":14,"transaction_level":1}\n' +
+      'noise after'
+  )
+
+  assert.equal(parsed.length, 1)
+  assert.equal(parsed[0].phase, 'seed')
+  assert.equal(parsed[0].operation, 'sellable-resolve')
+  assert.equal(parsed[0].code, 'fixture-creation-failed')
+  assert.match(parsed[0].exception, /SellableCatalogUnavailable$/)
+  assert.equal(parsed[0].sqlstate, '23000')
+  assert.equal(parsed[0].driver_code, 19)
+  assert.equal(parsed[0].identifier, 'products.sku')
+  assert.equal(parsed[0].iteration, 14)
+  assert.equal(parsed[0].transaction_level, 1)
 })
 
 test.after(() => {

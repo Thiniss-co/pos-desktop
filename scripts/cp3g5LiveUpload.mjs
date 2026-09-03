@@ -17,7 +17,7 @@
  * the gate.
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import {
   chmodSync,
   existsSync,
@@ -64,7 +64,20 @@ const FAULTS = new Set([
 ])
 const FAULT = FAULTS.has(process.env.CP3G5_FAULT ?? '') ? process.env.CP3G5_FAULT : null
 
+/**
+ * Seed-only mode (CP-3G-7 F2 reproduction driver).
+ *
+ * Runs sandbox-create → migrate → seed → fixture-write and then the *identical* cleanup path,
+ * skipping the server and the Electron suite. It relaxes no authorization check, no path guard and
+ * no cleanup step: it only stops earlier, so a bounded reproduction run can exercise the seeding
+ * stage many times without paying for a full live suite each iteration.
+ */
+const SEED_ONLY = process.env.CP3G5_SEED_ONLY === '1'
+
 export class HarnessFailure extends Error {}
+
+/** Internal control flow for seed-only mode. Never a failure, never reported as one. */
+class SeedOnlyComplete extends Error {}
 
 function fail(message) {
   throw new HarnessFailure(message)
@@ -297,8 +310,125 @@ export async function terminateOwnedProcessGroup(owned, options = {}) {
 // The gate
 // ---------------------------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------------------------
+// CP-3G-7 F2 — redaction-safe lifecycle diagnostics.
+//
+// The child's stdout and stderr are still never forwarded. The only thing that crosses the
+// boundary is a `CP3G5-DIAG {json}` line the seeder emits about *itself*, and even that is
+// re-validated here against a fixed key/value allowlist before it is shown. A key that is not on
+// the list, or a value that is not enum-shaped, is dropped rather than printed.
+// ---------------------------------------------------------------------------------------------
+
+/** The lifecycle positions a run can occupy. Reported verbatim; never derived from child output. */
+const LIFECYCLE_PHASES = [
+  'sandbox-create',
+  'authorization',
+  'pre-bootstrap-check',
+  'laravel-bootstrap',
+  'migrate',
+  'seed',
+  'fixture-write',
+  'server-start',
+  'electron-run',
+  'server-stop',
+  'cleanup'
+]
+
+const DIAGNOSTIC_STRING_KEYS = ['phase', 'operation', 'code', 'exception', 'sqlstate', 'identifier']
+const DIAGNOSTIC_NUMBER_KEYS = ['driver_code', 'transaction_level', 'iteration']
+const DIAGNOSTIC_VALUE_SHAPE = /^[A-Za-z0-9_.\\-]{1,120}$/
+const DIAGNOSTIC_LINE = /^CP3G5-DIAG (\{[^\n]{0,2000}\})$/
+
+let currentPhase = 'sandbox-create'
+const diagnosticRecords = []
+
+function setPhase(phase) {
+  if (!LIFECYCLE_PHASES.includes(phase)) fail('unknown lifecycle phase')
+
+  currentPhase = phase
+}
+
+/** Record one diagnostic. Only whitelisted, shape-checked fields survive. */
+function recordDiagnostic(fields) {
+  const safe = { phase: currentPhase }
+
+  for (const key of DIAGNOSTIC_STRING_KEYS) {
+    const value = fields[key]
+
+    if (typeof value === 'string' && DIAGNOSTIC_VALUE_SHAPE.test(value)) safe[key] = value
+  }
+
+  for (const key of DIAGNOSTIC_NUMBER_KEYS) {
+    const value = fields[key]
+
+    if (Number.isInteger(value)) safe[key] = value
+  }
+
+  diagnosticRecords.push(safe)
+  console.error(`[cp3g5] diagnostic ${JSON.stringify(safe)}`)
+
+  return safe
+}
+
+/**
+ * Parse the seeder's own diagnostic line out of a captured stderr buffer.
+ *
+ * Everything that is not an exact `CP3G5-DIAG {json}` line is discarded, so an unexpected warning,
+ * a stack trace or a leaked value can never be echoed by this function.
+ */
+export function parseChildDiagnostics(stderr) {
+  if (typeof stderr !== 'string') return []
+
+  const parsed = []
+
+  for (const line of stderr.split('\n')) {
+    const match = DIAGNOSTIC_LINE.exec(line.trim())
+
+    if (match === null) continue
+
+    let candidate
+
+    try {
+      candidate = JSON.parse(match[1])
+    } catch {
+      continue
+    }
+
+    if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) continue
+
+    const safe = {}
+
+    for (const key of DIAGNOSTIC_STRING_KEYS) {
+      const value = candidate[key]
+
+      if (typeof value === 'string' && DIAGNOSTIC_VALUE_SHAPE.test(value)) safe[key] = value
+    }
+
+    for (const key of DIAGNOSTIC_NUMBER_KEYS) {
+      const value = candidate[key]
+
+      if (Number.isInteger(value)) safe[key] = value
+    }
+
+    if (Object.keys(safe).length > 0) parsed.push(safe)
+  }
+
+  return parsed
+}
+
 function sanitizedChildFailure(label, result) {
   const detail = result.error ? ` (${result.error.code ?? 'spawn error'})` : ''
+
+  for (const diagnostic of parseChildDiagnostics(result.stderr)) {
+    recordDiagnostic(diagnostic)
+  }
+
+  recordDiagnostic({
+    code: 'child-failed',
+    operation: label.replaceAll(' ', '-'),
+    ...(Number.isInteger(result.status) ? { driver_code: result.status } : {})
+  })
+
   fail(`${label} failed with no child output forwarded${detail}`)
 }
 
@@ -355,6 +485,8 @@ async function main() {
 
   let authorizedSandbox
 
+  setPhase('sandbox-create')
+
   try {
     authorizedSandbox = createAuthorizedSandbox()
   } catch {
@@ -382,6 +514,9 @@ async function main() {
     DB_FOREIGN_KEYS: 'true',
     LOG_CHANNEL: 'errorlog',
     CP3G5_LIVE_HARNESS: '1',
+    // Switches on the seeder's own whitelisted lifecycle diagnostics (CP-3G-7 F2). Unauthorized
+    // direct invocations never set this, so their rejection output stays exactly as CP-3G-5 froze it.
+    CP3G5_DIAGNOSTICS: '1',
     CP3G5_TEMP_ROOT: exactGeneratedSandbox,
     CP3G5_RUN_NONCE: nonce,
     CP3G5_RESPONSE_FILE: fixturePath
@@ -501,7 +636,14 @@ async function main() {
   let testExitCode = 1
 
   try {
+    // An opaque, per-run identity: enough for a repetition driver to prove that no two iterations
+    // shared a sandbox or a database, without disclosing the sandbox path or the run nonce.
+    const runIdentity = createHash('sha256').update(basename(exactGeneratedSandbox)).digest('hex').slice(0, 12)
+
+    console.log(`[cp3g5] run identity ${runIdentity}`)
     console.log('[cp3g5] created an authorized disposable backend database')
+
+    setPhase('migrate')
 
     const migrate = spawnSync('php', ['artisan', 'migrate', '--force', '--no-interaction'], {
       cwd: BACKEND_ROOT,
@@ -514,6 +656,8 @@ async function main() {
     }
 
     console.log('[cp3g5] backend migrations applied to the disposable database')
+
+    setPhase('seed')
 
     const seed = spawnSync('php', [SEEDER, BACKEND_ROOT, String(PAYLOAD_COUNT)], {
       cwd: BACKEND_ROOT,
@@ -534,6 +678,17 @@ async function main() {
     }
 
     console.log(`[cp3g5] minted ${PAYLOAD_COUNT} upload fixtures through private file IPC`)
+
+    if (SEED_ONLY) {
+      // The seeding stage is what this mode exists to exercise. Everything after it is skipped;
+      // nothing before it, and nothing in cleanup, is skipped.
+      console.log('[cp3g5] seed-only mode: fixture minted, skipping server and suite')
+      testExitCode = 0
+
+      throw new SeedOnlyComplete()
+    }
+
+    setPhase('server-start')
 
     // A per-run loopback port. No fixed port number is assumed anywhere in this harness, and a port
     // already in use is a reason to stop — never a reason to reclaim it from whoever holds it.
@@ -616,6 +771,8 @@ async function main() {
             ]
           ]
 
+    setPhase('electron-run')
+
     suiteGroup = startOwnedProcessGroup(suiteCommand[0], suiteCommand[1], {
       cwd: DESKTOP_ROOT,
       env: {
@@ -651,12 +808,23 @@ async function main() {
     console.log('[cp3g5] Electron SQLite live suite passed')
     testExitCode = 0
   } catch (error) {
-    const message = error instanceof HarnessFailure ? error.message : 'unexpected harness failure'
-    console.error(`[cp3g5] ${message}`)
-    testExitCode = 1
+    if (error instanceof SeedOnlyComplete) {
+      // Not a failure: the seed-only path reached its end and jumped straight to cleanup.
+      testExitCode = 0
+    } else {
+      const message = error instanceof HarnessFailure ? error.message : 'unexpected harness failure'
+
+      if (!(error instanceof HarnessFailure)) {
+        recordDiagnostic({ code: 'unexpected-harness-failure' })
+      }
+
+      console.error(`[cp3g5] ${message}`)
+      testExitCode = 1
+    }
   }
 
   try {
+    setPhase('cleanup')
     await cleanup()
   } catch {
     cleanupDiagnostics = ['cleanup failed closed']

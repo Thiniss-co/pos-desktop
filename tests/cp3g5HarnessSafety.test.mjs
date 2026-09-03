@@ -29,6 +29,7 @@ const TOKEN_SENTINEL = 'token-sentinel-must-never-appear'
 const GUARDED_ENVIRONMENT = [
   'APP_CONFIG_CACHE',
   'APP_ENV',
+  'CP3G5_DIAGNOSTICS',
   'CP3G5_LIVE_HARNESS',
   'CP3G5_RESPONSE_FILE',
   'CP3G5_RUN_NONCE',
