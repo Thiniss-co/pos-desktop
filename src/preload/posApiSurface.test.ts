@@ -68,11 +68,16 @@ describe('posApi surface', () => {
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)
   })
 
-  it('exposes no stock-allocation request, grant, or revision capability (CP-5D)', () => {
+  it('exposes only the narrow stock-allocation recovery capability (BH-04B-4)', () => {
     // Allocation acquisition is main-only and reachable solely as a side effect of
-    // `checkout:complete`/`checkout:retry-attempt`; the renderer can neither ask for a grant nor
-    // name one.
-    expect(source).not.toMatch(/allocation/i)
+    // `checkout:complete`/`checkout:retry-attempt`. Recovery may name an already-owned allocation,
+    // but cannot request rights, quantities, generations, revisions, or idempotency keys.
+    expect(source).toContain('allocationRecovery')
+    expect(source).toContain('start(input: { allocationUuid: string })')
+    expect(source).toContain('resume(): Promise<IpcResult<void>>')
+    expect(source).not.toMatch(
+      /requestAllocation|grantAllocation|requestedQuantity|rightsGeneration/i
+    )
     expect(source).not.toMatch(/top-?up/i)
     expect(source).not.toMatch(/idempotency/i)
   })

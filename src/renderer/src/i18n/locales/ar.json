@@ -159,7 +159,9 @@
     "subtotal": "الإجمالي الفرعي",
     "tax": "الضريبة",
     "total": "الإجمالي",
-    "checkoutUnavailable": "الدفع غير متاح في هذا الإصدار",
+    "checkoutRequiresOpenShift": "افتح وردية نشطة للمتابعة",
+    "checkoutRequiresItem": "أضف عنصراً للمتابعة",
+    "checkoutRequiresValidCart": "عالج مشكلة السلة قبل المتابعة",
     "cartRequiresResolution": "عالج مشكلة السلة قبل تعديل هذه المسودة.",
     "discount": "الخصم",
     "discountType": "نوع الخصم",
@@ -181,6 +183,7 @@
     "resumeShift": "استئناف",
     "closeShift": "إغلاق الوردية",
     "shiftUnavailable": "حالة الوردية غير متاحة.",
+    "shiftRefreshUnavailable": "تعذر تحديث الوردية. تُستخدم آخر حالة مؤكدة للمبيعات دون اتصال، بينما تظل تغييرات الوردية غير متاحة.",
     "shiftUnknown": "حالة الوردية غير معروفة",
     "shiftUnknownHelp": "نتيجة آخر طلب للوردية غير مؤكدة. يلزم تحديث الحالة قبل أي تغيير آخر.",
     "shift": {

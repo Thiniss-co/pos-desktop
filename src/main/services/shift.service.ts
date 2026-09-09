@@ -12,6 +12,10 @@ import {
   type Shift
 } from '@shared/contracts/shift.contract'
 import { DESKTOP_API_ROUTES, type DesktopApiRoute } from '@shared/constants/apiRoutes'
+import {
+  shiftLocalAuthoritySchema,
+  type ShiftLocalAuthority
+} from '@shared/contracts/shiftAuthority.contract'
 import { isPublicAppError } from '../http/apiError'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import {
@@ -85,6 +89,17 @@ export class ShiftService {
     const shift = resource ? mapShift(resource) : null
     this.authority.recordCurrent(context, shift)
     return shift
+  }
+
+  /**
+   * The durable, owner-scoped local verdict — no HTTP request, so it survives the backend being
+   * unreachable. It is the same record `checkout:complete` resolves, so a renderer that gates on
+   * it can never be more permissive than the main-process sell guard. Every ownership, session
+   * epoch, and company check stays inside `resolveForSell()`; nothing here relaxes them.
+   */
+  localAuthority(): ShiftLocalAuthority {
+    this.permissions.assertShiftPermission('shifts.view')
+    return shiftLocalAuthoritySchema.parse(this.authority.resolveForSell())
   }
 
   async get(uuid: string): Promise<Shift> {

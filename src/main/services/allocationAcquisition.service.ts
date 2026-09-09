@@ -10,8 +10,11 @@ import {
 } from '../http/desktopResources.contract'
 import type {
   BootstrapStockAllocationGrant,
+  IncomingCoverageBoundary,
   StockAllocationRepository
 } from '../repositories/stockAllocation.repository'
+import { runSerializedWrite } from '../database/serializedWrite'
+import type { AllocationReconciliationService } from './allocationReconciliation.service'
 import {
   buildTopUpRequest,
   calculateAllocationDeficits,
@@ -62,9 +65,15 @@ export interface AllocationAcquisitionDependencies {
   readonly apiClient: Pick<DesktopApiClient, 'requestWithMeta' | 'assertRequestPreconditions'>
   readonly stockAllocations: Pick<
     StockAllocationRepository,
-    'getCapability' | 'ingestTopUpGrants' | 'usableGrantsForProduct' | 'remainingMilli'
+    'getCapability' | 'ingestTopUpGrants' | 'usableGrantsForProduct' | 'spendableMilli'
   >
   readonly allocationService: Pick<StockAllocationService, 'usableRemainingMilli'>
+  /**
+   * BH-04B-3. Optional so a caller that never negotiated the reconciliation representation — and
+   * therefore never receives coverage — is unchanged. When absent, an opted-in response's coverage
+   * is simply not applied; it is never approximated.
+   */
+  readonly allocationReconciliation?: Pick<AllocationReconciliationService, 'applyCoverage'>
   readonly connectivity: { getSnapshot(): ConnectivitySnapshot }
   readonly log?: (line: string) => void
 }
@@ -278,6 +287,7 @@ export class AllocationAcquisitionService {
 
     let grants: readonly BootstrapStockAllocationGrant[]
     let revision: number
+    let coverage: readonly IncomingCoverageBoundary[] = []
     try {
       const allocations = desktopStockAllocationTopUpDataSchema.parse(payload.data)
       revision = desktopStockAllocationTopUpMetaSchema.parse(payload.meta).allocation_revision
@@ -297,6 +307,22 @@ export class AllocationAcquisitionService {
       grants = allocations.map((allocation) =>
         toGrant(allocation, owner, requestedProductUuids, nowIso)
       )
+      // BH-04B-3: coverage is carried only when this request's negotiated representation was
+      // honoured. An older backend answers in the legacy shape, and an absent boundary stays absent
+      // rather than becoming a verified zero.
+      coverage = allocations.flatMap((allocation) =>
+        'accepted_chain_hash' in allocation
+          ? [
+              {
+                allocationUuid: allocation.id,
+                rightsGeneration: allocation.rights_generation,
+                acceptedConsumptionSequence: allocation.accepted_consumption_sequence,
+                acceptedConsumedQuantityMilli: allocation.accepted_consumed_quantity_milli,
+                acceptedChainHash: allocation.accepted_chain_hash
+              }
+            ]
+          : []
+      )
     } catch {
       // A malformed success body is ambiguous, not definitive: Laravel may well have created and
       // reserved the grants. Never burn a new idempotency key over it — the same attempt replays
@@ -314,7 +340,7 @@ export class AllocationAcquisitionService {
         // grants; the desktop cannot see the status code here, but a grant it already holds is the
         // observable signature of one.
         replayed: grants.every(
-          (grant) => this.dependencies.stockAllocations.remainingMilli(grant.allocationUuid) > 0
+          (grant) => this.dependencies.stockAllocations.spendableMilli(grant.allocationUuid) > 0
         )
       })
     )
@@ -322,9 +348,23 @@ export class AllocationAcquisitionService {
     try {
       // One short synchronous better-sqlite3 transaction, opened only *after* the HTTP call has
       // fully settled. All-or-nothing: a conflicting or foreign grant rolls the whole set back.
-      this.dependencies.database.transaction(() =>
+      //
+      // BH-04B-3: the granted envelopes and any coverage they carried are applied together. A
+      // rejected boundary writes a durable hold inside this same transaction, so a grant whose
+      // evidence does not verify is unspendable the moment it is stored — never spendable first and
+      // reconciled later.
+      runSerializedWrite(this.dependencies.database, () => {
         this.dependencies.stockAllocations.ingestTopUpGrants(grants, nowIso)
-      )()
+
+        for (const boundary of coverage) {
+          this.dependencies.allocationReconciliation?.applyCoverage(
+            boundary,
+            { companyUuid: owner.companyUuid, deviceUuid: owner.deviceUuid },
+            'top_up',
+            nowIso
+          )
+        }
+      })
     } catch (error) {
       this.log(
         formatDiagnostic('top-up-persistence-failed', {

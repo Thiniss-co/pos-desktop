@@ -50,7 +50,13 @@ const expectedTables = [
   'local_invoice_payments',
   'stock_allocation_grants',
   'local_stock_allocation_consumptions',
-  'local_stock_movements'
+  'local_stock_movements',
+  // BH-04B-3 reconciliation state (migration 0009).
+  'stock_allocation_coverage_boundaries',
+  'stock_allocation_terminal_markers',
+  'stock_allocation_holds',
+  'stock_allocation_recoveries',
+  'stock_allocation_recovery_dependencies'
 ]
 
 databaseTest(
@@ -88,6 +94,7 @@ databaseTest(
       'idx_catalog_stock_items_warehouse',
       'idx_local_allocation_consumptions_grant',
       'idx_local_allocation_consumptions_invoice',
+      'idx_local_allocation_consumptions_journal',
       'idx_local_invoice_items_invoice',
       'idx_local_invoice_payments_invoice',
       'idx_local_invoices_sold_at',
@@ -100,6 +107,8 @@ databaseTest(
       'idx_sale_attempts_owner_state',
       'idx_stock_allocation_grants_available',
       'idx_stock_allocation_grants_bootstrap_authority',
+      'idx_stock_allocation_recovery_dependencies_invoice',
+      'idx_stock_allocation_recovery_work',
       'idx_stock_items_product_id',
       'idx_stock_items_warehouse_id',
       'idx_sync_queue_invoice_upload'

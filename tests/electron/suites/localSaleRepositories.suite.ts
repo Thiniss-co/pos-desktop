@@ -254,7 +254,7 @@ databaseTest(
       envelopeHash: HASH_64,
       receivedAt: NOW
     })
-    equal(repositories.stockAllocations.remainingMilli(grant.allocationUuid), 5000)
+    equal(repositories.stockAllocations.spendableMilli(grant.allocationUuid), 5000)
 
     const sequence = repositories.stockAllocations.nextConsumptionSequence(grant.allocationUuid)
     equal(sequence, 1)
@@ -265,10 +265,16 @@ databaseTest(
       invoiceLocalUuid: UUID_A,
       itemLocalUuid: UUID_A,
       quantityMilli: 3000,
-      createdAt: NOW
+      createdAt: NOW,
+      rightsGeneration: 1,
+      invoiceIdempotencyKey: UUID_A,
+      itemLineUuid: UUID_A,
+      requestHash: HASH_64,
+      entryHash: HASH_64,
+      chainHash: HASH_64
     })
 
-    equal(repositories.stockAllocations.remainingMilli(grant.allocationUuid), 2000)
+    equal(repositories.stockAllocations.spendableMilli(grant.allocationUuid), 2000)
     equal(repositories.stockAllocations.nextConsumptionSequence(grant.allocationUuid), 2)
 
     const usable = repositories.stockAllocations.usableGrantsForProduct(

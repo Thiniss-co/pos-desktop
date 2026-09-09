@@ -118,7 +118,15 @@ const {
   invoiceDiscountValue,
   draftRevision: cartDraftRevision
 } = storeToRefs(cart)
-const { currentShift, freshness, mutation, error: shiftError, canSell } = storeToRefs(shift)
+const {
+  currentShift,
+  activeShiftUuid,
+  observedStatus,
+  freshness,
+  mutation,
+  error: shiftError,
+  canSell
+} = storeToRefs(shift)
 const {
   rows: paymentRows,
   draftAmountText,
@@ -165,9 +173,7 @@ const synchronizationReferenceTime = ref(Date.now())
 
 const activeCurrency = computed(() => cartContract.value?.currency ?? 'EGP')
 const currencyExponent = computed(() => cartContract.value?.currencyExponent ?? 2)
-const shiftPhase = computed<ShiftPhase>(
-  () => mutation.value ?? currentShift.value?.status ?? 'closed'
-)
+const shiftPhase = computed<ShiftPhase>(() => mutation.value ?? observedStatus.value ?? 'closed')
 const shiftPhaseLabel = computed(() =>
   freshness.value === 'unknown' ? t('pos.shiftUnknown') : t(`pos.shift.${shiftPhase.value}`)
 )
@@ -262,6 +268,21 @@ const rebuildPreviewRows = computed(() => {
 })
 
 const canOpenPaymentPanel = computed(() => canSell.value && cartState.value.kind === 'valid')
+const checkoutActionLabel = computed(() => {
+  if (!canSell.value) {
+    return t('pos.checkoutRequiresOpenShift')
+  }
+
+  if (cartState.value.kind === 'empty') {
+    return t('pos.checkoutRequiresItem')
+  }
+
+  if (cartState.value.kind === 'invalid') {
+    return t('pos.checkoutRequiresValidCart')
+  }
+
+  return t('pos.payment.proceedToPayment')
+})
 
 const paymentMethodOptions = computed<DisplayPaymentMethodOption[]>(() =>
   paymentMethods.value.map((method) => {
@@ -743,15 +764,18 @@ async function submitDialog(): Promise<void> {
 
   if (dialogMode.value === 'open' && amount !== null) {
     succeeded = await shift.open({ openingCashAmount: amount, notes: note.value || null })
-  } else if (dialogMode.value === 'pause' && currentShift.value) {
+  } else if (dialogMode.value === 'pause' && activeShiftUuid.value) {
+    // `activeShiftUuid` may come from local authority while the backend is unreachable. The store's
+    // `mutate` still refuses to send any lifecycle change until an authoritative refresh succeeds,
+    // so this surfaces the real transport denial instead of silently doing nothing.
     succeeded = await shift.pause({
-      uuid: currentShift.value.uuid,
+      uuid: activeShiftUuid.value,
       reason: note.value || null,
       notes: null
     })
-  } else if (dialogMode.value === 'close' && currentShift.value && amount !== null) {
+  } else if (dialogMode.value === 'close' && activeShiftUuid.value && amount !== null) {
     succeeded = await shift.close({
-      uuid: currentShift.value.uuid,
+      uuid: activeShiftUuid.value,
       actualCashAmount: amount,
       closeNotes: note.value || null
     })
@@ -763,8 +787,8 @@ async function submitDialog(): Promise<void> {
 }
 
 async function resumeShift(): Promise<void> {
-  if (currentShift.value) {
-    await shift.resume({ uuid: currentShift.value.uuid, resumeNotes: null })
+  if (activeShiftUuid.value) {
+    await shift.resume({ uuid: activeShiftUuid.value, resumeNotes: null })
   }
 }
 
@@ -862,7 +886,7 @@ watch(customerQuery, () => {
 })
 
 watch(
-  () => currentShift.value?.uuid ?? null,
+  () => activeShiftUuid.value,
   (current, previous) => {
     if (previous !== undefined && current !== previous) {
       cart.resetDraft('shift-changed')
@@ -979,6 +1003,9 @@ onMounted(async () => {
           </div>
         </div>
         <AppInlineError v-if="shiftError">{{ shiftError }}</AppInlineError>
+        <p v-if="freshness === 'cached'" class="pos-page__cart-guard">
+          {{ t('pos.shiftRefreshUnavailable') }}
+        </p>
         <AppInlineError v-if="freshness === 'unknown'">{{
           t('pos.shiftUnknownHelp')
         }}</AppInlineError>
@@ -1130,11 +1157,7 @@ onMounted(async () => {
                 :aria-disabled="!canOpenPaymentPanel ? 'true' : undefined"
                 @click="openPaymentPanel"
               >
-                {{
-                  canOpenPaymentPanel
-                    ? t('pos.payment.proceedToPayment')
-                    : t('pos.checkoutUnavailable')
-                }}
+                {{ checkoutActionLabel }}
               </AppButton>
             </template>
           </CartPanel>

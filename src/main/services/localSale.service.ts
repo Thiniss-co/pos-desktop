@@ -12,6 +12,13 @@ import type {
 import { calculateCart } from '@shared/pos/posCalculator'
 import { calculatePayments, type ResolvedPaymentMethod } from '@shared/pos/paymentCalculator'
 import type { SqliteDatabase } from '../database/connection'
+import { runSerializedWrite } from '../database/serializedWrite'
+import {
+  allocationItemLineUuid,
+  allocationJournalAppend,
+  allocationJournalInitialHash
+} from './allocationJournal'
+import { invoiceRequestHash } from './invoiceRequestHash'
 import type { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import type { CheckoutResolutionInput } from '../repositories/catalog.repository'
 import type { LocalSaleRepository } from '../repositories/localSale.repository'
@@ -164,7 +171,7 @@ export interface LocalSaleDependencies {
     captureContext(): ShiftAuthorityContext
   }
   readonly bootstrapSnapshot: Pick<BootstrapSnapshotRepository, 'getBranch' | 'getWarehouse'>
-  readonly catalog: Pick<CatalogService, 'resolveForCheckout'>
+  readonly catalog: Pick<CatalogService, 'resolveForSale'>
   readonly connectivity: { getSnapshot(): ConnectivitySnapshot }
   readonly syncQueue: Pick<SyncQueueRepository, 'enqueue' | 'invoiceUploadRowsFor'>
   readonly now?: () => Date
@@ -713,9 +720,14 @@ export class LocalSaleService {
           readonly affectedLineIds?: readonly string[]
         }
     try {
-      result = this.dependencies.database.transaction(() =>
+      // BH-04B-3: `BEGIN IMMEDIATE` with restart-on-contention. `runBusinessTransaction` re-reads
+      // eligibility, the accepted coverage boundary and local consumption itself, so a restart
+      // re-derives the whole decision instead of committing one computed before write authority was
+      // held. See `runSerializedWrite` for why the deferred begin was not sufficient at the
+      // database boundary, even though one process happens to be safe today.
+      result = runSerializedWrite(this.dependencies.database, () =>
         this.runBusinessTransaction(claimed, owner, intent)
-      )()
+      )
     } catch (error) {
       if (isStorageFailure(error)) {
         // Plan §2.4: a storage failure (disk full, SQLITE_BUSY, I/O) leaves no state change — the
@@ -771,9 +783,9 @@ export class LocalSaleService {
   }[] {
     const { intent } = prepared
 
-    let resolution: ReturnType<CatalogService['resolveForCheckout']>
+    let resolution: ReturnType<CatalogService['resolveForSale']>
     try {
-      resolution = this.dependencies.catalog.resolveForCheckout({
+      resolution = this.dependencies.catalog.resolveForSale({
         productUuids: intent.items.map((item) => item.productUuid),
         paymentMethodUuids: intent.payments.map((payment) => payment.paymentMethodUuid),
         customerUuid: intent.customerUuid
@@ -873,13 +885,22 @@ export class LocalSaleService {
       return { ok: false, code: 'context-changed' }
     }
 
-    // 5-6. resolveForCheckout, require the resolved contract revision matches the intent's.
+    // 5-6. resolveForSale, require the resolved contract revision matches the intent's.
+    //
+    // `resolveForSale` (not `resolveForCheckout`) additionally requires the issued contract to be
+    // inside its own `[generatedAt, validUntil)` window under the trusted clock. Revision equality
+    // alone never proved that: an expired snapshot keeps its revision, so a stale catalog satisfied
+    // the old comparison and the sale committed — then failed at upload, where the backend enforces
+    // `generated_at <= sold_at < valid_until`. Re-resolving *here*, inside the serialized business
+    // transaction and before any business write, is also what makes the boundary safe for a draft
+    // that was started while the contract was still current: crossing `validUntil` mid-checkout
+    // rolls the transaction back with zero writes rather than committing an unsyncable sale.
     const resolutionInput: CheckoutResolutionInput = {
       productUuids: intent.items.map((item) => item.productUuid),
       paymentMethodUuids: intent.payments.map((payment) => payment.paymentMethodUuid),
       customerUuid: intent.customerUuid
     }
-    const resolution = this.dependencies.catalog.resolveForCheckout(resolutionInput)
+    const resolution = this.dependencies.catalog.resolveForSale(resolutionInput)
     if (!resolution || resolution.contract.revision !== intent.catalogRevision) {
       return { ok: false, code: 'refresh-required' }
     }
@@ -891,7 +912,7 @@ export class LocalSaleService {
       intent.items.map((item) => {
         const product = productsByUuid.get(item.productUuid)
         if (!product) {
-          throw new Error('resolveForCheckout returned an incomplete product set')
+          throw new Error('resolveForSale returned an incomplete product set')
         }
 
         return {
@@ -1053,10 +1074,21 @@ export class LocalSaleService {
 
     // 12-15. one item + zero-or-more allocation consumptions + one movement per tracked line; one payment per row.
     const itemsByLocalUuid = new Map<string, string>()
+    const plannedConsumptions: {
+      readonly itemLocalUuid: string
+      readonly lineIndex: number
+      readonly entry: {
+        readonly allocationUuid: string
+        readonly rightsGeneration: number
+        readonly consumptionSequence: number
+        readonly localConsumptionUuid: string
+        readonly quantityMilli: number
+      }
+    }[] = []
     intent.items.forEach((item, index) => {
       const product = productsByUuid.get(item.productUuid)
       if (!product) {
-        throw new Error('resolveForCheckout returned an incomplete product set')
+        throw new Error('resolveForSale returned an incomplete product set')
       }
       const line = cart.value.lines[index]
       const itemLocalUuid = this.createUuid()
@@ -1090,17 +1122,12 @@ export class LocalSaleService {
       })
 
       if (product.trackStock) {
-        const splits = splitsByIndex.get(index) ?? []
-        for (const entry of splits) {
-          this.dependencies.stockAllocations.insertConsumption({
-            localUuid: entry.localConsumptionUuid,
-            allocationUuid: entry.allocationUuid,
-            consumptionSequence: entry.consumptionSequence,
-            invoiceLocalUuid,
-            itemLocalUuid,
-            quantityMilli: entry.quantityMilli,
-            createdAt: committedAt
-          })
+        // BH-04B-3: the consumption rows are planned here but written after the upload payload
+        // exists, because each row's journal-v1 entry binds the invoice request hash — which is a
+        // hash of that payload. Nothing else about the order changes: the rows still commit inside
+        // this same transaction, before any invariant check.
+        for (const entry of splitsByIndex.get(index) ?? []) {
+          plannedConsumptions.push({ itemLocalUuid, lineIndex: index, entry })
         }
 
         this.dependencies.localStock.insertMovement({
@@ -1137,12 +1164,23 @@ export class LocalSaleService {
     // 16. INSERT sync_queue (guarded by the partial unique index).
     const items = this.dependencies.localSale.itemsForInvoice(invoiceLocalUuid)
     const paymentRows = this.dependencies.localSale.paymentsForInvoice(invoiceLocalUuid)
-    const consumptions = this.dependencies.stockAllocations.consumptionsForInvoice(invoiceLocalUuid)
     const consumptionsByItem = new Map<string, LocalStockAllocationConsumptionRow[]>()
-    for (const consumption of consumptions) {
-      const list = consumptionsByItem.get(consumption.itemLocalUuid) ?? []
-      list.push(consumption)
-      consumptionsByItem.set(consumption.itemLocalUuid, list)
+    for (const planned of plannedConsumptions) {
+      const list = consumptionsByItem.get(planned.itemLocalUuid) ?? []
+      list.push(plannedConsumptionRow(planned, invoiceLocalUuid, committedAt))
+      consumptionsByItem.set(planned.itemLocalUuid, list)
+    }
+    // Payload order is semantic and deliberately independent of grant-selection order: it is
+    // `(consumption_sequence, allocation_uuid)`, exactly what `consumptionsForInvoice()` returns.
+    // Preserving it here matters because these bytes are hashed — by `payload_hash` locally and by
+    // the backend's `request_hash`, which every journal entry below binds — so a payload whose array
+    // order tracked insertion order would produce a different hash for the same sale.
+    for (const list of consumptionsByItem.values()) {
+      list.sort(
+        (left, right) =>
+          left.consumptionSequence - right.consumptionSequence ||
+          left.allocationUuid.localeCompare(right.allocationUuid)
+      )
     }
     const payload = buildUploadPayload(
       invoice,
@@ -1152,6 +1190,49 @@ export class LocalSaleService {
       grantsByAllocationUuid
     )
     const payloadJson = JSON.stringify(payload)
+
+    // BH-04B-3: the exact hash the backend will compute for this frozen request body, bound into
+    // every consumption's journal entry so the local chain can later be recomputed and checked
+    // against a server coverage boundary. Computed from the committed payload — never from today's
+    // catalog rows, and never from an upload response.
+    const requestHash = invoiceRequestHash(payload)
+
+    for (const planned of plannedConsumptions) {
+      const { entry } = planned
+      const previousChainHash =
+        this.dependencies.stockAllocations.latestJournalChainHash(
+          entry.allocationUuid,
+          entry.rightsGeneration
+        ) ?? allocationJournalInitialHash(entry.allocationUuid, entry.rightsGeneration)
+      const itemLineUuid = allocationItemLineUuid(invoiceLocalUuid, planned.lineIndex)
+      const journalEntry = {
+        allocationUuid: entry.allocationUuid,
+        rightsGeneration: entry.rightsGeneration,
+        consumptionSequence: entry.consumptionSequence,
+        localConsumptionUuid: entry.localConsumptionUuid,
+        invoiceIdempotencyKey: invoiceLocalUuid,
+        itemLineUuid,
+        quantityMilli: entry.quantityMilli,
+        requestHash
+      }
+      const hashes = allocationJournalAppend(previousChainHash, journalEntry)
+
+      this.dependencies.stockAllocations.insertConsumption({
+        localUuid: entry.localConsumptionUuid,
+        allocationUuid: entry.allocationUuid,
+        consumptionSequence: entry.consumptionSequence,
+        invoiceLocalUuid,
+        itemLocalUuid: planned.itemLocalUuid,
+        quantityMilli: entry.quantityMilli,
+        createdAt: committedAt,
+        rightsGeneration: entry.rightsGeneration,
+        invoiceIdempotencyKey: invoiceLocalUuid,
+        itemLineUuid,
+        requestHash,
+        entryHash: hashes.entryHash,
+        chainHash: hashes.chainHash
+      })
+    }
     this.dependencies.syncQueue.enqueue({
       localQueueUuid: this.createUuid(),
       aggregateType: 'invoice',
@@ -1354,6 +1435,46 @@ function fingerprintInputFor(owner: OwnerTuple, intent: CheckoutIntent): Semanti
  * CHECK/FK/UNIQUE constraint, or an application-level invariant failure), which is a definite
  * rejection per plan §2.4.
  */
+/**
+ * BH-04B-3: the payload builder consumes committed consumption rows, but the journal evidence on a
+ * row depends on the payload's own hash. The plan is therefore shaped as the row it is about to
+ * become — identical in every field the payload reads (allocation, sequence, local uuid, quantity)
+ * — and the journal columns are filled in when the rows are actually written a few lines later.
+ */
+function plannedConsumptionRow(
+  planned: {
+    readonly itemLocalUuid: string
+    readonly entry: {
+      readonly allocationUuid: string
+      readonly rightsGeneration: number
+      readonly consumptionSequence: number
+      readonly localConsumptionUuid: string
+      readonly quantityMilli: number
+    }
+  },
+  invoiceLocalUuid: string,
+  committedAt: string
+): LocalStockAllocationConsumptionRow {
+  return {
+    localUuid: planned.entry.localConsumptionUuid,
+    allocationUuid: planned.entry.allocationUuid,
+    consumptionSequence: planned.entry.consumptionSequence,
+    invoiceLocalUuid,
+    itemLocalUuid: planned.itemLocalUuid,
+    quantityMilli: planned.entry.quantityMilli,
+    serverStatus: 'pending',
+    serverConsumptionUuid: null,
+    acknowledgedAt: null,
+    createdAt: committedAt,
+    rightsGeneration: planned.entry.rightsGeneration,
+    invoiceIdempotencyKey: invoiceLocalUuid,
+    itemLineUuid: null,
+    requestHash: null,
+    entryHash: null,
+    chainHash: null
+  }
+}
+
 function isStorageFailure(error: unknown): boolean {
   const code = (error as { readonly code?: unknown } | null)?.code
 

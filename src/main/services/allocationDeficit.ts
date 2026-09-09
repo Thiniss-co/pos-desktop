@@ -46,7 +46,7 @@ export type AllocationDeficitResult =
  * Aggregates duplicate lines per product, then subtracts the usable local grant remainder.
  *
  * `usableMilliByProduct` must be produced by the *same* authority the commit-time split uses
- * (`usableGrantsForProduct` + `remainingMilli`, bound to the current company, authenticated device,
+ * (`usableGrantsForProduct` + `spendableMilli`, bound to the current company, authenticated device,
  * assigned warehouse, product, contract version, revision, lifecycle status, generation, validity
  * window, granted amount and already-consumed amount). Catalog quantity, `stock_items.quantity`,
  * `available_quantity` and `allocation_reserved_quantity` are never inputs here.
@@ -112,6 +112,14 @@ export function calculateAllocationDeficits(params: {
 
 export interface TopUpRequestBody {
   readonly idempotency_key: string
+  /**
+   * BH-04B-3 payload-format negotiation. Asks for the reconciliation representation of the granted
+   * envelopes (the §3.1 coverage boundary alongside the original 21 keys). It selects a response
+   * shape and nothing else — no authorization, no claim about this client, no new ability to
+   * release stock — and is deliberately excluded from the idempotency key below, because two
+   * requests that differ only in how they want the answer formatted are the same request.
+   */
+  readonly allocation_payload_version: 2
   readonly items: readonly { readonly product_uuid: string; readonly quantity: string }[]
 }
 
@@ -158,5 +166,5 @@ export function buildTopUpRequest(
     )
     .digest('hex')
 
-  return { idempotency_key: idempotencyKey, items: wireItems }
+  return { idempotency_key: idempotencyKey, allocation_payload_version: 2, items: wireItems }
 }

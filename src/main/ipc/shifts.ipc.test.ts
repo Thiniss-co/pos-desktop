@@ -28,6 +28,7 @@ describe('shift IPC authorization', () => {
     const request = vi.fn()
     const commercialAccess = { assertAllowed: vi.fn() } as unknown as CommercialAccessService
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',

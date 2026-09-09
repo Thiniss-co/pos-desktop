@@ -28,6 +28,7 @@ function setup(): Setup {
     return resource
   })
   const authority: ShiftObservationAuthority = {
+    resolveForSell: () => ({ kind: 'unknown' }) as const,
     captureContext: () => ({
       companyUuid: '11111111-1111-4111-8111-111111111111',
       deviceUuid: '22222222-2222-4222-8222-222222222222',
@@ -208,6 +209,7 @@ describe('ShiftService', () => {
   it('persists reconciliation_required before dispatching a shift mutation', async () => {
     const events: string[] = []
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',
@@ -239,6 +241,7 @@ describe('ShiftService', () => {
     const markReconciliationRequired = vi.fn()
     const request = vi.fn()
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',
@@ -290,6 +293,7 @@ describe('ShiftService', () => {
       })
     )
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',
@@ -333,6 +337,7 @@ describe('ShiftService', () => {
     const request = vi.fn().mockRejectedValueOnce(conflict).mockResolvedValueOnce(resource)
     const recorded: string[] = []
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',
@@ -369,6 +374,7 @@ describe('ShiftService', () => {
     )
     const recorded: string[] = []
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',
@@ -429,6 +435,7 @@ describe('ShiftService', () => {
     const request = vi.fn().mockRejectedValue(failure)
     const recorded: string[] = []
     const authority: ShiftObservationAuthority = {
+      resolveForSell: () => ({ kind: 'unknown' }) as const,
       captureContext: () => ({
         companyUuid: '11111111-1111-4111-8111-111111111111',
         deviceUuid: '22222222-2222-4222-8222-222222222222',

@@ -11,6 +11,7 @@ import { registerConnectivityIpcHandlers } from './connectivity.ipc'
 import { registerPreferencesIpcHandlers } from './preferences.ipc'
 import { registerSyncIpcHandlers } from './sync.ipc'
 import { registerSystemIpcHandlers } from './system.ipc'
+import { registerAllocationRecoveryIpcHandlers } from './allocationRecovery.ipc'
 
 let hasRegisteredIpcHandlers = false
 
@@ -27,6 +28,7 @@ export function registerIpcHandlers(services: ApplicationServices): void {
   registerCatalogIpcHandlers(services)
   registerShiftIpcHandlers(services)
   registerCheckoutIpcHandlers(services)
+  registerAllocationRecoveryIpcHandlers(services)
   registerCompanyUsersIpcHandlers(services)
   registerSyncIpcHandlers(services)
   registerConnectivityIpcHandlers(services)

@@ -143,6 +143,12 @@ function consumption(
     serverStatus: 'pending',
     serverConsumptionUuid: null,
     acknowledgedAt: null,
+    rightsGeneration: 1,
+    invoiceIdempotencyKey: 'invoice-uuid',
+    itemLineUuid: 'item-line-uuid',
+    requestHash: 'a'.repeat(64),
+    entryHash: 'b'.repeat(64),
+    chainHash: 'c'.repeat(64),
     createdAt: '2026-01-01T02:00:00.000Z',
     ...overrides
   }

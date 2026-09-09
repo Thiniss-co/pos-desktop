@@ -6,6 +6,8 @@ import { currencyContractMigration } from './0005_currency_contract'
 import { shiftObservationMigration } from './0006_shift_observation'
 import { localSalePersistenceMigration } from './0007_local_sale_persistence'
 import { bootstrapStockAllocationsMigration } from './0008_bootstrap_stock_allocations'
+import { allocationLifecycleReconciliationMigration } from './0009_allocation_lifecycle_reconciliation'
+import { allocationRecoveryMigration } from './0010_allocation_recovery'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -15,5 +17,7 @@ export const databaseMigrations = [
   currencyContractMigration,
   shiftObservationMigration,
   localSalePersistenceMigration,
-  bootstrapStockAllocationsMigration
+  bootstrapStockAllocationsMigration,
+  allocationLifecycleReconciliationMigration,
+  allocationRecoveryMigration
 ] as const

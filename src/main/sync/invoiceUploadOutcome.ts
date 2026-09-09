@@ -1,4 +1,10 @@
 import type { SqliteDatabase } from '../database/connection'
+import { runSerializedWrite } from '../database/serializedWrite'
+import type { IncomingCoverageBoundary } from '../repositories/stockAllocation.repository'
+import type {
+  AllocationReconciliationService,
+  ReconciliationOwner
+} from '../services/allocationReconciliation.service'
 import type { LocalSaleRepository } from '../repositories/localSale.repository'
 import type { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import type {
@@ -21,6 +27,13 @@ export type InvoiceUploadOutcome =
       readonly kind: 'synced'
       readonly remoteUuid: string
       readonly serverNumber: string
+      /**
+       * BH-04B-3: coverage the server reported for the allocations this invoice touched. Applied in
+       * the same transaction that resolves the queue row, so acknowledgement and reconciliation
+       * cannot land apart. Absent when the response reported none.
+       */
+      readonly coverage?: readonly IncomingCoverageBoundary[]
+      readonly owner?: ReconciliationOwner
     }
   | {
       /** Transient: transport, timeout, 429, 5xx, an expired lease, an unreadable answer. */
@@ -49,6 +62,8 @@ export interface InvoiceUploadOutcomeRecorderDependencies {
   readonly syncQueue: SyncQueueRepository
   readonly localSale: LocalSaleRepository
   readonly syncConflicts: SyncConflictRepository
+  /** BH-04B-3. Optional: without it an upload response's coverage is not applied, never guessed. */
+  readonly allocationReconciliation?: Pick<AllocationReconciliationService, 'applyCoverage'>
   readonly now?: () => string
 }
 
@@ -80,7 +95,7 @@ export class InvoiceUploadOutcomeRecorder {
   record(claimed: ClaimedInvoiceUpload, outcome: InvoiceUploadOutcome): void {
     const nowIso = this.now()
 
-    this.dependencies.database.transaction(() => {
+    runSerializedWrite(this.dependencies.database, () => {
       if (outcome.kind === 'synced') {
         this.dependencies.syncQueue.markUploadSynced(claimed.localQueueUuid, nowIso)
         this.dependencies.localSale.markInvoiceSynced(claimed.invoiceLocalUuid, {
@@ -88,6 +103,22 @@ export class InvoiceUploadOutcomeRecorder {
           serverNumber: outcome.serverNumber,
           syncedAt: nowIso
         })
+
+        // BH-04B-3: acknowledging an upload never deletes a consumption row and never flips one to
+        // `acknowledged` to remove its deduction. A row stops being deducted only when an accepted
+        // boundary's sequence reaches it, which is what makes both arrival orders converge on the
+        // same balance. Applying the boundary here — inside the transaction that resolves the queue
+        // row — is what keeps the two from committing separately.
+        if (outcome.owner !== undefined && this.dependencies.allocationReconciliation) {
+          for (const boundary of outcome.coverage ?? []) {
+            this.dependencies.allocationReconciliation.applyCoverage(
+              boundary,
+              outcome.owner,
+              'invoice_upload',
+              nowIso
+            )
+          }
+        }
 
         return
       }
@@ -125,6 +156,6 @@ export class InvoiceUploadOutcomeRecorder {
             : { reportedDetails: outcome.reportedDetails })
         })
       }
-    })()
+    })
   }
 }

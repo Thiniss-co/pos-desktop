@@ -21,6 +21,7 @@ import { SessionEpochRepository } from '../repositories/sessionEpoch.repository'
 import { SqliteSessionMetadataRepository } from '../repositories/sessionMetadata.repository'
 import { ShiftObservationRepository } from '../repositories/shiftObservation.repository'
 import { StockAllocationRepository } from '../repositories/stockAllocation.repository'
+import { AllocationRecoveryRepository } from '../repositories/allocationRecovery.repository'
 import { SyncConflictRepository } from '../repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { InvoiceUploadFailureReader } from '../sync/invoiceUploadFailures'
@@ -30,6 +31,8 @@ import { InvoiceUploadWorker } from '../sync/invoiceUploadWorker'
 import { uploadInvoice } from '../sync/invoiceUpload.client'
 import { ActivationService } from '../services/activation.service'
 import { AllocationAcquisitionService } from '../services/allocationAcquisition.service'
+import { AllocationReconciliationService } from '../services/allocationReconciliation.service'
+import { AllocationRecoveryService } from '../services/allocationRecovery.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
 import { BootstrapService } from '../services/bootstrap.service'
 import { CatalogReadAccessService } from '../services/catalogReadAccess.service'
@@ -83,6 +86,7 @@ export interface ApplicationServices {
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   readonly invoiceUploads: InvoiceUploadWorker
+  readonly allocationRecoveries: AllocationRecoveryService
   readonly invoiceUploadFailures: InvoiceUploadFailureReader
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
@@ -109,7 +113,19 @@ export function createApplicationServices(): ApplicationServices {
   const licenseMetadata = new LicenseMetadataRepository(database)
   const bootstrapState = new BootstrapStateRepository(database)
   const stockAllocations = new StockAllocationRepository(database)
-  const bootstrapSnapshot = new BootstrapSnapshotRepository(database, stockAllocations)
+  const allocationRecoveryRepository = new AllocationRecoveryRepository(database, stockAllocations)
+  // BH-04B-3: validates and applies server reconciliation evidence (the §3.1 coverage boundary and
+  // terminal markers). It holds no transaction of its own — every caller applies it inside the
+  // transaction that commits the rest of that response.
+  const allocationReconciliation = new AllocationReconciliationService({
+    stockAllocations,
+    allocationRecoveries: allocationRecoveryRepository
+  })
+  const bootstrapSnapshot = new BootstrapSnapshotRepository(
+    database,
+    stockAllocations,
+    allocationReconciliation
+  )
   const catalogRepository = new CatalogRepository(database)
   const syncQueue = new SyncQueueRepository(database)
   const syncConflicts = new SyncConflictRepository(database)
@@ -131,6 +147,7 @@ export function createApplicationServices(): ApplicationServices {
   let commercialAccessPublisher: CommercialAccessPublisher | null = null
   // Assigned once the upload worker exists; the connectivity service is constructed before it.
   let invoiceUploadTrigger: (() => void) | null = null
+  let allocationRecoveryTrigger: (() => void) | null = null
   const connectivity = new ConnectivityService({
     apiOrigin: runtimeConfig.apiOrigin,
     isOnline: () => net.isOnline(),
@@ -146,6 +163,7 @@ export function createApplicationServices(): ApplicationServices {
       if (snapshot.status === 'online') {
         // Coming back online is the single most likely moment for a queue to be drainable.
         invoiceUploadTrigger?.()
+        allocationRecoveryTrigger?.()
       }
     }
   })
@@ -271,6 +289,7 @@ export function createApplicationServices(): ApplicationServices {
     apiClient,
     stockAllocations,
     allocationService,
+    allocationReconciliation,
     connectivity
   })
   const invoiceUploads = new InvoiceUploadWorker({
@@ -279,7 +298,8 @@ export function createApplicationServices(): ApplicationServices {
       database,
       syncQueue,
       localSale: localSaleRepository,
-      syncConflicts
+      syncConflicts,
+      allocationReconciliation
     }),
     commercialAccess,
     permissions: bootstrapSnapshot,
@@ -297,7 +317,26 @@ export function createApplicationServices(): ApplicationServices {
     syncQueue,
     session: sessionMetadata
   })
+  const allocationRecoveries = new AllocationRecoveryService({
+    database,
+    apiClient,
+    recoveries: allocationRecoveryRepository,
+    stockAllocations,
+    syncQueue,
+    reconciliation: allocationReconciliation,
+    commercialAccess,
+    permissions: bootstrapSnapshot,
+    owner: () => {
+      const context = sessionMetadata.getContext()
+      return context.isAuthenticated && context.companyUuid && context.deviceUuid
+        ? { companyUuid: context.companyUuid, deviceUuid: context.deviceUuid }
+        : null
+    }
+  })
   invoiceUploadTrigger = () => invoiceUploads.requestRun()
+  allocationRecoveryTrigger = () => {
+    void allocationRecoveries.resume().catch(() => undefined)
+  }
   // CP-3G-4A. Closes the verified gap where restoring authority while already online left the
   // worker paused until backoff, a restart, another sale, or a manual trigger.
   //
@@ -313,6 +352,9 @@ export function createApplicationServices(): ApplicationServices {
   const unsubscribeAccessTrigger = subscribeInvoiceUploadTriggers({
     accessPublisher: commercialAccessPublisher,
     worker: invoiceUploads
+  })
+  const unsubscribeRecoveryAccessTrigger = commercialAccessPublisher.onPublished(() => {
+    allocationRecoveryTrigger?.()
   })
   const saleCompletion = new SaleCompletionService({
     localSale,
@@ -351,6 +393,7 @@ export function createApplicationServices(): ApplicationServices {
     companyUsers,
     connectivity,
     invoiceUploads,
+    allocationRecoveries,
     invoiceUploadFailures,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
@@ -363,6 +406,7 @@ export function createApplicationServices(): ApplicationServices {
       }),
     shutdown: () => {
       unsubscribeAccessTrigger()
+      unsubscribeRecoveryAccessTrigger()
       invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()

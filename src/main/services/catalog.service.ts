@@ -60,7 +60,7 @@ export class CatalogService {
     private readonly clock: CatalogTrustedClock,
     private readonly stockAllocations?: Pick<
       StockAllocationRepository,
-      'usableGrantsForProduct' | 'remainingMilli'
+      'usableGrantsForProduct' | 'spendableMilli'
     >
   ) {}
 
@@ -152,8 +152,39 @@ export class CatalogService {
   }
 
   /**
+   * The **sale** resolution authority. Identical to `resolveForCheckout()` except that it also
+   * requires the issued contract to still be inside its own `[generatedAt, validUntil)` window
+   * under the trusted clock, and fails closed (`null`) when it is not.
+   *
+   * `resolveForCheckout()` deliberately accepts a `stale` contract: expiry sets
+   * `isReadable: true, catalogValid: false`, which is what keeps a retained catalog *browsable*
+   * offline for an authorized cashier. That read policy is unchanged and must stay unchanged — but
+   * readability is not sale authority. Nothing else on the completion path closes the gap:
+   * `CommercialAccessService` never reads the contract window (it stops at the license, subscription
+   * grace, feature, and permission gates), and the business transaction's own check compares only
+   * the contract *revision*, which an expired snapshot still satisfies. Without this method a sale
+   * could commit locally against an expired catalog and then be refused at upload, where the backend
+   * requires `generated_at <= sold_at < valid_until`
+   * (`pos-backend app/Modules/POS/Services/DesktopInvoiceCatalogValidator.php`) — stranding a
+   * committed, unsyncable local sale.
+   *
+   * The window is the one the server issued; this never derives a duration locally. The clock is the
+   * same non-regressing trusted clock every other commit guard uses, so a wall-clock rollback cannot
+   * make an expired contract sellable again.
+   */
+  resolveForSale(input: CheckoutResolutionInput): CheckoutResolution | null {
+    this.assertReadable()
+
+    if (!this.statusForEligibleContext().catalogValid) {
+      return null
+    }
+
+    return this.repository.resolveForCheckout(input)
+  }
+
+  /**
    * D2-B: the sellable-remaining quantity for one tracked product at one device/warehouse, computed
-   * the same way the commit-time allocation split is (`usableGrantsForProduct` + `remainingMilli`
+   * the same way the commit-time allocation split is (`usableGrantsForProduct` + `spendableMilli`
    * over immutable grants and committed local consumptions — never a cached/shared-stock number).
    * `null` for an untracked product, when no trusted time is available, or when the product does not
    * exist — the caller falls back to the product's plain cached `availableQuantity` in that case,
@@ -181,7 +212,7 @@ export class CatalogService {
       trustedTime.now.toISOString()
     )
     const totalMilli = grants.reduce(
-      (sum, grant) => sum + this.stockAllocations!.remainingMilli(grant.allocationUuid),
+      (sum, grant) => sum + this.stockAllocations!.spendableMilli(grant.allocationUuid),
       0
     )
 

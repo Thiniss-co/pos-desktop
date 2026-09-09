@@ -62,7 +62,11 @@ function build(options: {
 
   const service = new AllocationAcquisitionService({
     // `transaction()` is invoked, not simulated away: the acquisition must never persist outside one.
-    database: { transaction: (fn: () => void) => () => fn() } as unknown as SqliteDatabase,
+    // BH-04B-3: the callable also carries `.immediate`, because `runSerializedWrite` opens the
+    // write transaction with `BEGIN IMMEDIATE` rather than better-sqlite3's deferred default.
+    database: {
+      transaction: (fn: () => void) => Object.assign(() => fn(), { immediate: () => fn() })
+    } as unknown as SqliteDatabase,
     apiClient: {
       assertRequestPreconditions: options.assertRequestPreconditions ?? vi.fn(),
       requestWithMeta
@@ -72,7 +76,7 @@ function build(options: {
         capability === null ? null : { state: capability, revision: 10, observedAt: NOW },
       ingestTopUpGrants,
       usableGrantsForProduct: () => [],
-      remainingMilli: () => 0
+      spendableMilli: () => 0
     },
     allocationService: { usableRemainingMilli: () => options.usableMilli ?? 0 },
     connectivity: {

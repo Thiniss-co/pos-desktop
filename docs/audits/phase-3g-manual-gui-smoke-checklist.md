@@ -83,11 +83,11 @@ ordinary sale for cashier A.
 attempt appears in the trace.
 
 ```
-Result      : [ ] PASS   [ ] FAIL   [ ] N/A
+Result      : [ ] PASS   [ f] FAIL   [ ] N/A
 Timestamp   : ______________________
 Observation : ______________________________________________________
 Trace ID    : ______________ (sanitized)
-Notes       : ______________________________________________________
+Notes       : i cannot perfrom any action when the pos backednd is unavailable and i got "Affected products: Chips Small. One or more tracked products do not have enough stock allocated to this workstation. Adjust the quantity, or refresh workstation data after an allocation is issued. Refreshing does not create or top up an allocation."
 ```
 
 ### - [ ] E2 — Bring the backend back
@@ -101,11 +101,11 @@ trigger.
 **0**; the invoice shows a server number.
 
 ```
-Result      : [ ] PASS   [ ] FAIL   [ ] N/A
+Result      : [passed ] PASS   [ ] FAIL   [ ] N/A
 Timestamp   : ______________________
 Observation : ______________________________________________________
 Trace ID    : ______________ (sanitized)
-Notes       : ______________________________________________________
+Notes       : it synced all invoices but the first E1 is faild so the enfocred to return backend up to complete the sale and the track the remaining qty
 ```
 
 ### - [ ] E3 — Restart with a pending invoice
@@ -118,11 +118,11 @@ app again.
 pending returns to 0.
 
 ```
-Result      : [ ] PASS   [ ] FAIL   [ ] N/A
+Result      : [ ] PASS   [fail ] FAIL   [ ] N/A
 Timestamp   : ______________________
 Observation : ______________________________________________________
 Trace ID    : ______________ (sanitized)
-Notes       : ______________________________________________________
+Notes       : when i disable the backend all products DISABLED and i cannot add to cart any product and complete any sale
 ```
 
 ### - [ ] E4 — Kill the application mid-upload

@@ -22,9 +22,20 @@ const openShift: Shift = {
   closeNotes: null
 }
 
+/**
+ * The main process's durable observation of the same shift. Production records it whenever
+ * `shifts:current` succeeds, so a store that has ever seen `openShift` also has this behind it.
+ */
+const openAuthority = {
+  kind: 'open',
+  shiftUuid: openShift.uuid,
+  observedAt: '2026-01-01T00:05:00.000Z'
+} as const
+
 function gateway(overrides: Partial<Window['posApi']['shifts']> = {}): Window['posApi']['shifts'] {
   return {
     current: async () => ({ ok: true, data: null }),
+    localAuthority: async () => ({ ok: true, data: openAuthority }),
     get: async () => ({ ok: true, data: openShift }),
     open: async () => ({ ok: true, data: openShift }),
     pause: async () => ({ ok: true, data: { ...openShift, status: 'paused' } }),
@@ -84,6 +95,184 @@ describe('useShiftStore', () => {
 
     expect(store.currentShift).toEqual(cancelledShift)
     expect(store.canSell).toBe(false)
+  })
+
+  it.each([
+    ['connection refusal', 'The desktop service refused the connection'],
+    ['timeout', 'The request timed out'],
+    ['server failure', 'The desktop service is temporarily unavailable']
+  ])('keeps a confirmed open shift sellable after %s', async (_name, message) => {
+    const transport = publicAppErrorSchema.parse({
+      category: 'transport',
+      message,
+      retryable: true
+    })
+    const current = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true as const, data: openShift })
+      .mockResolvedValueOnce({ ok: false as const, error: transport })
+    const service = new ShiftRendererService(gateway({ current }))
+    const store = useShiftStore()
+
+    await store.loadCurrent(service)
+    await expect(store.loadCurrent(service)).resolves.toBe(false)
+
+    expect(store.currentShift).toEqual(openShift)
+    expect(store.freshness).toBe('cached')
+    expect(store.canSell).toBe(true)
+  })
+
+  it('does not invent a sellable shift when the backend is unreachable and no local authority exists', async () => {
+    const transport = publicAppErrorSchema.parse({
+      category: 'transport',
+      message: 'The request timed out',
+      retryable: true
+    })
+    const store = useShiftStore()
+
+    await store.loadCurrent(
+      new ShiftRendererService(
+        gateway({
+          current: async () => ({ ok: false as const, error: transport }),
+          localAuthority: async () => ({ ok: true as const, data: { kind: 'unknown' as const } })
+        })
+      )
+    )
+
+    expect(store.currentShift).toBeNull()
+    expect(store.freshness).toBe('error')
+    expect(store.canSell).toBe(false)
+  })
+
+  it('sells on the durable local authority when the renderer holds no shift at all', async () => {
+    // E1: the real restart case — Pinia is empty and the backend is unreachable, but the main
+    // process still holds the owner-scoped open observation `checkout:complete` will resolve.
+    const transport = publicAppErrorSchema.parse({
+      category: 'transport',
+      message: 'The desktop service refused the connection',
+      retryable: true
+    })
+    const store = useShiftStore()
+
+    await store.loadCurrent(
+      new ShiftRendererService(
+        gateway({ current: async () => ({ ok: false as const, error: transport }) })
+      )
+    )
+
+    expect(store.currentShift).toBeNull()
+    expect(store.freshness).toBe('cached')
+    expect(store.canSell).toBe(true)
+    expect(store.activeShiftUuid).toBe(openShift.uuid)
+  })
+
+  it.each([
+    { kind: 'none', observedAt: '2026-01-01T00:05:00.000Z' },
+    { kind: 'not-open', status: 'paused' },
+    { kind: 'not-open', status: 'closed' },
+    { kind: 'reconciliation-required', since: '2026-01-01T00:05:00.000Z' },
+    { kind: 'foreign' }
+  ] as const)(
+    'denies selling for %o local authority after a transport failure',
+    async (authority) => {
+      const transport = publicAppErrorSchema.parse({
+        category: 'transport',
+        message: 'The desktop service refused the connection',
+        retryable: true
+      })
+      const current = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true as const, data: openShift })
+        .mockResolvedValue({ ok: false as const, error: transport })
+      const service = new ShiftRendererService(
+        gateway({ current, localAuthority: async () => ({ ok: true as const, data: authority }) })
+      )
+      const store = useShiftStore()
+
+      await store.loadCurrent(service)
+      expect(store.canSell).toBe(true)
+
+      await store.loadCurrent(service)
+      expect(store.freshness).toBe('error')
+      expect(store.canSell).toBe(false)
+    }
+  )
+
+  it.each(['paused', 'closed'] as const)(
+    'applies an authoritative %s response after cached offline operation',
+    async (status) => {
+      const transport = publicAppErrorSchema.parse({
+        category: 'transport',
+        message: 'The request timed out',
+        retryable: true
+      })
+      const current = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true as const, data: openShift })
+        .mockResolvedValueOnce({ ok: false as const, error: transport })
+        .mockResolvedValueOnce({ ok: true as const, data: { ...openShift, status } })
+      const service = new ShiftRendererService(gateway({ current }))
+      const store = useShiftStore()
+
+      await store.loadCurrent(service)
+      await store.loadCurrent(service)
+      expect(store.canSell).toBe(true)
+
+      await store.loadCurrent(service)
+      expect(store.freshness).toBe('current')
+      expect(store.currentShift?.status).toBe(status)
+      expect(store.canSell).toBe(false)
+    }
+  )
+
+  it('applies an authoritative no-current-shift response after cached offline operation', async () => {
+    const transport = publicAppErrorSchema.parse({
+      category: 'transport',
+      message: 'The request timed out',
+      retryable: true
+    })
+    const current = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true as const, data: openShift })
+      .mockResolvedValueOnce({ ok: false as const, error: transport })
+      .mockResolvedValueOnce({ ok: true as const, data: null })
+    const service = new ShiftRendererService(gateway({ current }))
+    const store = useShiftStore()
+
+    await store.loadCurrent(service)
+    await store.loadCurrent(service)
+    expect(store.canSell).toBe(true)
+
+    await store.loadCurrent(service)
+    expect(store.currentShift).toBeNull()
+    expect(store.freshness).toBe('current')
+    expect(store.canSell).toBe(false)
+  })
+
+  it('keeps lifecycle mutations blocked when cached state cannot be refreshed', async () => {
+    const transport = publicAppErrorSchema.parse({
+      category: 'transport',
+      message: 'The request timed out',
+      retryable: true
+    })
+    const current = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true as const, data: openShift })
+      .mockResolvedValue({ ok: false as const, error: transport })
+    const pause = vi.fn(async () => ({
+      ok: true as const,
+      data: { ...openShift, status: 'paused' as const }
+    }))
+    const service = new ShiftRendererService(gateway({ current, pause }))
+    const store = useShiftStore()
+
+    await store.loadCurrent(service)
+    await store.loadCurrent(service)
+    await expect(store.pause({ uuid: openShift.uuid }, service)).resolves.toBe(false)
+
+    expect(pause).not.toHaveBeenCalled()
+    expect(store.freshness).toBe('cached')
+    expect(store.canSell).toBe(true)
   })
 
   it('reconciles signed expected cash from a successful close response', async () => {

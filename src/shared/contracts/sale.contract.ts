@@ -194,6 +194,19 @@ export interface LocalStockAllocationConsumptionRow {
   readonly serverConsumptionUuid: string | null
   readonly acknowledgedAt: string | null
   readonly createdAt: string
+  /**
+   * BH-04B-3 journal-v1 evidence (migration 0009). Pinned at commit rather than looked up later:
+   * `rightsGeneration` used to be read from the grant at upload time, so a bootstrap arriving in
+   * between could change what was sent. Null on a historical row whose evidence could not be
+   * reconstructed — such a row is retained and its grant is held, never deleted or given invented
+   * values.
+   */
+  readonly rightsGeneration: number | null
+  readonly invoiceIdempotencyKey: string | null
+  readonly itemLineUuid: string | null
+  readonly requestHash: string | null
+  readonly entryHash: string | null
+  readonly chainHash: string | null
 }
 
 export interface LocalStockMovementRow {

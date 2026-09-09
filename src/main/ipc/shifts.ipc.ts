@@ -4,6 +4,7 @@ import {
   shiftsCloseInputSchema,
   shiftsCurrentInputSchema,
   shiftsGetInputSchema,
+  shiftsLocalAuthorityInputSchema,
   shiftsOpenInputSchema,
   shiftsPauseInputSchema,
   shiftsResumeInputSchema
@@ -14,6 +15,9 @@ import { handleIpcRequest } from './handleIpcRequest'
 export function registerShiftIpcHandlers(services: ApplicationServices): void {
   ipcMain.handle(IPC_CHANNELS.shiftsCurrent, (_event, input: unknown) =>
     handleIpcRequest(input, shiftsCurrentInputSchema, () => services.shifts.current())
+  )
+  ipcMain.handle(IPC_CHANNELS.shiftsLocalAuthority, (_event, input: unknown) =>
+    handleIpcRequest(input, shiftsLocalAuthorityInputSchema, () => services.shifts.localAuthority())
   )
   ipcMain.handle(IPC_CHANNELS.shiftsGet, (_event, input: unknown) =>
     handleIpcRequest(input, shiftsGetInputSchema, (value) => services.shifts.get(value.uuid))

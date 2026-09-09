@@ -159,7 +159,9 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "total": "Total",
-    "checkoutUnavailable": "Checkout is unavailable in this build",
+    "checkoutRequiresOpenShift": "Open an active shift to continue",
+    "checkoutRequiresItem": "Add an item to continue",
+    "checkoutRequiresValidCart": "Resolve the cart before continuing",
     "cartRequiresResolution": "Resolve the cart issue before changing this draft.",
     "discount": "Discount",
     "discountType": "Discount type",
@@ -181,6 +183,7 @@
     "resumeShift": "Resume",
     "closeShift": "Close shift",
     "shiftUnavailable": "Shift status is unavailable.",
+    "shiftRefreshUnavailable": "The shift could not be refreshed. Using the last confirmed state for offline sales; shift changes remain unavailable.",
     "shiftUnknown": "Shift state unknown",
     "shiftUnknownHelp": "The last shift request had an ambiguous result. Refreshing state is required before another change.",
     "shift": {

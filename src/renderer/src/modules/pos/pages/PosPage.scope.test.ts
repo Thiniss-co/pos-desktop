@@ -29,6 +29,14 @@ describe('PosPage Phase 3B–3E boundary', () => {
     expect(source).toContain("t('pos.shiftUnavailable')")
   })
 
+  it('names the actual checkout prerequisite instead of claiming a build gate exists', () => {
+    expect(source).not.toContain('pos.checkoutUnavailable')
+    expect(source).toContain('checkoutActionLabel')
+    expect(source).toContain("t('pos.checkoutRequiresOpenShift')")
+    expect(source).toContain("t('pos.checkoutRequiresItem')")
+    expect(source).toContain("t('pos.checkoutRequiresValidCart')")
+  })
+
   it('shows a live sync indicator instead of the CP-3G-4 placeholder', () => {
     expect(source).not.toContain('pos.syncPlaceholder')
     expect(source).toContain('syncChipLabel')

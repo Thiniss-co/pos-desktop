@@ -8,7 +8,10 @@ import {
   desktopShiftResourceSchema,
   desktopStockAllocationTopUpDataSchema,
   desktopStockAllocationTopUpMetaSchema,
-  stockAllocationResourceSchema
+  stockAllocationCoverageSchema,
+  stockAllocationReconciliationResourceSchema,
+  stockAllocationResourceSchema,
+  stockAllocationTerminalMarkerSchema
 } from './desktopResources.contract'
 
 interface AllocationEnvelopeArtifact {
@@ -25,6 +28,24 @@ interface AllocationEnvelopeArtifact {
     readonly stock_allocations: unknown
     readonly stock_allocation_revision: unknown
   }
+  readonly reconciliation: {
+    readonly requestField: string
+    readonly legacyValue: number
+    readonly reconciliationValue: number
+    readonly resourceKeys: readonly string[]
+    readonly coverageJournals: readonly {
+      readonly allocation_uuid: string
+      readonly boundary: Record<string, unknown>
+      readonly emptyPrefixBoundary: Record<string, unknown>
+    }[]
+    readonly terminalMarkers: readonly unknown[]
+    readonly topUpFragment: { readonly data: unknown; readonly meta: unknown }
+    readonly bootstrapFragment: {
+      readonly stock_allocations: unknown
+      readonly stock_allocation_revision: unknown
+      readonly stock_allocation_terminal_markers: unknown
+    }
+  }
   readonly canonicalSha256: string
 }
 
@@ -33,6 +54,10 @@ const allocationArtifactRaw = readFileSync(
   'utf8'
 )
 const allocationArtifact = JSON.parse(allocationArtifactRaw) as AllocationEnvelopeArtifact
+
+function stockAllocationEnvelopeUnionParse(value: unknown): Record<string, unknown> {
+  return desktopStockAllocationTopUpDataSchema.parse([value])[0] as Record<string, unknown>
+}
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -309,9 +334,9 @@ describe('Laravel-derived stock allocation envelope artifact', () => {
       .digest('hex')
 
     expect(createHash('sha256').update(allocationArtifactRaw).digest('hex')).toBe(
-      'ee71f33fa919983626fae769b831184b1bb47d44eb2de108a9bef995407fa049'
+      '7e97d81588eaad60c25e196a613b067a58811560abcc107f84038d73f45be365'
     )
-    expect(canonicalSha256).toBe('bdd091b018a08155b81f258167d56a926bd4520a88097a7c6f09c8b8ae9ae83b')
+    expect(canonicalSha256).toBe('6c1a6a6062df4d1cf43fe8ce7dbc7550935e9f57f9f3058b3f171dea81307343')
     expect(canonicalSha256).toBe(allocationArtifact.canonicalSha256)
   })
 
@@ -379,6 +404,107 @@ describe('Laravel-derived stock allocation envelope artifact', () => {
         ...desktopBootstrapFixture(),
         stock_allocations: allocationArtifact.bootstrapFragment.stock_allocations,
         stock_allocation_revision: '500'
+      }).success
+    ).toBe(false)
+  })
+})
+
+describe('BH-04B-3 allocation payload-format negotiation', () => {
+  it('keeps the legacy representation parsing through the pre-BH-04B-3 strict schemas', () => {
+    // This is the compatibility guarantee an unconditional payload expansion would have broken: a
+    // request that does not opt in still gets exactly 21 keys and no terminal-marker key, which is
+    // what every already-shipped desktop's `.strict()` schemas accept.
+    expect(allocationArtifact.resourceKeys).toHaveLength(21)
+    expect(allocationArtifact.bootstrapFragment).not.toHaveProperty(
+      'stock_allocation_terminal_markers'
+    )
+
+    for (const fixtureCase of allocationArtifact.cases) {
+      expect(stockAllocationResourceSchema.safeParse(fixtureCase.resource).success).toBe(true)
+    }
+
+    const bootstrap = desktopBootstrapResourceSchema.parse({
+      ...desktopBootstrapFixture(),
+      ...allocationArtifact.bootstrapFragment
+    })
+
+    expect(bootstrap).not.toHaveProperty('stock_allocation_terminal_markers')
+  })
+
+  it('parses the opted-in representation through the updated schemas', () => {
+    const fragment = allocationArtifact.reconciliation.bootstrapFragment
+
+    expect(allocationArtifact.reconciliation.requestField).toBe('allocation_payload_version')
+    expect(allocationArtifact.reconciliation.reconciliationValue).toBe(2)
+    expect(allocationArtifact.reconciliation.resourceKeys).toHaveLength(24)
+
+    const bootstrap = desktopBootstrapResourceSchema.parse({
+      ...desktopBootstrapFixture(),
+      ...fragment
+    })
+    const topUp = desktopStockAllocationTopUpDataSchema.parse(
+      allocationArtifact.reconciliation.topUpFragment.data
+    )
+
+    expect(bootstrap.stock_allocations).toStrictEqual(topUp)
+    expect(bootstrap.stock_allocation_terminal_markers).toHaveLength(
+      allocationArtifact.reconciliation.terminalMarkers.length
+    )
+
+    for (const envelope of bootstrap.stock_allocations ?? []) {
+      const parsed = stockAllocationReconciliationResourceSchema.parse(envelope)
+      expect(Object.keys(parsed)).toStrictEqual(allocationArtifact.reconciliation.resourceKeys)
+    }
+
+    for (const marker of allocationArtifact.reconciliation.terminalMarkers) {
+      expect(stockAllocationTerminalMarkerSchema.safeParse(marker).success).toBe(true)
+    }
+  })
+
+  it('accepts the legacy envelope shape without pretending coverage is zero', () => {
+    // A client that asks for version 2 but reaches an older backend must still parse; what it must
+    // not do is read a missing boundary as a verified one. The union keeps the legacy shape valid
+    // while leaving the coverage keys genuinely absent for the persistence layer to notice.
+    const [legacy] = allocationArtifact.cases
+    const parsed = stockAllocationEnvelopeUnionParse(legacy?.resource)
+
+    expect(parsed).not.toHaveProperty('accepted_consumption_sequence')
+    expect(parsed).not.toHaveProperty('accepted_chain_hash')
+  })
+
+  it('refuses a partial coverage triple rather than defaulting the missing fields', () => {
+    const [journal] = allocationArtifact.reconciliation.coverageJournals
+    const complete = journal?.boundary as Record<string, unknown>
+
+    expect(
+      stockAllocationCoverageSchema.safeParse({
+        accepted_consumption_sequence: complete.accepted_consumption_sequence,
+        accepted_consumed_quantity_milli: complete.accepted_consumed_quantity_milli,
+        accepted_chain_hash: complete.accepted_chain_hash
+      }).success
+    ).toBe(true)
+    expect(
+      stockAllocationCoverageSchema.safeParse({
+        accepted_consumption_sequence: complete.accepted_consumption_sequence
+      }).success
+    ).toBe(false)
+    expect(
+      stockAllocationCoverageSchema.safeParse({ ...complete, accepted_chain_hash: 'nope' }).success
+    ).toBe(false)
+  })
+
+  it('still fails an unknown key closed in the opted-in representation', () => {
+    const [envelope] = allocationArtifact.reconciliation.bootstrapFragment
+      .stock_allocations as Record<string, unknown>[]
+    const drifted = { ...envelope, future_field: true }
+
+    expect(stockAllocationReconciliationResourceSchema.safeParse(drifted).success).toBe(false)
+    expect(desktopStockAllocationTopUpDataSchema.safeParse([drifted]).success).toBe(false)
+    expect(
+      desktopBootstrapResourceSchema.safeParse({
+        ...desktopBootstrapFixture(),
+        ...allocationArtifact.reconciliation.bootstrapFragment,
+        stock_allocation_terminal_markers: [{ id: 'not-a-uuid' }]
       }).success
     ).toBe(false)
   })

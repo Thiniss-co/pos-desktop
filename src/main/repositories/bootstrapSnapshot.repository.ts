@@ -6,9 +6,13 @@ import type {
 } from '../http/desktopResources.contract'
 import type { SqliteDatabase } from '../database/connection'
 import type {
+  AllocationRepresentation,
   BootstrapStockAllocationGrant,
+  IncomingCoverageBoundary,
+  IncomingTerminalMarker,
   StockAllocationRepository
 } from './stockAllocation.repository'
+import type { AllocationReconciliationService } from '../services/allocationReconciliation.service'
 
 export interface BootstrapPersistResult {
   readonly snapshotVersion: string
@@ -63,6 +67,17 @@ type AllocationSnapshot =
       readonly state: 'supported'
       readonly revision: number
       readonly grants: readonly BootstrapStockAllocationGrant[]
+      /**
+       * BH-04B-3. `reconciliation_v2` only when this response actually carried the reconciliation
+       * evidence: the terminal-marker key present *and* every envelope carrying its coverage triple.
+       * A partially covered snapshot stays `legacy`, because a per-allocation mixture would leave
+       * some grants with no boundary while the spendability rules assume every eligible grant has
+       * one — and defaulting the missing ones is precisely what must not happen.
+       */
+      readonly representation: AllocationRepresentation
+      readonly coverage: readonly IncomingCoverageBoundary[]
+      /** `undefined` means the response said nothing about terminal allocations, not "none". */
+      readonly terminalMarkers: readonly IncomingTerminalMarker[] | undefined
     }
 
 function catalogSnapshotError(
@@ -253,7 +268,33 @@ function resolveAllocationSnapshot(resource: DesktopBootstrapResource): Allocati
     }
   })
 
-  return { state: 'supported', revision, grants }
+  const markersPresent = Object.hasOwn(resource, 'stock_allocation_terminal_markers')
+  const terminalMarkers = markersPresent
+    ? (resource.stock_allocation_terminal_markers ?? []).map((marker) => ({
+        allocationUuid: marker.id,
+        status: marker.status,
+        lifecycleGeneration: marker.lifecycle_generation,
+        terminalRevision: marker.terminal_revision
+      }))
+    : undefined
+
+  const coverage = allocations.flatMap((allocation) =>
+    'accepted_chain_hash' in allocation
+      ? [
+          {
+            allocationUuid: allocation.id,
+            rightsGeneration: allocation.rights_generation,
+            acceptedConsumptionSequence: allocation.accepted_consumption_sequence,
+            acceptedConsumedQuantityMilli: allocation.accepted_consumed_quantity_milli,
+            acceptedChainHash: allocation.accepted_chain_hash
+          }
+        ]
+      : []
+  )
+  const representation: AllocationRepresentation =
+    markersPresent && coverage.length === allocations.length ? 'reconciliation_v2' : 'legacy'
+
+  return { state: 'supported', revision, grants, representation, coverage, terminalMarkers }
 }
 
 function assertAllocationEnvelope(
@@ -297,6 +338,10 @@ export class BootstrapSnapshotRepository {
     private readonly stockAllocations?: Pick<
       StockAllocationRepository,
       'ingestBootstrapSnapshot' | 'markCapabilityUnavailable'
+    >,
+    private readonly allocationReconciliation?: Pick<
+      AllocationReconciliationService,
+      'applyBootstrap'
     >
   ) {}
 
@@ -795,6 +840,11 @@ export class BootstrapSnapshotRepository {
     }
   }
 
+  /**
+   * BH-04B-3: the grants, the revision watermark, the terminal markers and every accepted coverage
+   * boundary are written by the caller's single transaction, so a crash leaves one consistent
+   * earlier state rather than a half-reconciled one.
+   */
   private persistAllocationSnapshot(snapshot: AllocationSnapshot, fetchedAt: string): void {
     if (!this.stockAllocations) {
       throw new Error('Bootstrap allocation persistence is not configured')
@@ -805,7 +855,44 @@ export class BootstrapSnapshotRepository {
       return
     }
 
-    this.stockAllocations.ingestBootstrapSnapshot(snapshot.revision, snapshot.grants, fetchedAt)
+    this.stockAllocations.ingestBootstrapSnapshot(
+      snapshot.revision,
+      snapshot.grants,
+      fetchedAt,
+      snapshot.representation
+    )
+
+    if (!this.allocationReconciliation) {
+      return
+    }
+
+    const owner = this.allocationOwner(snapshot)
+
+    if (owner === null) {
+      return
+    }
+
+    this.allocationReconciliation.applyBootstrap({
+      owner,
+      representation: snapshot.representation,
+      coverage: snapshot.coverage,
+      markers: snapshot.terminalMarkers,
+      observedAt: fetchedAt
+    })
+  }
+
+  /**
+   * The authenticated bootstrap's own company and device, taken from the envelopes this response
+   * carried. `resolveAllocationSnapshot` has already proven every envelope matches the response's
+   * company and device, so this is that identity — never a client-supplied one. A snapshot with no
+   * envelopes and no markers has no owner to scope evidence to, and reconciles nothing.
+   */
+  private allocationOwner(
+    snapshot: Extract<AllocationSnapshot, { state: 'supported' }>
+  ): { readonly companyUuid: string; readonly deviceUuid: string } | null {
+    const [first] = snapshot.grants
+
+    return first ? { companyUuid: first.companyUuid, deviceUuid: first.deviceUuid } : null
   }
 
   private markBootstrapComplete(

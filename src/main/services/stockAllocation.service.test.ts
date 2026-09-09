@@ -166,12 +166,13 @@ describe('StockAllocationService', () => {
       getCapability: () => ({
         state: 'unavailable' as const,
         revision: null,
-        observedAt: '2026-08-29T00:00:00.000Z'
+        observedAt: '2026-08-29T00:00:00.000Z',
+        representation: 'legacy' as const
       }),
       usableGrantsForProduct: () => {
         throw new Error('A backend without allocation capability must not query retained grants')
       },
-      remainingMilli: () => 0,
+      spendableMilli: () => 0,
       nextConsumptionSequence: () => 1
     })
 

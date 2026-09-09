@@ -56,6 +56,7 @@ import type {
   ResumeShiftInput,
   Shift
 } from '@shared/contracts/shift.contract'
+import type { ShiftLocalAuthority } from '@shared/contracts/shiftAuthority.contract'
 
 export interface PosApi {
   readonly system: {
@@ -93,6 +94,7 @@ export interface PosApi {
   }
   readonly shifts: {
     current(): Promise<IpcResult<Shift | null>>
+    localAuthority(): Promise<IpcResult<ShiftLocalAuthority>>
     get(input: { uuid: string }): Promise<IpcResult<Shift>>
     open(input: OpenShiftInput): Promise<IpcResult<Shift>>
     pause(input: PauseShiftInput): Promise<IpcResult<Shift>>
@@ -116,6 +118,10 @@ export interface PosApi {
     uploadNow(): Promise<IpcResult<SyncStatus>>
     listFailures(cursor?: SyncFailureCursor | null): Promise<IpcResult<SyncFailurePage>>
     onChanged(listener: (status: SyncStatus) => void): () => void
+  }
+  readonly allocationRecovery: {
+    start(input: { allocationUuid: string }): Promise<IpcResult<void>>
+    resume(): Promise<IpcResult<void>>
   }
   readonly connectivity: {
     getState(): Promise<IpcResult<ConnectivitySnapshot>>
@@ -221,6 +227,7 @@ export const posApi: PosApi = Object.freeze({
   }),
   shifts: Object.freeze({
     current: () => ipcRenderer.invoke(IPC_CHANNELS.shiftsCurrent),
+    localAuthority: () => ipcRenderer.invoke(IPC_CHANNELS.shiftsLocalAuthority),
     get: (input: { uuid: string }) => ipcRenderer.invoke(IPC_CHANNELS.shiftsGet, input),
     open: (input: OpenShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsOpen, input),
     pause: (input: PauseShiftInput) => ipcRenderer.invoke(IPC_CHANNELS.shiftsPause, input),
@@ -261,6 +268,11 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.on(IPC_CHANNELS.syncChanged, subscription)
       return () => ipcRenderer.off(IPC_CHANNELS.syncChanged, subscription)
     }
+  }),
+  allocationRecovery: Object.freeze({
+    start: (input: { allocationUuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.allocationRecoveryStart, input),
+    resume: () => ipcRenderer.invoke(IPC_CHANNELS.allocationRecoveryResume)
   }),
   connectivity: Object.freeze({
     getState: () => ipcRenderer.invoke(IPC_CHANNELS.connectivityGetState),

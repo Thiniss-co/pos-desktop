@@ -31,6 +31,18 @@ This app's `LicenseService.validate()` (`src/main/services/license.service.ts`) 
 Protected (`desktop.context:sync`, i.e. requires `can_sync`). Phase 2 always requests a full
 snapshot (no `since` cursor — incremental sync is deferred to a later phase).
 
+### Allocation payload-format negotiation (BH-04B-3)
+
+This app always requests `?allocation_payload_version=2` (see
+`DESKTOP_API_ROUTES.bootstrap` in `src/shared/constants/apiRoutes.ts`, and
+`allocation_payload_version: 2` on the top-up body in
+`src/main/services/allocationDeficit.ts`). This is **payload-format negotiation only** — it is
+never authorization, never proof this client is safe, and never permission to release stock. A
+backend that does not recognize the field ignores it and answers in the legacy shape below, which
+this app still parses correctly; only then does spendability stay in the conservative
+`server_consumed_quantity_milli = 0` mode instead of the exact §3.1 boundary, because an absent
+boundary must never be read as a verified zero one.
+
 Response (`DesktopBootstrapResource`) top-level shape:
 
 ```
@@ -55,8 +67,18 @@ sync           { snapshot_version, full_sync_required, entities: { <name>: { cou
                   last_changed_at } } }
 stock_allocations         StockAllocationResource[] — device-bound allocation envelopes the
                   server currently holds for this device (read-only here; bootstrap never grants,
-                  seals, or releases). Absent on a backend predating the allocation contract.
+                  seals, or releases). Absent on a backend predating the allocation contract. Under
+                  the opted-in representation (see above), each envelope carries three additional
+                  keys: accepted_consumption_sequence, accepted_consumed_quantity_milli,
+                  accepted_chain_hash — the BH-04A §3.1 coverage boundary this device has proven for
+                  that allocation. 21 keys under the legacy representation, 24 under the opted-in one.
 stock_allocation_revision int — the device's latest allocation lifecycle-audit id
+stock_allocation_terminal_markers  { id, status, lifecycle_generation, terminal_revision }[] —
+                  present ONLY under the opted-in representation. `id` is the allocation uuid, the
+                  same value a live envelope publishes as its own `id`. Its absence (legacy
+                  representation) means "this response says nothing about terminal allocations",
+                  never "there are none" — the two are handled differently by
+                  `bootstrapSnapshot.repository.ts`.
 categories, products, product_barcodes, product_prices, stock_items, taxes,
 payment_methods, customers   — arrays, present when requested (Phase 2 requests all)
 ```
@@ -95,3 +117,14 @@ atomic `database.transaction(...)` (full delete-and-replace per table — Phase 
 incremental upsert). `bootstrap_state.is_complete` is set only after that transaction commits; a
 failure anywhere in the transaction rolls back automatically and leaves the previous snapshot (and
 `is_complete` flag) untouched. See migration `0002_activation_auth_bootstrap`.
+
+### Allocation coverage and terminal markers (BH-04B-3)
+
+Applied inside the same bootstrap transaction, via `AllocationReconciliationService`
+(`src/main/services/allocationReconciliation.service.ts`): every envelope's coverage triple is
+validated against this device's own immutable local journal evidence before being accepted (never
+trusted as-is), and every terminal marker is written durably and permanently — an older active
+envelope, omission from a later list, or a process restart can never undo one. See
+[local-database-architecture.md](../architecture/local-database-architecture.md) for the schema
+this reconciliation reads and writes (`stock_allocation_coverage_boundaries`,
+`stock_allocation_terminal_markers`, `stock_allocation_holds`) and migration `0009`.

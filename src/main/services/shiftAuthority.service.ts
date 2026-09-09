@@ -1,5 +1,6 @@
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import type { Shift } from '@shared/contracts/shift.contract'
+import type { ShiftLocalAuthority } from '@shared/contracts/shiftAuthority.contract'
 import type { BootstrapCompany } from '../repositories/bootstrapSnapshot.repository'
 import type { SessionContext } from '../repositories/sessionMetadata.repository'
 import type {
@@ -11,18 +12,18 @@ import type {
 import type { SessionEpochRepository } from '../repositories/sessionEpoch.repository'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 
-export type ShiftAuthority =
-  | { readonly kind: 'open'; readonly shiftUuid: string; readonly observedAt: string }
-  | { readonly kind: 'not-open'; readonly status: 'paused' | 'closed' | 'cancelled' }
-  | { readonly kind: 'none'; readonly observedAt: string }
-  | { readonly kind: 'reconciliation-required'; readonly since: string }
-  | { readonly kind: 'unknown' }
-  | { readonly kind: 'foreign' }
+/**
+ * The authority verdict is now also the renderer-visible projection (`shifts:local-authority`), so
+ * both sides share one definition. Widening it here widens the validated IPC payload too.
+ */
+export type ShiftAuthority = ShiftLocalAuthority
 
 export interface ShiftAuthorityContext extends ShiftObservationIdentity {}
 
 export interface ShiftObservationAuthority {
   captureContext(): ShiftAuthorityContext
+  /** The durable local verdict, unchanged by transport failures. */
+  resolveForSell(): ShiftAuthority
   recordCurrent(context: ShiftAuthorityContext, shift: Shift | null): void
   markReconciliationRequired(
     context: ShiftAuthorityContext,

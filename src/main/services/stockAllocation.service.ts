@@ -99,7 +99,7 @@ export class StockAllocationService {
   constructor(
     private readonly repository: Pick<
       StockAllocationRepository,
-      'getCapability' | 'usableGrantsForProduct' | 'remainingMilli' | 'nextConsumptionSequence'
+      'getCapability' | 'usableGrantsForProduct' | 'spendableMilli' | 'nextConsumptionSequence'
     >,
     private readonly createUuid: () => string = randomUUID
   ) {}
@@ -118,7 +118,7 @@ export class StockAllocationService {
 
     return this.repository
       .usableGrantsForProduct(owner, productUuid, nowIso)
-      .reduce((sum, grant) => sum + this.repository.remainingMilli(grant.allocationUuid), 0)
+      .reduce((sum, grant) => sum + this.repository.spendableMilli(grant.allocationUuid), 0)
   }
 
   splitForProduct(
@@ -137,7 +137,7 @@ export class StockAllocationService {
     const remainingMilliByAllocation = new Map(
       grants.map((grant) => [
         grant.allocationUuid,
-        this.repository.remainingMilli(grant.allocationUuid)
+        this.repository.spendableMilli(grant.allocationUuid)
       ])
     )
     const nextSequenceByAllocation = new Map(

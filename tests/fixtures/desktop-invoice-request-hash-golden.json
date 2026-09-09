@@ -1,0 +1,358 @@
+{
+    "schemaVersion": 1,
+    "description": "Immutable desktop invoice request hash (desktop_invoice_syncs.request_hash) cross-language vector",
+    "generatedFrom": {
+        "repo": "pos-backend",
+        "data": "App\\Modules\\POS\\Data\\UploadDesktopInvoiceData",
+        "request": "App\\Modules\\POS\\Http\\Requests\\UploadDesktopInvoiceRequest"
+    },
+    "algorithm": {
+        "hash": "sha256(json_encode(UploadDesktopInvoiceData::toHashableArray()))",
+        "jsonEncodeFlags": "PHP defaults: forward slashes escaped as \\/, non-ASCII escaped as lowercase \\uXXXX, no pretty printing",
+        "keyOrder": "camelCase property declaration order; items/payments/allocations follow UploadDesktopInvoiceRequest::rules() order with absent keys omitted",
+        "itemLineUuid": "uuid5(NAMESPACE_OID, idempotency_key . \"#\" . zero-based item index)"
+    },
+    "itemLineUuidNamespace": "6ba7b812-9dad-11d1-80b4-00c04fd430c8",
+    "cases": [
+        {
+            "name": "minimal-tracked-line",
+            "note": "One tracked line, one allocation proof, one cash payment, no discounts or notes.",
+            "payload": {
+                "idempotency_key": "00000000-0000-4000-8000-0000000000b1",
+                "local_invoice_uuid": "00000000-0000-4000-8000-0000000000b1",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "offline_number": null,
+                "sold_at": "2026-09-06T07:08:09+00:00",
+                "sold_while_offline": true,
+                "customer_uuid": null,
+                "currency": "USD",
+                "tax_mode": "exclusive",
+                "client_contract_version": 2,
+                "shift_uuid": "00000000-0000-4000-8000-0000000000c1",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-0000000000d1",
+                        "barcode": null,
+                        "quantity": "2.000",
+                        "unit_price_amount": 1500,
+                        "currency": "USD",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_id": null,
+                        "tax_mode": "exclusive",
+                        "tax_rate_basis_points": 1500,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0,
+                        "allocations": [
+                            {
+                                "allocation_uuid": "00000000-0000-4000-8000-0000000000e1",
+                                "rights_generation": 1,
+                                "consumption_sequence": 1,
+                                "local_consumption_uuid": "00000000-0000-4000-8000-0000000000f1",
+                                "quantity_milli": 2000
+                            }
+                        ]
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "payment_method_uuid": "00000000-0000-4000-8000-0000000000a1",
+                        "type": "cash",
+                        "amount": 3450,
+                        "reference": null,
+                        "paid_at": "2026-09-06T07:08:09+00:00"
+                    }
+                ],
+                "notes": null
+            },
+            "hashableJson": "{\"idempotencyKey\":\"00000000-0000-4000-8000-0000000000b1\",\"localInvoiceUuid\":\"00000000-0000-4000-8000-0000000000b1\",\"catalogRevision\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"offlineNumber\":null,\"soldAt\":\"2026-09-06T07:08:09.000000Z\",\"soldWhileOffline\":true,\"customerUuid\":null,\"currency\":\"USD\",\"taxMode\":\"exclusive\",\"items\":[{\"product_uuid\":\"00000000-0000-4000-8000-0000000000d1\",\"barcode\":null,\"quantity\":\"2.000\",\"unit_price_amount\":1500,\"currency\":\"USD\",\"price_revision\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"tax_id\":null,\"tax_mode\":\"exclusive\",\"tax_rate_basis_points\":1500,\"tax_revision\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"discount_type\":null,\"discount_value\":0,\"allocations\":[{\"allocation_uuid\":\"00000000-0000-4000-8000-0000000000e1\",\"rights_generation\":1,\"consumption_sequence\":1,\"local_consumption_uuid\":\"00000000-0000-4000-8000-0000000000f1\",\"quantity_milli\":2000}]}],\"discountType\":null,\"discountValue\":0,\"payments\":[{\"payment_method_uuid\":\"00000000-0000-4000-8000-0000000000a1\",\"type\":\"cash\",\"amount\":3450,\"reference\":null,\"paid_at\":\"2026-09-06T07:08:09+00:00\"}],\"notes\":null,\"clientContractVersion\":2,\"shiftUuid\":\"00000000-0000-4000-8000-0000000000c1\"}",
+            "hashableBytesHex": "7b226964656d706f74656e63794b6579223a2230303030303030302d303030302d343030302d383030302d303030303030303030306231222c226c6f63616c496e766f69636555756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306231222c22636174616c6f675265766973696f6e223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c226f66666c696e654e756d626572223a6e756c6c2c22736f6c644174223a22323032362d30392d30365430373a30383a30392e3030303030305a222c22736f6c645768696c654f66666c696e65223a747275652c22637573746f6d657255756964223a6e756c6c2c2263757272656e6379223a22555344222c227461784d6f6465223a226578636c7573697665222c226974656d73223a5b7b2270726f647563745f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306431222c22626172636f6465223a6e756c6c2c227175616e74697479223a22322e303030222c22756e69745f70726963655f616d6f756e74223a313530302c2263757272656e6379223a22555344222c2270726963655f7265766973696f6e223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c227461785f6964223a6e756c6c2c227461785f6d6f6465223a226578636c7573697665222c227461785f726174655f62617369735f706f696e7473223a313530302c227461785f7265766973696f6e223a2263636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363222c22646973636f756e745f74797065223a6e756c6c2c22646973636f756e745f76616c7565223a302c22616c6c6f636174696f6e73223a5b7b22616c6c6f636174696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306531222c227269676874735f67656e65726174696f6e223a312c22636f6e73756d7074696f6e5f73657175656e6365223a312c226c6f63616c5f636f6e73756d7074696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306631222c227175616e746974795f6d696c6c69223a323030307d5d7d5d2c22646973636f756e7454797065223a6e756c6c2c22646973636f756e7456616c7565223a302c227061796d656e7473223a5b7b227061796d656e745f6d6574686f645f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306131222c2274797065223a2263617368222c22616d6f756e74223a333435302c227265666572656e6365223a6e756c6c2c22706169645f6174223a22323032362d30392d30365430373a30383a30392b30303a3030227d5d2c226e6f746573223a6e756c6c2c22636c69656e74436f6e747261637456657273696f6e223a322c22736869667455756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306331227d",
+            "requestHash": "1ffa912145025d0bd54e72591ed90727809ece1473fe3e598eadb4f7f0ef3356",
+            "itemLineUuids": [
+                "7f0eacb6-bad0-5964-8056-f15b2332a788"
+            ]
+        },
+        {
+            "name": "non-ascii-notes-and-barcode",
+            "note": "Arabic notes and a non-ASCII barcode: pins PHP's lowercase \\uXXXX escaping, which JSON.stringify does not perform.",
+            "payload": {
+                "idempotency_key": "00000000-0000-4000-8000-0000000000b2",
+                "local_invoice_uuid": "00000000-0000-4000-8000-0000000000b2",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "offline_number": null,
+                "sold_at": "2026-09-06T07:08:09+00:00",
+                "sold_while_offline": true,
+                "customer_uuid": null,
+                "currency": "USD",
+                "tax_mode": "exclusive",
+                "client_contract_version": 2,
+                "shift_uuid": "00000000-0000-4000-8000-0000000000c1",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-0000000000d1",
+                        "barcode": "باركود-٩٩٩",
+                        "quantity": "2.000",
+                        "unit_price_amount": 1500,
+                        "currency": "USD",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_id": null,
+                        "tax_mode": "exclusive",
+                        "tax_rate_basis_points": 1500,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0,
+                        "allocations": [
+                            {
+                                "allocation_uuid": "00000000-0000-4000-8000-0000000000e1",
+                                "rights_generation": 1,
+                                "consumption_sequence": 1,
+                                "local_consumption_uuid": "00000000-0000-4000-8000-0000000000f1",
+                                "quantity_milli": 2000
+                            }
+                        ]
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "payment_method_uuid": "00000000-0000-4000-8000-0000000000a1",
+                        "type": "cash",
+                        "amount": 3450,
+                        "reference": null,
+                        "paid_at": "2026-09-06T07:08:09+00:00"
+                    }
+                ],
+                "notes": "ملاحظة على الفاتورة — تم البيع دون اتصال"
+            },
+            "hashableJson": "{\"idempotencyKey\":\"00000000-0000-4000-8000-0000000000b2\",\"localInvoiceUuid\":\"00000000-0000-4000-8000-0000000000b2\",\"catalogRevision\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"offlineNumber\":null,\"soldAt\":\"2026-09-06T07:08:09.000000Z\",\"soldWhileOffline\":true,\"customerUuid\":null,\"currency\":\"USD\",\"taxMode\":\"exclusive\",\"items\":[{\"product_uuid\":\"00000000-0000-4000-8000-0000000000d1\",\"barcode\":\"\\u0628\\u0627\\u0631\\u0643\\u0648\\u062f-\\u0669\\u0669\\u0669\",\"quantity\":\"2.000\",\"unit_price_amount\":1500,\"currency\":\"USD\",\"price_revision\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"tax_id\":null,\"tax_mode\":\"exclusive\",\"tax_rate_basis_points\":1500,\"tax_revision\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"discount_type\":null,\"discount_value\":0,\"allocations\":[{\"allocation_uuid\":\"00000000-0000-4000-8000-0000000000e1\",\"rights_generation\":1,\"consumption_sequence\":1,\"local_consumption_uuid\":\"00000000-0000-4000-8000-0000000000f1\",\"quantity_milli\":2000}]}],\"discountType\":null,\"discountValue\":0,\"payments\":[{\"payment_method_uuid\":\"00000000-0000-4000-8000-0000000000a1\",\"type\":\"cash\",\"amount\":3450,\"reference\":null,\"paid_at\":\"2026-09-06T07:08:09+00:00\"}],\"notes\":\"\\u0645\\u0644\\u0627\\u062d\\u0638\\u0629 \\u0639\\u0644\\u0649 \\u0627\\u0644\\u0641\\u0627\\u062a\\u0648\\u0631\\u0629 \\u2014 \\u062a\\u0645 \\u0627\\u0644\\u0628\\u064a\\u0639 \\u062f\\u0648\\u0646 \\u0627\\u062a\\u0635\\u0627\\u0644\",\"clientContractVersion\":2,\"shiftUuid\":\"00000000-0000-4000-8000-0000000000c1\"}",
+            "hashableBytesHex": "7b226964656d706f74656e63794b6579223a2230303030303030302d303030302d343030302d383030302d303030303030303030306232222c226c6f63616c496e766f69636555756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306232222c22636174616c6f675265766973696f6e223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c226f66666c696e654e756d626572223a6e756c6c2c22736f6c644174223a22323032362d30392d30365430373a30383a30392e3030303030305a222c22736f6c645768696c654f66666c696e65223a747275652c22637573746f6d657255756964223a6e756c6c2c2263757272656e6379223a22555344222c227461784d6f6465223a226578636c7573697665222c226974656d73223a5b7b2270726f647563745f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306431222c22626172636f6465223a225c75303632385c75303632375c75303633315c75303634335c75303634385c75303632662d5c75303636395c75303636395c7530363639222c227175616e74697479223a22322e303030222c22756e69745f70726963655f616d6f756e74223a313530302c2263757272656e6379223a22555344222c2270726963655f7265766973696f6e223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c227461785f6964223a6e756c6c2c227461785f6d6f6465223a226578636c7573697665222c227461785f726174655f62617369735f706f696e7473223a313530302c227461785f7265766973696f6e223a2263636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363222c22646973636f756e745f74797065223a6e756c6c2c22646973636f756e745f76616c7565223a302c22616c6c6f636174696f6e73223a5b7b22616c6c6f636174696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306531222c227269676874735f67656e65726174696f6e223a312c22636f6e73756d7074696f6e5f73657175656e6365223a312c226c6f63616c5f636f6e73756d7074696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306631222c227175616e746974795f6d696c6c69223a323030307d5d7d5d2c22646973636f756e7454797065223a6e756c6c2c22646973636f756e7456616c7565223a302c227061796d656e7473223a5b7b227061796d656e745f6d6574686f645f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306131222c2274797065223a2263617368222c22616d6f756e74223a333435302c227265666572656e6365223a6e756c6c2c22706169645f6174223a22323032362d30392d30365430373a30383a30392b30303a3030227d5d2c226e6f746573223a225c75303634355c75303634345c75303632375c75303632645c75303633385c7530363239205c75303633395c75303634345c7530363439205c75303632375c75303634345c75303634315c75303632375c75303632615c75303634385c75303633315c7530363239205c7532303134205c75303632615c7530363435205c75303632375c75303634345c75303632385c75303634615c7530363339205c75303632665c75303634385c7530363436205c75303632375c75303632615c75303633355c75303632375c7530363434222c22636c69656e74436f6e747261637456657273696f6e223a322c22736869667455756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306331227d",
+            "requestHash": "d1acacea51345a9c5505d18ca364969ea12950071ed79e424e092d937c67af22",
+            "itemLineUuids": [
+                "ccfa32d3-fe58-5819-b841-27cb6c0b4c28"
+            ]
+        },
+        {
+            "name": "forward-slash-reference",
+            "note": "A payment reference containing forward slashes: pins PHP escaping them as \\/.",
+            "payload": {
+                "idempotency_key": "00000000-0000-4000-8000-0000000000b3",
+                "local_invoice_uuid": "00000000-0000-4000-8000-0000000000b3",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "offline_number": null,
+                "sold_at": "2026-09-06T07:08:09+00:00",
+                "sold_while_offline": true,
+                "customer_uuid": null,
+                "currency": "USD",
+                "tax_mode": "exclusive",
+                "client_contract_version": 2,
+                "shift_uuid": "00000000-0000-4000-8000-0000000000c1",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-0000000000d1",
+                        "barcode": null,
+                        "quantity": "2.000",
+                        "unit_price_amount": 1500,
+                        "currency": "USD",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_id": null,
+                        "tax_mode": "exclusive",
+                        "tax_rate_basis_points": 1500,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0,
+                        "allocations": [
+                            {
+                                "allocation_uuid": "00000000-0000-4000-8000-0000000000e1",
+                                "rights_generation": 1,
+                                "consumption_sequence": 1,
+                                "local_consumption_uuid": "00000000-0000-4000-8000-0000000000f1",
+                                "quantity_milli": 2000
+                            }
+                        ]
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "payment_method_uuid": "00000000-0000-4000-8000-0000000000a1",
+                        "type": "cash",
+                        "amount": 3450,
+                        "reference": "TERM/2026/09/06#A/B",
+                        "paid_at": "2026-09-06T07:08:09+00:00"
+                    }
+                ],
+                "notes": null
+            },
+            "hashableJson": "{\"idempotencyKey\":\"00000000-0000-4000-8000-0000000000b3\",\"localInvoiceUuid\":\"00000000-0000-4000-8000-0000000000b3\",\"catalogRevision\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"offlineNumber\":null,\"soldAt\":\"2026-09-06T07:08:09.000000Z\",\"soldWhileOffline\":true,\"customerUuid\":null,\"currency\":\"USD\",\"taxMode\":\"exclusive\",\"items\":[{\"product_uuid\":\"00000000-0000-4000-8000-0000000000d1\",\"barcode\":null,\"quantity\":\"2.000\",\"unit_price_amount\":1500,\"currency\":\"USD\",\"price_revision\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"tax_id\":null,\"tax_mode\":\"exclusive\",\"tax_rate_basis_points\":1500,\"tax_revision\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"discount_type\":null,\"discount_value\":0,\"allocations\":[{\"allocation_uuid\":\"00000000-0000-4000-8000-0000000000e1\",\"rights_generation\":1,\"consumption_sequence\":1,\"local_consumption_uuid\":\"00000000-0000-4000-8000-0000000000f1\",\"quantity_milli\":2000}]}],\"discountType\":null,\"discountValue\":0,\"payments\":[{\"payment_method_uuid\":\"00000000-0000-4000-8000-0000000000a1\",\"type\":\"cash\",\"amount\":3450,\"reference\":\"TERM\\/2026\\/09\\/06#A\\/B\",\"paid_at\":\"2026-09-06T07:08:09+00:00\"}],\"notes\":null,\"clientContractVersion\":2,\"shiftUuid\":\"00000000-0000-4000-8000-0000000000c1\"}",
+            "hashableBytesHex": "7b226964656d706f74656e63794b6579223a2230303030303030302d303030302d343030302d383030302d303030303030303030306233222c226c6f63616c496e766f69636555756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306233222c22636174616c6f675265766973696f6e223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c226f66666c696e654e756d626572223a6e756c6c2c22736f6c644174223a22323032362d30392d30365430373a30383a30392e3030303030305a222c22736f6c645768696c654f66666c696e65223a747275652c22637573746f6d657255756964223a6e756c6c2c2263757272656e6379223a22555344222c227461784d6f6465223a226578636c7573697665222c226974656d73223a5b7b2270726f647563745f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306431222c22626172636f6465223a6e756c6c2c227175616e74697479223a22322e303030222c22756e69745f70726963655f616d6f756e74223a313530302c2263757272656e6379223a22555344222c2270726963655f7265766973696f6e223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c227461785f6964223a6e756c6c2c227461785f6d6f6465223a226578636c7573697665222c227461785f726174655f62617369735f706f696e7473223a313530302c227461785f7265766973696f6e223a2263636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363222c22646973636f756e745f74797065223a6e756c6c2c22646973636f756e745f76616c7565223a302c22616c6c6f636174696f6e73223a5b7b22616c6c6f636174696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306531222c227269676874735f67656e65726174696f6e223a312c22636f6e73756d7074696f6e5f73657175656e6365223a312c226c6f63616c5f636f6e73756d7074696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306631222c227175616e746974795f6d696c6c69223a323030307d5d7d5d2c22646973636f756e7454797065223a6e756c6c2c22646973636f756e7456616c7565223a302c227061796d656e7473223a5b7b227061796d656e745f6d6574686f645f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306131222c2274797065223a2263617368222c22616d6f756e74223a333435302c227265666572656e6365223a225445524d5c2f323032365c2f30395c2f303623415c2f42222c22706169645f6174223a22323032362d30392d30365430373a30383a30392b30303a3030227d5d2c226e6f746573223a6e756c6c2c22636c69656e74436f6e747261637456657273696f6e223a322c22736869667455756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306331227d",
+            "requestHash": "8d97264ad926374a8d7f8f2e24883dd31ebbbae61cbd1ffe1402eec147aab25a",
+            "itemLineUuids": [
+                "06bf9a1e-24eb-5db0-87f5-9bf1facb3a52"
+            ]
+        },
+        {
+            "name": "multi-line-multi-allocation-discounted",
+            "note": "Two lines, one split across two allocations, plus an invoice-level discount and an offline number.",
+            "payload": {
+                "idempotency_key": "00000000-0000-4000-8000-0000000000b4",
+                "local_invoice_uuid": "00000000-0000-4000-8000-0000000000b4",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "offline_number": "POS-DEV-20260906-0007",
+                "sold_at": "2026-09-06T07:08:09+00:00",
+                "sold_while_offline": true,
+                "customer_uuid": "00000000-0000-4000-8000-0000000000c9",
+                "currency": "USD",
+                "tax_mode": "exclusive",
+                "client_contract_version": 2,
+                "shift_uuid": "00000000-0000-4000-8000-0000000000c1",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-0000000000d1",
+                        "barcode": null,
+                        "quantity": "2.000",
+                        "unit_price_amount": 1500,
+                        "currency": "USD",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_id": null,
+                        "tax_mode": "exclusive",
+                        "tax_rate_basis_points": 1500,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0,
+                        "allocations": [
+                            {
+                                "allocation_uuid": "00000000-0000-4000-8000-0000000000e1",
+                                "rights_generation": 1,
+                                "consumption_sequence": 1,
+                                "local_consumption_uuid": "00000000-0000-4000-8000-0000000000f1",
+                                "quantity_milli": 1250
+                            },
+                            {
+                                "allocation_uuid": "00000000-0000-4000-8000-0000000000e2",
+                                "rights_generation": 3,
+                                "consumption_sequence": 4,
+                                "local_consumption_uuid": "00000000-0000-4000-8000-0000000000f2",
+                                "quantity_milli": 750
+                            }
+                        ]
+                    },
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-0000000000d2",
+                        "barcode": "5901234123457",
+                        "quantity": "1.500",
+                        "unit_price_amount": 900,
+                        "currency": "USD",
+                        "price_revision": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                        "tax_id": "00000000-0000-4000-8000-0000000000d9",
+                        "tax_mode": "exclusive",
+                        "tax_rate_basis_points": 0,
+                        "tax_revision": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                        "discount_type": "fixed",
+                        "discount_value": 100
+                    }
+                ],
+                "invoice_discount": {
+                    "type": "percentage",
+                    "value": 500
+                },
+                "payments": [
+                    {
+                        "payment_method_uuid": "00000000-0000-4000-8000-0000000000a1",
+                        "type": "cash",
+                        "amount": 2000,
+                        "reference": null,
+                        "paid_at": "2026-09-06T07:08:09+00:00"
+                    },
+                    {
+                        "payment_method_uuid": "00000000-0000-4000-8000-0000000000a2",
+                        "type": "card",
+                        "amount": 1200,
+                        "reference": "AUTH-4421",
+                        "paid_at": "2026-09-06T07:08:10+00:00"
+                    }
+                ],
+                "notes": null
+            },
+            "hashableJson": "{\"idempotencyKey\":\"00000000-0000-4000-8000-0000000000b4\",\"localInvoiceUuid\":\"00000000-0000-4000-8000-0000000000b4\",\"catalogRevision\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"offlineNumber\":\"POS-DEV-20260906-0007\",\"soldAt\":\"2026-09-06T07:08:09.000000Z\",\"soldWhileOffline\":true,\"customerUuid\":\"00000000-0000-4000-8000-0000000000c9\",\"currency\":\"USD\",\"taxMode\":\"exclusive\",\"items\":[{\"product_uuid\":\"00000000-0000-4000-8000-0000000000d1\",\"barcode\":null,\"quantity\":\"2.000\",\"unit_price_amount\":1500,\"currency\":\"USD\",\"price_revision\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"tax_id\":null,\"tax_mode\":\"exclusive\",\"tax_rate_basis_points\":1500,\"tax_revision\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"discount_type\":null,\"discount_value\":0,\"allocations\":[{\"allocation_uuid\":\"00000000-0000-4000-8000-0000000000e1\",\"rights_generation\":1,\"consumption_sequence\":1,\"local_consumption_uuid\":\"00000000-0000-4000-8000-0000000000f1\",\"quantity_milli\":1250},{\"allocation_uuid\":\"00000000-0000-4000-8000-0000000000e2\",\"rights_generation\":3,\"consumption_sequence\":4,\"local_consumption_uuid\":\"00000000-0000-4000-8000-0000000000f2\",\"quantity_milli\":750}]},{\"product_uuid\":\"00000000-0000-4000-8000-0000000000d2\",\"barcode\":\"5901234123457\",\"quantity\":\"1.500\",\"unit_price_amount\":900,\"currency\":\"USD\",\"price_revision\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"tax_id\":\"00000000-0000-4000-8000-0000000000d9\",\"tax_mode\":\"exclusive\",\"tax_rate_basis_points\":0,\"tax_revision\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"discount_type\":\"fixed\",\"discount_value\":100}],\"discountType\":\"percentage\",\"discountValue\":500,\"payments\":[{\"payment_method_uuid\":\"00000000-0000-4000-8000-0000000000a1\",\"type\":\"cash\",\"amount\":2000,\"reference\":null,\"paid_at\":\"2026-09-06T07:08:09+00:00\"},{\"payment_method_uuid\":\"00000000-0000-4000-8000-0000000000a2\",\"type\":\"card\",\"amount\":1200,\"reference\":\"AUTH-4421\",\"paid_at\":\"2026-09-06T07:08:10+00:00\"}],\"notes\":null,\"clientContractVersion\":2,\"shiftUuid\":\"00000000-0000-4000-8000-0000000000c1\"}",
+            "hashableBytesHex": "7b226964656d706f74656e63794b6579223a2230303030303030302d303030302d343030302d383030302d303030303030303030306234222c226c6f63616c496e766f69636555756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306234222c22636174616c6f675265766973696f6e223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c226f66666c696e654e756d626572223a22504f532d4445562d32303236303930362d30303037222c22736f6c644174223a22323032362d30392d30365430373a30383a30392e3030303030305a222c22736f6c645768696c654f66666c696e65223a747275652c22637573746f6d657255756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306339222c2263757272656e6379223a22555344222c227461784d6f6465223a226578636c7573697665222c226974656d73223a5b7b2270726f647563745f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306431222c22626172636f6465223a6e756c6c2c227175616e74697479223a22322e303030222c22756e69745f70726963655f616d6f756e74223a313530302c2263757272656e6379223a22555344222c2270726963655f7265766973696f6e223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c227461785f6964223a6e756c6c2c227461785f6d6f6465223a226578636c7573697665222c227461785f726174655f62617369735f706f696e7473223a313530302c227461785f7265766973696f6e223a2263636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363222c22646973636f756e745f74797065223a6e756c6c2c22646973636f756e745f76616c7565223a302c22616c6c6f636174696f6e73223a5b7b22616c6c6f636174696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306531222c227269676874735f67656e65726174696f6e223a312c22636f6e73756d7074696f6e5f73657175656e6365223a312c226c6f63616c5f636f6e73756d7074696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306631222c227175616e746974795f6d696c6c69223a313235307d2c7b22616c6c6f636174696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306532222c227269676874735f67656e65726174696f6e223a332c22636f6e73756d7074696f6e5f73657175656e6365223a342c226c6f63616c5f636f6e73756d7074696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306632222c227175616e746974795f6d696c6c69223a3735307d5d7d2c7b2270726f647563745f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306432222c22626172636f6465223a2235393031323334313233343537222c227175616e74697479223a22312e353030222c22756e69745f70726963655f616d6f756e74223a3930302c2263757272656e6379223a22555344222c2270726963655f7265766973696f6e223a2264646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464222c227461785f6964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306439222c227461785f6d6f6465223a226578636c7573697665222c227461785f726174655f62617369735f706f696e7473223a302c227461785f7265766973696f6e223a2265656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565222c22646973636f756e745f74797065223a226669786564222c22646973636f756e745f76616c7565223a3130307d5d2c22646973636f756e7454797065223a2270657263656e74616765222c22646973636f756e7456616c7565223a3530302c227061796d656e7473223a5b7b227061796d656e745f6d6574686f645f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306131222c2274797065223a2263617368222c22616d6f756e74223a323030302c227265666572656e6365223a6e756c6c2c22706169645f6174223a22323032362d30392d30365430373a30383a30392b30303a3030227d2c7b227061796d656e745f6d6574686f645f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306132222c2274797065223a2263617264222c22616d6f756e74223a313230302c227265666572656e6365223a22415554482d34343231222c22706169645f6174223a22323032362d30392d30365430373a30383a31302b30303a3030227d5d2c226e6f746573223a6e756c6c2c22636c69656e74436f6e747261637456657273696f6e223a322c22736869667455756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306331227d",
+            "requestHash": "c5512d86d201aac68edf1fa84ad884a0bcc25a279f348a446aa20d1efdbeaad3",
+            "itemLineUuids": [
+                "fca5b1bd-a0ca-509c-a621-0ad72b228a46",
+                "bf189d5a-8c74-5fdf-afe3-c4314c02ef78"
+            ]
+        },
+        {
+            "name": "positive-offset-sold-at",
+            "note": "sold_at carries a +03:00 offset: pins how Carbon renders it inside the hashed bytes.",
+            "payload": {
+                "idempotency_key": "00000000-0000-4000-8000-0000000000b5",
+                "local_invoice_uuid": "00000000-0000-4000-8000-0000000000b5",
+                "catalog_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "offline_number": null,
+                "sold_at": "2026-09-06T10:11:12+03:00",
+                "sold_while_offline": true,
+                "customer_uuid": null,
+                "currency": "USD",
+                "tax_mode": "exclusive",
+                "client_contract_version": 2,
+                "shift_uuid": "00000000-0000-4000-8000-0000000000c1",
+                "items": [
+                    {
+                        "product_uuid": "00000000-0000-4000-8000-0000000000d1",
+                        "barcode": null,
+                        "quantity": "2.000",
+                        "unit_price_amount": 1500,
+                        "currency": "USD",
+                        "price_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "tax_id": null,
+                        "tax_mode": "exclusive",
+                        "tax_rate_basis_points": 1500,
+                        "tax_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "discount_type": null,
+                        "discount_value": 0,
+                        "allocations": [
+                            {
+                                "allocation_uuid": "00000000-0000-4000-8000-0000000000e1",
+                                "rights_generation": 1,
+                                "consumption_sequence": 1,
+                                "local_consumption_uuid": "00000000-0000-4000-8000-0000000000f1",
+                                "quantity_milli": 2000
+                            }
+                        ]
+                    }
+                ],
+                "invoice_discount": {
+                    "type": null,
+                    "value": 0
+                },
+                "payments": [
+                    {
+                        "payment_method_uuid": "00000000-0000-4000-8000-0000000000a1",
+                        "type": "cash",
+                        "amount": 3450,
+                        "reference": null,
+                        "paid_at": "2026-09-06T07:08:09+00:00"
+                    }
+                ],
+                "notes": null
+            },
+            "hashableJson": "{\"idempotencyKey\":\"00000000-0000-4000-8000-0000000000b5\",\"localInvoiceUuid\":\"00000000-0000-4000-8000-0000000000b5\",\"catalogRevision\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"offlineNumber\":null,\"soldAt\":\"2026-09-06T07:11:12.000000Z\",\"soldWhileOffline\":true,\"customerUuid\":null,\"currency\":\"USD\",\"taxMode\":\"exclusive\",\"items\":[{\"product_uuid\":\"00000000-0000-4000-8000-0000000000d1\",\"barcode\":null,\"quantity\":\"2.000\",\"unit_price_amount\":1500,\"currency\":\"USD\",\"price_revision\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"tax_id\":null,\"tax_mode\":\"exclusive\",\"tax_rate_basis_points\":1500,\"tax_revision\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"discount_type\":null,\"discount_value\":0,\"allocations\":[{\"allocation_uuid\":\"00000000-0000-4000-8000-0000000000e1\",\"rights_generation\":1,\"consumption_sequence\":1,\"local_consumption_uuid\":\"00000000-0000-4000-8000-0000000000f1\",\"quantity_milli\":2000}]}],\"discountType\":null,\"discountValue\":0,\"payments\":[{\"payment_method_uuid\":\"00000000-0000-4000-8000-0000000000a1\",\"type\":\"cash\",\"amount\":3450,\"reference\":null,\"paid_at\":\"2026-09-06T07:08:09+00:00\"}],\"notes\":null,\"clientContractVersion\":2,\"shiftUuid\":\"00000000-0000-4000-8000-0000000000c1\"}",
+            "hashableBytesHex": "7b226964656d706f74656e63794b6579223a2230303030303030302d303030302d343030302d383030302d303030303030303030306235222c226c6f63616c496e766f69636555756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306235222c22636174616c6f675265766973696f6e223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c226f66666c696e654e756d626572223a6e756c6c2c22736f6c644174223a22323032362d30392d30365430373a31313a31322e3030303030305a222c22736f6c645768696c654f66666c696e65223a747275652c22637573746f6d657255756964223a6e756c6c2c2263757272656e6379223a22555344222c227461784d6f6465223a226578636c7573697665222c226974656d73223a5b7b2270726f647563745f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306431222c22626172636f6465223a6e756c6c2c227175616e74697479223a22322e303030222c22756e69745f70726963655f616d6f756e74223a313530302c2263757272656e6379223a22555344222c2270726963655f7265766973696f6e223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c227461785f6964223a6e756c6c2c227461785f6d6f6465223a226578636c7573697665222c227461785f726174655f62617369735f706f696e7473223a313530302c227461785f7265766973696f6e223a2263636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363222c22646973636f756e745f74797065223a6e756c6c2c22646973636f756e745f76616c7565223a302c22616c6c6f636174696f6e73223a5b7b22616c6c6f636174696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306531222c227269676874735f67656e65726174696f6e223a312c22636f6e73756d7074696f6e5f73657175656e6365223a312c226c6f63616c5f636f6e73756d7074696f6e5f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306631222c227175616e746974795f6d696c6c69223a323030307d5d7d5d2c22646973636f756e7454797065223a6e756c6c2c22646973636f756e7456616c7565223a302c227061796d656e7473223a5b7b227061796d656e745f6d6574686f645f75756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306131222c2274797065223a2263617368222c22616d6f756e74223a333435302c227265666572656e6365223a6e756c6c2c22706169645f6174223a22323032362d30392d30365430373a30383a30392b30303a3030227d5d2c226e6f746573223a6e756c6c2c22636c69656e74436f6e747261637456657273696f6e223a322c22736869667455756964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306331227d",
+            "requestHash": "41a69e29dbdfa54f1d8f43aed32e9fb2669818d4cee4db1f0411467fc94514d4",
+            "itemLineUuids": [
+                "9e5f9fa3-e67f-50e1-8d4f-539f374e2c4a"
+            ]
+        }
+    ],
+    "canonicalSha256": "e09efef7832e6023ba0d460166c668861d4c20bb4ebf56a0ad3b04f370714a13"
+}

@@ -427,7 +427,7 @@ databaseTest(
       ).length,
       1
     )
-    equal(repositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 1000)
+    equal(repositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 1000)
 
     const first = localSale.complete('a0000000-0000-4000-8000-000000000001', allocationSaleIntent())
     ok(first.outcome === 'committed')
@@ -461,7 +461,7 @@ databaseTest(
       readCommitted(sandbox, "SELECT * FROM sync_queue WHERE aggregate_type = 'invoice'").length,
       1
     )
-    equal(repositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 0)
+    equal(repositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 0)
 
     const businessDigests = {
       invoices: tableDigest(sandbox, 'local_invoices'),
@@ -484,7 +484,7 @@ databaseTest(
     equal(tableDigest(sandbox, 'local_stock_movements'), businessDigests.movements)
     equal(tableDigest(sandbox, 'local_stock_allocation_consumptions'), businessDigests.consumptions)
     equal(tableDigest(sandbox, 'sync_queue'), businessDigests.queue)
-    equal(repositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 0)
+    equal(repositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 0)
 
     // Connectivity is explicitly offline, so no top-up is available. The second sale becomes the
     // existing terminal allocation rejection while every business table remains byte-identical.
@@ -517,7 +517,7 @@ databaseTest(
     closeDatabase(database)
     const reopened = openExistingTestDatabase(sandbox)
     const reopenedRepositories = realRepositories(reopened)
-    equal(reopenedRepositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 0)
+    equal(reopenedRepositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 0)
     equal(readCommitted(sandbox, 'SELECT * FROM local_stock_allocation_consumptions').length, 1)
     equal(readCommitted(sandbox, 'SELECT * FROM local_invoices').length, 1)
     equal(readCommitted(sandbox, 'SELECT * FROM local_stock_movements').length, 1)
@@ -554,7 +554,7 @@ databaseTest(
         .outcome === 'committed'
     )
     equal(readCommitted(sandbox, 'SELECT * FROM local_stock_allocation_consumptions').length, 2)
-    equal(repositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 500)
+    equal(repositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 500)
 
     repositories.bootstrapSnapshot.persistSnapshot(
       bootstrapResource({ stock_allocations: [activeAllocation()], stock_allocation_revision: 2 }),
@@ -568,7 +568,7 @@ databaseTest(
       )[0]?.total,
       500
     )
-    equal(repositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 500)
+    equal(repositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 500)
 
     const consumptionsBefore = tableDigest(sandbox, 'local_stock_allocation_consumptions')
     const movementsBefore = tableDigest(sandbox, 'local_stock_movements')
@@ -578,7 +578,7 @@ databaseTest(
     )
     equal(tableDigest(sandbox, 'local_stock_allocation_consumptions'), consumptionsBefore)
     equal(tableDigest(sandbox, 'local_stock_movements'), movementsBefore)
-    equal(repositories.stockAllocations.remainingMilli(ALLOCATION_UUID), 500)
+    equal(repositories.stockAllocations.spendableMilli(ALLOCATION_UUID), 500)
     closeDatabase(database)
   }
 )

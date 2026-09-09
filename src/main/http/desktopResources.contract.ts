@@ -307,6 +307,60 @@ export const stockAllocationResourceSchema = z
 export type StockAllocationResource = z.infer<typeof stockAllocationResourceSchema>
 
 /**
+ * BH-04B-3: the §3.1 coverage boundary the backend publishes per allocation, under
+ * `allocation_payload_version=2`.
+ *
+ * Strict, and every field is required: a boundary is only meaningful as a whole. A partially
+ * supplied triple is a contract error, not a boundary with defaults — absent coverage must never
+ * read as a verified zero boundary, which is exactly what a `.optional()` here would allow.
+ */
+export const stockAllocationCoverageSchema = z
+  .object({
+    accepted_consumption_sequence: z.number().int().nonnegative(),
+    accepted_consumed_quantity_milli: z.number().int().nonnegative(),
+    accepted_chain_hash: sha256RevisionSchema
+  })
+  .strict()
+
+/**
+ * The opted-in allocation envelope: exactly the 21 legacy keys plus the coverage triple, still
+ * `.strict()`. Unknown server keys keep failing both consumer paths closed.
+ */
+export const stockAllocationReconciliationResourceSchema = stockAllocationResourceSchema
+  .extend(stockAllocationCoverageSchema.shape)
+  .strict()
+
+export type StockAllocationReconciliationResource = z.infer<
+  typeof stockAllocationReconciliationResourceSchema
+>
+
+/**
+ * Either representation, strictly. The reconciliation shape is tried first so a coverage-bearing
+ * envelope never silently degrades to the legacy reading; a legacy backend's 21-key envelope still
+ * parses, so a client that asks for version 2 and reaches an older deployment degrades to the
+ * conservative mode instead of crashing.
+ */
+export const stockAllocationEnvelopeSchema = z.union([
+  stockAllocationReconciliationResourceSchema,
+  stockAllocationResourceSchema
+])
+
+/**
+ * The §9.2-4 terminal marker. `id` is the allocation uuid — the same value the envelope publishes as
+ * its own `id` — so a marker is directly comparable to a live allocation.
+ */
+export const stockAllocationTerminalMarkerSchema = z
+  .object({
+    id: z.uuid(),
+    status: z.enum(['released', 'consumed']),
+    lifecycle_generation: z.number().int().positive(),
+    terminal_revision: z.number().int().nonnegative()
+  })
+  .strict()
+
+export type StockAllocationTerminalMarker = z.infer<typeof stockAllocationTerminalMarkerSchema>
+
+/**
  * `POST /api/v1/desktop/stock-allocations/top-up` response body (`data`), transcribed from
  * `DesktopStockAllocationController::topUp()`: `StockAllocationResource::collection(...)` unwrapped
  * by `ApiResponse::resource()`, so `data` is the bare array of the same envelopes bootstrap
@@ -314,7 +368,7 @@ export type StockAllocationResource = z.infer<typeof stockAllocationResourceSche
  * desktop allocation envelope contract, and an added server field must fail both paths identically
  * rather than being silently discarded on one of them.
  */
-export const desktopStockAllocationTopUpDataSchema = z.array(stockAllocationResourceSchema)
+export const desktopStockAllocationTopUpDataSchema = z.array(stockAllocationEnvelopeSchema)
 
 /**
  * The controller merges `['allocation_revision' => $result['revision']]` into the envelope meta,
@@ -381,8 +435,12 @@ export const desktopBootstrapResourceSchema = z
       })
       .passthrough(),
     // Optional: a backend that predates the allocation contract omits both keys.
-    stock_allocations: z.array(stockAllocationResourceSchema).optional(),
+    stock_allocations: z.array(stockAllocationEnvelopeSchema).optional(),
     stock_allocation_revision: z.number().int().nonnegative().optional(),
+    // BH-04B-3: present only when this request negotiated `allocation_payload_version=2`. Its
+    // absence means "this response says nothing about terminal allocations" — never "there are
+    // none", which is why the persistence layer treats an absent key and an empty list differently.
+    stock_allocation_terminal_markers: z.array(stockAllocationTerminalMarkerSchema).optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),
@@ -567,6 +625,26 @@ export const desktopInvoiceUploadResourceSchema = z
             reference: z.string().nullable()
           })
           .passthrough()
+      )
+      .optional(),
+    /**
+     * BH-04B-3: the per-allocation coverage block BH-04B-1 added to this response. It was already
+     * being sent and silently dropped by this schema's passthrough; naming it here is what lets the
+     * upload path reconcile from it. Optional, because a backend predating slice 1 omits it — and an
+     * omitted block means "no coverage was reported", never "coverage is zero".
+     *
+     * Unlike bootstrap this carries the allocation identity inline, since an upload response has no
+     * envelope to attach it to.
+     */
+    allocations: z
+      .array(
+        z
+          .object({
+            allocation_uuid: z.uuid(),
+            rights_generation: z.number().int().positive()
+          })
+          .extend(stockAllocationCoverageSchema.shape)
+          .strict()
       )
       .optional()
   })

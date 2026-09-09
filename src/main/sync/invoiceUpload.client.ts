@@ -6,6 +6,7 @@ import {
   desktopInvoiceUploadResourceSchema,
   type DesktopInvoiceUploadResource
 } from '../http/desktopResources.contract'
+import type { IncomingCoverageBoundary } from '../repositories/stockAllocation.repository'
 
 /**
  * The single upload call against `POST /api/v1/desktop/invoices/upload`.
@@ -44,6 +45,19 @@ export interface InvoiceUploadAccepted {
   readonly kind: 'created' | 'duplicate'
   readonly invoice: DesktopInvoiceUploadResource
   readonly traceId?: string
+  /**
+   * BH-04B-3: the per-allocation coverage boundaries this response reported, if any.
+   *
+   * `undefined` means the response carried no `allocations` block — an older backend, or an invoice
+   * with no tracked lines. It is never turned into an empty list of verified boundaries, because
+   * "the server said nothing" and "the server said zero" authorize very different things.
+   *
+   * An exact replay reports the allocation's *current* boundary, which may be newer than the one
+   * this invoice originally produced. That is applied like any other coverage: validated, and
+   * accepted only if it advances. The invoice itself is never rewritten and no local consumption is
+   * duplicated.
+   */
+  readonly coverage?: readonly IncomingCoverageBoundary[]
 }
 
 function contractError(message: string, backendCode: string): never {
@@ -114,9 +128,18 @@ export async function uploadInvoice(
 
   const traceId = response.meta.trace_id
 
+  const coverage = invoice.data.allocations?.map((entry) => ({
+    allocationUuid: entry.allocation_uuid,
+    rightsGeneration: entry.rights_generation,
+    acceptedConsumptionSequence: entry.accepted_consumption_sequence,
+    acceptedConsumedQuantityMilli: entry.accepted_consumed_quantity_milli,
+    acceptedChainHash: entry.accepted_chain_hash
+  }))
+
   return {
     kind,
     invoice: invoice.data,
-    ...(typeof traceId === 'string' ? { traceId } : {})
+    ...(typeof traceId === 'string' ? { traceId } : {}),
+    ...(coverage === undefined ? {} : { coverage })
   }
 }

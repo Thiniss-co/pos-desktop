@@ -173,7 +173,7 @@ export class InvoiceUploadWorker {
         break
       }
 
-      const result = await this.dispatch(claimed)
+      const result = await this.dispatch(claimed, owner)
 
       if (result === 'created') {
         uploaded += 1
@@ -245,7 +245,8 @@ export class InvoiceUploadWorker {
   }
 
   private async dispatch(
-    claimed: ClaimedInvoiceUpload
+    claimed: ClaimedInvoiceUpload,
+    owner: { readonly companyUuid: string; readonly deviceUuid: string }
   ): Promise<'created' | 'duplicate' | 'failed' | 'paused'> {
     if (!this.hasIntactPayload(claimed)) {
       // Never sent. The queued payload no longer hashes to what was committed with it, so this is a
@@ -270,10 +271,15 @@ export class InvoiceUploadWorker {
       return this.recordFailure(claimed, error)
     }
 
+    // BH-04B-3: coverage travels with the acceptance so the recorder applies it in the same
+    // transaction that resolves the queue row. `owner` is the authorized upload owner this loop
+    // already re-derived from main-owned session metadata — never anything the response supplied.
     this.dependencies.recorder.record(claimed, {
       kind: 'synced',
       remoteUuid: accepted.invoice.id,
-      serverNumber: accepted.invoice.server_number
+      serverNumber: accepted.invoice.server_number,
+      owner,
+      ...(accepted.coverage === undefined ? {} : { coverage: accepted.coverage })
     })
 
     return accepted.kind

@@ -100,6 +100,10 @@ export interface SyncQueueUploadRow {
   readonly payloadHash: string
 }
 
+export interface FrozenInvoiceReplay extends SyncQueueUploadRow {
+  readonly idempotencyKey: string
+}
+
 interface SyncQueueUploadDbRow {
   readonly local_queue_uuid: string
   readonly payload_json: string
@@ -224,6 +228,29 @@ export class SyncQueueRepository {
       payloadJson: row.payload_json,
       payloadHash: row.payload_hash
     }))
+  }
+
+  frozenInvoiceReplayFor(localAggregateUuid: string): FrozenInvoiceReplay | null {
+    const rows = this.database
+      .prepare(
+        `SELECT local_queue_uuid, payload_json, payload_hash, idempotency_key
+           FROM sync_queue
+          WHERE aggregate_type = 'invoice' AND operation = 'upload'
+            AND local_aggregate_uuid = ?
+          ORDER BY local_queue_uuid`
+      )
+      .all(localAggregateUuid) as Array<SyncQueueUploadDbRow & { readonly idempotency_key: string }>
+
+    if (rows.length !== 1) {
+      return null
+    }
+
+    return {
+      localQueueUuid: rows[0].local_queue_uuid,
+      payloadJson: rows[0].payload_json,
+      payloadHash: rows[0].payload_hash,
+      idempotencyKey: rows[0].idempotency_key
+    }
   }
 
   transition(localQueueUuid: string, nextState: SyncQueueState): void {

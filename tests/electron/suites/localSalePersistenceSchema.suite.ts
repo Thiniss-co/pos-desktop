@@ -1,4 +1,4 @@
-import { ok, throws } from 'node:assert/strict'
+import { equal, ok, throws } from 'node:assert/strict'
 import type { SqliteDatabase } from '../../../src/main/database/connection'
 import { closeDatabase } from '../../../src/main/database/connection'
 import { databaseTest } from '../support/sandbox'
@@ -171,6 +171,7 @@ function insertGrant(database: SqliteDatabase, overrides: Record<string, unknown
     granted_quantity_milli: 5000,
     consume_until: NOW,
     status: 'active',
+    server_status: 'active',
     envelope_hash: HASH_64,
     final_consumption_sequence: null,
     final_consumption_hash: null,
@@ -564,11 +565,29 @@ databaseTest('an invalid connectivity_state/sold_while_offline pairing is reject
   closeDatabase(database)
 })
 
-databaseTest('a released allocation grant must carry its full finalization triple', (sandbox) => {
+/*
+ * BH-04B-3 replaces two migration-0007 rules that were wrong about the backend, not about this app.
+ *
+ * `CHECK ((status = 'active') = (sealed_at IS NULL))` and the `released`-coupled
+ * `final_consumption_*`/`finalized_at` rule both encoded assumptions about how the server moves an
+ * allocation between lifecycle states. They do not hold: a `consumed` allocation reaches that state
+ * without ever being sealed, and a `released` envelope carries its final consumption evidence while
+ * `finalized_at` is a column this app never writes. Combined with an upsert that hardcoded the
+ * legacy `status` to `'active'`, they aborted the entire bootstrap transaction for any envelope that
+ * was not plainly active.
+ *
+ * Migration 0009 keeps a constraint on this app's own mapping — the legacy mirror must agree with
+ * the authoritative `server_status` — and drops the constraints on the backend's lifecycle.
+ */
+databaseTest('the final consumption sequence and hash are one piece of evidence', (sandbox) => {
   const database = openTestDatabase(sandbox)
-  throws(() => insertGrant(database, { status: 'released' }))
+
+  throws(() => insertGrant(database, { final_consumption_sequence: 3 }))
+  throws(() => insertGrant(database, { final_consumption_hash: HASH_64 }))
+
   insertGrant(database, {
     status: 'released',
+    server_status: 'released',
     final_consumption_sequence: 3,
     final_consumption_hash: HASH_64,
     finalized_at: NOW,
@@ -577,9 +596,69 @@ databaseTest('a released allocation grant must carry its full finalization tripl
   closeDatabase(database)
 })
 
-databaseTest('a non-active allocation status must carry a sealed_at timestamp', (sandbox) => {
+databaseTest('the legacy status mirror may never disagree with the server status', (sandbox) => {
   const database = openTestDatabase(sandbox)
-  throws(() => insertGrant(database, { status: 'sealed', sealed_at: null }))
+
+  // The mapping this app applies: revocation_pending and seal_acknowledged both mirror as 'sealed'.
+  throws(() => insertGrant(database, { status: 'active', server_status: 'consumed' }))
+  throws(() => insertGrant(database, { status: 'active', server_status: 'revocation_pending' }))
+  throws(() => insertGrant(database, { status: 'consumed', server_status: 'seal_acknowledged' }))
+
+  insertGrant(database, { status: 'sealed', server_status: 'revocation_pending', sealed_at: NOW })
+  closeDatabase(database)
+})
+
+databaseTest('every backend lifecycle envelope now persists', (sandbox) => {
+  const database = openTestDatabase(sandbox)
+
+  // Each of these violated one of the removed migration-0007 rules and therefore aborted the whole
+  // catalog transaction before BH-04B-3.
+  const envelopes = [
+    { server_status: 'active', status: 'active', sealed_at: null },
+    { server_status: 'revocation_pending', status: 'sealed', sealed_at: NOW },
+    { server_status: 'seal_acknowledged', status: 'sealed', sealed_at: NOW },
+    { server_status: 'consumed', status: 'consumed', sealed_at: null },
+    { server_status: 'released', status: 'released', sealed_at: NOW }
+  ] as const
+
+  envelopes.forEach((envelope, index) => {
+    insertGrant(database, {
+      ...envelope,
+      allocation_uuid: `00000000-0000-4000-8000-00000000${String(index + 10).padStart(4, '0')}`
+    })
+  })
+
+  equal(
+    (
+      database.prepare('SELECT COUNT(*) AS total FROM stock_allocation_grants').get() as {
+        total: number
+      }
+    ).total,
+    envelopes.length
+  )
+  closeDatabase(database)
+})
+
+databaseTest('a sealed grant cannot become spendable through the legacy mirror', (sandbox) => {
+  const database = openTestDatabase(sandbox)
+
+  // The compatibility column defaults to nothing helpful: eligibility reads `server_status`, so an
+  // allocation the server has sealed stays out of the usable set no matter what the mirror says.
+  insertGrant(database, {
+    status: 'sealed',
+    server_status: 'seal_acknowledged',
+    sealed_at: NOW,
+    consume_until: '2099-01-01T00:00:00.000Z'
+  })
+
+  const usable = database
+    .prepare(
+      `SELECT COUNT(*) AS total FROM stock_allocation_grants
+        WHERE COALESCE(server_status, status) = 'active'`
+    )
+    .get() as { total: number }
+
+  equal(usable.total, 0)
   closeDatabase(database)
 })
 

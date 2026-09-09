@@ -5,6 +5,7 @@ import type {
   ResumeShiftInput,
   Shift
 } from '@shared/contracts/shift.contract'
+import type { ShiftLocalAuthority } from '@shared/contracts/shiftAuthority.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
 export class ShiftRendererService {
@@ -12,6 +13,10 @@ export class ShiftRendererService {
 
   async current(): Promise<Shift | null> {
     return unwrapIpcResult(await this.gateway.current())
+  }
+
+  async localAuthority(): Promise<ShiftLocalAuthority> {
+    return unwrapIpcResult(await this.gateway.localAuthority())
   }
 
   async get(uuid: string): Promise<Shift> {
