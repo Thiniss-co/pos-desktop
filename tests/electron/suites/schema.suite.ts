@@ -45,6 +45,12 @@ const expectedTables = [
   'catalog_stock_items',
   'bootstrap_allocation_capability',
   'sale_attempts',
+  'prepare_cycles',
+  'prepare_cycle_products',
+  'prepare_cycle_dependencies',
+  'prepare_operations',
+  'prepare_operation_outcomes',
+  'prepare_operation_discovered_grants',
   'local_invoices',
   'local_invoice_items',
   'local_invoice_payments',
@@ -101,6 +107,8 @@ databaseTest(
       'idx_local_invoices_sync_status',
       'idx_local_stock_movements_invoice',
       'idx_local_stock_movements_projection',
+      'idx_prepare_cycles_owner',
+      'idx_prepare_operations_owner',
       'idx_product_barcodes_barcode',
       'idx_product_barcodes_product_id',
       'idx_sale_attempts_one_blocking',
@@ -111,7 +119,8 @@ databaseTest(
       'idx_stock_allocation_recovery_work',
       'idx_stock_items_product_id',
       'idx_stock_items_warehouse_id',
-      'idx_sync_queue_invoice_upload'
+      'idx_sync_queue_invoice_upload',
+      'idx_sync_queue_sequence'
     ])
     equal(
       (

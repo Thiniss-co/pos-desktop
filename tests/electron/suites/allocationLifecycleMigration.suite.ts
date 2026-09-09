@@ -147,7 +147,27 @@ databaseTest(
       1
     )
     deepEqual(database.prepare('SELECT * FROM local_invoices').all(), invoicesBefore)
-    deepEqual(database.prepare('SELECT * FROM sync_queue').all(), queueBefore)
+
+    // CP3 added `queue_sequence` to `sync_queue`, so `SELECT *` legitimately returns one more
+    // column than it did before. The property this assertion is actually about — that no
+    // pre-existing queue evidence is lost or rewritten — is asserted directly instead of through a
+    // whole-row comparison that a purely additive column would break.
+    const queueAfter = database.prepare('SELECT * FROM sync_queue').all() as Record<
+      string,
+      unknown
+    >[]
+
+    equal(queueAfter.length, queueBefore.length)
+    queueAfter.forEach((row, index) => {
+      const before = queueBefore[index] as Record<string, unknown>
+
+      for (const column of Object.keys(before)) {
+        deepEqual(row[column], before[column], `sync_queue.${column} changed during migration`)
+      }
+
+      // ...and the new column is populated by the backfill rather than left null.
+      ok(typeof row.queue_sequence === 'number' && row.queue_sequence >= 1)
+    })
     deepEqual(
       database
         .prepare(

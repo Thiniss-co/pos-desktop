@@ -185,8 +185,22 @@ export class SyncQueueRepository {
         `
           INSERT INTO sync_queue (
             local_queue_uuid, aggregate_type, local_aggregate_uuid, operation, payload_json, payload_hash,
-            idempotency_key, state, dependency_queue_uuid, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+            idempotency_key, state, dependency_queue_uuid, queue_sequence, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, 'pending', ?,
+            -- CP3 (plan §7.2): the monotonic queue sequence, assigned in the same transaction that
+            -- commits this row. A preparation cycle captures MAX(queue_sequence) as its bounded
+            -- high-water mark, so rows committed after that boundary provably belong to the next
+            -- cycle and cannot starve the current one — which is what makes "continuous sales do
+            -- not prevent a bounded cycle from terminating" a property of the schema rather than a
+            -- hope about timing.
+            --
+            -- Derived inside the INSERT rather than read first: this method already runs inside the
+            -- caller's atomic sale transaction, so a separate SELECT MAX would be a second read of
+            -- state this statement is about to change.
+            (SELECT COALESCE(MAX(queue_sequence), 0) + 1 FROM sync_queue),
+            ?, ?
+          )
         `
       )
       .run(

@@ -63,7 +63,9 @@ databaseTest(
 
 databaseTest('BH-04B-4 migration 0010 rolls all schema work back on failure', (sandbox) => {
   const database = openExistingTestDatabase(sandbox)
-  const migration = databaseMigrations.at(-1)
+  // Addressed by version rather than by position: later checkpoints append migrations, and
+  // `at(-1)` would silently start exercising whichever one landed most recently instead of 0010.
+  const migration = databaseMigrations.find((candidate) => candidate.version === 10)
   if (!migration) throw new Error('Migration 0010 is missing')
 
   const failing = {

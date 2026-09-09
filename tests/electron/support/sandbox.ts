@@ -106,11 +106,35 @@ export function databaseTest(
 ): void {
   test(name, { skip: options.skip ?? false }, async () => {
     const sandbox = createSandbox()
+    let failure: unknown = null
 
     try {
       await callback(sandbox)
-    } finally {
+    } catch (error) {
+      failure = error
+    }
+
+    try {
       sandbox.dispose()
+    } catch (disposeError) {
+      // A failing assertion skips the test's own `closeDatabase(...)`, so the leak check below
+      // fires as a *consequence* of the real failure. Reporting the leak instead of the assertion
+      // that caused it hides what actually went wrong — every such test used to surface only
+      // "leaked an open database handle". The original failure wins; the leak is attached to it so
+      // a genuine leak in an otherwise passing test is still reported.
+      if (failure === null) {
+        throw disposeError
+      }
+
+      if (failure instanceof Error) {
+        failure.message = `${failure.message}\n(sandbox also reported: ${
+          disposeError instanceof Error ? disposeError.message : String(disposeError)
+        })`
+      }
+    }
+
+    if (failure !== null) {
+      throw failure
     }
   })
 }

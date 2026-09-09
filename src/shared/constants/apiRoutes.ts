@@ -104,6 +104,19 @@ export const DESKTOP_API_ROUTES = Object.freeze({
     requiresAuth: true,
     requiresDeviceUuid: true
   },
+  /**
+   * CP3: the coordinated server-computed preparation operation (plan §5.1).
+   *
+   * The backend ships this capability disabled and answers 404 while it is off, so an ordinary
+   * not-found here is a *capability* answer and not an error worth retrying — never a reason to
+   * mint a new operation identity.
+   */
+  offlineStockPrepare: {
+    path: '/offline-stock/prepare',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
   invoicesUpload: {
     path: '/invoices/upload',
     method: 'POST',

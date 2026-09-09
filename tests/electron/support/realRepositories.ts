@@ -10,6 +10,7 @@ import { DeviceRegistrationRepository } from '../../../src/main/repositories/dev
 import { LicenseMetadataRepository } from '../../../src/main/repositories/licenseMetadata.repository'
 import { LocalSaleRepository } from '../../../src/main/repositories/localSale.repository'
 import { LocalStockRepository } from '../../../src/main/repositories/localStock.repository'
+import { PreparationRepository } from '../../../src/main/repositories/preparation.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../../../src/main/repositories/secureSecrets.repository'
 import { SessionEpochRepository } from '../../../src/main/repositories/sessionEpoch.repository'
@@ -31,6 +32,8 @@ export interface RealRepositories {
   readonly licenseMetadata: LicenseMetadataRepository
   readonly localSale: LocalSaleRepository
   readonly localStock: LocalStockRepository
+  /** CP3: durable preparation cycles and operations. */
+  readonly preparation: PreparationRepository
   readonly saleAttempts: SaleAttemptRepository
   readonly secureSecrets: SecureSecretsRepository
   readonly sessionEpoch: SessionEpochRepository
@@ -43,7 +46,14 @@ export interface RealRepositories {
   readonly allocationReconciliation: AllocationReconciliationService
 }
 
-export function realRepositories(database: SqliteDatabase): RealRepositories {
+/**
+ * CP3: the preparation repository takes an explicit clock, so a suite can pin timestamps without
+ * reaching for fake timers. It defaults to the real clock, exactly as production wires it.
+ */
+export function realRepositories(
+  database: SqliteDatabase,
+  now: () => string = () => new Date().toISOString()
+): RealRepositories {
   const stockAllocations = new StockAllocationRepository(database)
   const allocationRecoveries = new AllocationRecoveryRepository(database, stockAllocations)
   const allocationReconciliation = new AllocationReconciliationService({
@@ -65,6 +75,7 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
     licenseMetadata: new LicenseMetadataRepository(database),
     localSale: new LocalSaleRepository(database),
     localStock: new LocalStockRepository(database),
+    preparation: new PreparationRepository(database, now),
     saleAttempts: new SaleAttemptRepository(database),
     secureSecrets: new SecureSecretsRepository(database),
     sessionEpoch: new SessionEpochRepository(database),
@@ -91,6 +102,7 @@ export function realRepositories(database: SqliteDatabase): RealRepositories {
   assert.ok(repositories.sessionEpoch instanceof SessionEpochRepository)
   assert.ok(repositories.sessionMetadata instanceof SqliteSessionMetadataRepository)
   assert.ok(repositories.shiftObservations instanceof ShiftObservationRepository)
+  assert.ok(repositories.preparation instanceof PreparationRepository)
   assert.ok(repositories.stockAllocations instanceof StockAllocationRepository)
   assert.ok(repositories.syncQueue instanceof SyncQueueRepository)
 

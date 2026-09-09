@@ -659,3 +659,111 @@ export type DesktopInvoiceUploadResource = z.infer<typeof desktopInvoiceUploadRe
  */
 export const DESKTOP_INVOICE_UPLOADED_CODE = 'DESKTOP_INVOICE_UPLOADED' as const
 export const DESKTOP_INVOICE_ALREADY_UPLOADED_CODE = 'DESKTOP_INVOICE_ALREADY_UPLOADED' as const
+
+/**
+ * CP3 (plan §5.4): the negotiated prepare response, `response_representation_version = 1`.
+ *
+ * `.strict()` throughout, like every other envelope this client parses: an unknown server key fails
+ * closed rather than being silently ignored, because a newer response may carry lifecycle semantics
+ * this build would misread.
+ *
+ * The shape enforces §5.4's central separation at the type level. `decision` is the immutable
+ * snapshot taken at `prepared_at` — identical on every replay, forever. `reconciliation` is current
+ * observation, explicitly labelled and explicitly *not* part of the decision. They are never merged:
+ * §13 lists "a replay presents an old successful decision as renewed readiness" as a stop condition.
+ *
+ * `decision.products` is required to carry one entry per selected product, **including every zero**.
+ * That is what makes the completeness predicate checkable at all — without the zero entries a client
+ * cannot distinguish "granted nothing, on purpose, for this reason" from "this product's decision
+ * never arrived", which §6.7 shows silently destroying a real grant.
+ */
+export const preparePlanProductOutcomeSchema = z
+  .object({
+    product_uuid: z.string(),
+    reason: z.enum([
+      'full',
+      'partial_cap',
+      'partial_stock',
+      'zero_at_target',
+      'zero_cap',
+      'zero_stock',
+      'blocked_by_unreleased_hold'
+    ]),
+    granted_quantity_milli: z.number().int().nonnegative(),
+    advance_target_milli: z.number().int().nonnegative(),
+    device_hard_cap_milli: z.number().int().nonnegative(),
+    warehouse_budget_milli: z.number().int().nonnegative(),
+    device_held_before_milli: z.number().int().nonnegative(),
+    warehouse_held_before_milli: z.number().int().nonnegative(),
+    physical_unreserved_milli: z.number().int().nonnegative(),
+    window_qualified_hold_milli: z.number().int().nonnegative(),
+    short_lived_hold_milli: z.number().int().nonnegative(),
+    expired_hold_milli: z.number().int().nonnegative(),
+    quarantined_hold_milli: z.number().int().nonnegative(),
+    // Present exactly when something was granted. `null` here is a *decided* zero, never a missing
+    // decision — the reason code above says which zero it is.
+    allocation_uuid: z.string().nullable(),
+    issued_at: z.string().nullable(),
+    consume_until: z.string().nullable(),
+    blocking_allocation_uuids: z.array(z.string())
+  })
+  .strict()
+
+export const prepareManifestSchema = z
+  .object({
+    prepared_at: z.string(),
+    required_duration_seconds: z.number().int().positive(),
+    required_ready_until: z.string(),
+    authority_ready_until: z.string(),
+    actual_supported_seconds: z.number().int().nonnegative(),
+    primary_limiting_reason: z.string(),
+    tied_limiting_reasons: z.array(z.string()),
+    evaluated_guards: z.array(
+      z
+        .object({
+          guard: z.string(),
+          deadline: z.string().nullable(),
+          bounded: z.boolean()
+        })
+        .strict()
+    )
+  })
+  .strict()
+
+export const prepareOperationResourceSchema = z
+  .object({
+    operation_uuid: z.string(),
+    request_hash: sha256RevisionSchema,
+    response_representation_version: z.literal(1),
+    decision: z
+      .object({
+        prepare_contract_version: z.number().int().positive(),
+        selection_version: z.number().int().positive(),
+        authority_reference_version: z.number().int().positive(),
+        requested_policy_revision: z.number().int().nonnegative(),
+        applied_policy_revision: z.number().int().nonnegative().nullable(),
+        selected_product_uuids: z.array(z.string()),
+        result: z.enum(['ready_72h', 'partial_time', 'partial_quantity', 'blocked', 'expired']),
+        primary_limiting_reason: z.string(),
+        manifest: prepareManifestSchema,
+        authority_references: z.record(z.string(), z.unknown()),
+        products: z.array(preparePlanProductOutcomeSchema)
+      })
+      .strict(),
+    // The grants, in the same envelope shape the desktop already ingests, plus server-assigned
+    // provenance read from each grant's own row.
+    allocations: z.array(
+      stockAllocationResourceSchema
+        .extend({
+          origin_operation_uuid: z.string().nullable(),
+          origin_request_uuid: z.string().nullable(),
+          grant_purpose: z.string()
+        })
+        .strict()
+    ),
+    reconciliation: z.record(z.string(), z.unknown())
+  })
+  .strict()
+
+export type PrepareOperationResource = z.infer<typeof prepareOperationResourceSchema>
+export type PreparePlanProductOutcome = z.infer<typeof preparePlanProductOutcomeSchema>
