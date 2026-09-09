@@ -643,6 +643,36 @@ export class StockAllocationRepository {
    * Under the legacy representation the original behavior is preserved byte-for-byte, because a
    * backend that publishes no boundary gives this client nothing to verify.
    */
+  /**
+   * CP4/§5.2: the candidate product set for a preparation cycle, resolved by **main**.
+   *
+   * The honest candidate set is the tracked products this device already holds allocation evidence
+   * for, in this warehouse. That is deliberately narrower than "every catalog product": the desktop
+   * has no policy-visibility contract, so naming products the server has no policy for would ask it
+   * to evaluate scopes this device has no business naming, and would turn an ordinary configuration
+   * gap into a refused operation.
+   *
+   * Released and consumed grants are included as *candidates* — a product whose grant is spent is
+   * exactly the one preparation exists to top up. Spendability is a different question, answered by
+   * `usableGrantsForProduct`.
+   *
+   * A renderer list never reaches this method, and never could: it takes only an owner tuple.
+   */
+  preparableProductUuids(owner: {
+    readonly companyUuid: string
+    readonly deviceUuid: string
+    readonly warehouseUuid: string
+  }): readonly string[] {
+    return this.database
+      .prepare<[string, string, string], { product_uuid: string }>(
+        `SELECT DISTINCT product_uuid FROM stock_allocation_grants
+          WHERE company_uuid = ? AND device_uuid = ? AND warehouse_uuid = ?
+          ORDER BY product_uuid`
+      )
+      .all(owner.companyUuid, owner.deviceUuid, owner.warehouseUuid)
+      .map((row) => row.product_uuid)
+  }
+
   spendableMilli(allocationUuid: string): number {
     const grant = this.findGrantByUuid(allocationUuid)
     if (!grant) {

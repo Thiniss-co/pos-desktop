@@ -23,11 +23,13 @@
     "signingOut": "Signing out…",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "close": "Close"
+    "close": "Close",
+    "listSeparator": ", "
   },
   "navigation": {
     "pos": "POS",
     "sync": "Sync",
+    "offlineStock": "Offline stock",
     "settings": "Settings",
     "companyUsers": "Company users"
   },
@@ -383,6 +385,87 @@
       "noMessage": "No further detail was returned.",
       "preservationTitle": "The sale and its payment were not reversed",
       "preservation": "Money already changed hands. This sale, its payments and its stock records are preserved on this device exactly as they were rung. Nothing was refunded or voided automatically — verify these sales manually with your manager."
+    }
+  },
+  "preparation": {
+    "eyebrow": "Offline stock",
+    "label": "Offline stock",
+    "title": "Offline selling readiness",
+    "description": "Prepare this workstation to keep selling while the internet is unavailable. Time coverage and stock coverage are separate — both are needed.",
+    "readinessUnavailable": "Readiness could not be loaded",
+    "cycleUnavailable": "Preparation could not be requested",
+    "actions": {
+      "prepare": "Prepare workstation"
+    },
+    "empty": {
+      "title": "Not prepared yet",
+      "description": "This workstation has no offline stock preparation. Prepare it while you are online."
+    },
+    "time": {
+      "title": "Time coverage",
+      "preparedAt": "Prepared at",
+      "originallyPreparedFor": "Originally prepared for",
+      "remainingLabel": "Time remaining",
+      "supportedUntil": "Supported until",
+      "limitedBy": "Limited by",
+      "hours": "{hours} hours",
+      "durationHoursMinutes": "{hours}h {minutes}m",
+      "readyFullWindow": "Ready for {hours} hours",
+      "remaining": "{duration} remaining",
+      "newlyObserved": "A new restriction was observed since preparation: {reason}",
+      "state": {
+        "ready_full_window": "Ready",
+        "partial_time": "Partially covered",
+        "counting_down": "Counting down",
+        "expired": "Expired",
+        "blocked": "Blocked",
+        "not_prepared": "Not prepared"
+      }
+    },
+    "quantity": {
+      "title": "Stock coverage",
+      "product": "Product",
+      "usableNow": "Usable now",
+      "coveredForWindow": "Covered for the window",
+      "shortLived": "Expires early",
+      "heldNotSpendable": "Held, not sellable",
+      "note": "Stock coverage is a prepared quantity, not a sales guarantee. Running out stops tracked sales even while time remains.",
+      "state": {
+        "full": "Fully covered",
+        "partial": "Partially covered",
+        "zero": "No coverage",
+        "reconciliation_required": "Needs reconciliation"
+      }
+    },
+    "unresolved": "{count} preparation request(s) are still unresolved. They are not counted as prepared until they finish.",
+    "blocked": {
+      "title": "Products not prepared"
+    },
+    "reason": {
+      "required_window": "the requested window",
+      "license_revalidation_due": "licence revalidation is due",
+      "subscription_expires": "the subscription expires",
+      "grace_ends": "the grace period ends",
+      "catalog_expires": "the product catalogue expires",
+      "session_boundary": "the session ends",
+      "shift_boundary": "the shift ends",
+      "commercial_access_denied": "selling is not currently permitted",
+      "trusted_time_unavailable": "the trusted clock is unavailable",
+      "trusted_time_rollback": "the device clock moved backwards",
+      "access_denied": "access is denied",
+      "unknown": "another restriction"
+    },
+    "blockedReason": {
+      "pending_upload": "a completed sale is still waiting to upload",
+      "uploading_ambiguous": "an upload is in progress and its result is not yet known",
+      "retryable_error": "an upload is waiting to retry",
+      "terminal_conflict": "an upload conflict needs review",
+      "terminal_rejection": "an upload was rejected and needs review",
+      "dependency_scope_unknown": "a queued record could not be matched to a product",
+      "owned_by_unresolved_operation": "an earlier preparation request is still unresolved",
+      "policy_disabled": "preparation is not configured for this product",
+      "blocked_by_unreleased_hold": "earlier stock is still held and has not been released",
+      "unknown": "another reason"
     }
   },
   "settings": {

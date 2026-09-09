@@ -72,6 +72,17 @@ export const checkoutPendingAttemptsInputSchema = checkoutPendingAttemptsContrac
 export const checkoutRetryAttemptInputSchema = checkoutRetryAttemptContractSchema
 export const checkoutAbandonAttemptInputSchema = checkoutAbandonAttemptContractSchema
 export const checkoutAcknowledgeAttemptInputSchema = checkoutAcknowledgeAttemptContractSchema
+/**
+ * CP4: both preparation channels take an empty, strict object.
+ *
+ * `.strict()` on an empty shape is the point: a renderer cannot smuggle a product set, a quantity,
+ * a duration, an owner tuple, or a clock through either channel, because any key at all is a
+ * validation failure. §4's invariant that the renderer supplies no authoritative quantity,
+ * ownership, time, or grant right is enforced here rather than trusted.
+ */
+export const preparationGetReadinessInputSchema = z.object({}).strict()
+export const preparationRunCycleInputSchema = z.object({}).strict()
+
 export const allocationRecoveryStartInputSchema = z.object({ allocationUuid: z.uuid() }).strict()
 export const syncGetStatusInputSchema = z.undefined()
 export const syncUploadNowInputSchema = z.undefined()

@@ -23,11 +23,13 @@
     "signingOut": "جارٍ تسجيل الخروج…",
     "cancel": "إلغاء",
     "confirm": "تأكيد",
-    "close": "إغلاق"
+    "close": "إغلاق",
+    "listSeparator": "، "
   },
   "navigation": {
     "pos": "نقطة البيع",
     "sync": "المزامنة",
+    "offlineStock": "المخزون دون اتصال",
     "settings": "الإعدادات",
     "companyUsers": "مستخدمو الشركة"
   },
@@ -383,6 +385,87 @@
       "noMessage": "لم تُرجَع تفاصيل إضافية.",
       "preservationTitle": "لم يتم عكس البيع أو دفعته",
       "preservation": "تم استلام المبلغ فعلياً. هذه الفاتورة ومدفوعاتها وسجلات مخزونها محفوظة على هذا الجهاز كما تم تسجيلها تماماً. لم يتم أي استرداد أو إلغاء تلقائي — تحقق من هذه المبيعات يدوياً مع مديرك."
+    }
+  },
+  "preparation": {
+    "eyebrow": "المخزون دون اتصال",
+    "label": "المخزون دون اتصال",
+    "title": "جاهزية البيع دون اتصال",
+    "description": "جهّز محطة العمل لمواصلة البيع عند انقطاع الإنترنت. تغطية الوقت وتغطية المخزون منفصلتان — وكلتاهما مطلوبة.",
+    "readinessUnavailable": "تعذّر تحميل حالة الجاهزية",
+    "cycleUnavailable": "تعذّر طلب التجهيز",
+    "actions": {
+      "prepare": "تجهيز محطة العمل"
+    },
+    "empty": {
+      "title": "لم يتم التجهيز بعد",
+      "description": "لا يوجد تجهيز مخزون دون اتصال لهذه المحطة. جهّزها أثناء الاتصال بالإنترنت."
+    },
+    "time": {
+      "title": "تغطية الوقت",
+      "preparedAt": "وقت التجهيز",
+      "originallyPreparedFor": "المدة المطلوبة أصلاً",
+      "remainingLabel": "الوقت المتبقي",
+      "supportedUntil": "مدعوم حتى",
+      "limitedBy": "محدود بسبب",
+      "hours": "{hours} ساعة",
+      "durationHoursMinutes": "{hours} س {minutes} د",
+      "readyFullWindow": "جاهز لمدة {hours} ساعة",
+      "remaining": "المتبقي {duration}",
+      "newlyObserved": "تم رصد قيد جديد بعد التجهيز: {reason}",
+      "state": {
+        "ready_full_window": "جاهز",
+        "partial_time": "تغطية جزئية",
+        "counting_down": "العد التنازلي جارٍ",
+        "expired": "منتهي",
+        "blocked": "محظور",
+        "not_prepared": "غير مجهّز"
+      }
+    },
+    "quantity": {
+      "title": "تغطية المخزون",
+      "product": "المنتج",
+      "usableNow": "المتاح الآن",
+      "coveredForWindow": "المغطّى للمدة",
+      "shortLived": "ينتهي مبكراً",
+      "heldNotSpendable": "محجوز وغير قابل للبيع",
+      "note": "تغطية المخزون كمية مجهّزة وليست ضماناً للمبيعات. نفادها يوقف بيع المنتجات المتتبَّعة حتى لو بقي وقت.",
+      "state": {
+        "full": "تغطية كاملة",
+        "partial": "تغطية جزئية",
+        "zero": "لا توجد تغطية",
+        "reconciliation_required": "تحتاج إلى تسوية"
+      }
+    },
+    "unresolved": "هناك {count} من طلبات التجهيز لم تُحسم بعد. لا تُحتسب كمجهّزة حتى تكتمل.",
+    "blocked": {
+      "title": "منتجات لم يتم تجهيزها"
+    },
+    "reason": {
+      "required_window": "المدة المطلوبة",
+      "license_revalidation_due": "استحقاق إعادة التحقق من الترخيص",
+      "subscription_expires": "انتهاء الاشتراك",
+      "grace_ends": "انتهاء فترة السماح",
+      "catalog_expires": "انتهاء صلاحية كتالوج المنتجات",
+      "session_boundary": "انتهاء الجلسة",
+      "shift_boundary": "انتهاء الوردية",
+      "commercial_access_denied": "البيع غير مسموح حالياً",
+      "trusted_time_unavailable": "الساعة الموثوقة غير متاحة",
+      "trusted_time_rollback": "تم إرجاع ساعة الجهاز للخلف",
+      "access_denied": "الوصول مرفوض",
+      "unknown": "قيد آخر"
+    },
+    "blockedReason": {
+      "pending_upload": "ما زالت هناك عملية بيع مكتملة بانتظار الرفع",
+      "uploading_ambiguous": "هناك عملية رفع جارية ولم تُعرف نتيجتها بعد",
+      "retryable_error": "هناك عملية رفع بانتظار إعادة المحاولة",
+      "terminal_conflict": "هناك تعارض في الرفع يحتاج إلى مراجعة",
+      "terminal_rejection": "تم رفض عملية رفع وتحتاج إلى مراجعة",
+      "dependency_scope_unknown": "تعذّر ربط سجل في قائمة الانتظار بمنتج",
+      "owned_by_unresolved_operation": "ما زال هناك طلب تجهيز سابق لم يُحسم",
+      "policy_disabled": "التجهيز غير مُعدّ لهذا المنتج",
+      "blocked_by_unreleased_hold": "ما زال مخزون سابق محجوزاً ولم يُفرج عنه",
+      "unknown": "سبب آخر"
     }
   },
   "settings": {

@@ -8,6 +8,7 @@ import CompanyUserEditPage from '@renderer/modules/companyUsers/pages/CompanyUse
 import CompanyUsersPage from '@renderer/modules/companyUsers/pages/CompanyUsersPage.vue'
 import PosPage from '@renderer/modules/pos/pages/PosPage.vue'
 import SettingsPage from '@renderer/modules/settings/pages/SettingsPage.vue'
+import PreparationPage from '@renderer/modules/preparation/pages/PreparationPage.vue'
 import SyncPage from '@renderer/modules/sync/pages/SyncPage.vue'
 import FatalErrorPage from '../startup/FatalErrorPage.vue'
 import NotFoundPage from '../startup/NotFoundPage.vue'
@@ -31,6 +32,12 @@ export const routes: RouteRecordRaw[] = [
   { path: '/error', name: 'fatal-error', component: FatalErrorPage, meta: { layout: 'public' } },
   { path: '/pos', name: 'pos', component: PosPage, meta: { layout: 'app' } },
   { path: '/sync', name: 'sync', component: SyncPage, meta: { layout: 'app' } },
+  {
+    path: '/offline-stock',
+    name: 'offline-stock',
+    component: PreparationPage,
+    meta: { layout: 'app' }
+  },
   { path: '/settings', name: 'settings', component: SettingsPage, meta: { layout: 'app' } },
   {
     path: '/company-users',

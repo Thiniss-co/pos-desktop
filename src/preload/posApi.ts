@@ -29,6 +29,10 @@ import type {
 } from '@shared/contracts/catalog.contract'
 import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contract'
 import type {
+  PreparationCycleResult,
+  PreparationReadiness
+} from '@shared/contracts/preparation.contract'
+import type {
   AssignableRoles,
   CompanyUser,
   CompanyUserAccess,
@@ -122,6 +126,15 @@ export interface PosApi {
   readonly allocationRecovery: {
     start(input: { allocationUuid: string }): Promise<IpcResult<void>>
     resume(): Promise<IpcResult<void>>
+  }
+  /**
+   * CP4: offline stock preparation. Both methods take **no arguments** — the renderer may ask for
+   * preparation, but main resolves the owner, the product set, the quantities, and the clock (§5.2,
+   * §4).
+   */
+  readonly preparation: {
+    getReadiness(): Promise<IpcResult<PreparationReadiness>>
+    runCycle(): Promise<IpcResult<PreparationCycleResult>>
   }
   readonly connectivity: {
     getState(): Promise<IpcResult<ConnectivitySnapshot>>
@@ -273,6 +286,10 @@ export const posApi: PosApi = Object.freeze({
     start: (input: { allocationUuid: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.allocationRecoveryStart, input),
     resume: () => ipcRenderer.invoke(IPC_CHANNELS.allocationRecoveryResume)
+  }),
+  preparation: Object.freeze({
+    getReadiness: () => ipcRenderer.invoke(IPC_CHANNELS.preparationGetReadiness, {}),
+    runCycle: () => ipcRenderer.invoke(IPC_CHANNELS.preparationRunCycle, {})
   }),
   connectivity: Object.freeze({
     getState: () => ipcRenderer.invoke(IPC_CHANNELS.connectivityGetState),

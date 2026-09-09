@@ -33,6 +33,16 @@ export const IPC_CHANNELS = Object.freeze({
   checkoutRetryAttempt: 'checkout:retry-attempt',
   checkoutAbandonAttempt: 'checkout:abandon-attempt',
   checkoutAcknowledgeAttempt: 'checkout:acknowledge-attempt',
+  /**
+   * CP4: the narrow preparation surface (plan §10 CP4 — "no broad database/network IPC").
+   *
+   * Two channels only. `preparationGetReadiness` returns a *projection*: categorical states and
+   * integer milli quantities. `preparationRunCycle` takes **no arguments at all** — §5.2 forbids a
+   * renderer-supplied product set from ever reaching the wire, and a channel that accepted one
+   * would make that a code-review rule instead of a boundary property.
+   */
+  preparationGetReadiness: 'preparation:get-readiness',
+  preparationRunCycle: 'preparation:run-cycle',
   allocationRecoveryStart: 'allocation-recovery:start',
   allocationRecoveryResume: 'allocation-recovery:resume',
   syncGetStatus: 'sync:get-status',

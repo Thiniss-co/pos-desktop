@@ -61,6 +61,7 @@ async function handleLogout(): Promise<void> {
       <nav class="app-layout__nav" :aria-label="t('app.applicationNavigation')">
         <RouterLink to="/pos">{{ t('navigation.pos') }}</RouterLink>
         <RouterLink to="/sync">{{ t('navigation.sync') }}</RouterLink>
+        <RouterLink to="/offline-stock">{{ t('navigation.offlineStock') }}</RouterLink>
         <RouterLink to="/settings">{{ t('navigation.settings') }}</RouterLink>
         <RouterLink v-if="access?.canView || access?.canManage" to="/company-users">
           {{ t('navigation.companyUsers') }}

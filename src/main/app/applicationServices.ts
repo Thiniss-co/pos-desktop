@@ -39,6 +39,14 @@ import { CatalogReadAccessService } from '../services/catalogReadAccess.service'
 import { CatalogRefreshService } from '../services/catalogRefresh.service'
 import { CatalogService } from '../services/catalog.service'
 import { CatalogTrustedClockService } from '../services/catalogTrustedClock.service'
+import type {
+  PreparationCycleResult,
+  PreparationReadiness
+} from '@shared/contracts/preparation.contract'
+import { PreparationRepository } from '../repositories/preparation.repository'
+import { PreparationService } from '../services/preparation.service'
+import { PreparationReadinessService } from '../services/preparationReadiness.service'
+import { PreparationReconnectService } from '../services/preparationReconnect.service'
 import { CheckoutPreviewService } from '../services/checkoutPreview.service'
 import { CompanyUsersService } from '../services/companyUsers.service'
 import { CommercialAccessService } from '../services/commercialAccess.service'
@@ -87,6 +95,19 @@ export interface ApplicationServices {
   readonly connectivity: ConnectivityService
   readonly invoiceUploads: InvoiceUploadWorker
   readonly allocationRecoveries: AllocationRecoveryService
+  /** CP4: the main-owned readiness projection and preparation cycle. */
+  readonly preparation: PreparationService
+  readonly preparationReadiness: PreparationReadinessService
+  readonly preparationReconnect: PreparationReconnectService
+  /**
+   * CP4: the two entry points the IPC layer is allowed to call.
+   *
+   * Both resolve the owner tuple from main's own session and bootstrap state. Neither accepts an
+   * argument, so there is no path by which a renderer could name an owner, a product, a quantity,
+   * or a clock — §4's invariant is enforced by the signature.
+   */
+  readPreparationReadiness(): PreparationReadiness
+  runPreparationCycle(): Promise<PreparationCycleResult>
   readonly invoiceUploadFailures: InvoiceUploadFailureReader
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
@@ -333,6 +354,181 @@ export function createApplicationServices(): ApplicationServices {
         : null
     }
   })
+  // ---------------------------------------------------------------------------------------------
+  // CP4: coordinated offline stock preparation
+  // ---------------------------------------------------------------------------------------------
+  //
+  // The owner tuple is resolved from main's own session and bootstrap state on every call, never
+  // cached and never accepted from a renderer (§4: "renderer cannot supply authoritative
+  // quantities, ownership, time, or grant rights"). A device with no warehouse assignment has no
+  // preparation owner at all, and every entry point below returns null rather than guessing one.
+  // Two `app_settings` keys rather than new tables: both are single scalar observations about the
+  // *server's* current state, with no history worth keeping and no evidence value if lost.
+  const PREPARATION_LICENSE_VALIDATION_KEY = 'preparation.license_validation_uuid'
+  const PREPARATION_POLICY_REVISION_KEY = 'preparation.policy_revision'
+  const preparationRepository = new PreparationRepository(database, () => new Date().toISOString())
+  const preparation = new PreparationService({
+    database,
+    preparation: preparationRepository,
+    stockAllocations,
+    apiClient,
+    connectivity,
+    candidates: {
+      // §5.2: main resolves the policy-enabled candidate set itself. Until a policy-visibility
+      // contract exists, the honest candidate set is the tracked products this device already holds
+      // authority for — never a renderer list, and never "every product in the catalog", which
+      // would ask the server to evaluate scopes this device has no business naming.
+      resolveCandidates: (owner) => stockAllocations.preparableProductUuids(owner),
+      // The captured dependency join. Rows at or below the cycle's own high-water mark whose
+      // immutable invoice/allocation journal touches a candidate.
+      capturedDependencies: (owner, highWater) =>
+        syncQueue.capturedPreparationDependencies(owner, highWater),
+      // No policy-visibility contract exists on the desktop yet, so nothing is locally known to be
+      // policy-disabled. The server refuses an unconfigured product outright, which is the
+      // fail-closed direction: a product wrongly believed eligible is refused, never granted.
+      policyDisabledProducts: () => new Set<string>(),
+      blockedByUnreleasedHoldProducts: () => new Set<string>(),
+      authorityReferences: () => ({
+        // §5.2: authority references identify the exact locally staged artifacts, and the backend
+        // resolves them to its own rows — it never accepts them as claims, and it replaces the
+        // license validation with one anchored to its own `prepared_at`. A device that has staged
+        // no license validation sends null rather than a guess.
+        licenseValidationUuid: appSettings.get(PREPARATION_LICENSE_VALIDATION_KEY),
+        catalogRevision: catalog.getStatus().contract?.revision ?? null,
+        // Revision 0 means "this device has observed no policy revision". The server compares it to
+        // the applied revision and answers 409 POLICY_REVISION_STALE — terminal, creating nothing —
+        // and names the current revision, which the next cycle then carries. That is the honest
+        // bootstrap for a value the desktop has no other way to learn.
+        requestedPolicyRevision: Number(appSettings.get(PREPARATION_POLICY_REVISION_KEY) ?? '0')
+      }),
+      sessionEpoch: () => sessionEpoch.current()
+    },
+    now: () => new Date().toISOString(),
+    onPolicyRevisionObserved: (revision) => {
+      appSettings.set(PREPARATION_POLICY_REVISION_KEY, String(revision))
+    }
+  })
+  const preparationReadiness = new PreparationReadinessService({
+    preparation: preparationRepository,
+    stockAllocations,
+    trustedClock: catalogClock
+  })
+  const preparationReconnect = new PreparationReconnectService({
+    // Steps 1 and 2 are reads and create no authority, so they may precede upload (§7.3). Wiring
+    // them to the *existing* services is deliberate: their monotonic-reconciliation guarantees are
+    // what make refresh-before-upload safe, and re-implementing them here would fork that promise.
+    restoreAuthority: async () => {
+      // `CatalogRefreshService.refresh()` already validates the license first — an overdue license
+      // denies `canSync`, so bootstrap and everything after it cannot succeed until validation has
+      // run and been persisted (§7.3 item 1).
+      const result = await catalogRefresh.refresh()
+      return { ok: result.status.status !== 'unavailable', detail: result.status.status }
+    },
+    refreshAuthoritativeState: async () => {
+      const result = await bootstrap.refresh()
+      return { ok: result.isComplete, detail: result.snapshotVersion }
+    },
+    drainCapturedDependencies: async () => {
+      invoiceUploads.requestRun()
+      return { ok: true }
+    },
+    preparation
+  })
+
+  /**
+   * The owner tuple, resolved fresh on every call from main's own state.
+   *
+   * A device that is not authenticated, or has no warehouse assignment, has no preparation owner at
+   * all — and every caller below reports that honestly rather than guessing one. §5.2: presence of a
+   * request never changes owner/warehouse scope.
+   */
+  const preparationOwner = (): {
+    readonly companyUuid: string
+    readonly deviceUuid: string
+    readonly warehouseUuid: string
+  } | null => {
+    const context = sessionMetadata.getContext()
+    const warehouse = bootstrapSnapshot.getWarehouse()
+
+    if (!context.isAuthenticated || !context.companyUuid || !context.deviceUuid || !warehouse) {
+      return null
+    }
+
+    return {
+      companyUuid: context.companyUuid,
+      deviceUuid: context.deviceUuid,
+      warehouseUuid: warehouse.warehouseUuid
+    }
+  }
+
+  const readPreparationReadiness = (): PreparationReadiness => {
+    const owner = preparationOwner()
+
+    if (owner === null) {
+      return {
+        available: false,
+        time: {
+          state: 'not_prepared',
+          preparedAt: null,
+          requestedDurationSeconds: null,
+          originalResult: null,
+          effectiveReadyUntil: null,
+          remainingSeconds: 0,
+          limitingReason: null,
+          tiedLimitingReasons: [],
+          newlyObservedRestriction: null,
+          lastTrustedObservationAt: null
+        },
+        quantity: { state: 'zero', products: [] },
+        blockedProducts: [],
+        unresolvedOperations: []
+      }
+    }
+
+    // The *sell* decision specifically: preparation exists to keep a workstation able to sell, so
+    // losing sell authority blocks readiness even while sync authority is intact.
+    const sellAccess = commercialAccess.evaluate('sell')
+    const license = licenseMetadata.getStatus()
+
+    return preparationReadiness.project(owner, {
+      // Boundaries observed since preparation. Each may only shorten the window (§8.5); a later one
+      // is ignored, which is why they are passed as candidates rather than as a replacement.
+      observedBoundaries: [
+        ...(license?.nextValidationDueAt
+          ? [{ reason: 'license_revalidation_due', deadline: license.nextValidationDueAt }]
+          : []),
+        ...(catalog.getStatus().contract?.validUntil
+          ? [
+              {
+                reason: 'catalog_expires',
+                deadline: catalog.getStatus().contract?.validUntil as string
+              }
+            ]
+          : [])
+      ],
+      // A live check that blocks readiness regardless of remaining time (§8.5). A revoked or
+      // non-selling device is not "ready" merely because a past decision said so.
+      blockingRestriction: sellAccess.allowed ? null : (sellAccess.reason ?? 'access_denied'),
+      sessionEpoch: sessionEpoch.current(),
+      lastTrustedObservationAt: license?.validatedAt ?? null
+    })
+  }
+
+  const runPreparationCycle = async (): Promise<PreparationCycleResult> => {
+    const owner = preparationOwner()
+
+    if (owner === null) {
+      return { outcome: 'unavailable', reason: 'workstation_unassigned' }
+    }
+
+    const outcome = await preparation.runCycle(owner)
+
+    return {
+      outcome: outcome.kind,
+      reason: 'reason' in outcome ? outcome.reason : null
+    }
+  }
+
   invoiceUploadTrigger = () => invoiceUploads.requestRun()
   allocationRecoveryTrigger = () => {
     void allocationRecoveries.resume().catch(() => undefined)
@@ -355,6 +551,24 @@ export function createApplicationServices(): ApplicationServices {
   })
   const unsubscribeRecoveryAccessTrigger = commercialAccessPublisher.onPublished(() => {
     allocationRecoveryTrigger?.()
+  })
+  // CP4 §7.3: the production preparation trigger.
+  //
+  // Subscribed to the same authoritative access-change point as the upload and recovery workers.
+  // `CommercialAccessPublisher.publish()` fires on licence validation, bootstrap-refresh
+  // completion, catalog refresh and connectivity, so this covers "connectivity returned" and
+  // "authority was restored" without polling and without a fabricated event of its own.
+  //
+  // It is a scheduling hint and nothing more. `runCycle()` re-resolves the owner, re-reads
+  // connectivity, re-captures its own bounded boundary and re-partitions on every call, so a hint
+  // that arrives while the device is offline, unassigned, or still blocked simply does nothing —
+  // and a hint that arrives while an operation is unresolved replays that operation's frozen bytes
+  // rather than starting a new one (§5.6).
+  //
+  // Deliberately fire-and-forget: a preparation failure must never surface as an access-publish
+  // fault, and every outcome it can reach is already persisted durably by the cycle itself.
+  const unsubscribePreparationTrigger = commercialAccessPublisher.onPublished(() => {
+    void runPreparationCycle().catch(() => undefined)
   })
   const saleCompletion = new SaleCompletionService({
     localSale,
@@ -394,6 +608,11 @@ export function createApplicationServices(): ApplicationServices {
     connectivity,
     invoiceUploads,
     allocationRecoveries,
+    preparation,
+    preparationReadiness,
+    preparationReconnect,
+    readPreparationReadiness,
+    runPreparationCycle,
     invoiceUploadFailures,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
@@ -407,6 +626,7 @@ export function createApplicationServices(): ApplicationServices {
     shutdown: () => {
       unsubscribeAccessTrigger()
       unsubscribeRecoveryAccessTrigger()
+      unsubscribePreparationTrigger()
       invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()

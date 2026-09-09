@@ -25,6 +25,7 @@ function canAccessRoute(state: StartupState, routeName: string | null | undefine
     return (
       routeName === 'pos' ||
       routeName === 'sync' ||
+      routeName === 'offline-stock' ||
       routeName === 'settings' ||
       routeName === 'company-users' ||
       routeName === 'company-user-create' ||

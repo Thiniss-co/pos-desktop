@@ -218,6 +218,117 @@ export class SyncQueueRepository {
   }
 
   /**
+   * CP4/§7.2: the explicit dependency join for one preparation cycle.
+   *
+   * Returns every queue row at or below the captured high-water mark, together with the products
+   * and allocations its immutable invoice/allocation journal touches. Rows committed *above* the
+   * boundary are deliberately excluded — they belong to the next cycle, which is what stops
+   * continuous selling from starving the current one.
+   *
+   * `scope_known` is false when a row cannot be mapped confidently to any product or allocation.
+   * §7.2 treats that as a data-integrity exception that conservatively blocks this owner and
+   * warehouse, rather than as "no products affected" — so it is reported honestly rather than
+   * quietly dropped from the join.
+   *
+   * Foreign company/device rows are never returned: §7.1 makes them unclaimable, and they are never
+   * a dependency of this owner.
+   */
+  capturedPreparationDependencies(
+    owner: {
+      readonly companyUuid: string
+      readonly deviceUuid: string
+      readonly warehouseUuid: string
+    },
+    capturedQueueHighWater: number
+  ): readonly {
+    readonly localQueueUuid: string
+    readonly queueSequence: number
+    readonly state: SyncQueueState
+    readonly productUuids: readonly string[]
+    readonly allocationUuids: readonly string[]
+    readonly scopeKnown: boolean
+  }[] {
+    const rows = this.database
+      .prepare<
+        [number, string, string, string],
+        {
+          local_queue_uuid: string
+          queue_sequence: number
+          state: SyncQueueState
+          product_uuid: string | null
+          allocation_uuid: string | null
+        }
+      >(
+        `SELECT q.local_queue_uuid, q.queue_sequence, q.state,
+                g.product_uuid, c.allocation_uuid
+           FROM sync_queue q
+           JOIN local_invoices i ON i.local_uuid = q.local_aggregate_uuid
+           LEFT JOIN local_stock_allocation_consumptions c
+                  ON c.invoice_local_uuid = i.local_uuid
+           LEFT JOIN stock_allocation_grants g
+                  ON g.allocation_uuid = c.allocation_uuid
+          WHERE q.aggregate_type = 'invoice'
+            AND q.operation = 'upload'
+            AND q.queue_sequence IS NOT NULL
+            AND q.queue_sequence <= ?
+            AND i.company_uuid = ?
+            AND i.device_uuid = ?
+            AND i.warehouse_uuid = ?
+          ORDER BY q.queue_sequence`
+      )
+      .all(capturedQueueHighWater, owner.companyUuid, owner.deviceUuid, owner.warehouseUuid)
+
+    const byQueueUuid = new Map<
+      string,
+      {
+        localQueueUuid: string
+        queueSequence: number
+        state: SyncQueueState
+        productUuids: Set<string>
+        allocationUuids: Set<string>
+        hasUnmappedLine: boolean
+      }
+    >()
+
+    for (const row of rows) {
+      const existing = byQueueUuid.get(row.local_queue_uuid) ?? {
+        localQueueUuid: row.local_queue_uuid,
+        queueSequence: row.queue_sequence,
+        state: row.state,
+        productUuids: new Set<string>(),
+        allocationUuids: new Set<string>(),
+        hasUnmappedLine: false
+      }
+
+      if (row.allocation_uuid === null) {
+        // An invoice with no allocation consumption at all is an untracked-only sale: it touches no
+        // product's stock authority, so it is genuinely not a dependency rather than an unmappable
+        // one. An allocation that resolves to no grant row *is* unmappable.
+        existing.hasUnmappedLine = existing.hasUnmappedLine || false
+      } else {
+        existing.allocationUuids.add(row.allocation_uuid)
+
+        if (row.product_uuid === null) {
+          existing.hasUnmappedLine = true
+        } else {
+          existing.productUuids.add(row.product_uuid)
+        }
+      }
+
+      byQueueUuid.set(row.local_queue_uuid, existing)
+    }
+
+    return [...byQueueUuid.values()].map((entry) => ({
+      localQueueUuid: entry.localQueueUuid,
+      queueSequence: entry.queueSequence,
+      state: entry.state,
+      productUuids: [...entry.productUuids].sort(),
+      allocationUuids: [...entry.allocationUuids].sort(),
+      scopeKnown: !entry.hasUnmappedLine
+    }))
+  }
+
+  /**
    * Every `aggregate_type='invoice'`/`operation='upload'` row queued for one local invoice.
    * Deliberately returns **all** matches rather than a `LIMIT 1` row, so a caller asserting the
    * plan's "exactly one invoice/upload queue row" invariant sees a duplicate instead of silently

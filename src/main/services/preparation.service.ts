@@ -94,6 +94,16 @@ export interface PreparationServiceDependencies {
   readonly candidates: PreparationCandidateSource
   readonly now: () => string
   readonly newUuid?: () => string
+  /**
+   * CP4: called when the server names the policy revision it actually applied, in a
+   * `409 POLICY_REVISION_STALE`.
+   *
+   * The desktop has no other way to learn that number — there is no policy-visibility contract —
+   * so without this the cycle would send the same stale revision forever and never converge. The
+   * value is a server observation, never a client claim, and persisting it grants no authority: it
+   * only changes which revision the *next* request declares having evaluated against.
+   */
+  readonly onPolicyRevisionObserved?: (revision: number) => void
   readonly log?: (line: string) => void
 }
 
@@ -548,6 +558,32 @@ export class PreparationService {
    * **Everything else is ambiguous**, including a timeout, a 5xx, and an aborted connection. §7.2:
    * an implementation that cannot prove undispatch must choose the ambiguous branch.
    */
+  /**
+   * Read the revision the server named, from the error's field details.
+   *
+   * Defensive on purpose: the value arrives as `Record<string, string[]>` — the published envelope
+   * shape — and anything that does not parse to a non-negative integer is ignored rather than
+   * coerced. A malformed hint is simply not learned; it never becomes a wrong revision the next
+   * request would then assert.
+   */
+  private observedPolicyRevision(error: unknown): number | null {
+    const fieldErrors = (error as { readonly fieldErrors?: unknown } | null)?.fieldErrors
+
+    if (typeof fieldErrors !== 'object' || fieldErrors === null) {
+      return null
+    }
+
+    const values = (fieldErrors as Record<string, unknown>).current_policy_revision
+
+    if (!Array.isArray(values) || values.length === 0 || typeof values[0] !== 'string') {
+      return null
+    }
+
+    const parsed = Number.parseInt(values[0], 10)
+
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
+  }
+
   private classifyDispatchFailure(operationUuid: string, error: unknown): PrepareCycleOutcome {
     const code = (error as { readonly code?: unknown } | null)?.code
     const status = (error as { readonly status?: unknown } | null)?.status
@@ -556,7 +592,19 @@ export class PreparationService {
       runSerializedWrite(this.dependencies.database, () => {
         this.dependencies.preparation.markSupersededUncommitted(operationUuid)
       })
-      this.log(formatDiagnostic('dispatch-superseded', { reason: 'policy_revision_stale' }))
+
+      const observed = this.observedPolicyRevision(error)
+
+      if (observed !== null) {
+        this.dependencies.onPolicyRevisionObserved?.(observed)
+      }
+
+      this.log(
+        formatDiagnostic('dispatch-superseded', {
+          reason: 'policy_revision_stale',
+          learned_revision: observed !== null
+        })
+      )
 
       return { kind: 'superseded_uncommitted', operationUuid }
     }
