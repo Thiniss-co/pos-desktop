@@ -598,6 +598,16 @@ export class StockAllocationRepository {
                   WHERE r.allocation_uuid = g.allocation_uuid
                     AND r.rights_generation = g.rights_generation
                )
+               -- PS6b §7.3a.5: an INDEPENDENT deny-spend source. Deliberately a separate table from
+               -- stock_allocation_holds above, because ordinary reconciliation can DELETE from that
+               -- one — and a disposition chain break must survive a later verifying boundary. It
+               -- gates grant SELECTION here and spendability in spendableMilli(); both, because
+               -- either alone would leave the grant reachable by the other path.
+               AND NOT EXISTS (
+                 SELECT 1 FROM stock_allocation_disposition_holds d
+                  WHERE d.allocation_uuid = g.allocation_uuid
+                    AND d.rights_generation = g.rights_generation
+               )
                AND CASE WHEN ? = 1
                  THEN EXISTS (
                    SELECT 1 FROM stock_allocation_coverage_boundaries b
@@ -673,6 +683,24 @@ export class StockAllocationRepository {
       .map((row) => row.product_uuid)
   }
 
+  /**
+   * PS6b: whether an operator disposition permanently broke this allocation identity's chain.
+   *
+   * There is no clearing path for this in PS6b. Closing it would require a separately proven
+   * consumption or release, under a release gate that stays disabled — so this reader has no
+   * companion "clear" method by design, not by omission.
+   */
+  hasDispositionHold(allocationUuid: string, rightsGeneration: number): boolean {
+    return (
+      (this.database
+        .prepare<[string, number], { n: number }>(
+          `SELECT COUNT(*) AS n FROM stock_allocation_disposition_holds
+            WHERE allocation_uuid = ? AND rights_generation = ?`
+        )
+        .get(allocationUuid, rightsGeneration)?.n ?? 0) > 0
+    )
+  }
+
   spendableMilli(allocationUuid: string): number {
     const grant = this.findGrantByUuid(allocationUuid)
     if (!grant) {
@@ -686,6 +714,13 @@ export class StockAllocationRepository {
       return 0
     }
     if (this.hasRecovery(allocationUuid, grant.rightsGeneration)) {
+      return 0
+    }
+
+    // PS6b §7.3a.5: zero, permanently, for an identity an operator disposition broke. The local
+    // journal above the broken sequence stays immutable and still counted — this hold is what stops
+    // that quantity looking reusable, rather than relabelling the journal to make it disappear.
+    if (this.hasDispositionHold(allocationUuid, grant.rightsGeneration)) {
       return 0
     }
 

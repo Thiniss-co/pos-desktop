@@ -64,7 +64,12 @@ const expectedTables = [
   'stock_allocation_recoveries',
   'stock_allocation_recovery_dependencies',
   // PS4 physical-presence offline selling (migration 0012).
-  'offline_sale_authorities'
+  'offline_sale_authorities',
+  // PS6b operator-disposition discovery and convergence (migration 0013).
+  'invoice_disposition_applications',
+  'invoice_disposition_proof_results',
+  'stock_allocation_disposition_holds',
+  'invoice_disposition_conflicts'
 ]
 
 databaseTest(
@@ -100,6 +105,8 @@ databaseTest(
       'idx_catalog_products_search_sku',
       'idx_catalog_stock_items_product',
       'idx_catalog_stock_items_warehouse',
+      'idx_disposition_conflicts_invoice',
+      'idx_disposition_holds_invoice',
       'idx_local_allocation_consumptions_grant',
       'idx_local_allocation_consumptions_invoice',
       'idx_local_allocation_consumptions_journal',

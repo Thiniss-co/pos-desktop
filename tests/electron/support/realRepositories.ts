@@ -17,6 +17,7 @@ import { SessionEpochRepository } from '../../../src/main/repositories/sessionEp
 import { SqliteSessionMetadataRepository } from '../../../src/main/repositories/sessionMetadata.repository'
 import { ShiftObservationRepository } from '../../../src/main/repositories/shiftObservation.repository'
 import { StockAllocationRepository } from '../../../src/main/repositories/stockAllocation.repository'
+import { OfflineSaleAuthorityRepository } from '../../../src/main/repositories/offlineSaleAuthority.repository'
 import { SyncConflictRepository } from '../../../src/main/repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../../../src/main/repositories/syncQueue.repository'
 import { AllocationReconciliationService } from '../../../src/main/services/allocationReconciliation.service'
@@ -32,6 +33,8 @@ export interface RealRepositories {
   readonly licenseMetadata: LicenseMetadataRepository
   readonly localSale: LocalSaleRepository
   readonly localStock: LocalStockRepository
+  /** PS4: the stored server-issued offline-sale authority. */
+  readonly offlineSaleAuthorities: OfflineSaleAuthorityRepository
   /** CP3: durable preparation cycles and operations. */
   readonly preparation: PreparationRepository
   readonly saleAttempts: SaleAttemptRepository
@@ -75,6 +78,7 @@ export function realRepositories(
     licenseMetadata: new LicenseMetadataRepository(database),
     localSale: new LocalSaleRepository(database),
     localStock: new LocalStockRepository(database),
+    offlineSaleAuthorities: new OfflineSaleAuthorityRepository(database),
     preparation: new PreparationRepository(database, now),
     saleAttempts: new SaleAttemptRepository(database),
     secureSecrets: new SecureSecretsRepository(database),
