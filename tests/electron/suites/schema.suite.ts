@@ -62,7 +62,9 @@ const expectedTables = [
   'stock_allocation_terminal_markers',
   'stock_allocation_holds',
   'stock_allocation_recoveries',
-  'stock_allocation_recovery_dependencies'
+  'stock_allocation_recovery_dependencies',
+  // PS4 physical-presence offline selling (migration 0012).
+  'offline_sale_authorities'
 ]
 
 databaseTest(
@@ -107,6 +109,7 @@ databaseTest(
       'idx_local_invoices_sync_status',
       'idx_local_stock_movements_invoice',
       'idx_local_stock_movements_projection',
+      'idx_offline_sale_authorities_window',
       'idx_prepare_cycles_owner',
       'idx_prepare_operations_owner',
       'idx_product_barcodes_barcode',

@@ -56,12 +56,26 @@ export interface ClaimedInvoiceUpload {
   readonly attemptCount: number
 }
 
-/** Diagnostic detail persisted on a non-success outcome. Never used to make a decision. */
+/**
+ * Detail persisted on a non-success outcome.
+ *
+ * Mostly diagnostic — but `quarantineReason` is NOT. PS6b's disposition discovery selects candidates
+ * on the exact backend code plus one allowlisted reason, so this field is load-bearing evidence and
+ * is written only from the backend's own structured `errors.quarantine_reason`, never from message
+ * text (§7.3a.4).
+ *
+ * `quarantineReasonContractError` records the opposite case explicitly: the backend said
+ * `DESKTOP_INVOICE_QUARANTINED` but its reason was missing, malformed, multiple, or outside the
+ * allowlist. Recording that as a distinct fact rather than simply omitting the reason is what keeps
+ * "we do not know" from being indistinguishable from "there was no reason".
+ */
 export interface SyncQueueErrorDetails {
   readonly backendCode?: string
   readonly httpStatus?: number
   readonly traceId?: string
   readonly message?: string
+  readonly quarantineReason?: string
+  readonly quarantineReasonContractError?: boolean
 }
 
 interface ClaimCandidateRow {

@@ -47,6 +47,10 @@ function invoice(overrides: Partial<LocalInvoiceRow> = {}): LocalInvoiceRow {
     notes: null,
     commercialSnapshotJson: '{}',
     uploadPayloadVersion: 2,
+    // PS4: the legacy default. A test that wants v3 supplies an authority explicitly, so the
+    // existing expectations here keep asserting the unchanged v2 bytes.
+    offlineSaleAuthorityUuid: null,
+    stockAuthorizationPolicy: null,
     createdAt: '2026-01-01T02:00:00.000Z',
     updatedAt: '2026-01-01T02:00:00.000Z',
     ...overrides
@@ -79,6 +83,8 @@ function item(overrides: Partial<LocalInvoiceItemRow> = {}): LocalInvoiceItemRow
     taxAmount: 0,
     totalAmount: 1000,
     createdAt: '2026-01-01T02:00:00.000Z',
+    allocationCoveredMilli: 0,
+    uncoveredMilli: 0,
     ...overrides
   }
 }

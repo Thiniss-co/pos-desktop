@@ -32,6 +32,13 @@ export const FAR_FUTURE = '2099-01-01T00:00:00.000Z'
 
 export const owner = { companyUuid: COMPANY_UUID, deviceUuid: DEVICE_UUID }
 
+/** Whether a column exists yet, so a shared helper can serve suites at different migration levels. */
+function hasColumn(database: SqliteDatabase, table: string, column: string): boolean {
+  return (database.pragma(`table_info(${table})`) as Array<{ name: string }>).some(
+    (info) => info.name === column
+  )
+}
+
 /** The committed cross-language request-hash vector, shared byte-for-byte with pos-backend. */
 export interface RequestHashGolden {
   readonly cases: readonly {
@@ -300,6 +307,13 @@ export function writeInvoiceSkeleton(
     discount_amount: 0,
     tax_amount: 0,
     total_amount: 1000,
+    // PS4 §15.3: tracked lines carry their split, and the table's conditional CHECK requires the
+    // two to sum to the quantity. Supplied only when the columns exist — several suites
+    // deliberately run a PREFIX of the migrations to exercise an earlier rebuild, and at that
+    // point these columns genuinely do not exist yet.
+    ...(hasColumn(database, 'local_invoice_items', 'allocation_covered_milli')
+      ? { allocation_covered_milli: 1000, uncovered_milli: 0 }
+      : {}),
     created_at: NOW
   })
 

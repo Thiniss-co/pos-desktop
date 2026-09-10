@@ -110,8 +110,45 @@ export interface LocalInvoiceRow {
   readonly notes: string | null
   readonly commercialSnapshotJson: string
   readonly uploadPayloadVersion: number
+  /**
+   * PS4: the server-issued authority this sale was rung under, or null for a legacy
+   * allocation-exclusive sale.
+   *
+   * Its presence is what selects the v3 payload shape, so it is a property of the committed sale
+   * rather than of the process that later uploads it. That is deliberate: a queued payload can never
+   * be upgraded in place, so the version must be decided once, at commit, and never revisited.
+   */
+  readonly offlineSaleAuthorityUuid: string | null
+  readonly stockAuthorizationPolicy: StockAuthorizationPolicy | null
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/** PS4 §5: which authority governs a tracked line in a given scope. */
+export type StockAuthorizationPolicy = 'allocation_exclusive' | 'physical_presence'
+
+/** PS4 §6.7: what actually authorized one tracked invoice line to leave the warehouse. */
+export type StockAuthorization = 'allocation' | 'physical_presence' | 'mixed'
+
+/**
+ * PS4 §6.2: one server-issued offline-sale authority, stored verbatim.
+ *
+ * Never minted, extended or recomputed locally. `notAfter` is the server's own clipped value; the
+ * desktop only compares against it.
+ */
+export interface OfflineSaleAuthorityRow {
+  readonly authorityUuid: string
+  readonly companyUuid: string
+  readonly deviceUuid: string
+  readonly mode: StockAuthorizationPolicy
+  readonly policyRevision: number
+  readonly contractVersion: number
+  readonly issuedAt: string
+  readonly notBefore: string
+  readonly notAfter: string
+  readonly authorityHash: string
+  readonly observedAt: string
+  readonly createdAt: string
 }
 
 export interface LocalInvoiceItemRow {
@@ -138,6 +175,15 @@ export interface LocalInvoiceItemRow {
   readonly discountAmount: number
   readonly taxAmount: number
   readonly totalAmount: number
+  /**
+   * PS4 §8.4: the covered/uncovered split for this line, in integer thousandths.
+   *
+   * Recorded per line so the split is recoverable from committed rows alone, without re-deriving it
+   * from the consumption journal. For a tracked line these sum to `quantityMilli`, enforced by a
+   * conditional CHECK; for an untracked line both are zero.
+   */
+  readonly allocationCoveredMilli: number
+  readonly uncoveredMilli: number
   readonly createdAt: string
 }
 

@@ -365,8 +365,8 @@ try {
                local_uuid, invoice_local_uuid, line_index, product_uuid, product_name, track_stock,
                quantity_milli, unit_price_amount, currency, price_revision, tax_mode,
                tax_rate_basis_points, tax_revision, discount_value, subtotal_amount, discount_amount,
-               tax_amount, total_amount, created_at
-             ) VALUES (?, ?, 0, ?, 'Widget', 1, 3000, 1000, 'USD', ?, 'none', 0, ?, 0, 1000, 0, 0, 1000, ?)`
+               tax_amount, total_amount, allocation_covered_milli, uncovered_milli, created_at
+             ) VALUES (?, ?, 0, ?, 'Widget', 1, 3000, 1000, 'USD', ?, 'none', 0, ?, 0, 1000, 0, 0, 1000, 3000, 0, ?)`
           )
           .run(
             itemUuid,

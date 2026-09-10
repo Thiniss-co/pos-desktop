@@ -22,6 +22,17 @@ export const API_ERROR_CODES = [
   // upload worker unable to tell a terminal rejection from any other failure.
   'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN',
   'DESKTOP_ALLOCATION_PROOF_REQUIRED',
+  // PS4 (plan §7.3a.4, review finding T3). This code was MISSING, and its absence was a real
+  // production defect rather than a cosmetic gap: an unlisted code is stripped from
+  // `PublicAppError.backendCode` by `normalizeApiEnvelopeError`, so an attached-proof quarantine
+  // — a permanently invalid claim — fell through as an ambiguous retryable failure that the worker
+  // would re-send forever, with its exact reason lost.
+  'DESKTOP_INVOICE_QUARANTINED',
+  // PS2 §15.1. Deliberately NOT terminal: it means the server is currently below the v3 parsing
+  // floor and cannot honour a claim that may well be valid. Classifying it terminal would let a
+  // routine backend rollback permanently reject legitimate committed sales.
+  'DESKTOP_CONTRACT_VERSION_UNSUPPORTED',
+  'DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID',
   'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED',
   'DESKTOP_SHIFT_ALREADY_OPEN',
   'DESKTOP_SHIFT_NOT_OPEN',

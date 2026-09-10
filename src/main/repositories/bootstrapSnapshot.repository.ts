@@ -5,6 +5,10 @@ import type {
   StockAllocationResource
 } from '../http/desktopResources.contract'
 import type { SqliteDatabase } from '../database/connection'
+import {
+  OfflineSaleAuthorityRepository,
+  type PublishedOfflineSaleAuthority
+} from './offlineSaleAuthority.repository'
 import type {
   AllocationRepresentation,
   BootstrapStockAllocationGrant,
@@ -380,6 +384,7 @@ export class BootstrapSnapshotRepository {
         const commitIdempotent = this.database.transaction(() => {
           this.persistBootstrapContext(resource, fetchedAt)
           this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
+          this.persistOfflineSaleAuthority(resource, fetchedAt)
           this.database
             .prepare('UPDATE catalog_metadata SET fetched_at = ? WHERE id = 1')
             .run(fetchedAt)
@@ -588,6 +593,7 @@ export class BootstrapSnapshotRepository {
       )
 
       this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
+      this.persistOfflineSaleAuthority(resource, fetchedAt)
 
       if (!this.isCatalogIntact(manifest)) {
         throw catalogSnapshotError(
@@ -845,6 +851,41 @@ export class BootstrapSnapshotRepository {
    * boundary are written by the caller's single transaction, so a crash leaves one consistent
    * earlier state rather than a half-reconciled one.
    */
+  /**
+   * PS4 §6.2/§6.3.1: record an authority the server PUBLISHED. This never issues one.
+   *
+   * Three response states are treated as three different things, and collapsing any two would be a
+   * real defect:
+   *
+   *  - the key ABSENT — an older backend, or a client that did not negotiate the block. Says nothing
+   *    about authority, so nothing is written and any stored authority keeps its window;
+   *  - the key present and NULL — "you asked, and you hold none". Also writes nothing: an authority
+   *    is a grant of a window, and the server clearing its *publication* is not a revocation. §6.5
+   *    is explicit that only an administrative `revoked_at`, or the window simply ending, stops a
+   *    sale — and this plan does not promise instant revocation on a disconnected device;
+   *  - a value — stored, or its observation stamp refreshed if already known.
+   *
+   * Re-observing is deliberately NOT renewing (§14.3): the window never resets on launch,
+   * navigation, a refresh-only cycle, a retry, or a clock rollback.
+   */
+  private persistOfflineSaleAuthority(resource: DesktopBootstrapResource, fetchedAt: string): void {
+    const published = (resource as { offline_sale_authority?: unknown }).offline_sale_authority
+
+    if (published === undefined || published === null) {
+      return
+    }
+
+    new OfflineSaleAuthorityRepository(this.database).observe(
+      published as PublishedOfflineSaleAuthority,
+      // The same owner tuple the allocation snapshot validates against, and the same one
+      // `LocalSaleService` resolves at commit: company UUID plus DEVICE UUID. `device.id` is a
+      // different identifier and would silently never match.
+      resource.company.id,
+      resource.device.device_uuid,
+      fetchedAt
+    )
+  }
+
   private persistAllocationSnapshot(snapshot: AllocationSnapshot, fetchedAt: string): void {
     if (!this.stockAllocations) {
       throw new Error('Bootstrap allocation persistence is not configured')

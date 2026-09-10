@@ -59,6 +59,7 @@ import { SessionService } from '../services/session.service'
 import { ShiftAuthorityService } from '../services/shiftAuthority.service'
 import { ShiftService } from '../services/shift.service'
 import { ShiftPermissions } from '../services/shiftPermissions'
+import { OfflineSaleAuthorityRepository } from '../repositories/offlineSaleAuthority.repository'
 import { StockAllocationService } from '../services/stockAllocation.service'
 import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
@@ -287,6 +288,10 @@ export function createApplicationServices(): ApplicationServices {
     catalog
   })
   const allocationService = new StockAllocationService(stockAllocations)
+  // PS4 §6.2: production wiring for the stored offline-sale authority. Without a row here the
+  // commit path takes the legacy branch, so this is what makes the mode reachable at all — and its
+  // absence, not a flag, is what keeps every unconfigured device behaving exactly as it does today.
+  const offlineSaleAuthorities = new OfflineSaleAuthorityRepository(database)
   const localSale = new LocalSaleService({
     database,
     saleAttempts,
@@ -300,7 +305,8 @@ export function createApplicationServices(): ApplicationServices {
     bootstrapSnapshot,
     catalog,
     connectivity,
-    syncQueue
+    syncQueue,
+    offlineSaleAuthorities
   })
   // CP-5D: the only production caller of `POST /api/v1/desktop/stock-allocations/top-up`. It is
   // main-only and reachable exclusively through `checkout:complete` / `checkout:retry-attempt`;

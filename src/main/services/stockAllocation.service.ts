@@ -17,7 +17,18 @@ export interface AllocationSplitEntry {
 }
 
 export type AllocationSplitResult =
-  | { readonly ok: true; readonly perLine: readonly (readonly AllocationSplitEntry[])[] }
+  | {
+      readonly ok: true
+      readonly perLine: readonly (readonly AllocationSplitEntry[])[]
+      /**
+       * PS4 §7.1: the quantity per line that grants did NOT cover, in the same order as `perLine`.
+       *
+       * Always present, and always all-zeroes unless the caller explicitly asked for the partial
+       * mode. Returning it unconditionally rather than only in the new mode means a caller cannot
+       * silently receive an under-covered split by forgetting to check for it.
+       */
+      readonly uncoveredMilliByLine: readonly number[]
+    }
   | {
       readonly ok: false
       readonly code: 'stock-allocation-unavailable' | 'allocation-data-unavailable'
@@ -38,15 +49,29 @@ export function splitAllocations(params: {
   readonly nextSequenceByAllocation: ReadonlyMap<string, number>
   readonly lineDemandsMilli: readonly number[]
   readonly createUuid?: () => string
+  /**
+   * PS4 §7.1 — drain-first, best effort.
+   *
+   * With this false (the default, and the whole of legacy behaviour) an uncovered remainder is
+   * `stock-allocation-unavailable` and the cart cannot be completed, exactly as today.
+   *
+   * With it true the grants are still drained FIRST — the split loop below is unchanged — and only
+   * what they cannot cover becomes the remainder. That ordering matters: it means an available
+   * grant is always consumed rather than left held while the same units are sold under physical
+   * presence, which is what keeps allocation exposure falling rather than growing.
+   */
+  readonly allowUncoveredRemainder?: boolean
 }): AllocationSplitResult {
   const createUuid = params.createUuid ?? randomUUID
   const remaining = new Map(params.remainingMilliByAllocation)
   const nextSequence = new Map(params.nextSequenceByAllocation)
   const perLine: AllocationSplitEntry[][] = []
+  const uncoveredMilliByLine: number[] = []
 
   for (const demandMilli of params.lineDemandsMilli) {
     if (demandMilli <= 0) {
       perLine.push([])
+      uncoveredMilliByLine.push(0)
       continue
     }
 
@@ -80,20 +105,27 @@ export function splitAllocations(params: {
       needed -= take
     }
 
-    if (needed > 0) {
+    if (needed > 0 && params.allowUncoveredRemainder !== true) {
       return { ok: false, code: 'stock-allocation-unavailable' }
     }
 
     perLine.push(entries)
+    uncoveredMilliByLine.push(needed > 0 ? needed : 0)
   }
 
-  return { ok: true, perLine }
+  return { ok: true, perLine, uncoveredMilliByLine }
 }
 
 /**
- * Thin repository-backed wrapper around `splitAllocations()`. D2-B: never falls back to shared/
- * unreserved stock — a missing or insufficient allocation is `stock-allocation-unavailable`, full
- * stop, for every connectivity state.
+ * Thin repository-backed wrapper around `splitAllocations()`.
+ *
+ * D2-B remains the default and is unchanged: a missing or insufficient allocation is
+ * `stock-allocation-unavailable`, full stop, for every connectivity state. There is still no
+ * fallback to shared or cached stock, and cached stock still authorizes nothing.
+ *
+ * PS4 adds one narrow exception, reachable only when the caller passes `allowUncoveredRemainder`
+ * — which the commit path does only under a stored, valid, server-issued physical-presence
+ * authority. In that mode the uncovered remainder is authorized by that authority, not by stock.
  */
 export class StockAllocationService {
   constructor(
@@ -121,11 +153,18 @@ export class StockAllocationService {
       .reduce((sum, grant) => sum + this.repository.spendableMilli(grant.allocationUuid), 0)
   }
 
+  /**
+   * @param allowUncoveredRemainder PS4 §7.1. Passed by the commit path ONLY when the device holds a
+   *   stored, currently-valid, server-issued physical-presence authority. It is never inferred from
+   *   cached stock, from connectivity, or from the absence of grants — stock authorizes nothing in
+   *   this mode, and an authority is the only thing that does.
+   */
   splitForProduct(
     owner: AllocationOwner,
     productUuid: string,
     lineDemandsMilli: readonly number[],
-    nowIso: string
+    nowIso: string,
+    allowUncoveredRemainder = false
   ): AllocationSplitResult {
     // A successful bootstrap from an older backend explicitly records `unavailable`. It is not
     // safe to reuse grants retained from an earlier compatible snapshot as current authority.
@@ -152,7 +191,8 @@ export class StockAllocationService {
       remainingMilliByAllocation,
       nextSequenceByAllocation,
       lineDemandsMilli,
-      createUuid: this.createUuid
+      createUuid: this.createUuid,
+      allowUncoveredRemainder
     })
   }
 }

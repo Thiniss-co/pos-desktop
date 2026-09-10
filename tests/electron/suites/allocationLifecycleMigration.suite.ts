@@ -146,7 +146,28 @@ databaseTest(
         .n,
       1
     )
-    deepEqual(database.prepare('SELECT * FROM local_invoices').all(), invoicesBefore)
+    // PS4 added two nullable columns to `local_invoices`, so — exactly as with CP3's
+    // `queue_sequence` below — `SELECT *` legitimately returns more columns than it did before. The
+    // property this assertion is actually about is that no pre-existing invoice evidence is lost or
+    // rewritten, so it is asserted column by column rather than through a whole-row comparison that
+    // any purely additive column would break.
+    const invoicesAfter = database.prepare('SELECT * FROM local_invoices').all() as Record<
+      string,
+      unknown
+    >[]
+
+    equal(invoicesAfter.length, invoicesBefore.length)
+    invoicesAfter.forEach((row, index) => {
+      const before = invoicesBefore[index] as Record<string, unknown>
+
+      for (const column of Object.keys(before)) {
+        deepEqual(row[column], before[column], `local_invoices.${column} changed during migration`)
+      }
+
+      // ...and a pre-PS4 invoice carries no authority, because it genuinely predates the concept.
+      equal(row.offline_sale_authority_uuid, null)
+      equal(row.stock_authorization_policy, null)
+    })
 
     // CP3 added `queue_sequence` to `sync_queue`, so `SELECT *` legitimately returns one more
     // column than it did before. The property this assertion is actually about — that no

@@ -124,6 +124,11 @@ function insertItem(database: SqliteDatabase, overrides: Record<string, unknown>
     discount_amount: 0,
     tax_amount: 0,
     total_amount: 1000,
+    // PS4 §15.3: a tracked line now carries its covered/uncovered split, and the table's
+    // conditional CHECK requires the two to sum to the quantity. The legacy shape — fully
+    // allocation-covered — is what every pre-PS4 row was, so it is the right default here.
+    allocation_covered_milli: 1000,
+    uncovered_milli: 0,
     created_at: NOW,
     ...overrides
   }

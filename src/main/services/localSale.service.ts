@@ -25,6 +25,7 @@ import type { LocalSaleRepository } from '../repositories/localSale.repository'
 import type { LocalStockRepository } from '../repositories/localStock.repository'
 import type { OwnerTuple, SaleAttemptRepository } from '../repositories/saleAttempt.repository'
 import type { StockAllocationRepository } from '../repositories/stockAllocation.repository'
+import type { OfflineSaleAuthorityRepository } from '../repositories/offlineSaleAuthority.repository'
 import type { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import type { CatalogService } from './catalog.service'
 import type { CommercialAccessService } from './commercialAccess.service'
@@ -174,6 +175,14 @@ export interface LocalSaleDependencies {
   readonly catalog: Pick<CatalogService, 'resolveForSale'>
   readonly connectivity: { getSnapshot(): ConnectivitySnapshot }
   readonly syncQueue: Pick<SyncQueueRepository, 'enqueue' | 'invoiceUploadRowsFor'>
+  /**
+   * PS4 §6.2: the store of server-issued offline-sale authorities.
+   *
+   * Optional so an older wiring (and every existing test) keeps compiling and behaving identically:
+   * with no repository there is no authority, so the commit path takes the legacy branch exactly as
+   * it does today. Absence must mean legacy, never "assume permitted".
+   */
+  readonly offlineSaleAuthorities?: Pick<OfflineSaleAuthorityRepository, 'findUsable'>
   readonly now?: () => Date
   readonly createUuid?: () => string
 }
@@ -983,6 +992,21 @@ export class LocalSaleService {
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => productsByUuid.get(item.productUuid)?.trackStock === true)
 
+    // PS4 §6.2/§7.1 — the ONLY thing that permits an uncovered remainder.
+    //
+    // Read from stored, server-issued state under the resolved owner and the trusted clock. It is
+    // never inferred from cached stock, from connectivity, from the absence of grants, or from a
+    // local flag: in this mode stock authorizes nothing, and an authority is the only thing that
+    // does. A device that has never negotiated one gets `null` here and behaves exactly as today —
+    // which is what makes this build safe to ship before any backend is configured.
+    const offlineSaleAuthority =
+      this.dependencies.offlineSaleAuthorities?.findUsable(
+        owner.companyUuid,
+        owner.deviceUuid,
+        this.now().toISOString()
+      ) ?? null
+
+    const uncoveredMilliByIndex = new Map<number, number>()
     const splitsByIndex = new Map<
       number,
       readonly {
@@ -1006,7 +1030,8 @@ export class LocalSaleService {
         },
         productUuid,
         demands,
-        this.now().toISOString()
+        this.now().toISOString(),
+        offlineSaleAuthority !== null
       )
 
       if (!split.ok) {
@@ -1019,6 +1044,7 @@ export class LocalSaleService {
 
       linesForProduct.forEach(({ index }, lineOffset) => {
         splitsByIndex.set(index, split.perLine[lineOffset])
+        uncoveredMilliByIndex.set(index, split.uncoveredMilliByLine[lineOffset] ?? 0)
       })
 
       for (const grantUuid of new Set(split.perLine.flat().map((entry) => entry.allocationUuid))) {
@@ -1069,6 +1095,10 @@ export class LocalSaleService {
       soldWhileOffline: connectivity.soldWhileOffline,
       notes: null,
       commercialSnapshotJson: JSON.stringify({ evaluatedAt: committedAt }),
+      // PS4: recorded on the invoice, so the payload version is a property of the sale that was
+      // actually rung rather than of the process that later uploads it.
+      offlineSaleAuthorityUuid: offlineSaleAuthority?.authorityUuid ?? null,
+      stockAuthorizationPolicy: offlineSaleAuthority === null ? null : 'physical_presence',
       createdAt: committedAt
     })
 
@@ -1118,6 +1148,13 @@ export class LocalSaleService {
         discountAmount: line.discountAmount,
         taxAmount: line.taxAmount,
         totalAmount: line.totalAmount,
+        // PS4 §8.4: the covered/uncovered split, recorded per line so it is recoverable from
+        // committed rows alone. An untracked line is 0/0; a tracked line's two values sum to its
+        // quantity, enforced by the table's conditional CHECK.
+        allocationCoveredMilli: product.trackStock
+          ? quantityToMilli(item.quantity) - (uncoveredMilliByIndex.get(index) ?? 0)
+          : 0,
+        uncoveredMilli: product.trackStock ? (uncoveredMilliByIndex.get(index) ?? 0) : 0,
         createdAt: committedAt
       })
 
@@ -1130,6 +1167,9 @@ export class LocalSaleService {
           plannedConsumptions.push({ itemLocalUuid, lineIndex: index, entry })
         }
 
+        const uncoveredMilli = uncoveredMilliByIndex.get(index) ?? 0
+        const coveredMilli = quantityToMilli(item.quantity) - uncoveredMilli
+
         this.dependencies.localStock.insertMovement({
           localUuid: this.createUuid(),
           invoiceLocalUuid,
@@ -1137,6 +1177,8 @@ export class LocalSaleService {
           productUuid: product.uuid,
           warehouseUuid: claimed.originWarehouseUuid,
           quantityMilli: quantityToMilli(item.quantity),
+          stockAuthorization:
+            uncoveredMilli <= 0 ? 'allocation' : coveredMilli > 0 ? 'mixed' : 'physical_presence',
           createdAt: committedAt
         })
       }
@@ -1361,9 +1403,36 @@ export class LocalSaleService {
         fail('a tracked line movement disagrees with its item or the origin warehouse')
       }
 
-      // The allocation consumed for a line must cover it exactly — never partially, never over.
+      // PS4 §12: TIGHTENED, not relaxed.
+      //
+      // The rule was "consumption covers the line exactly". It is now
+      // `covered + uncovered === quantity_milli`, with `uncovered > 0` permitted ONLY under a stored
+      // authority — which is strictly more than the old rule checked, because it also verifies that
+      // the split recorded on the row agrees with the consumptions actually written.
+      //
+      // The authority clause is the load-bearing half. Without it a bug anywhere upstream could
+      // commit an under-covered sale that the backend would terminally reject, and a frozen payload
+      // can never be repaired: §12's invariant is that every successful local commit must ALREADY
+      // contain its final, valid, immutable upload payload.
       const consumed = itemConsumptions.reduce((sum, entry) => sum + entry.quantityMilli, 0)
-      if (itemConsumptions.length === 0 || consumed !== item.quantityMilli) {
+
+      if (consumed !== item.allocationCoveredMilli) {
+        fail('the recorded allocation coverage disagrees with the consumptions actually written')
+      }
+
+      if (consumed + item.uncoveredMilli !== item.quantityMilli) {
+        fail(
+          'allocation coverage plus uncovered remainder does not equal the tracked line quantity'
+        )
+      }
+
+      // Read from the COMMITTED invoice row, not from a value passed in: the invariant then proves
+      // what was actually persisted rather than what the caller believed it intended.
+      if (item.uncoveredMilli > 0 && invoice.offlineSaleAuthorityUuid === null) {
+        fail('an uncovered remainder was committed without a stored offline-sale authority')
+      }
+
+      if (item.uncoveredMilli === 0 && itemConsumptions.length === 0) {
         fail('allocation consumption does not exactly cover its tracked line quantity')
       }
 
@@ -1384,7 +1453,13 @@ export class LocalSaleService {
       }
     }
 
-    if (consumptions.length === 0 && trackedItems.length > 0) {
+    if (
+      consumptions.length === 0 &&
+      trackedItems.length > 0 &&
+      invoice.offlineSaleAuthorityUuid === null
+    ) {
+      // Still fatal in legacy mode. Under a stored authority a fully uncovered sale is the intended
+      // outcome, and the per-line checks above have already proven the split adds up.
       fail('a tracked sale committed without any allocation consumption')
     }
 

@@ -1,4 +1,4 @@
-import type { LocalStockMovementRow } from '@shared/contracts/sale.contract'
+import type { LocalStockMovementRow, StockAuthorization } from '@shared/contracts/sale.contract'
 import type { SqliteDatabase } from '../database/connection'
 
 export interface NewLocalStockMovement {
@@ -8,6 +8,8 @@ export interface NewLocalStockMovement {
   readonly productUuid: string
   readonly warehouseUuid: string
   readonly quantityMilli: number
+  /** PS4 §8.4: what authorized this movement. Omitted means the legacy allocation shape. */
+  readonly stockAuthorization?: StockAuthorization
   readonly createdAt: string
 }
 
@@ -40,8 +42,8 @@ export class LocalStockRepository {
       .prepare(
         `INSERT INTO local_stock_movements (
            local_uuid, invoice_local_uuid, item_local_uuid, product_uuid, warehouse_uuid,
-           direction, quantity_milli, sync_status, created_at
-         ) VALUES (?, ?, ?, ?, ?, 'out', ?, 'pending', ?)`
+           direction, quantity_milli, sync_status, stock_authorization, created_at
+         ) VALUES (?, ?, ?, ?, ?, 'out', ?, 'pending', ?, ?)`
       )
       .run(
         movement.localUuid,
@@ -50,6 +52,9 @@ export class LocalStockRepository {
         movement.productUuid,
         movement.warehouseUuid,
         movement.quantityMilli,
+        // PS4: an omitted authorization is the legacy allocation shape, which is what every
+        // pre-PS4 movement was by construction.
+        movement.stockAuthorization ?? 'allocation',
         movement.createdAt
       )
 

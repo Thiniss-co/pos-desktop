@@ -144,7 +144,9 @@ describe('splitAllocations', () => {
       createUuid
     })
 
-    expect(result).toEqual({ ok: true, perLine: [[]] })
+    // PS4: the uncovered remainder is reported on EVERY successful split, not only in the partial
+    // mode, so a caller cannot silently receive an under-covered split by forgetting to check.
+    expect(result).toEqual({ ok: true, perLine: [[]], uncoveredMilliByLine: [0] })
   })
 
   it('fails closed when there are no usable grants at all', () => {

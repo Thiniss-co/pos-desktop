@@ -43,8 +43,57 @@ const TERMINAL_REJECTION_CODES = new Set([
   // The shift is unknown to this company or belongs to another device. The backend answers both
   // causes identically on purpose, so the desktop must not guess which one it was — but either way
   // this device can never make this upload succeed.
-  'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN'
+  'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN',
+  // PS4 §7.3a.4: an attached allocation proof the server refused. Re-sending the same frozen bytes
+  // can only be refused again, so it is terminal — and it must be, because PS6b's disposition
+  // discovery selects on exactly this terminal classification plus one allowlisted reason.
+  'DESKTOP_INVOICE_QUARANTINED',
+  // PS2 §15.1: the referenced authority does not exist, does not match this device, or does not
+  // cover `sold_at`. Permanently invalid, and explicitly never disposition-eligible — accepting it
+  // would manufacture authority.
+  'DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID'
 ])
+
+/**
+ * PS4 §7.3a.2 / §7.3a.5: the exact quarantine reasons a disposition may later act on.
+ *
+ * Persisted verbatim so PS6b can select on it. Anything outside this set — including
+ * `catalog_window_violation` — is recorded as a contract failure rather than silently accepted,
+ * because an unknown reason is precisely the case where guessing would be most damaging.
+ */
+const ALLOWLISTED_QUARANTINE_REASONS = new Set([
+  'allocation_not_owned',
+  'allocation_generation_mismatch',
+  'allocation_sequence_gap',
+  'allocation_insufficient_rights',
+  'allocation_expired_at_sale_time'
+])
+
+/**
+ * Extract the single exact quarantine reason from a backend error envelope.
+ *
+ * The backend sends `errors.quarantine_reason` as a ONE-element string array. Anything else —
+ * missing, empty, multiple, non-string, or a reason outside the allowlist — returns
+ * `'contract-error'` rather than a guess. Message text is never parsed: §7.3a.4 is explicit that an
+ * ambiguous row must stay ambiguous until an exact replay obtains the backend's own classification.
+ */
+export function extractQuarantineReason(
+  fieldErrors: Readonly<Record<string, readonly string[]>> | undefined
+):
+  | { readonly ok: true; readonly reason: string }
+  | { readonly ok: false; readonly code: 'contract-error' } {
+  const values = fieldErrors?.quarantine_reason
+
+  if (!Array.isArray(values) || values.length !== 1 || typeof values[0] !== 'string') {
+    return { ok: false, code: 'contract-error' }
+  }
+
+  const reason = values[0]
+
+  return ALLOWLISTED_QUARANTINE_REASONS.has(reason)
+    ? { ok: true, reason }
+    : { ok: false, code: 'contract-error' }
+}
 
 /** Genuine disagreements that need a human to compare two versions. */
 const CONFLICT_CODES = new Set(['IDEMPOTENCY_CONFLICT', 'CONFLICT'])
@@ -67,10 +116,25 @@ const PAUSE_REASON_BY_CODE: Readonly<Record<string, SyncPauseReason>> = {
 }
 
 function details(error: PublicAppError): SyncQueueErrorDetails {
+  // PS4 §7.3a.4 (review finding T3): the quarantine reason is carried on `fieldErrors`, and queue
+  // details previously dropped it — so even when normalization HAD parsed it, the exact reason was
+  // lost the moment the row was persisted, and PS6b would have had nothing to select on.
+  const quarantineReason =
+    error.backendCode === 'DESKTOP_INVOICE_QUARANTINED'
+      ? extractQuarantineReason(error.fieldErrors)
+      : undefined
+
   return {
     ...(error.backendCode === undefined ? {} : { backendCode: error.backendCode }),
     ...(error.httpStatus === undefined ? {} : { httpStatus: error.httpStatus }),
     ...(error.traceId === undefined ? {} : { traceId: error.traceId }),
+    ...(quarantineReason === undefined
+      ? {}
+      : quarantineReason.ok
+        ? { quarantineReason: quarantineReason.reason }
+        : // Fails CLOSED and visibly: a malformed, missing, multiple or unknown reason is recorded
+          // as a contract error, never inferred. PS6b will not treat such a row as a candidate.
+          { quarantineReasonContractError: true }),
     message: error.message
   }
 }

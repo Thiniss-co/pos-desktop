@@ -273,6 +273,27 @@ const customerResourceSchema = z
   .passthrough()
 
 /**
+ * PS4 §6.2: one server-issued offline-sale authority, exactly as the backend published it.
+ *
+ * `.strict()` for the same reason every other bootstrap sub-schema is: a server field added without
+ * a desktop update must fail deliberately rather than be silently discarded. An authority is what
+ * permits selling without a stock quota, so a shape this client does not fully understand is
+ * precisely the thing it must not act on.
+ */
+export const offlineSaleAuthorityResourceSchema = z
+  .object({
+    id: z.uuid(),
+    mode: z.enum(['allocation_exclusive', 'physical_presence']),
+    policy_revision: z.number().int().positive(),
+    contract_version: z.number().int().positive(),
+    issued_at: z.string(),
+    not_before: z.string(),
+    not_after: z.string(),
+    authority_hash: z.string().length(64)
+  })
+  .strict()
+
+/**
  * One device-bound stock allocation envelope (backend `StockAllocationResource`). Bootstrap is
  * read-only for allocations: it reports the envelopes the server currently holds for this device
  * and never grants or mutates them. This is an exact, versioned cross-runtime contract: a server
@@ -441,6 +462,14 @@ export const desktopBootstrapResourceSchema = z
     // absence means "this response says nothing about terminal allocations" — never "there are
     // none", which is why the persistence layer treats an absent key and an empty list differently.
     stock_allocation_terminal_markers: z.array(stockAllocationTerminalMarkerSchema).optional(),
+    // PS4 §15.2: present only when this request negotiated `offline_sale_contract_version=1`.
+    //
+    // Three states, and they are genuinely different: the key ABSENT means this response says
+    // nothing about offline-sale authority (an older backend, or a client that did not ask); the
+    // key present and NULL means "you asked, and you currently hold none"; and a value means this
+    // is the authority the server has issued. Collapsing absent and null would make an old backend
+    // indistinguishable from an explicit revocation.
+    offline_sale_authority: offlineSaleAuthorityResourceSchema.nullable().optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),

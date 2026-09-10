@@ -9,6 +9,7 @@ import { bootstrapStockAllocationsMigration } from './0008_bootstrap_stock_alloc
 import { allocationLifecycleReconciliationMigration } from './0009_allocation_lifecycle_reconciliation'
 import { allocationRecoveryMigration } from './0010_allocation_recovery'
 import { offlineStockPreparationMigration } from './0011_offline_stock_preparation'
+import { offlineSalePolicyMigration } from './0012_offline_sale_policy'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -21,5 +22,6 @@ export const databaseMigrations = [
   bootstrapStockAllocationsMigration,
   allocationLifecycleReconciliationMigration,
   allocationRecoveryMigration,
-  offlineStockPreparationMigration
+  offlineStockPreparationMigration,
+  offlineSalePolicyMigration
 ] as const

@@ -35,6 +35,9 @@ export interface NewLocalInvoice {
   readonly soldWhileOffline: boolean
   readonly notes: string | null
   readonly commercialSnapshotJson: string
+  /** PS4: null for a legacy allocation-exclusive sale; its presence selects the v3 payload shape. */
+  readonly offlineSaleAuthorityUuid?: string | null
+  readonly stockAuthorizationPolicy?: LocalInvoiceRow['stockAuthorizationPolicy']
   readonly createdAt: string
 }
 
@@ -62,6 +65,13 @@ export interface NewLocalInvoiceItem {
   readonly discountAmount: number
   readonly taxAmount: number
   readonly totalAmount: number
+  /**
+   * PS4 §8.4. Optional so every existing caller keeps compiling and behaving identically: an omitted
+   * split on a tracked line means fully allocation-covered, which is what the legacy path always
+   * produced and what the table's conditional CHECK requires.
+   */
+  readonly allocationCoveredMilli?: number
+  readonly uncoveredMilli?: number
   readonly createdAt: string
 }
 
@@ -119,6 +129,9 @@ function mapInvoiceRow(row: Record<string, unknown>): LocalInvoiceRow {
     notes: row.notes as string | null,
     commercialSnapshotJson: row.commercial_snapshot_json as string,
     uploadPayloadVersion: row.upload_payload_version as number,
+    offlineSaleAuthorityUuid: (row.offline_sale_authority_uuid ?? null) as string | null,
+    stockAuthorizationPolicy: (row.stock_authorization_policy ??
+      null) as LocalInvoiceRow['stockAuthorizationPolicy'],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string
   }
@@ -149,6 +162,8 @@ function mapItemRow(row: Record<string, unknown>): LocalInvoiceItemRow {
     discountAmount: row.discount_amount as number,
     taxAmount: row.tax_amount as number,
     totalAmount: row.total_amount as number,
+    allocationCoveredMilli: (row.allocation_covered_milli ?? 0) as number,
+    uncoveredMilli: (row.uncovered_milli ?? 0) as number,
     createdAt: row.created_at as string
   }
 }
@@ -190,8 +205,9 @@ export class LocalSaleRepository {
            subtotal_amount, discount_total_amount, tax_total_amount, grand_total_amount,
            paid_total_amount, change_due_amount, due_amount, sold_at, connectivity_state_at_sale,
            sold_while_offline, notes, commercial_snapshot_json, upload_payload_version,
+           offline_sale_authority_uuid, stock_authorization_policy,
            created_at, updated_at
-         ) VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 2, ?, ?)`
+         ) VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         invoice.localUuid,
@@ -223,6 +239,13 @@ export class LocalSaleRepository {
         invoice.soldWhileOffline ? 1 : 0,
         invoice.notes,
         invoice.commercialSnapshotJson,
+        // PS4 §6.7: the payload version is decided ONCE, at commit, from the authority the sale was
+        // actually rung under. A queued payload can never be upgraded in place, so deciding it later
+        // — at upload time, from whatever the device believes then — would be exactly the defect
+        // §12 exists to prevent.
+        invoice.offlineSaleAuthorityUuid == null ? 2 : 3,
+        invoice.offlineSaleAuthorityUuid ?? null,
+        invoice.stockAuthorizationPolicy ?? null,
         invoice.createdAt,
         invoice.createdAt
       )
@@ -243,8 +266,9 @@ export class LocalSaleRepository {
            local_uuid, invoice_local_uuid, line_index, product_uuid, product_name, sku, barcode,
            unit, track_stock, quantity_milli, unit_price_amount, currency, price_revision,
            tax_uuid, tax_mode, tax_rate_basis_points, tax_revision, discount_type, discount_value,
-           subtotal_amount, discount_amount, tax_amount, total_amount, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           subtotal_amount, discount_amount, tax_amount, total_amount,
+           allocation_covered_milli, uncovered_milli, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         item.localUuid,
@@ -270,6 +294,9 @@ export class LocalSaleRepository {
         item.discountAmount,
         item.taxAmount,
         item.totalAmount,
+        // PS4 §8.4: an omitted split on a tracked line is fully covered — the legacy shape.
+        item.allocationCoveredMilli ?? (item.trackStock ? item.quantityMilli : 0),
+        item.uncoveredMilli ?? 0,
         item.createdAt
       )
 

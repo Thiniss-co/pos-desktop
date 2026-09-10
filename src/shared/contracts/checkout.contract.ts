@@ -220,6 +220,10 @@ const saleInvoiceItemResultSchema = z
     discountAmount: z.number().int(),
     taxAmount: z.number().int(),
     totalAmount: z.number().int(),
+    // PS4 §8.4: the covered/uncovered split, so the renderer and the receipt can show what
+    // actually authorized each line rather than re-deriving it from the consumption journal.
+    allocationCoveredMilli: z.number().int().nonnegative(),
+    uncoveredMilli: z.number().int().nonnegative(),
     createdAt: isoDateTimeSchema
   })
   .strict()
@@ -286,6 +290,12 @@ const saleInvoiceResultSchema = z
     notes: z.string().nullable(),
     commercialSnapshotJson: z.string(),
     uploadPayloadVersion: z.number().int(),
+    // PS4: what authorized this sale. Null on a legacy allocation-exclusive sale, which is every
+    // sale a device makes until it negotiates an authority. Added here because this schema is
+    // `.strict()` — the IPC boundary is deliberately exhaustive, so a new committed-row field must
+    // be declared rather than silently dropped on its way to the renderer.
+    offlineSaleAuthorityUuid: z.string().nullable(),
+    stockAuthorizationPolicy: z.enum(['allocation_exclusive', 'physical_presence']).nullable(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
   })

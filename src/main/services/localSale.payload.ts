@@ -28,6 +28,12 @@ export function buildUploadPayload(
   consumptionsByItem: ReadonlyMap<string, readonly LocalStockAllocationConsumptionRow[]>,
   grantsByAllocationUuid: ReadonlyMap<string, StockAllocationGrantRow>
 ): Record<string, unknown> {
+  // PS4 §6.7: v3 is selected by the presence of a stored authority on the committed invoice, never
+  // by a runtime flag or by connectivity. That is what makes the emitted version a property of the
+  // sale that was actually rung, reproducible byte-for-byte from committed rows alone.
+  const authorityUuid = invoice.offlineSaleAuthorityUuid ?? null
+  const isPhysicalPresence = authorityUuid !== null
+
   return {
     idempotency_key: invoice.localUuid,
     local_invoice_uuid: invoice.localUuid,
@@ -38,8 +44,11 @@ export function buildUploadPayload(
     customer_uuid: invoice.customerUuid,
     currency: invoice.currency,
     tax_mode: invoice.taxMode,
-    client_contract_version: 2,
+    client_contract_version: isPhysicalPresence ? 3 : 2,
     shift_uuid: invoice.shiftUuid,
+    // Emitted ONLY for v3. A v2 payload's bytes are unchanged, which is what keeps every existing
+    // stored payload hash valid and every existing golden fixture byte-identical.
+    ...(isPhysicalPresence ? { offline_sale_authority_uuid: authorityUuid } : {}),
     items: [...items]
       .sort((left, right) => left.lineIndex - right.lineIndex)
       .map((item) => {
@@ -58,6 +67,19 @@ export function buildUploadPayload(
           tax_revision: item.taxRevision,
           discount_type: item.discountType,
           discount_value: item.discountValue,
+          // §6.7: the per-line intent, hashed. Without it a v2 client that DROPS its allocations —
+          // through a bug, truncation or tampering — would be indistinguishable from a deliberate
+          // physical-presence sale. Derived from the committed split on the row, never guessed.
+          ...(isPhysicalPresence && item.trackStock
+            ? {
+                stock_authorization:
+                  item.uncoveredMilli <= 0
+                    ? 'allocation'
+                    : item.allocationCoveredMilli > 0
+                      ? 'mixed'
+                      : 'physical_presence'
+              }
+            : {}),
           ...(item.trackStock
             ? {
                 allocations: consumptions.map((consumption) => {

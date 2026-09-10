@@ -43,9 +43,18 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * backend that predates the negotiation ignores the parameter and answers in the legacy shape,
    * which this app still parses — and then stays in the conservative spendability mode, because a
    * response with no coverage is never read as a verified zero boundary.
+   *
+   * PS4 §15.2: `offline_sale_contract_version=1` additionally asks for the issued offline-sale
+   * authority block. Same discipline and for the same reason — the response schema is `.strict()`,
+   * so the backend must not send the key unless it was asked for, and a backend that predates the
+   * negotiation ignores the parameter and answers in the shape this client already parses.
+   *
+   * Asking for it does NOT cause issuance. Bootstrap issues nothing (§6.3.1); it republishes an
+   * authority a successful `license/validate` already minted, and the window it reports is
+   * unchanged by being read.
    */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
