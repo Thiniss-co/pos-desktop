@@ -60,6 +60,25 @@ import { ShiftAuthorityService } from '../services/shiftAuthority.service'
 import { ShiftService } from '../services/shift.service'
 import { ShiftPermissions } from '../services/shiftPermissions'
 import { OfflineSaleAuthorityRepository } from '../repositories/offlineSaleAuthority.repository'
+import { OfflineSaleReadinessService } from '../services/offlineSaleReadiness.service'
+import type { OfflineSaleReadiness } from '@shared/contracts/offlineSaleReadiness.contract'
+
+/**
+ * PS6 §14.3: denial reasons that are CATEGORICAL — not time comparisons.
+ *
+ * These produce no countdown and are reported with their own reason. A time-based denial is already
+ * expressed by `remainingSeconds`, so listing one here would report the same fact twice.
+ */
+const CATEGORICAL_SELL_BLOCK_REASONS: ReadonlySet<string> = new Set([
+  'device-not-registered',
+  'device-revoked',
+  'device-blocked',
+  'session-invalid',
+  'permission-denied',
+  'feature-not-enabled',
+  'company-inactive',
+  'shift-not-open'
+])
 import { StockAllocationService } from '../services/stockAllocation.service'
 import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
@@ -107,6 +126,7 @@ export interface ApplicationServices {
    * argument, so there is no path by which a renderer could name an owner, a product, a quantity,
    * or a clock — §4's invariant is enforced by the signature.
    */
+  readOfflineSaleReadiness(): OfflineSaleReadiness
   readPreparationReadiness(): PreparationReadiness
   runPreparationCycle(): Promise<PreparationCycleResult>
   readonly invoiceUploadFailures: InvoiceUploadFailureReader
@@ -467,6 +487,41 @@ export function createApplicationServices(): ApplicationServices {
     }
   }
 
+  /**
+   * PS6 §14.3: the offline-sell readiness projection.
+   *
+   * Reuses `preparationOwner()` rather than resolving a second owner tuple — two independent
+   * resolutions of "who am I" is how they drift, and this one must agree exactly with the tuple the
+   * commit path uses to find its authority.
+   */
+  const offlineSaleReadiness = new OfflineSaleReadinessService({
+    database,
+    offlineSaleAuthorities,
+    trustedClock: catalogClock,
+    resolveOwner: preparationOwner,
+    resolveBoundaries: () => {
+      // The catalog contract is the one boundary that can move EARLIER after issuance from the
+      // desktop's own point of view: the server already clipped `not_after` to every boundary it
+      // knew at issuance, and a later catalog refresh can shorten the usable window.
+      const contract = catalogRepository.getContract()
+      const decision = commercialAccess.evaluate('sell')
+
+      return {
+        catalogValidUntil: contract?.validUntil ?? null,
+        // Categorical only. A time-based denial is already expressed by the countdown, and folding
+        // it in here would report the same fact twice in two different shapes (§14.3).
+        categoricalBlocks:
+          decision.allowed || decision.reason == null
+            ? []
+            : CATEGORICAL_SELL_BLOCK_REASONS.has(decision.reason)
+              ? [decision.reason]
+              : []
+      }
+    }
+  })
+
+  const readOfflineSaleReadiness = (): OfflineSaleReadiness => offlineSaleReadiness.read()
+
   const readPreparationReadiness = (): PreparationReadiness => {
     const owner = preparationOwner()
 
@@ -617,6 +672,7 @@ export function createApplicationServices(): ApplicationServices {
     preparation,
     preparationReadiness,
     preparationReconnect,
+    readOfflineSaleReadiness,
     readPreparationReadiness,
     runPreparationCycle,
     invoiceUploadFailures,

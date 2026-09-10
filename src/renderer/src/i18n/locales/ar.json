@@ -590,5 +590,32 @@
     "COMMERCIAL_ACCESS_COMPANY_INACTIVE": "هذه الشركة غير نشطة.",
     "COMMERCIAL_ACCESS_FEATURE_NOT_ENABLED": "ميزة نقطة البيع غير مفعلة لهذا الاشتراك.",
     "COMMERCIAL_ACCESS_CONNECTIVITY_UNAVAILABLE": "يلزم اتصال مباشر بخدمة سطح المكتب لإجراء المزامنة."
+  },
+  "offlineSale": {
+    "title": "البيع دون اتصال",
+    "modeLegacy": "المخزون المحجوز فقط",
+    "modePhysicalPresence": "التواجد الفعلي",
+    "canSell": "يمكنك البيع دون اتصال بدون حجز مخزون.",
+    "cannotSell": "يتطلب البيع دون اتصال حجز مخزون على هذه المحطة.",
+    "remaining": "يتبقى نحو {duration} من البيع دون اتصال",
+    "remainingExpired": "انتهى وقت البيع دون اتصال. أعد الاتصال للمتابعة.",
+    "clockUntrusted": "لا يمكن الوثوق بساعة المحطة، لذا يتعذّر عرض الوقت المتبقي. صحّح الساعة وأعد الاتصال.",
+    "limitedBy": "محدود بـ: {reason}",
+    "limitingReason": {
+      "authority_ceiling": "الحد الأقصى لفترة العمل دون اتصال",
+      "license_validation": "فحص الترخيص التالي",
+      "subscription_expiry": "تاريخ انتهاء الاشتراك",
+      "subscription_grace": "انتهاء فترة السماح",
+      "catalog_contract": "صلاحية كتالوج المنتجات",
+      "none": "لا شيء"
+    },
+    "blockedBy": "البيع متوقف حاليًا: {reasons}",
+    "pendingUploads": "{count} فاتورة محفوظة هنا ولم تُرسل بعد",
+    "pendingUploadsNone": "تم إرسال جميع الفواتير من هذه المحطة",
+    "lastSync": "آخر مزامنة ناجحة: {at}",
+    "lastSyncNever": "لا توجد مزامنة ناجحة بعد من هذه المحطة",
+    "inventoryWarningTitle": "سجلات المخزون متأخرة",
+    "inventoryWarningBody": "يُظهر {count} منتج مخزونًا مسجلًا صفريًا أو بالسالب. هذا لا يمنعك من البيع — الرفّ هو المرجع، والفارق مُسجَّل للمراجعة.",
+    "noPreparationNeeded": "لا يلزم تجهيز مخزون في هذا الوضع."
   }
 }

@@ -1,5 +1,6 @@
 import { ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
+import type { OfflineSaleReadiness } from '@shared/contracts/offlineSaleReadiness.contract'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { LoginInput, SessionSummary } from '@shared/contracts/auth.contract'
 import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstrap.contract'
@@ -132,6 +133,10 @@ export interface PosApi {
    * preparation, but main resolves the owner, the product set, the quantities, and the clock (§5.2,
    * §4).
    */
+  /** PS6 §14.3: read-only. There is deliberately no write channel on this surface. */
+  readonly offlineSale: {
+    getReadiness(): Promise<IpcResult<OfflineSaleReadiness>>
+  }
   readonly preparation: {
     getReadiness(): Promise<IpcResult<PreparationReadiness>>
     runCycle(): Promise<IpcResult<PreparationCycleResult>>
@@ -286,6 +291,11 @@ export const posApi: PosApi = Object.freeze({
     start: (input: { allocationUuid: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.allocationRecoveryStart, input),
     resume: () => ipcRenderer.invoke(IPC_CHANNELS.allocationRecoveryResume)
+  }),
+  offlineSale: Object.freeze({
+    // Read-only, and takes no argument at all: main resolves the owner, the trusted clock and the
+    // stored authority itself. The renderer can ask; it can never assert.
+    getReadiness: () => ipcRenderer.invoke(IPC_CHANNELS.offlineSaleGetReadiness, {})
   }),
   preparation: Object.freeze({
     getReadiness: () => ipcRenderer.invoke(IPC_CHANNELS.preparationGetReadiness, {}),

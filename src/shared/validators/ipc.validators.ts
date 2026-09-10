@@ -80,6 +80,7 @@ export const checkoutAcknowledgeAttemptInputSchema = checkoutAcknowledgeAttemptC
  * validation failure. §4's invariant that the renderer supplies no authoritative quantity,
  * ownership, time, or grant right is enforced here rather than trusted.
  */
+export const offlineSaleGetReadinessInputSchema = z.object({}).strict()
 export const preparationGetReadinessInputSchema = z.object({}).strict()
 export const preparationRunCycleInputSchema = z.object({}).strict()
 

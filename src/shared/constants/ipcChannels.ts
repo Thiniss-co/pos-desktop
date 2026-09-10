@@ -41,6 +41,9 @@ export const IPC_CHANNELS = Object.freeze({
    * renderer-supplied product set from ever reaching the wire, and a channel that accepted one
    * would make that a code-review rule instead of a boundary property.
    */
+  // PS6 §14.3: one request-only READ. The renderer asks for the projection and supplies nothing —
+  // no owner, no clock, no quantity, no window — exactly like the preparation channels below.
+  offlineSaleGetReadiness: 'offline-sale:get-readiness',
   preparationGetReadiness: 'preparation:get-readiness',
   preparationRunCycle: 'preparation:run-cycle',
   allocationRecoveryStart: 'allocation-recovery:start',

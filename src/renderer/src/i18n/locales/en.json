@@ -590,5 +590,32 @@
     "COMMERCIAL_ACCESS_COMPANY_INACTIVE": "This company is inactive.",
     "COMMERCIAL_ACCESS_FEATURE_NOT_ENABLED": "The POS feature is not enabled for this subscription.",
     "COMMERCIAL_ACCESS_CONNECTIVITY_UNAVAILABLE": "An online connection to the desktop service is required to sync."
+  },
+  "offlineSale": {
+    "title": "Offline selling",
+    "modeLegacy": "Reserved stock only",
+    "modePhysicalPresence": "Physical presence",
+    "canSell": "You can sell offline without a stock reservation.",
+    "cannotSell": "Offline selling requires a stock reservation on this workstation.",
+    "remaining": "About {duration} of offline selling remaining",
+    "remainingExpired": "Offline selling time has run out. Reconnect to continue.",
+    "clockUntrusted": "The workstation clock cannot be trusted, so remaining time cannot be shown. Correct the clock and reconnect.",
+    "limitedBy": "Limited by: {reason}",
+    "limitingReason": {
+      "authority_ceiling": "the maximum offline period",
+      "license_validation": "the next licence check",
+      "subscription_expiry": "the subscription end date",
+      "subscription_grace": "the end of the grace period",
+      "catalog_contract": "the product catalogue validity",
+      "none": "nothing"
+    },
+    "blockedBy": "Selling is currently blocked: {reasons}",
+    "pendingUploads": "{count} sale(s) saved here and not yet sent",
+    "pendingUploadsNone": "All sales here have been sent",
+    "lastSync": "Last successful sync: {at}",
+    "lastSyncNever": "No successful sync yet from this workstation",
+    "inventoryWarningTitle": "Stock records are behind",
+    "inventoryWarningBody": "{count} product(s) show zero or negative recorded stock. This does not stop you selling — the shelf is what counts, and the difference is recorded for review.",
+    "noPreparationNeeded": "No stock preparation is required in this mode."
   }
 }
