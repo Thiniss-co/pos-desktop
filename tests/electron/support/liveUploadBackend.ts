@@ -17,6 +17,14 @@ export interface LiveUploadFixture {
   readonly shiftUuid: string
   /** Ready-to-send v2 upload bodies, each with its own invoice uuid and consumption sequence. */
   readonly payloads: readonly Record<string, unknown>[]
+  /**
+   * PS7: one v3 physical-presence body — recorded stock 20, sale 22, and NO allocation at all.
+   *
+   * Optional so a fixture minted by an older seeder still parses: an absent key means the live
+   * physical-presence scenario simply does not run, rather than the whole suite failing.
+   */
+  readonly physicalPresencePayloads: readonly Record<string, unknown>[]
+  readonly physicalPresenceProductUuid: string | null
 }
 
 let cached: LiveUploadFixture | null | undefined
@@ -41,6 +49,8 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     company_uuid: string
     shift_uuid: string
     payloads: Record<string, unknown>[]
+    physical_presence_payloads?: Record<string, unknown>[]
+    physical_presence_product_uuid?: string
   }
 
   cached = {
@@ -49,7 +59,9 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     deviceUuid: raw.device_uuid,
     companyUuid: raw.company_uuid,
     shiftUuid: raw.shift_uuid,
-    payloads: raw.payloads
+    payloads: raw.payloads,
+    physicalPresencePayloads: raw.physical_presence_payloads ?? [],
+    physicalPresenceProductUuid: raw.physical_presence_product_uuid ?? null
   }
 
   return cached
@@ -171,8 +183,29 @@ export function readBackendSnapshot(): BackendSnapshot {
 }
 
 /** True when this process was handed a live CP-3G-5 backend to run against. */
+/**
+ * Whether a live backend carrying the CP-3G-5 **v2** payload set was provided.
+ *
+ * The payload requirement is deliberate. PS7's live runner mints a fixture with only a
+ * physical-presence payload, and the CP-3G-5 suites genuinely cannot run against it — without this
+ * they would FAIL rather than skip, reporting a fixture mismatch as a product defect.
+ */
 export function liveUploadBackendAvailable(): boolean {
-  return liveUploadFixture() !== null && Boolean(process.env.CP3G5_BACKEND_DB)
+  const fixture = liveUploadFixture()
+
+  return fixture !== null && fixture.payloads.length > 0 && Boolean(process.env.CP3G5_BACKEND_DB)
+}
+
+/** Whether a live backend carrying the PS7 physical-presence payload was provided. */
+export function livePhysicalPresenceBackendAvailable(): boolean {
+  const fixture = liveUploadFixture()
+
+  return (
+    fixture !== null &&
+    fixture.physicalPresencePayloads.length > 0 &&
+    fixture.physicalPresenceProductUuid !== null &&
+    Boolean(process.env.CP3G5_BACKEND_DB)
+  )
 }
 
 /** The per-scenario server-side effects of one uploaded invoice. */
