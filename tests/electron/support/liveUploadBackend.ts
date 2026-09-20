@@ -31,6 +31,28 @@ export interface LiveUploadFixture {
    * refused. Absent from a fixture minted by an older seeder, in which case that suite skips.
    */
   readonly serviceLineContext: ServiceLineContext | null
+  /**
+   * PS9: the sale-time (pre-toggle) catalog snapshot for a product that was untracked when this
+   * revision was issued and is CURRENTLY tracked on the live server — the
+   * `POS-235a06-20260920-000003` incident's exact shape. Absent from a fixture minted by an older
+   * seeder, in which case that suite skips.
+   */
+  readonly historicalTrackStockContext: HistoricalTrackStockContext | null
+}
+
+export interface HistoricalTrackStockContext {
+  readonly sold_at: string
+  readonly catalog_revision: string
+  readonly authority_uuid: string
+  readonly payment_method_uuid: string
+  readonly currency: string
+  readonly product_uuid: string
+  readonly unit_price_amount: number
+  readonly price_revision: string
+  readonly tax_id: string | null
+  readonly tax_mode: string
+  readonly tax_rate_basis_points: number
+  readonly tax_revision: string
 }
 
 /** One product as the sale-time catalog issued it. */
@@ -79,6 +101,7 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     physical_presence_payloads?: Record<string, unknown>[]
     physical_presence_product_uuid?: string
     service_line_context?: ServiceLineContext
+    historical_track_stock_context?: HistoricalTrackStockContext
   }
 
   cached = {
@@ -90,7 +113,8 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     payloads: raw.payloads,
     physicalPresencePayloads: raw.physical_presence_payloads ?? [],
     physicalPresenceProductUuid: raw.physical_presence_product_uuid ?? null,
-    serviceLineContext: raw.service_line_context ?? null
+    serviceLineContext: raw.service_line_context ?? null,
+    historicalTrackStockContext: raw.historical_track_stock_context ?? null
   }
 
   return cached
@@ -231,6 +255,17 @@ export function liveServiceLineBackendAvailable(): boolean {
 
   return (
     fixture !== null && fixture.serviceLineContext !== null && Boolean(process.env.CP3G5_BACKEND_DB)
+  )
+}
+
+/** Whether a live backend carrying the PS9 historical-track-stock context was provided. */
+export function liveHistoricalTrackStockBackendAvailable(): boolean {
+  const fixture = liveUploadFixture()
+
+  return (
+    fixture !== null &&
+    fixture.historicalTrackStockContext !== null &&
+    Boolean(process.env.CP3G5_BACKEND_DB)
   )
 }
 
