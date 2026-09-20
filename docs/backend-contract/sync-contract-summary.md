@@ -25,6 +25,7 @@ status. Full client-side behavior rules (state machine, review, worker pause):
 | `DESKTOP_CATALOG_REVISION_INVALID` | The catalog or per-line revision is stale — terminal `rejected`; refresh and create a corrective record, never mutate the original |
 | `DESKTOP_ALLOCATION_PROOF_REQUIRED` | A tracked line arrived without allocation proof — terminal `rejected` |
 | `DESKTOP_LEGACY_CONTRACT_UNSUPPORTED` | The client sent a legacy v1 payload after the server-configured cutoff — terminal `rejected`, app upgrade required |
+| `DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE` | The server cannot determine, from the catalog contract this invoice names, whether a line's product counted stock when the sale was rung — terminal `rejected`. Never the client's fault: nothing in the payload asserts trackedness, and no resend or client-side change can supply evidence the server never recorded. Not disposition-eligible, and not the same as a tenant still awaiting its tracking baseline, which answers a retryable `SERVICE_UNAVAILABLE` |
 | `DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN` | The `shift_uuid` is unknown to this company **or** belongs to another device — deliberately one opaque response for both; terminal `rejected` |
 | `FEATURE_NOT_ENABLED` | Feature/endpoint not enabled for this tenant/license — may indicate a pause condition depending on which endpoint |
 | `DESKTOP_SHIFT_ALREADY_OPEN` / `DESKTOP_SHIFT_NOT_OPEN` / `DESKTOP_SHIFT_ALREADY_PAUSED` / `DESKTOP_SHIFT_NOT_PAUSED` / `DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND` | Shift-state conflicts — a queued shift-related sync may need to reconcile local shift state against these before retrying |
@@ -50,6 +51,13 @@ than relying on the backend to queue them itself.
   `request_hash` is PHP `json_encode` property order and **must never be reproduced in TypeScript**.
 - **Stale price / catalog** — **HTTP 422 `DESKTOP_CATALOG_REVISION_INVALID`**; oversell without
   allocation proof is **422 `DESKTOP_ALLOCATION_PROOF_REQUIRED`**. Both are terminal.
+- **Historical stock tracking** — a sale is classified by the catalog contract it names, so a
+  product's `track_stock` changing after issuance never reinterprets a completed sale. Where the
+  server cannot establish what the contract issued, it answers **422
+  `DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE`** (terminal) rather than guessing. While a
+  tenant's tracking baseline is still being built it answers **503 `SERVICE_UNAVAILABLE`**, which
+  is retryable — the two must not be conflated, or a rollout window would permanently reject a
+  good sale.
 - **Batch endpoint** — **none exists.** Upload is strictly one invoice per request; do not invent a
   bulk route.
 - **Authority** — `desktop.context:sync,pos,pos.invoice.upload`. Access `sync`, feature `pos`,

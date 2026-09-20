@@ -306,6 +306,10 @@ databaseTest('PS6b candidate selection excludes every ineligible failure', (sand
     { backendCode: 'DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID' },
     { backendCode: 'VALIDATION_ERROR' },
     { backendCode: 'IDEMPOTENCY_CONFLICT' },
+    // PS9: an invoice whose historical stock-tracking evidence never existed. No operator
+    // disposition may paper that over, so it must never become a candidate — and the closed
+    // allowlist is what guarantees that without anyone remembering to exclude it.
+    { backendCode: 'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE' },
     { quarantineReason: 'catalog_window_violation' },
     { quarantineReason: 'something_invented_later' }
   ]) {

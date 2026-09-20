@@ -151,6 +151,33 @@ describe('SyncPage', () => {
     expect(text).toContain('123.45')
   })
 
+  it('explains an unverifiable stock-tracking rejection in plain language', async () => {
+    const { wrapper } = await renderPage({
+      failures: [
+        {
+          ...FAILURE,
+          backendCode: 'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE',
+          message: 'The server cannot verify whether one or more products tracked stock.'
+        }
+      ]
+    })
+    const text = wrapper.text()
+
+    // PS9: the code alone leaves an operator stuck. This rejection is nobody-on-this-device's
+    // fault and no retry can clear it, so the screen has to say both.
+    expect(text).toContain('DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE')
+    expect(text).toContain('This sale was rung correctly')
+    expect(text).toContain('Retrying will not change this')
+    expect(text).toContain('Show this invoice to your manager')
+  })
+
+  it('shows no invented explanation for a code that has none', async () => {
+    const { wrapper } = await renderPage({ failures: [FAILURE] })
+
+    // Only codes with written copy get an explanation; the rest show the backend's own message.
+    expect(wrapper.find('.sync-page__failure-reason').exists()).toBe(false)
+  })
+
   it('states that the sale and tender were not reversed', async () => {
     const { wrapper } = await renderPage({ failures: [FAILURE] })
     const text = wrapper.text()
@@ -174,6 +201,17 @@ describe('SyncPage', () => {
     const { wrapper } = await renderPage({ failures: [] })
 
     expect(wrapper.text()).toContain('No uploads need review.')
+  })
+
+  it('explains the unverifiable rejection in Arabic too', async () => {
+    i18n.global.locale.value = 'ar'
+    const { wrapper } = await renderPage({
+      failures: [{ ...FAILURE, backendCode: 'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE' }]
+    })
+
+    const reason = wrapper.find('.sync-page__failure-reason').text()
+    expect(reason).toContain('تم تسجيل هذه الفاتورة')
+    expect(reason).not.toContain('This sale was rung correctly')
   })
 
   it('renders Arabic copy and keeps the numbers present under RTL', async () => {

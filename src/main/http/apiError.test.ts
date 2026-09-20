@@ -194,22 +194,34 @@ describe('API error normalization', () => {
       })
     })
 
-    it.each(['DESKTOP_ALLOCATION_PROOF_REQUIRED', 'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED'])(
-      'maps %s to a non-retryable terminal rejection',
-      (code) => {
-        expect(normalize(code)).toMatchObject({ category: 'rejected', retryable: false })
-      }
-    )
+    it.each([
+      'DESKTOP_ALLOCATION_PROOF_REQUIRED',
+      'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED',
+      'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE'
+    ])('maps %s to a non-retryable terminal rejection', (code) => {
+      expect(normalize(code)).toMatchObject({ category: 'rejected', retryable: false })
+    })
 
     it.each([
       'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN',
       'DESKTOP_ALLOCATION_PROOF_REQUIRED',
-      'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED'
+      'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED',
+      'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE'
     ])('preserves %s as backendCode so the upload worker can branch on it', (code) => {
       // The point of listing these in apiErrorCodes.ts. Before CP-3G-1 they were unknown codes and
       // normalizeApiEnvelopeError stripped backendCode entirely, leaving a terminal rejection
       // indistinguishable from any other failure.
       expect(normalize(code).backendCode).toBe(code)
+    })
+
+    it('keeps a stock-tracking baseline 503 retryable, so a rollout window is not terminal', () => {
+      // PS9: the backend answers SERVICE_UNAVAILABLE while a tenant's tracking baseline is still
+      // being built. That is a deployment window, not a verdict on the sale — if it mapped to a
+      // terminal rejection the worker would permanently give up on a perfectly good invoice.
+      expect(normalize('SERVICE_UNAVAILABLE')).toMatchObject({
+        category: 'transport',
+        retryable: true
+      })
     })
 
     it('keeps validation field errors on a plain upload VALIDATION_ERROR', () => {

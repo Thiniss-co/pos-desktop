@@ -20,6 +20,7 @@ rather than guessing meaning for an unfamiliar code.
 | `DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN` | Invoice upload | The `shift_uuid` is not available to this company/device — one opaque response covers both causes; terminal `rejected` |
 | `DESKTOP_ALLOCATION_PROOF_REQUIRED` | Invoice upload | A tracked line carried no allocation proof — terminal `rejected` |
 | `DESKTOP_LEGACY_CONTRACT_UNSUPPORTED` | Invoice upload | Legacy v1 payload sent after the server cutoff — terminal `rejected`, app upgrade required |
+| `DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE` | Invoice upload | The server cannot verify whether a line's product tracked stock at `sold_at` (no archived revision covers it). Never the client's fault — nothing in the payload asserts trackedness, and no resend or client-side change can supply the missing evidence. Terminal `rejected`; recovery is an operator decision outside normal sync, not an automatic retry |
 | `DESKTOP_SHIFT_ALREADY_OPEN` | Shift state | Attempted to open a shift while one is already open — reconcile local shift state with backend |
 | `DESKTOP_SHIFT_NOT_OPEN` | Shift state | Attempted an action requiring an open shift when none is open |
 | `DESKTOP_SHIFT_ALREADY_PAUSED` | Shift state | Attempted to pause a shift that is already paused |

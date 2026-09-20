@@ -383,6 +383,9 @@
       "shift": "Shift",
       "unknownInvoice": "Invoice details unavailable",
       "noMessage": "No further detail was returned.",
+      "reason": {
+        "DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE": "This sale was rung correctly. The server cannot confirm, from the price list this device was holding at the time, whether the product counted stock when it was sold — so it will not guess. Retrying will not change this. Show this invoice to your manager."
+      },
       "preservationTitle": "The sale and its payment were not reversed",
       "preservation": "Money already changed hands. This sale, its payments and its stock records are preserved on this device exactly as they were rung. Nothing was refunded or voided automatically — verify these sales manually with your manager."
     }
@@ -557,6 +560,7 @@
     "DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID": "This sale's offline selling permission was not valid when it was rung. The sale is saved and cannot be uploaded.",
     "DESKTOP_CONTRACT_VERSION_UNSUPPORTED": "The server is running an older version that cannot accept this sale yet. It stays saved and will upload once the server is updated.",
     "DESKTOP_LEGACY_CONTRACT_UNSUPPORTED": "This app version can no longer upload sales. Please update the app.",
+    "DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE": "The server cannot confirm whether this sale's product counted stock when it was sold. The sale is saved and held for a supervisor to review.",
     "CATALOG_UNAVAILABLE": "A current local catalog is required.",
     "CATALOG_EXPIRED": "The local catalog has expired. Connect and refresh workstation data.",
     "CATALOG_PRODUCT_NOT_FOUND": "This product is not available in the current catalog.",

@@ -89,6 +89,27 @@ function failureSoldAt(failure: SyncFailure): string {
   return failure.soldAt ? formatDateTime(failure.soldAt, locale.locale) : ''
 }
 
+/**
+ * A plain-language explanation for the failures a cashier can otherwise do nothing with.
+ *
+ * The raw `backendCode` is already shown, but a code is not a reason. PS9 in particular produces a
+ * terminal rejection that is nobody on this device's fault and that no retry can clear, so leaving
+ * the operator to infer that from `DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE` would be
+ * leaving them stuck.
+ *
+ * Only codes with a written explanation get one — `te()` keeps an unexplained code silent rather
+ * than inventing wording for it.
+ */
+function failureReason(failure: SyncFailure): string | null {
+  if (!failure.backendCode) {
+    return null
+  }
+
+  const key = `sync.failures.reason.${failure.backendCode}`
+
+  return te(key) ? t(key) : null
+}
+
 onMounted(async () => {
   await sync.initialize()
   await sync.loadFailures()
@@ -178,6 +199,9 @@ onBeforeUnmount(() => sync.dispose())
           </div>
           <p class="sync-page__failure-message">
             {{ failure.message ?? t('sync.failures.noMessage') }}
+          </p>
+          <p v-if="failureReason(failure)" class="sync-page__failure-reason">
+            {{ failureReason(failure) }}
           </p>
           <dl class="sync-page__failure-meta">
             <div v-if="failure.backendCode">
@@ -271,6 +295,12 @@ onBeforeUnmount(() => sync.dispose())
 
 .sync-page__failure-message {
   margin: 0;
+}
+
+.sync-page__failure-reason {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .sync-page__failure-meta {

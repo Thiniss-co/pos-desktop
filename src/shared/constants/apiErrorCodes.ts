@@ -34,6 +34,14 @@ export const API_ERROR_CODES = [
   'DESKTOP_CONTRACT_VERSION_UNSUPPORTED',
   'DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID',
   'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED',
+  // PS9. Listing it is what makes it work at all: an unlisted code is stripped from
+  // `PublicAppError.backendCode` by `normalizeApiEnvelopeError`, so the terminal mapping in
+  // `invoiceUploadMapping.ts` would never fire and the worker would retry a permanently
+  // unverifiable invoice forever, with its actual reason lost.
+  //
+  // A tenant still waiting for its tracking baseline is NOT this code — the backend answers a
+  // retryable `SERVICE_UNAVAILABLE` for that, so a deployment window never looks terminal here.
+  'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE',
   'DESKTOP_SHIFT_ALREADY_OPEN',
   'DESKTOP_SHIFT_NOT_OPEN',
   'DESKTOP_SHIFT_ACCESS_DENIED',

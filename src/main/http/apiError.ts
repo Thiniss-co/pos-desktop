@@ -58,7 +58,12 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
   // transient: re-sending the identical frozen payload can only produce the identical rejection.
   if (
     code === 'DESKTOP_ALLOCATION_PROOF_REQUIRED' ||
-    code === 'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED'
+    code === 'DESKTOP_LEGACY_CONTRACT_UNSUPPORTED' ||
+    // PS9: the server cannot verify what the catalog issued for a line's product when the sale was
+    // rung. Nothing in the payload asserts trackedness, so no resend and no client-side change can
+    // supply the missing evidence. Classified explicitly rather than falling through to the
+    // default, so the intent is visible next to its siblings.
+    code === 'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE'
   ) {
     return 'rejected'
   }

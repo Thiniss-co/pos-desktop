@@ -51,7 +51,13 @@ const TERMINAL_REJECTION_CODES = new Set([
   // PS2 §15.1: the referenced authority does not exist, does not match this device, or does not
   // cover `sold_at`. Permanently invalid, and explicitly never disposition-eligible — accepting it
   // would manufacture authority.
-  'DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID'
+  'DESKTOP_OFFLINE_SALE_AUTHORITY_INVALID',
+  // PS9: the server cannot verify whether one or more products on this invoice tracked stock at
+  // `sold_at` — no archived revision covers it, and the boundary it CAN trust does not reach back
+  // that far. Nothing in this payload asserts trackedness, so no client-side change or resend can
+  // ever supply the missing evidence; retrying identical bytes forever would only hide a permanent
+  // gap behind a spinning queue item.
+  'DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE'
 ])
 
 /**

@@ -20,7 +20,10 @@ describe('mapUploadFailure', () => {
       ['DESKTOP_CATALOG_REVISION_INVALID', 'rejected'],
       ['DESKTOP_ALLOCATION_PROOF_REQUIRED', 'rejected'],
       ['DESKTOP_LEGACY_CONTRACT_UNSUPPORTED', 'rejected'],
-      ['DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN', 'authorization']
+      ['DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN', 'authorization'],
+      // PS9: the server cannot verify a product's historical track_stock at `sold_at`. Nothing in
+      // the payload asserts trackedness, so no resend can ever supply the missing evidence.
+      ['DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE', 'rejected']
     ])('maps %s to a terminal rejection without pausing', (backendCode, category) => {
       const disposition = mapUploadFailure(
         error({ category: category as PublicAppError['category'], backendCode }),
