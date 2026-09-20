@@ -771,6 +771,96 @@ export class SyncQueueRepository {
   }
 
   /**
+   * PS8: the **only** way a terminally-rejected invoice upload becomes eligible again.
+   *
+   * ## Why this exists at all
+   *
+   * A `rejected` row is terminal by design: re-sending bytes the server refused can only be refused
+   * again, and an automatic retry of a business rejection would hammer the queue forever. That is
+   * still true and none of it is being relaxed here — `isSyncQueueTransitionAllowed('rejected',
+   * 'pending')` stays **false**, so no worker, no reconciler and no startup sweep can move this row.
+   *
+   * What changed is the one case the classification did not cover: a rejection caused by a
+   * **server-side defect that has since been fixed**. The `POS-235a06-20260914-000003` incident is
+   * exactly that — `UploadDesktopInvoiceRequest` required `stock_authorization` on every v3 line
+   * including untracked service lines, so a legitimate, paid-for sale was refused for a rule the
+   * backend no longer has. The bytes were always valid; the server was wrong. Stranding that sale
+   * permanently is not a safer outcome than re-offering it once, deliberately, by hand.
+   *
+   * ## What makes this bounded rather than a retry mechanism
+   *
+   *  - **It names one row.** There is no "requeue all rejected" form and no predicate over an error
+   *    class. The caller supplies the local invoice uuid, and the idempotency key and payload hash
+   *    it expects to find there. All three are in the WHERE clause, so naming the wrong invoice —
+   *    or the right invoice whose bytes are not the ones the operator reviewed — changes nothing.
+   *  - **It changes no evidence.** `payload_json`, `payload_hash`, `idempotency_key` and
+   *    `attempt_count` are untouched, and so is `last_error_code`/`last_error_details`: the record
+   *    of what the server said stays readable next to the retry. The invoice is re-offered under its
+   *    ORIGINAL identity, which is what makes the server's own idempotency the backstop — if the
+   *    sale somehow did commit, the replay returns the committed invoice rather than a second one.
+   *  - **It dispatches nothing.** It moves the row to `pending`; the ordinary authenticated worker
+   *    picks it up, uploads it with this device's own credentials, and records the acknowledgment
+   *    through the ordinary outcome recorder. There is no side channel and no manual "synced".
+   *  - **It refuses a row that is not terminally rejected.** A `pending`, `uploading`, `synced` or
+   *    `conflict` row is left exactly as it is. A conflict in particular is a genuine disagreement
+   *    for a human to resolve, not something to re-offer.
+   *
+   * Returns true when the row was re-offered, false when nothing matched — never a partial write.
+   */
+  requeueRejectedUpload(
+    localAggregateUuid: string,
+    expected: { readonly idempotencyKey: string; readonly payloadHash: string },
+    nowIso: string = this.now()
+  ): boolean {
+    return this.database.transaction((): boolean => {
+      const requeued = this.database
+        .prepare(
+          `
+            UPDATE sync_queue
+            SET state = 'pending', next_attempt_at = NULL, upload_lease_at = NULL, updated_at = ?
+            WHERE aggregate_type = 'invoice' AND operation = 'upload'
+              AND local_aggregate_uuid = ?
+              AND idempotency_key = ?
+              AND payload_hash = ?
+              AND state = 'rejected'
+          `
+        )
+        .run(
+          nowIso,
+          localAggregateUuid,
+          expected.idempotencyKey,
+          expected.payloadHash
+        ) as UpdateResult
+
+      if (requeued.changes !== 1) {
+        return false
+      }
+
+      // The invoice row moves with the queue row, in the same transaction, for the same reason the
+      // outcome recorder writes them together: the two must never disagree about whether an upload
+      // is outstanding. `last_sync_error` is preserved — the operator re-offering this sale should
+      // still be able to read why it was refused if the retry fails again.
+      const invoice = this.database
+        .prepare(
+          `
+            UPDATE local_invoices
+            SET sync_status = 'pending', updated_at = ?
+            WHERE local_uuid = ? AND sync_status = 'rejected'
+          `
+        )
+        .run(nowIso, localAggregateUuid) as UpdateResult
+
+      if (invoice.changes !== 1) {
+        throw new Error(
+          'The local invoice was not in a rejected state when its upload was re-offered'
+        )
+      }
+
+      return true
+    })()
+  }
+
+  /**
    * Pending invoice uploads that belong to a *different* company or device than the one given.
    *
    * These are deliberately invisible to claimNextInvoiceUpload. Counting them separately is what

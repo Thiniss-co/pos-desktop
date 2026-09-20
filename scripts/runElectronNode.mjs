@@ -5,10 +5,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const [entry] = process.argv.slice(2)
+const [entry, ...entryArguments] = process.argv.slice(2)
 
 if (!entry) {
-  console.error('Usage: node scripts/runElectronNode.mjs <entry-path>')
+  console.error('Usage: node scripts/runElectronNode.mjs <entry-path> [-- <entry args>]')
   process.exitCode = 1
 } else {
   const sourcePath = resolve(projectRoot, entry)
@@ -42,7 +42,12 @@ if (!entry) {
       if (bundleResult.status !== 0) {
         process.exitCode = bundleResult.status ?? 1
       } else {
-        const runResult = spawnSync(electronPath, [bundlePath], {
+        // Anything after the entry path is forwarded to the entry verbatim, so an operational
+        // script (e.g. scripts/requeueRejectedInvoice.ts) can take real arguments rather than
+        // reading the environment. A leading `--` separator is dropped, so both
+        // `runElectronNode.mjs entry --flag` and `npm run x -- --flag` reach the entry identically.
+        const forwarded = entryArguments[0] === '--' ? entryArguments.slice(1) : entryArguments
+        const runResult = spawnSync(electronPath, [bundlePath, ...forwarded], {
           cwd: projectRoot,
           env: {
             ...process.env,

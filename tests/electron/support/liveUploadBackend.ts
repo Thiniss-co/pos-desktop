@@ -25,6 +25,33 @@ export interface LiveUploadFixture {
    */
   readonly physicalPresencePayloads: readonly Record<string, unknown>[]
   readonly physicalPresenceProductUuid: string | null
+  /**
+   * PS8: the catalog/authority context the desktop needs to BUILD a v3 payload with its own
+   * generator — including an untracked service product, which is the shape the old FormRequest
+   * refused. Absent from a fixture minted by an older seeder, in which case that suite skips.
+   */
+  readonly serviceLineContext: ServiceLineContext | null
+}
+
+/** One product as the sale-time catalog issued it. */
+export interface ServiceLineCatalogEntry {
+  readonly product_uuid: string
+  readonly unit_price_amount: number
+  readonly price_revision: string
+  readonly tax_id: string | null
+  readonly tax_mode: string
+  readonly tax_rate_basis_points: number
+  readonly tax_revision: string
+}
+
+export interface ServiceLineContext {
+  readonly sold_at: string
+  readonly catalog_revision: string
+  readonly authority_uuid: string
+  readonly payment_method_uuid: string
+  readonly currency: string
+  readonly service: ServiceLineCatalogEntry
+  readonly tracked: ServiceLineCatalogEntry
 }
 
 let cached: LiveUploadFixture | null | undefined
@@ -51,6 +78,7 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     payloads: Record<string, unknown>[]
     physical_presence_payloads?: Record<string, unknown>[]
     physical_presence_product_uuid?: string
+    service_line_context?: ServiceLineContext
   }
 
   cached = {
@@ -61,7 +89,8 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     shiftUuid: raw.shift_uuid,
     payloads: raw.payloads,
     physicalPresencePayloads: raw.physical_presence_payloads ?? [],
-    physicalPresenceProductUuid: raw.physical_presence_product_uuid ?? null
+    physicalPresenceProductUuid: raw.physical_presence_product_uuid ?? null,
+    serviceLineContext: raw.service_line_context ?? null
   }
 
   return cached
@@ -196,6 +225,15 @@ export function liveUploadBackendAvailable(): boolean {
   return fixture !== null && fixture.payloads.length > 0 && Boolean(process.env.CP3G5_BACKEND_DB)
 }
 
+/** Whether a live backend carrying the PS8 service-line catalog context was provided. */
+export function liveServiceLineBackendAvailable(): boolean {
+  const fixture = liveUploadFixture()
+
+  return (
+    fixture !== null && fixture.serviceLineContext !== null && Boolean(process.env.CP3G5_BACKEND_DB)
+  )
+}
+
 /** Whether a live backend carrying the PS7 physical-presence payload was provided. */
 export function livePhysicalPresenceBackendAvailable(): boolean {
   const fixture = liveUploadFixture()
@@ -206,6 +244,76 @@ export function livePhysicalPresenceBackendAvailable(): boolean {
     fixture.physicalPresenceProductUuid !== null &&
     Boolean(process.env.CP3G5_BACKEND_DB)
   )
+}
+
+/**
+ * A single numeric aggregate read from the live backend database, read-only.
+ *
+ * This lives here rather than in each live suite because `tests/electron/support` is the sanctioned
+ * home for native database entry points — `electronHarnessIntegrity.test.ts` sweeps every file
+ * under `tests/electron` for `new Database(` and allows it only in a support module. A suite that
+ * opened the server's database itself would both duplicate this and break that gate.
+ */
+export function liveBackendScalar(sql: string, ...parameters: readonly unknown[]): number {
+  const databasePath = process.env.CP3G5_BACKEND_DB
+
+  if (!databasePath) {
+    throw new Error('CP3G5_BACKEND_DB is required to read the live backend state')
+  }
+
+  const database = new Database(databasePath, { readonly: true })
+
+  try {
+    return (database.prepare(sql).get(...parameters) as { total: number }).total
+  } finally {
+    database.close()
+  }
+}
+
+/**
+ * One product's live stock row, in integer thousandths.
+ *
+ * SQLite gives a `decimal(14,3)` column NUMERIC affinity, so the stored `'20.000'` comes back from
+ * the driver as the number `20` and the exact decimal text is not recoverable from this side.
+ * Rounding to thousandths is exact at these magnitudes and keeps the assertion an integer
+ * comparison rather than a float one. The BACKEND never does this — it reads through Eloquent's
+ * `decimal:3` cast and folds through `App\Shared\Support\Quantity`; this is a constraint of
+ * reading its test database from outside.
+ */
+export function liveBackendStock(productUuid: string): {
+  readonly quantityMilli: number
+  readonly availableQuantityMilli: number
+  readonly inventoryValueAmount: number
+} | null {
+  const databasePath = process.env.CP3G5_BACKEND_DB
+
+  if (!databasePath) {
+    throw new Error('CP3G5_BACKEND_DB is required to read the live backend state')
+  }
+
+  const database = new Database(databasePath, { readonly: true })
+
+  try {
+    const row = database
+      .prepare(
+        `SELECT s.quantity, s.available_quantity, s.inventory_value_amount
+           FROM stock_items s
+           JOIN products p ON p.id = s.product_id
+          WHERE p.uuid = ?`
+      )
+      .get(productUuid) as
+      { quantity: string; available_quantity: string; inventory_value_amount: number } | undefined
+
+    return row
+      ? {
+          quantityMilli: Math.round(Number(row.quantity) * 1000),
+          availableQuantityMilli: Math.round(Number(row.available_quantity) * 1000),
+          inventoryValueAmount: row.inventory_value_amount
+        }
+      : null
+  } finally {
+    database.close()
+  }
 }
 
 /** The per-scenario server-side effects of one uploaded invoice. */

@@ -18,6 +18,7 @@
     "smoke:database": "node scripts/runElectronNode.mjs scripts/databaseSmoke.ts",
     "test:sqlite:electron": "node scripts/runElectronNode.mjs tests/electron/index.ts",
     "verify:fixture": "node scripts/verifyFixtureParity.mjs",
+    "recover:rejected-invoice": "node scripts/runElectronNode.mjs scripts/requeueRejectedInvoice.ts --",
     "verify:cp3g5-package": "node scripts/verifyCp3g5PackageBoundary.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",

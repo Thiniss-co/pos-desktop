@@ -1,7 +1,8 @@
-import Database from 'better-sqlite3'
 import { equal, ok } from 'node:assert/strict'
 import { databaseTest } from '../support/sandbox'
 import {
+  liveBackendScalar,
+  liveBackendStock,
   livePhysicalPresenceBackendAvailable,
   liveUploadFixture
 } from '../support/liveUploadBackend'
@@ -46,63 +47,12 @@ async function upload(body: Record<string, unknown>): Promise<Response> {
 }
 
 /**
- * Read the server's own row for a product, read-only.
- *
- * Quantities come back as milli INTEGERS rather than decimal strings. SQLite gives a
- * `decimal(14,3)` column NUMERIC affinity, so the stored `'20.000'` is returned by the driver as the
- * number `20` and the exact decimal text is simply not recoverable from this side. Rounding to
- * thousandths is exact at these magnitudes and keeps the assertion an integer comparison rather than
- * a float one. The BACKEND never does this — it reads through Eloquent's `decimal:3` cast and folds
- * through `App\Shared\Support\Quantity`; this is a constraint of reading its test database from
- * outside.
+ * Both server-side reads go through `support/liveUploadBackend`, which is the sanctioned home for
+ * native database entry points (`electronHarnessIntegrity.test.ts` enforces that a suite never
+ * opens a database itself).
  */
-function serverStock(productUuid: string): {
-  quantityMilli: number
-  availableQuantityMilli: number
-  inventoryValueAmount: number
-} | null {
-  const path = process.env.CP3G5_BACKEND_DB
-
-  ok(path, 'CP3G5_BACKEND_DB is required')
-
-  const database = new Database(path, { readonly: true })
-
-  try {
-    const row = database
-      .prepare(
-        `SELECT s.quantity, s.available_quantity, s.inventory_value_amount
-           FROM stock_items s
-           JOIN products p ON p.id = s.product_id
-          WHERE p.uuid = ?`
-      )
-      .get(productUuid) as
-      { quantity: string; available_quantity: string; inventory_value_amount: number } | undefined
-
-    return row
-      ? {
-          quantityMilli: Math.round(Number(row.quantity) * 1000),
-          availableQuantityMilli: Math.round(Number(row.available_quantity) * 1000),
-          inventoryValueAmount: row.inventory_value_amount
-        }
-      : null
-  } finally {
-    database.close()
-  }
-}
-
-function serverScalar(sql: string, ...parameters: readonly unknown[]): number {
-  const path = process.env.CP3G5_BACKEND_DB
-
-  ok(path)
-
-  const database = new Database(path, { readonly: true })
-
-  try {
-    return (database.prepare(sql).get(...parameters) as { total: number }).total
-  } finally {
-    database.close()
-  }
-}
+const serverStock = liveBackendStock
+const serverScalar = liveBackendScalar
 
 liveTest(
   'PS7 cached stock 20, offline sale of 22 commits over real HTTP and records the deficit',
