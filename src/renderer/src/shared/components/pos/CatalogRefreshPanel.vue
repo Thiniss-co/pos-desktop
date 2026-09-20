@@ -3,20 +3,29 @@ import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
 
 /**
- * The "refresh workstation data" action that sits beside the stale-catalog warning.
+ * The "refresh workstation data" action that sits in the POS toolbar.
  *
  * Pure presentation: every string is already localized and every timestamp already formatted by
  * the parent page. This component performs no IPC, reads no store, and decides nothing about the
- * cart — it renders one state and emits one intent.
+ * cart — it renders the current state and emits one intent.
  *
- * The four states are mutually exclusive and each is rendered explicitly rather than inferred
- * from the absence of the others, so a cashier is never left looking at a warning with no
- * indication of what the app is doing:
+ * The refresh action is ALWAYS rendered, in every state. A locally "fresh" catalog only means this
+ * workstation's last known snapshot looked current when it was fetched — the server can gain new
+ * products at any time, and a cashier must always be able to force a resync to check, not only
+ * when something already looks wrong. Hiding the action whenever nothing looked wrong is the exact
+ * defect this component exists to not repeat (a valid-but-outdated catalog was previously
+ * unrefreshable because none of `stale`/`pending`/`errorMessage`/`lastRefreshedLabel` were set).
  *
- *   pending  — the refresh is running; the button is disabled and labelled as in progress
- *   error    — the refresh failed, with an actionable message and the button still available
- *   stale    — the catalog is stale and a refresh is offered
+ * The banners above the action are additional, mutually exclusive context, shown in priority
+ * order — never more than one of these four at a time:
+ *
+ *   error    — the last refresh failed, with an actionable message
+ *   stale    — the cached catalog is stale and a refresh is the resolution
+ *   pending  — a refresh is running right now
  *   success  — the last refresh succeeded, showing when the data was refreshed
+ *
+ * and, independently, a revision-changed notice when a successful refresh moved the catalog
+ * revision out from under an open cart.
  */
 withDefaults(
   defineProps<{
@@ -45,32 +54,13 @@ const emit = defineEmits<{ refresh: [] }>()
 </script>
 
 <template>
-  <div
-    v-if="stale || pending || errorMessage || lastRefreshedLabel"
-    class="catalog-refresh-panel"
-    data-testid="catalog-refresh-panel"
-  >
+  <div class="catalog-refresh-panel" data-testid="catalog-refresh-panel">
     <AppBanner v-if="errorMessage" variant="error" role="alert" data-testid="catalog-refresh-error">
       {{ errorMessage }}
-      <template #action>
-        <AppButton variant="secondary" :disabled="pending" @click="emit('refresh')">
-          {{ pending ? pendingLabel : refreshLabel }}
-        </AppButton>
-      </template>
     </AppBanner>
 
     <AppBanner v-else-if="stale" variant="warning" role="alert">
       {{ staleMessage }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          :disabled="pending"
-          data-testid="catalog-refresh-action"
-          @click="emit('refresh')"
-        >
-          {{ pending ? pendingLabel : refreshLabel }}
-        </AppButton>
-      </template>
     </AppBanner>
 
     <AppBanner
@@ -99,6 +89,20 @@ const emit = defineEmits<{ refresh: [] }>()
     >
       {{ revisionChangedMessage }}
     </AppBanner>
+
+    <!--
+      Exactly one action, unconditionally: it is never nested inside a banner's action slot, so no
+      state can duplicate or hide it. Disabled while `pending` so a click cannot dispatch a second
+      refresh; the label itself communicates progress.
+    -->
+    <AppButton
+      variant="secondary"
+      :disabled="pending"
+      data-testid="catalog-refresh-action"
+      @click="emit('refresh')"
+    >
+      {{ pending ? pendingLabel : refreshLabel }}
+    </AppButton>
   </div>
 </template>
 
@@ -108,5 +112,10 @@ const emit = defineEmits<{ refresh: [] }>()
   flex-direction: column;
   gap: var(--space-2);
   margin-block-end: var(--space-3);
+}
+
+/* Compact and inline, like every other secondary action in this toolbar — not a full-width block. */
+.catalog-refresh-panel :deep(.app-button) {
+  align-self: flex-start;
 }
 </style>
