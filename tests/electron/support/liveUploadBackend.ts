@@ -38,6 +38,67 @@ export interface LiveUploadFixture {
    * seeder, in which case that suite skips.
    */
   readonly historicalTrackStockContext: HistoricalTrackStockContext | null
+  /**
+   * r6 — the refund live-gate context: a company with working accounting, seven already-committed
+   * "original sale" lines (one per required scenario), and a second, authority-denied company.
+   * Absent from a fixture minted without `CP3G5_MINT_REFUND_CONTEXT=1`, in which case the whole
+   * `refundLiveUpload.suite.ts` skips rather than failing.
+   */
+  readonly refundContext: RefundLiveContext | null
+}
+
+/** One already-committed original-sale line, as `PosInvoiceItemResource` would report it. */
+export interface RefundLiveScenario {
+  readonly invoice_uuid: string
+  readonly invoice_item_uuid: string
+  readonly product_uuid: string
+  readonly quantity: string
+  readonly subtotal_amount: number
+  readonly tax_amount: number
+  readonly total_amount: number
+}
+
+export interface RefundLiveDeniedAuthority {
+  readonly token: string
+  readonly device_uuid: string
+  readonly company_uuid: string
+  readonly user_uuid: string
+  readonly shift_uuid: string
+  readonly payment_method_uuid: string
+  readonly invoice_uuid: string
+  readonly invoice_item_uuid: string
+  readonly quantity: string
+  readonly subtotal_amount: number
+  readonly tax_amount: number
+  readonly total_amount: number
+}
+
+export interface RefundLiveContext {
+  readonly token: string
+  readonly device_uuid: string
+  readonly company_uuid: string
+  readonly user_uuid: string
+  readonly shift_uuid: string
+  readonly payment_method_uuid: string
+  readonly currency: string
+  readonly currency_exponent: number
+  readonly scenarios: {
+    readonly service: RefundLiveScenario
+    readonly tracked_return: RefundLiveScenario
+    readonly tracked_no_return: RefundLiveScenario
+    readonly trackedness_changed: RefundLiveScenario
+    readonly repeated_partial: RefundLiveScenario
+    readonly free: RefundLiveScenario
+    readonly infeasible: RefundLiveScenario
+    readonly lost_response: RefundLiveScenario
+    readonly restart_control: RefundLiveScenario
+    readonly restart_second: RefundLiveScenario
+    readonly accepted_replay: RefundLiveScenario
+    readonly stale_confirmation: RefundLiveScenario
+    readonly conflict_409: RefundLiveScenario
+    readonly rapid_repeat: RefundLiveScenario
+  }
+  readonly denied_authority: RefundLiveDeniedAuthority
 }
 
 export interface HistoricalTrackStockContext {
@@ -102,6 +163,7 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     physical_presence_product_uuid?: string
     service_line_context?: ServiceLineContext
     historical_track_stock_context?: HistoricalTrackStockContext
+    refund_context?: RefundLiveContext
   }
 
   cached = {
@@ -114,7 +176,8 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     physicalPresencePayloads: raw.physical_presence_payloads ?? [],
     physicalPresenceProductUuid: raw.physical_presence_product_uuid ?? null,
     serviceLineContext: raw.service_line_context ?? null,
-    historicalTrackStockContext: raw.historical_track_stock_context ?? null
+    historicalTrackStockContext: raw.historical_track_stock_context ?? null,
+    refundContext: raw.refund_context ?? null
   }
 
   return cached
@@ -279,6 +342,13 @@ export function livePhysicalPresenceBackendAvailable(): boolean {
     fixture.physicalPresenceProductUuid !== null &&
     Boolean(process.env.CP3G5_BACKEND_DB)
   )
+}
+
+/** Whether a live backend carrying the r6 refund-live-gate context was provided. */
+export function liveRefundBackendAvailable(): boolean {
+  const fixture = liveUploadFixture()
+
+  return fixture !== null && fixture.refundContext !== null && Boolean(process.env.CP3G5_BACKEND_DB)
 }
 
 /**
@@ -454,6 +524,187 @@ export function readScenarioEffects(
       invoiceUuid: invoice?.uuid ?? null,
       serverNumber: invoice?.server_number ?? null
     }
+  } finally {
+    database.close()
+  }
+}
+
+/** One refund row as recorded server-side, read-only. */
+export interface BackendRefundRow {
+  readonly uuid: string
+  readonly refund_number: string
+  readonly status: string
+  readonly subtotal_amount: number
+  readonly discount_total_amount: number
+  readonly tax_total_amount: number
+  readonly grand_total_amount: number
+  readonly stock_returned: number
+}
+
+export interface BackendJournalSummary {
+  readonly count: number
+  /** `true`/`false` once a journal exists; `null` when no journal was posted for this refund. */
+  readonly balanced: boolean | null
+}
+
+export interface BackendRefundEffects {
+  /** Completed `pos_refunds` rows against this invoice. */
+  readonly refunds: readonly BackendRefundRow[]
+  /** `stock_movements` of type `refund` against this invoice (the return-to-stock effect). */
+  readonly refundMovementCount: number
+  /**
+   * The posted-journal summary for each refund, keyed by its `uuid`, computed EAGERLY (never a
+   * closure over the read connection, which is closed before this function returns).
+   */
+  readonly journalsByRefundUuid: Readonly<Record<string, BackendJournalSummary>>
+  readonly desktopRefundSyncCount: number
+  readonly desktopRefundSyncStatuses: readonly string[]
+}
+
+/**
+ * r6 — every server-side effect a live refund test needs to verify, read-only, through the same
+ * sanctioned support-module entry point every other live suite uses.
+ */
+export function readRefundEffects(invoiceUuid: string): BackendRefundEffects {
+  const databasePath = process.env.CP3G5_BACKEND_DB
+
+  if (!databasePath) {
+    throw new Error('CP3G5_BACKEND_DB is required to read the live backend state')
+  }
+
+  const database = new Database(databasePath, { readonly: true })
+
+  try {
+    const invoice = database
+      .prepare('SELECT id FROM pos_invoices WHERE uuid = ?')
+      .get(invoiceUuid) as { id: number } | undefined
+
+    if (!invoice) {
+      return {
+        refunds: [],
+        refundMovementCount: 0,
+        journalsByRefundUuid: {},
+        desktopRefundSyncCount: 0,
+        desktopRefundSyncStatuses: []
+      }
+    }
+
+    const refunds = database
+      .prepare(
+        `SELECT id, uuid, refund_number, status, subtotal_amount, discount_total_amount,
+                tax_total_amount, grand_total_amount, stock_returned
+           FROM pos_refunds WHERE pos_invoice_id = ? ORDER BY id`
+      )
+      .all(invoice.id) as (BackendRefundRow & { id: number })[]
+
+    const idByUuid = new Map(refunds.map((row) => [row.uuid, row.id]))
+
+    const refundMovementCount = (
+      database
+        .prepare(
+          "SELECT COUNT(*) AS total FROM stock_movements WHERE pos_invoice_id = ? AND type = 'refund'"
+        )
+        .get(invoice.id) as { total: number }
+    ).total
+
+    const syncRows = database
+      .prepare(
+        'SELECT status FROM desktop_refund_syncs WHERE pos_refund_id IN (SELECT id FROM pos_refunds WHERE pos_invoice_id = ?)'
+      )
+      .all(invoice.id) as { status: string }[]
+
+    const journalsByRefundUuid: Record<string, BackendJournalSummary> = {}
+
+    for (const [refundUuid, refundId] of idByUuid) {
+      const count = (
+        database
+          .prepare(
+            "SELECT COUNT(*) AS total FROM accounting_journals WHERE source_type = 'pos_refund' AND source_id = ?"
+          )
+          .get(refundId) as { total: number }
+      ).total
+
+      const journal = database
+        .prepare(
+          "SELECT id FROM accounting_journals WHERE source_type = 'pos_refund' AND source_id = ?"
+        )
+        .get(refundId) as { id: number } | undefined
+
+      let balanced: boolean | null = null
+
+      if (journal) {
+        const totals = database
+          .prepare(
+            'SELECT COALESCE(SUM(debit_amount),0) AS debits, COALESCE(SUM(credit_amount),0) AS credits FROM accounting_journal_lines WHERE accounting_journal_id = ?'
+          )
+          .get(journal.id) as { debits: number; credits: number }
+        balanced = totals.debits === totals.credits && totals.debits > 0
+      }
+
+      journalsByRefundUuid[refundUuid] = { count, balanced }
+    }
+
+    return {
+      refunds: refunds.map((row) => ({
+        uuid: row.uuid,
+        refund_number: row.refund_number,
+        status: row.status,
+        subtotal_amount: row.subtotal_amount,
+        discount_total_amount: row.discount_total_amount,
+        tax_total_amount: row.tax_total_amount,
+        grand_total_amount: row.grand_total_amount,
+        stock_returned: row.stock_returned
+      })),
+      refundMovementCount,
+      journalsByRefundUuid,
+      desktopRefundSyncCount: syncRows.length,
+      desktopRefundSyncStatuses: syncRows.map((row) => row.status)
+    }
+  } finally {
+    database.close()
+  }
+}
+
+/** One invoice item's live-server refund read model, read-only. */
+export interface BackendInvoiceItemReadModel {
+  readonly refunded_quantity: string | null
+  readonly refundable_quantity: string | null
+  readonly refunded_total_amount: number | null
+}
+
+/**
+ * r6 — reads the refund read model directly off `pos_invoice_items` server-side aggregates,
+ * mirroring what `PosInvoiceItemResource` computes over HTTP, for suites that want to cross-check
+ * the HTTP response against an independent read.
+ */
+export function readInvoiceItemRefundedTotal(invoiceItemUuid: string): number {
+  const databasePath = process.env.CP3G5_BACKEND_DB
+
+  if (!databasePath) {
+    throw new Error('CP3G5_BACKEND_DB is required to read the live backend state')
+  }
+
+  const database = new Database(databasePath, { readonly: true })
+
+  try {
+    const item = database
+      .prepare('SELECT id FROM pos_invoice_items WHERE uuid = ?')
+      .get(invoiceItemUuid) as { id: number } | undefined
+
+    if (!item) {
+      return 0
+    }
+
+    const row = database
+      .prepare(
+        `SELECT COALESCE(SUM(pri.total_amount), 0) AS total
+           FROM pos_refund_items pri
+           JOIN pos_refunds pr ON pr.id = pri.pos_refund_id
+          WHERE pri.pos_invoice_item_id = ? AND pr.status = 'completed'`
+      )
+      .get(item.id) as { total: number }
+
+    return row.total
   } finally {
     database.close()
   }

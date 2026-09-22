@@ -60,6 +60,7 @@ async function handleLogout(): Promise<void> {
     <div class="app-layout__body">
       <nav class="app-layout__nav" :aria-label="t('app.applicationNavigation')">
         <RouterLink to="/pos">{{ t('navigation.pos') }}</RouterLink>
+        <RouterLink to="/sales">{{ t('navigation.sales') }}</RouterLink>
         <RouterLink to="/sync">{{ t('navigation.sync') }}</RouterLink>
         <RouterLink to="/offline-stock">{{ t('navigation.offlineStock') }}</RouterLink>
         <RouterLink to="/settings">{{ t('navigation.settings') }}</RouterLink>

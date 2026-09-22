@@ -53,8 +53,14 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * authority a successful `license/validate` already minted, and the window it reports is
    * unchanged by being read.
    */
+  /**
+   * r5 §0.1: `refund_contract_version=1` additionally asks for the confirmed-refund-calculation
+   * capability marker. Same discipline as the other negotiated parameters above -- a backend that
+   * predates it ignores the parameter and answers without `refund_contract`, and this app then
+   * offers no refund at all rather than guessing whether the write path is protected.
+   */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
@@ -201,4 +207,21 @@ export function stockAllocationSealRoute(allocationUuid: string): DesktopApiRout
 
 export function stockAllocationAcknowledgeSealRoute(allocationUuid: string): DesktopApiRoute {
   return allocationMutationRoute(allocationUuid, 'acknowledge-seal')
+}
+
+/**
+ * r5 §2/§3 — `GET /api/v1/desktop/invoices/{invoice}` by remote UUID. Used to read the refund
+ * read model (refunded/refundable quantities and amounts) before offering a refund.
+ */
+export function invoiceShowRoute(invoiceRemoteUuid: string): DesktopApiRoute {
+  if (!/^[0-9a-f-]{36}$/i.test(invoiceRemoteUuid)) {
+    throw new Error('A valid invoice UUID is required')
+  }
+
+  return {
+    path: `/invoices/${invoiceRemoteUuid.toLowerCase()}`,
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  }
 }

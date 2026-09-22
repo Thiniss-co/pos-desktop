@@ -18,6 +18,15 @@ import {
 import { localeCodeSchema, themePreferenceSchema } from '@shared/contracts/preferences.contract'
 import { syncListFailuresInputSchema as syncListFailuresContractSchema } from '@shared/contracts/sync.contract'
 import {
+  refundsCancelPreparedInputSchema as refundsCancelPreparedContractSchema,
+  refundsPreviewInputSchema as refundsPreviewContractSchema,
+  refundsResumeInputSchema as refundsResumeContractSchema,
+  refundsSubmitInputSchema as refundsSubmitContractSchema,
+  refundsGetRefundableInputSchema as refundsGetRefundableContractSchema,
+  salesGetInvoiceInputSchema as salesGetInvoiceContractSchema,
+  salesListInvoicesInputSchema as salesListInvoicesContractSchema
+} from '@shared/contracts/refund.contract'
+import {
   closeShiftInputSchema,
   openShiftInputSchema,
   pauseShiftInputSchema,
@@ -102,3 +111,11 @@ export const companyUsersUpdateInputSchema = updateCompanyUserInputSchema
 export const companyUsersSetRolesInputSchema = setRolesInputSchema
 export const companyUsersSetEnabledInputSchema = setEnabledInputSchema
 export const companyUsersListAssignableRolesInputSchema = z.undefined()
+
+export const salesListInvoicesInputSchema = salesListInvoicesContractSchema
+export const salesGetInvoiceInputSchema = salesGetInvoiceContractSchema
+export const refundsGetRefundableInputSchema = refundsGetRefundableContractSchema
+export const refundsPreviewInputSchema = refundsPreviewContractSchema
+export const refundsSubmitInputSchema = refundsSubmitContractSchema
+export const refundsResumeInputSchema = refundsResumeContractSchema
+export const refundsCancelPreparedInputSchema = refundsCancelPreparedContractSchema

@@ -16,6 +16,14 @@ import type {
   CheckoutRetryAttemptInput
 } from '@shared/contracts/checkout.contract'
 import type {
+  RefundableInvoice,
+  RefundLineSelection,
+  RefundOutcome,
+  RefundPreview,
+  SaleDetail,
+  SalesInvoiceList
+} from '@shared/contracts/refund.contract'
+import type {
   CatalogCategory,
   CatalogBarcodeLookup,
   CatalogCustomer,
@@ -161,6 +169,34 @@ export interface PosApi {
     setRoles(input: SetRolesInput): Promise<IpcResult<CompanyUser>>
     setEnabled(input: SetEnabledInput): Promise<IpcResult<CompanyUser>>
     listAssignableRoles(): Promise<IpcResult<AssignableRoles>>
+  }
+  readonly sales: {
+    listInvoices(input: {
+      search?: string
+      limit?: number
+      cursor?: string | null
+    }): Promise<IpcResult<SalesInvoiceList>>
+    getInvoice(input: { invoiceLocalUuid: string }): Promise<IpcResult<SaleDetail>>
+  }
+  readonly refunds: {
+    getRefundable(input: { invoiceLocalUuid: string }): Promise<IpcResult<RefundableInvoice>>
+    preview(input: {
+      invoiceLocalUuid: string
+      lines: RefundLineSelection[]
+      stockReturned: boolean
+    }): Promise<IpcResult<RefundPreview>>
+    submit(input: {
+      previewId: string
+      invoiceLocalUuid: string
+      lines: RefundLineSelection[]
+      stockReturned: boolean
+      paymentMethodUuid: string | null
+      reference?: string | null
+      reason?: string | null
+      notes?: string | null
+    }): Promise<IpcResult<RefundOutcome>>
+    resume(input: { localRefundUuid: string }): Promise<IpcResult<RefundOutcome>>
+    cancelPrepared(input: { localRefundUuid: string }): Promise<IpcResult<{ cancelled: boolean }>>
   }
 }
 
@@ -336,5 +372,34 @@ export const posApi: PosApi = Object.freeze({
     setEnabled: (input: SetEnabledInput) =>
       ipcRenderer.invoke(IPC_CHANNELS.companyUsersSetEnabled, input),
     listAssignableRoles: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersListAssignableRoles)
+  }),
+  sales: Object.freeze({
+    listInvoices: (input: { search?: string; limit?: number; cursor?: string | null }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.salesListInvoices, input),
+    getInvoice: (input: { invoiceLocalUuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.salesGetInvoice, input)
+  }),
+  refunds: Object.freeze({
+    getRefundable: (input: { invoiceLocalUuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.refundsGetRefundable, input),
+    preview: (input: {
+      invoiceLocalUuid: string
+      lines: RefundLineSelection[]
+      stockReturned: boolean
+    }) => ipcRenderer.invoke(IPC_CHANNELS.refundsPreview, input),
+    submit: (input: {
+      previewId: string
+      invoiceLocalUuid: string
+      lines: RefundLineSelection[]
+      stockReturned: boolean
+      paymentMethodUuid: string | null
+      reference?: string | null
+      reason?: string | null
+      notes?: string | null
+    }) => ipcRenderer.invoke(IPC_CHANNELS.refundsSubmit, input),
+    resume: (input: { localRefundUuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.refundsResume, input),
+    cancelPrepared: (input: { localRefundUuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.refundsCancelPrepared, input)
   })
 })

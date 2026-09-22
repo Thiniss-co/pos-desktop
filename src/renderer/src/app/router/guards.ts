@@ -29,7 +29,9 @@ function canAccessRoute(state: StartupState, routeName: string | null | undefine
       routeName === 'settings' ||
       routeName === 'company-users' ||
       routeName === 'company-user-create' ||
-      routeName === 'company-user-edit'
+      routeName === 'company-user-edit' ||
+      routeName === 'sales' ||
+      routeName === 'sale-detail'
     )
   }
 

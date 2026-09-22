@@ -11,6 +11,7 @@ import { allocationRecoveryMigration } from './0010_allocation_recovery'
 import { offlineStockPreparationMigration } from './0011_offline_stock_preparation'
 import { offlineSalePolicyMigration } from './0012_offline_sale_policy'
 import { dispositionDiscoveryMigration } from './0013_disposition_discovery'
+import { localRefundsMigration } from './0014_local_refunds'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -25,5 +26,6 @@ export const databaseMigrations = [
   allocationRecoveryMigration,
   offlineStockPreparationMigration,
   offlineSalePolicyMigration,
-  dispositionDiscoveryMigration
+  dispositionDiscoveryMigration,
+  localRefundsMigration
 ] as const

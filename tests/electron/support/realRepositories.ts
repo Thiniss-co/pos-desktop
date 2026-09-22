@@ -9,6 +9,7 @@ import { SqliteDeviceIdentityRepository } from '../../../src/main/repositories/d
 import { DeviceRegistrationRepository } from '../../../src/main/repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../../../src/main/repositories/licenseMetadata.repository'
 import { LocalSaleRepository } from '../../../src/main/repositories/localSale.repository'
+import { LocalRefundRepository } from '../../../src/main/repositories/localRefund.repository'
 import { LocalStockRepository } from '../../../src/main/repositories/localStock.repository'
 import { PreparationRepository } from '../../../src/main/repositories/preparation.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
@@ -32,6 +33,7 @@ export interface RealRepositories {
   readonly deviceRegistration: DeviceRegistrationRepository
   readonly licenseMetadata: LicenseMetadataRepository
   readonly localSale: LocalSaleRepository
+  readonly localRefunds: LocalRefundRepository
   readonly localStock: LocalStockRepository
   /** PS4: the stored server-issued offline-sale authority. */
   readonly offlineSaleAuthorities: OfflineSaleAuthorityRepository
@@ -77,6 +79,7 @@ export function realRepositories(
     deviceRegistration: new DeviceRegistrationRepository(database),
     licenseMetadata: new LicenseMetadataRepository(database),
     localSale: new LocalSaleRepository(database),
+    localRefunds: new LocalRefundRepository(database),
     localStock: new LocalStockRepository(database),
     offlineSaleAuthorities: new OfflineSaleAuthorityRepository(database),
     preparation: new PreparationRepository(database, now),

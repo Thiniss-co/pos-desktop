@@ -473,4 +473,45 @@ export class LocalSaleRepository {
 
     return (row.maxSequence ?? 0) + 1
   }
+
+  /**
+   * Plan §6 -- local-first, searchable sale history. Reads the invoice list from what already
+   * synced or is queued locally; it is never the refund authority (that is a live invoice read,
+   * `RefundService.getRefundableInvoice`), only the entry point for finding a sale to refund.
+   */
+  listInvoices(
+    owner: { readonly companyUuid: string; readonly deviceUuid: string },
+    filter: { readonly search?: string; readonly limit: number; readonly cursor?: string | null }
+  ): { readonly rows: readonly LocalInvoiceRow[]; readonly nextCursor: string | null } {
+    const conditions = ['company_uuid = ?', 'device_uuid = ?']
+    const params: unknown[] = [owner.companyUuid, owner.deviceUuid]
+
+    if (filter.search) {
+      conditions.push('(offline_number LIKE ? OR server_number LIKE ?)')
+      const like = `%${filter.search}%`
+      params.push(like, like)
+    }
+
+    if (filter.cursor) {
+      conditions.push('sold_at < ?')
+      params.push(filter.cursor)
+    }
+
+    const limit = Math.min(Math.max(filter.limit, 1), 100)
+    const rows = this.database
+      .prepare(
+        `SELECT * FROM local_invoices WHERE ${conditions.join(' AND ')}
+         ORDER BY sold_at DESC LIMIT ?`
+      )
+      .all(...params, limit + 1) as Record<string, unknown>[]
+
+    const hasMore = rows.length > limit
+    const page = hasMore ? rows.slice(0, limit) : rows
+    const mapped = page.map(mapInvoiceRow)
+
+    return {
+      rows: mapped,
+      nextCursor: hasMore ? (mapped[mapped.length - 1]?.soldAt ?? null) : null
+    }
+  }
 }

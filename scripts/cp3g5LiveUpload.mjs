@@ -638,12 +638,48 @@ async function main() {
   try {
     // An opaque, per-run identity: enough for a repetition driver to prove that no two iterations
     // shared a sandbox or a database, without disclosing the sandbox path or the run nonce.
-    const runIdentity = createHash('sha256').update(basename(exactGeneratedSandbox)).digest('hex').slice(0, 12)
+    const runIdentity = createHash('sha256')
+      .update(basename(exactGeneratedSandbox))
+      .digest('hex')
+      .slice(0, 12)
 
     console.log(`[cp3g5] run identity ${runIdentity}`)
     console.log('[cp3g5] created an authorized disposable backend database')
 
     setPhase('migrate')
+
+    // The seeder verifies the RESOLVED connection identity, but it runs *after* `migrate`, so the
+    // first write was previously unguarded. `delete APP_CONFIG_CACHE` above cannot help: Laravel's
+    // `Application::getCachedConfigPath()` falls back to `bootstrap/cache/config.php`, so a cached
+    // config would silently redirect this migration at the application database.
+    if (existsSync(join(BACKEND_ROOT, 'bootstrap', 'cache', 'config.php'))) {
+      console.error(
+        '[cp3g5] refusing to migrate: bootstrap/cache/config.php exists and would override DB_DATABASE'
+      )
+      return 1
+    }
+
+    const identityProbe = spawnSync(
+      'php',
+      [
+        '-r',
+        'require "vendor/autoload.php"; $app=require "bootstrap/app.php"; $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); $c=$app->make("db")->connection(); $ok = $app->environment("testing") && config("database.default")==="sqlite" && $c->getDriverName()==="sqlite" && @realpath($c->getConfig("database"))===getenv("CP3G5_EXPECTED_DB"); fwrite(STDOUT, $ok ? "ok" : "mismatch"); exit($ok?0:1);'
+      ],
+      {
+        cwd: BACKEND_ROOT,
+        env: { ...backendEnvironment, CP3G5_EXPECTED_DB: databasePath },
+        encoding: 'utf8'
+      }
+    )
+
+    if (identityProbe.status !== 0 || identityProbe.stdout.trim() !== 'ok') {
+      console.error(
+        '[cp3g5] refusing to migrate: resolved database identity did not match the approved sandbox file'
+      )
+      return 1
+    }
+
+    console.log('[cp3g5] resolved database identity verified before the first write')
 
     const migrate = spawnSync('php', ['artisan', 'migrate', '--force', '--no-interaction'], {
       cwd: BACKEND_ROOT,
@@ -784,8 +820,8 @@ async function main() {
       stdio: ['ignore', 'pipe', 'pipe']
     })
 
-    // Drained and discarded, exactly as before: suite output can carry request context, and an
-    // unread pipe can eventually block the child.
+    // Drained and discarded: suite output can carry request context, and an unread pipe can
+    // eventually block the child.
     suiteGroup.child.stdout.on('data', () => {})
     suiteGroup.child.stderr.on('data', () => {})
 

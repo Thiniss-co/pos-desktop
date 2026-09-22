@@ -7,6 +7,8 @@ import CompanyUserCreatePage from '@renderer/modules/companyUsers/pages/CompanyU
 import CompanyUserEditPage from '@renderer/modules/companyUsers/pages/CompanyUserEditPage.vue'
 import CompanyUsersPage from '@renderer/modules/companyUsers/pages/CompanyUsersPage.vue'
 import PosPage from '@renderer/modules/pos/pages/PosPage.vue'
+import SalesHistoryPage from '@renderer/modules/sales/pages/SalesHistoryPage.vue'
+import SaleDetailPage from '@renderer/modules/sales/pages/SaleDetailPage.vue'
 import SettingsPage from '@renderer/modules/settings/pages/SettingsPage.vue'
 import PreparationPage from '@renderer/modules/preparation/pages/PreparationPage.vue'
 import SyncPage from '@renderer/modules/sync/pages/SyncPage.vue'
@@ -31,6 +33,13 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/error', name: 'fatal-error', component: FatalErrorPage, meta: { layout: 'public' } },
   { path: '/pos', name: 'pos', component: PosPage, meta: { layout: 'app' } },
+  { path: '/sales', name: 'sales', component: SalesHistoryPage, meta: { layout: 'app' } },
+  {
+    path: '/sales/:localUuid',
+    name: 'sale-detail',
+    component: SaleDetailPage,
+    meta: { layout: 'app' }
+  },
   { path: '/sync', name: 'sync', component: SyncPage, meta: { layout: 'app' } },
   {
     path: '/offline-stock',

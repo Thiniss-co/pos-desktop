@@ -66,5 +66,14 @@ export const IPC_CHANNELS = Object.freeze({
   companyUsersUpdate: 'company-users:update',
   companyUsersSetRoles: 'company-users:set-roles',
   companyUsersSetEnabled: 'company-users:set-enabled',
-  companyUsersListAssignableRoles: 'company-users:list-assignable-roles'
+  companyUsersListAssignableRoles: 'company-users:list-assignable-roles',
+  // Plan §5 (r5) -- the refund domain. Sales channels are read-only local-first lookups; refund
+  // channels are the durable online-only submission flow.
+  salesListInvoices: 'sales:list-invoices',
+  salesGetInvoice: 'sales:get-invoice',
+  refundsGetRefundable: 'refunds:get-refundable',
+  refundsPreview: 'refunds:preview',
+  refundsSubmit: 'refunds:submit',
+  refundsResume: 'refunds:resume',
+  refundsCancelPrepared: 'refunds:cancel-prepared'
 })

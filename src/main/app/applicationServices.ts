@@ -14,6 +14,7 @@ import { SqliteDeviceIdentityRepository } from '../repositories/deviceIdentity.r
 import { DeviceRegistrationRepository } from '../repositories/deviceRegistration.repository'
 import { LicenseMetadataRepository } from '../repositories/licenseMetadata.repository'
 import { LocalSaleRepository } from '../repositories/localSale.repository'
+import { LocalRefundRepository } from '../repositories/localRefund.repository'
 import { LocalStockRepository } from '../repositories/localStock.repository'
 import { SaleAttemptRepository } from '../repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../repositories/secureSecrets.repository'
@@ -54,6 +55,9 @@ import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { LocalSaleService } from '../services/localSale.service'
 import { SaleCompletionService } from '../services/saleCompletion.service'
+import { RefundAccessService } from '../services/refundAccess.service'
+import { RefundService } from '../services/refund.service'
+import { uploadRefund } from '../sync/refundUpload.client'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { SessionService } from '../services/session.service'
 import { ShiftAuthorityService } from '../services/shiftAuthority.service'
@@ -110,7 +114,10 @@ export interface ApplicationServices {
   readonly shifts: ShiftService
   readonly checkoutPreview: CheckoutPreviewService
   readonly localSale: LocalSaleService
+  readonly localSaleRepository: LocalSaleRepository
   readonly saleCompletion: SaleCompletionService
+  readonly refunds: RefundService
+  readonly localRefunds: LocalRefundRepository
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   readonly invoiceUploads: InvoiceUploadWorker
@@ -328,6 +335,29 @@ export function createApplicationServices(): ApplicationServices {
     syncQueue,
     offlineSaleAuthorities
   })
+  const localRefundRepository = new LocalRefundRepository(database)
+  const refundAccess = new RefundAccessService({
+    permissions: bootstrapSnapshot,
+    commercialAccess
+  })
+  const refunds = new RefundService({
+    apiClient,
+    localSale: localSaleRepository,
+    localRefunds: localRefundRepository,
+    access: refundAccess,
+    shiftAuthority,
+    catalog,
+    uploadRefund
+  })
+  // Startup crash recovery (plan §3b): every `dispatched` row this device owns becomes
+  // `unresolved` before anything else touches it. Best-effort -- a session with no established
+  // owner yet (e.g. before first login on a fresh install) has nothing to sweep.
+  try {
+    const owner = shiftAuthority.captureContext()
+    refunds.sweepOnStartup(owner)
+  } catch {
+    // No established session yet; nothing was dispatched under it either.
+  }
   // CP-5D: the only production caller of `POST /api/v1/desktop/stock-allocations/top-up`. It is
   // main-only and reachable exclusively through `checkout:complete` / `checkout:retry-attempt`;
   // nothing in preload exposes an allocation request, a raw payload, or a generic HTTP method.
@@ -664,7 +694,10 @@ export function createApplicationServices(): ApplicationServices {
     shifts,
     checkoutPreview,
     localSale,
+    localSaleRepository,
     saleCompletion,
+    refunds,
+    localRefunds: localRefundRepository,
     companyUsers,
     connectivity,
     invoiceUploads,

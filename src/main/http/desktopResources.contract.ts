@@ -470,6 +470,17 @@ export const desktopBootstrapResourceSchema = z
     // is the authority the server has issued. Collapsing absent and null would make an old backend
     // indistinguishable from an explicit revocation.
     offline_sale_authority: offlineSaleAuthorityResourceSchema.nullable().optional(),
+    // r5 §0.1: present only when this request negotiated `refund_contract_version=1`. Its presence
+    // is the ONLY evidence this app accepts that the backend enforces the confirmed refund
+    // calculation on the write path -- never inferred from the invoice read model alone (see
+    // `refund.service.ts`'s capability gate, plan §5).
+    refund_contract: z
+      .object({
+        version: z.number().int().positive(),
+        confirmation_required: z.boolean()
+      })
+      .passthrough()
+      .optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),
@@ -686,6 +697,93 @@ export type DesktopInvoiceUploadResource = z.infer<typeof desktopInvoiceUploadRe
  * any other success code on this route means the backend contract moved underneath us and must be
  * treated as a contract error, never guessed at.
  */
+/**
+ * r5 §3 — per-line refund read model, transcribed from the additive fields
+ * `PosInvoiceItemResource` gained (backend plan §2a). All optional: an older backend, or one that
+ * has not negotiated `refund_contract_version`, omits the whole block, and absence is never read
+ * as "everything is refundable" -- see `refund.service.ts`'s capability gate.
+ */
+const invoiceItemRefundReadModelResourceSchema = z
+  .object({
+    refunded_quantity: z.string(),
+    refundable_quantity: z.string(),
+    refunded_subtotal_amount: invoiceMoneySchema,
+    refunded_discount_amount: invoiceMoneySchema,
+    refunded_tax_amount: invoiceMoneySchema,
+    refunded_total_amount: invoiceMoneySchema,
+    refund_feasibility: z
+      .object({
+        tier: z.enum(['ok', 'soft', 'hard']),
+        reasons: z.array(z.string())
+      })
+      .passthrough()
+  })
+  .partial()
+  .passthrough()
+
+/**
+ * `GET /api/v1/desktop/invoices/{invoice}` response body, transcribed from
+ * `PosInvoiceResource`/`PosInvoiceItemResource`. Read-only: the desktop never recomputes these
+ * amounts, only reads them as the R4 calculator's authoritative input.
+ */
+export const desktopInvoiceShowResourceSchema = z
+  .object({
+    uuid: z.uuid(),
+    server_number: z.string().nullable(),
+    offline_number: z.string().nullable(),
+    display_number: z.string().nullable(),
+    status: z.string(),
+    payment_status: z.string(),
+    currency: currencySchema,
+    grand_total_amount: invoiceMoneySchema,
+    sold_at: isoSecondTimestampSchema.nullable(),
+    items: z.array(
+      z
+        .object({
+          uuid: z.uuid(),
+          product_uuid: z.uuid(),
+          product_name: z.string(),
+          quantity: z.string(),
+          subtotal_amount: invoiceMoneySchema,
+          discount_amount: invoiceMoneySchema,
+          tax_amount: invoiceMoneySchema,
+          total_amount: invoiceMoneySchema,
+          tax_mode: z.enum(['none', 'inclusive', 'exclusive'])
+        })
+        .extend(invoiceItemRefundReadModelResourceSchema.shape)
+        .passthrough()
+    )
+  })
+  .passthrough()
+
+export type DesktopInvoiceShowResource = z.infer<typeof desktopInvoiceShowResourceSchema>
+
+/**
+ * `POST /api/v1/desktop/refunds/upload` response body, transcribed from `DesktopRefundResource`.
+ * Note the refund is keyed as `id`, not `uuid` -- the backend resource intentionally differs from
+ * the invoice upload resource's own `id` key shape here (see plan §2c).
+ */
+export const desktopRefundUploadResourceSchema = z
+  .object({
+    id: z.uuid(),
+    refund_number: z.string().nullable(),
+    offline_refund_number: z.string().nullable(),
+    status: z.string(),
+    payment_status: z.string(),
+    subtotal_amount: invoiceMoneySchema,
+    discount_total_amount: invoiceMoneySchema,
+    tax_total_amount: invoiceMoneySchema,
+    grand_total_amount: invoiceMoneySchema,
+    refunded_total_amount: invoiceMoneySchema,
+    refunded_at: isoSecondTimestampSchema.nullable()
+  })
+  .passthrough()
+
+export type DesktopRefundUploadResource = z.infer<typeof desktopRefundUploadResourceSchema>
+
+export const DESKTOP_REFUND_UPLOADED_CODE = 'DESKTOP_REFUND_UPLOADED' as const
+export const DESKTOP_REFUND_ALREADY_UPLOADED_CODE = 'DESKTOP_REFUND_ALREADY_UPLOADED' as const
+
 export const DESKTOP_INVOICE_UPLOADED_CODE = 'DESKTOP_INVOICE_UPLOADED' as const
 export const DESKTOP_INVOICE_ALREADY_UPLOADED_CODE = 'DESKTOP_INVOICE_ALREADY_UPLOADED' as const
 

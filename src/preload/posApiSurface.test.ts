@@ -116,4 +116,29 @@ describe('posApi surface', () => {
     expect(source).not.toMatch(/send\(IPC_CHANNELS\.syncChanged/)
     expect(source).not.toMatch(/invoke\(IPC_CHANNELS\.syncChanged/)
   })
+
+  it('exposes the narrow sales and refund domain channels (plan §5, r5)', () => {
+    expect(source).toContain('sales:')
+    expect(source).toContain('listInvoices')
+    expect(source).toContain('getInvoice')
+    expect(source).toContain('refunds:')
+    expect(source).toContain('getRefundable')
+    expect(source).toContain('preview')
+    expect(source).toContain('submit')
+    expect(source).toContain('resume')
+    expect(source).toContain('cancelPrepared')
+    expect(source).toContain('IPC_CHANNELS.refundsSubmit')
+    expect(source).toContain('IPC_CHANNELS.refundsPreview')
+    expect(source).toContain('IPC_CHANNELS.refundsResume')
+    expect(source).toContain('IPC_CHANNELS.refundsCancelPrepared')
+    expect(source).toContain('IPC_CHANNELS.refundsGetRefundable')
+    expect(source).toContain('IPC_CHANNELS.salesListInvoices')
+    expect(source).toContain('IPC_CHANNELS.salesGetInvoice')
+  })
+
+  it('the refund submit intent never names an authoritative amount, timestamp, or key', () => {
+    // Renderer supplies selections only: invoice/line/payment IDENTITIES. Money, timestamps,
+    // ownership and the idempotency key are resolved and frozen by RefundService, never here.
+    expect(source).not.toMatch(/grandTotal|subtotalAmount|idempotencyKey|refundedAt/i)
+  })
 })
