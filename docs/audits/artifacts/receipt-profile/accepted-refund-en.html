@@ -1,0 +1,102 @@
+<!doctype html>
+<html dir="ltr" lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;" />
+<meta name="receipt-template-version" content="1" />
+<title>REFUND RECEIPT</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #ffffff; color: #000000; overflow-x: hidden; }
+  body {
+    font-family: "Segoe UI", Tahoma, "Noto Sans Arabic", "Noto Sans", "DejaVu Sans", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { width: var(--printable-width-mm, 72mm); margin: 0 auto; padding: 0; }
+  .center { text-align: center; }
+  .bold { font-weight: 700; }
+  .small { font-size: 0.82em; }
+  .hr { border: none; border-top: 1px dashed #000; margin: 3mm 0; }
+  .hr-double { border: none; border-top: 2px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 2mm 0; }
+  .row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5mm 2mm; }
+  .row .label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .row .value { flex: 0 1 auto; text-align: end; white-space: nowrap; margin-inline-start: auto; }
+  .stacked { margin: 0.5mm 0; }
+  .stacked .label { font-size: 0.85em; color: #333; }
+  .stacked .value { text-align: start; overflow-wrap: anywhere; }
+  .logo { margin-bottom: 1.5mm; }
+  .logo img { max-height: 24mm; max-width: 100%; }
+  .header-title { font-size: 1.45em; font-weight: 700; }
+  .letterhead-line { font-size: 0.9em; }
+  .item { margin: 2mm 0; break-inside: avoid; }
+  .item-name { overflow-wrap: anywhere; }
+  .item-detail { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5mm 2mm; font-size: 0.95em; }
+  .item-detail span:first-child { overflow-wrap: anywhere; min-width: 0; }
+  .item-detail span:last-child { white-space: nowrap; margin-inline-start: auto; }
+  .item-sub { font-size: 0.82em; color: #333; display: flex; flex-wrap: wrap; gap: 0.5mm 3mm; }
+  .item-sub span { white-space: nowrap; }
+  .settlement { margin-top: 3mm; break-inside: avoid; }
+  .grand-total { font-size: 2em; font-weight: 800; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 2mm; margin: 2mm 0; overflow-wrap: anywhere; }
+  .badge { display: inline-block; border: 1.5px solid #000; padding: 0.5mm 2mm; font-size: 0.85em; margin-bottom: 2mm; }
+  .refund-band { border: 2px solid #000; text-align: center; padding: 1.5mm; font-weight: 700; margin-bottom: 2mm; }
+  .notice { font-size: 0.78em; color: #333; margin-top: 1.5mm; }
+  .footer { text-align: center; margin-top: 3mm; font-size: 0.85em; }
+  .continuation { text-align: center; font-size: 0.8em; border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 2mm; }
+</style>
+</head>
+<body>
+<div class="page" id="receipt-root" style="width:72mm">
+  <div class="refund-band">REFUND RECEIPT</div>
+  
+    <div class="center logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAADElEQVQImWNgYGAAAAAEAAGjChXjAAAAAElFTkSuQmCC" alt="" /></div>
+    <div class="center header-title"><bdi dir="auto">Terry, Boyer and Lebsack</bdi></div>
+    <div class="center letterhead-line"><bdi dir="auto">North Winonahaven Branch</bdi></div>
+    <div class="center letterhead-line"><bdi dir="auto">123 Main St</bdi></div><div class="center letterhead-line"><bdi dir="auto">Cairo, Egypt</bdi></div>
+    <div class="center letterhead-line"><bdi dir="ltr">+20 100 123 4567</bdi></div>
+    <div class="center letterhead-line">Tax ID: <bdi dir="ltr">RP-TAX-1</bdi></div>
+  
+  
+    <div class="hr"></div>
+    <div class="stacked bold"><div class="label">Refund no.</div><div class="value"><bdi dir="ltr">REF-20260926-000001</bdi></div></div>
+    
+    <div class="stacked small"><div class="value"><bdi dir="ltr">09/26/2026, 05:12 PM (UTC+03:00)</bdi></div></div>
+    <div class="row "><span class="label">Cashier</span><span class="value"><bdi dir="ltr">CP3G5 Cashier</bdi></span></div>
+    
+  
+  <div class="hr"></div>
+  
+        <div class="item">
+          <div class="item-name"><bdi dir="auto">adipisci ullam deserunt</bdi></div>
+          <div class="item-detail"><span><bdi dir="ltr">1.000 × $15.00</bdi></span><span><bdi dir="ltr">$15.00</bdi></span></div>
+          <div class="item-sub"><span>Tax: <bdi dir="ltr">0.0000%</bdi></span></div>
+        </div>
+      
+  
+    <div class="settlement">
+      <div class="hr"></div>
+      <div class="row "><span class="label">Subtotal</span><span class="value"><bdi dir="ltr">$15.00</bdi></span></div>
+      
+      
+      
+      <div class="hr-double"></div>
+      <div class="grand-total"><span>Total</span><span><bdi dir="ltr">$15.00</bdi></span></div>
+      <div class="row "><span class="label">Cash</span><span class="value"><bdi dir="ltr">$15.00</bdi></span></div>
+      
+      
+    </div>
+  
+  
+      <div class="hr"></div>
+      <div class="row "><span class="label">Refund no.</span><span class="value"><bdi dir="ltr">REF-20260926-000001</bdi></span></div>
+      <div class="row "><span class="label">Refund date</span><span class="value"><bdi dir="ltr">09/26/2026, 05:12 PM (UTC+03:00)</bdi></span></div>
+      <div class="row "><span class="label">Original sale</span><span class="value"><bdi dir="ltr">CP3G5RP-LOCAL-5df81665</bdi></span></div>
+      <div class="row "><span class="label">Server invoice no.</span><span class="value"><bdi dir="ltr">CP3G5RP-d5ffc932</bdi></span></div>
+      <div class="row "><span class="label"></span><span class="value"><bdi dir="ltr">Stock not returned</bdi></span></div>
+      
+    
+  
+  <div class="footer"><div><bdi dir="auto">Thank you for shopping with us</bdi></div></div>
+</div>
+</body>
+</html>

@@ -26,6 +26,7 @@ import type { CatalogPaymentMethod } from '@shared/contracts/catalog.contract'
 import type { RefundAccessService } from './refundAccess.service'
 import type { ShiftAuthorityService } from './shiftAuthority.service'
 import type { uploadRefund as UploadRefundFn } from '../sync/refundUpload.client'
+import type { ReceiptContextCaptureService } from '../receipt/receiptContextCapture.service'
 
 const PREVIEW_TTL_MS = 15 * 60 * 1000
 /** Refund upload's actual supported set (plan §5) -- narrower than invoice upload's. */
@@ -49,6 +50,11 @@ interface RetainedPreview {
     readonly discountAmount: number
     readonly taxAmount: number
     readonly totalAmount: number
+    readonly unitPriceAmount: number | null
+    readonly unit: string | null
+    readonly sku: string | null
+    readonly taxRateText: string | null
+    readonly originalQuantityMilli: number | null
   }[]
   readonly subtotalAmount: number
   readonly discountTotalAmount: number
@@ -71,6 +77,12 @@ export interface RefundServiceDependencies {
   readonly catalog: { listPaymentMethods(): CatalogPaymentMethod[] }
   readonly now?: () => Date
   readonly uploadRefund?: typeof UploadRefundFn
+  /**
+   * Receipt-printing plan §D-2: optional, same discipline as `LocalSaleDependencies.receiptContext`
+   * -- absence means no context row is captured, and printing falls back to the labelled historical
+   * path, never a hard failure of the refund itself.
+   */
+  readonly receiptContext?: Pick<ReceiptContextCaptureService, 'captureForRefund'>
 }
 
 function validationError(
@@ -239,6 +251,20 @@ export class RefundService {
     const itemsByUuid = new Map(invoice.items.map((item) => [item.uuid, item]))
     const r4Inputs: RefundR4LineInput[] = []
     const blockedReasons: string[] = []
+    // Receipt-printing plan §D-1: retained from the EXACT original server item at preview time, so
+    // a historical unit price/unit/SKU/tax-rate can be printed on the refund receipt without ever
+    // rejoining against the (possibly since-changed) current catalog. Presentation-only -- never
+    // fed into the R4 calculator.
+    const receiptDescriptorsByUuid = new Map<
+      string,
+      {
+        unitPriceAmount: number | null
+        unit: string | null
+        sku: string | null
+        taxRateText: string | null
+        originalQuantityMilli: number | null
+      }
+    >()
 
     for (const selection of input.lines) {
       const item = itemsByUuid.get(selection.invoiceItemRemoteUuid)
@@ -265,6 +291,14 @@ export class RefundService {
 
       const [wholeQ, fracQ = ''] = String(item.quantity).split('.')
       const originalQuantityMilli = Number(wholeQ) * 1000 + Number(fracQ.padEnd(3, '0').slice(0, 3))
+
+      receiptDescriptorsByUuid.set(item.uuid, {
+        unitPriceAmount: item.unit_price_amount ?? null,
+        unit: item.unit ?? null,
+        sku: item.sku ?? null,
+        taxRateText: item.tax_rate ?? null,
+        originalQuantityMilli
+      })
       const [wholeP, fracP = ''] = String((item.refunded_quantity as string) ?? '0.000').split('.')
       const priorRefundedQuantityMilli =
         Number(wholeP) * 1000 + Number(fracP.padEnd(3, '0').slice(0, 3))
@@ -331,7 +365,14 @@ export class RefundService {
         subtotalAmount: result.lines[index].subtotalAmount,
         discountAmount: result.lines[index].discountAmount,
         taxAmount: result.lines[index].taxAmount,
-        totalAmount: result.lines[index].totalAmount
+        totalAmount: result.lines[index].totalAmount,
+        ...(receiptDescriptorsByUuid.get(line.invoiceItemRemoteUuid) ?? {
+          unitPriceAmount: null,
+          unit: null,
+          sku: null,
+          taxRateText: null,
+          originalQuantityMilli: null
+        })
       })),
       subtotalAmount: result.subtotalAmount,
       discountTotalAmount: result.discountTotalAmount,
@@ -433,6 +474,22 @@ export class RefundService {
     // r5 §5 -- the wire `type` is DERIVED from the resolved payment method's own snapshot, never
     // trusted from the renderer, because `validatePayments()` requires them to match exactly.
     const paymentType = this.resolveRefundPaymentType(input.paymentMethodUuid)
+
+    // Receipt-printing plan §D-7: a DISPLAY name only, resolved once at submission time and frozen
+    // into the receipt context below -- never re-resolved at print time.
+    const paymentMethodName =
+      input.paymentMethodUuid === null
+        ? null
+        : (this.dependencies.catalog
+            .listPaymentMethods()
+            .find((method) => method.uuid === input.paymentMethodUuid)?.name ?? null)
+
+    // Receipt-printing plan §D-2: the ORIGINAL sale's own numbers, read once here and frozen into
+    // the refund's receipt context -- never re-read from the invoice at print time, so a later sync
+    // adding a server number never rewrites what THIS refund receipt shows as "original".
+    const originalInvoice = this.dependencies.localSale.findInvoiceByLocalUuid(
+      input.invoiceLocalUuid
+    )
 
     const nowIso = this.now().toISOString()
     const localRefundUuid = randomUUID()
@@ -543,7 +600,29 @@ export class RefundService {
       }
     ]
 
-    this.dependencies.localRefunds.insert(newRefund, newItems, newPayments)
+    this.dependencies.localRefunds.insert(newRefund, newItems, newPayments, () => {
+      this.dependencies.receiptContext?.captureForRefund({
+        refundLocalUuid: localRefundUuid,
+        companyUuid: owner.companyUuid,
+        paymentMethodName,
+        originalOfflineNumber: originalInvoice?.offlineNumber ?? preview.invoiceLocalUuid,
+        originalServerNumber: originalInvoice?.serverNumber ?? null,
+        lines: newItems.map((item) => {
+          const descriptors = preview.lines.find(
+            (line) => line.invoiceItemRemoteUuid === item.invoiceItemRemoteUuid
+          )
+          return {
+            refundItemLocalUuid: item.localUuid,
+            invoiceItemRemoteUuid: item.invoiceItemRemoteUuid,
+            unitPriceAmount: descriptors?.unitPriceAmount ?? null,
+            quantityMilli: descriptors?.originalQuantityMilli ?? null,
+            unit: descriptors?.unit ?? null,
+            sku: descriptors?.sku ?? null,
+            taxRateText: descriptors?.taxRateText ?? null
+          }
+        })
+      })
+    })
     this.previews.delete(input.previewId)
 
     return this.dispatch(localRefundUuid)

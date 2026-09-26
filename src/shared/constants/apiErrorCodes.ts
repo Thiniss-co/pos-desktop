@@ -61,7 +61,14 @@ export const API_ERROR_CODES = [
   'COMPANY_LAST_ADMIN',
   'ROLE_ASSIGNMENT_FORBIDDEN',
   'SERVER_ERROR',
-  'SERVICE_UNAVAILABLE'
+  'SERVICE_UNAVAILABLE',
+  // Receipt-printing plan §D-10/§D-11. Listing these is what makes them work at all: an unlisted
+  // code is stripped from `PublicAppError.backendCode` by `normalizeApiEnvelopeError`, so the
+  // admin editor's 409-conflict reload and its field-error mapping would never fire.
+  'RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN',
+  'RECEIPT_PROFILE_REVISION_CONFLICT',
+  'RECEIPT_PROFILE_ASSET_INVALID',
+  'RECEIPT_PROFILE_ASSET_NOT_FOUND'
 ] as const
 
 export const UNKNOWN_API_ERROR_CODE = 'UNKNOWN' as const

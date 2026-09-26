@@ -24,6 +24,15 @@ import type {
   SalesInvoiceList
 } from '@shared/contracts/refund.contract'
 import type {
+  PrinterInfo,
+  PrinterSettings,
+  PrintingDispatchInput,
+  PrintingPreviewInput,
+  PrintJobView,
+  PrintPreviewOutput,
+  ReceiptDocumentRef
+} from '@shared/contracts/printing.contract'
+import type {
   CatalogCategory,
   CatalogBarcodeLookup,
   CatalogCustomer,
@@ -197,6 +206,18 @@ export interface PosApi {
     }): Promise<IpcResult<RefundOutcome>>
     resume(input: { localRefundUuid: string }): Promise<IpcResult<RefundOutcome>>
     cancelPrepared(input: { localRefundUuid: string }): Promise<IpcResult<{ cancelled: boolean }>>
+  }
+  readonly printing: {
+    getWorkstationSettings(): Promise<IpcResult<PrinterSettings>>
+    saveWorkstationSettings(settings: PrinterSettings): Promise<IpcResult<PrinterSettings>>
+    listPrinters(): Promise<IpcResult<PrinterInfo[]>>
+    preview(input: PrintingPreviewInput): Promise<IpcResult<PrintPreviewOutput>>
+    dispatch(input: PrintingDispatchInput): Promise<IpcResult<PrintJobView>>
+    getJob(input: { requestId: string }): Promise<IpcResult<PrintJobView>>
+    cancelJob(input: { requestId: string }): Promise<IpcResult<PrintJobView>>
+    latestForDocument(input: {
+      document: ReceiptDocumentRef
+    }): Promise<IpcResult<PrintJobView | null>>
   }
 }
 
@@ -401,5 +422,21 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.refundsResume, input),
     cancelPrepared: (input: { localRefundUuid: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.refundsCancelPrepared, input)
+  }),
+  printing: Object.freeze({
+    getWorkstationSettings: () => ipcRenderer.invoke(IPC_CHANNELS.printingGetWorkstationSettings),
+    saveWorkstationSettings: (settings: PrinterSettings) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingSaveWorkstationSettings, settings),
+    listPrinters: () => ipcRenderer.invoke(IPC_CHANNELS.printingListPrinters),
+    preview: (input: PrintingPreviewInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingPreview, input),
+    dispatch: (input: PrintingDispatchInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingDispatch, input),
+    getJob: (input: { requestId: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingGetJob, input),
+    cancelJob: (input: { requestId: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingCancelJob, input),
+    latestForDocument: (input: { document: ReceiptDocumentRef }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingLatestForDocument, input)
   })
 })

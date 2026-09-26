@@ -847,6 +847,111 @@ try {
         ];
     }
 
+    /*
+     * Receipt-profile live-gate context (plan §D-10/§D-11). Opt-in via
+     * CP3G5_MINT_RECEIPT_PROFILE_CONTEXT=1 so the ordinary CP-3G-5 invoice-upload run is
+     * byte-for-byte unchanged when this is not asked for.
+     *
+     * One company (RP), one workstation device shared by three real users -- a CompanyAdmin
+     * (management authority), a Cashier, and a Manager with `receipts.profile.manage` GRANTED
+     * DIRECTLY (Spatie `givePermissionTo`, not through a role) -- proving the desktop's locally
+     * mirrored `canManage` verdict correctly stays false for both, since the real backend's own
+     * computation requires `hasRole(CompanyAdmin) AND can('receipts.profile.manage')`, never the
+     * permission alone (BD-1b, plan §D-10 "Correction A"). The base CP3G5 company/device/token
+     * minted unconditionally above serves as the "different company" fixture for the tenant-
+     * isolation scenario, rather than minting a second company here.
+     */
+    $receiptProfileContext = null;
+
+    if (getenv('CP3G5_MINT_RECEIPT_PROFILE_CONTEXT') === '1') {
+        $cp3g5Phase = 'receipt-profile-context';
+        $cp3g5Operation = 'company-create';
+
+        $rpCompany = Company::factory()->withDefaultCurrency(IsoCurrency::Usd)->create();
+        CompanySubscription::factory()->create([
+            'company_id' => $rpCompany->id,
+            'features_snapshot' => ['pos' => true, 'inventory' => true, 'reports' => true, 'refunds' => true],
+        ]);
+        $rpBranch = Branch::factory()->create(['company_id' => $rpCompany->id]);
+        $rpWarehouse = Warehouse::factory()->create(['company_id' => $rpCompany->id, 'branch_id' => $rpBranch->id]);
+        $rpDevice = DesktopDevice::factory()->create(['company_id' => $rpCompany->id, 'branch_id' => $rpBranch->id, 'warehouse_id' => $rpWarehouse->id]);
+
+        $cp3g5Operation = 'admin-create';
+        $rpAdmin = User::factory()->forCompany($rpCompany)->role(SystemRole::CompanyAdmin)->create();
+        $cp3g5Operation = 'cashier-create';
+        $rpCashier = User::factory()->forCompany($rpCompany)->role(SystemRole::Cashier)->create();
+        $cp3g5Operation = 'manager-create';
+        $rpManager = User::factory()->forCompany($rpCompany)->role(SystemRole::Manager)->create();
+        // BD-1b: a direct permission grant on a non-CompanyAdmin must never grant management —
+        // exercised against the REAL backend authorization gate, not simulated.
+        $rpManager->givePermissionTo('receipts.profile.manage');
+
+        $cp3g5Operation = 'payment-method-create';
+        $rpPaymentMethod = PaymentMethod::factory()->forCompany($rpCompany)->create(['type' => 'cash']);
+        $cp3g5Operation = 'shift-create';
+        $rpShift = Shift::factory()->create([
+            'company_id' => $rpCompany->id, 'branch_id' => $rpBranch->id, 'warehouse_id' => $rpWarehouse->id,
+            'desktop_device_id' => $rpDevice->id, 'user_id' => $rpCashier->id, 'status' => 'open',
+        ]);
+
+        $cp3g5Operation = 'token-issue';
+        $rpAdminToken = issueToken($rpAdmin, $rpDevice);
+        $rpCashierToken = issueToken($rpCashier, $rpDevice);
+        $rpManagerToken = issueToken($rpManager, $rpDevice);
+
+        // One already-committed original sale (direct Eloquent mint, same discipline as the
+        // refund-context block above) so the real desktop `RefundService` has something to submit
+        // a real, full-quantity refund against.
+        $cp3g5Operation = 'sale-product-create';
+        $rpProduct = Product::factory()->forCompany($rpCompany)->create([
+            'price' => 1500, 'tax_mode' => ProductTaxMode::None, 'track_stock' => false,
+        ]);
+        $cp3g5Operation = 'sale-invoice-create';
+        $rpInvoice = PosInvoice::factory()->create([
+            'company_id' => $rpCompany->id, 'branch_id' => $rpBranch->id, 'warehouse_id' => $rpWarehouse->id,
+            'desktop_device_id' => $rpDevice->id, 'shift_id' => $rpShift->id, 'cashier_user_id' => $rpCashier->id,
+            'server_number' => 'CP3G5RP-' . strtoupper(Str::random(8)),
+            'status' => PosInvoiceStatus::Completed, 'payment_status' => PosPaymentStatus::Paid,
+            'currency' => 'USD', 'subtotal_amount' => 3000, 'discount_total_amount' => 0,
+            'tax_total_amount' => 0, 'grand_total_amount' => 3000, 'paid_total_amount' => 3000,
+            'branch_snapshot' => ['name' => $rpBranch->name], 'warehouse_snapshot' => ['name' => $rpWarehouse->name],
+            'device_snapshot' => ['device_uuid' => $rpDevice->device_uuid], 'cashier_snapshot' => ['name' => $rpCashier->name],
+        ]);
+        $rpInvoiceItem = PosInvoiceItem::factory()->create([
+            'company_id' => $rpCompany->id, 'pos_invoice_id' => $rpInvoice->id, 'product_id' => $rpProduct->id, 'product_uuid' => $rpProduct->uuid,
+            'product_name' => $rpProduct->name, 'quantity' => '2.000', 'unit_price_amount' => 1500,
+            'subtotal_amount' => 3000, 'discount_amount' => 0, 'tax_amount' => 0, 'total_amount' => 3000,
+            'tax_mode' => PosTaxMode::None, 'tax_rate' => '0.00',
+        ]);
+        PosPayment::factory()->create(['company_id' => $rpCompany->id, 'pos_invoice_id' => $rpInvoice->id, 'payment_method_id' => $rpPaymentMethod->id, 'amount' => 3000]);
+
+        $receiptProfileContext = [
+            'company_uuid' => $rpCompany->uuid,
+            'device_uuid' => $rpDevice->device_uuid,
+            'admin' => ['token' => $rpAdminToken, 'user_uuid' => $rpAdmin->uuid],
+            'cashier' => ['token' => $rpCashierToken, 'user_uuid' => $rpCashier->uuid],
+            'manager' => ['token' => $rpManagerToken, 'user_uuid' => $rpManager->uuid],
+            'shift_uuid' => $rpShift->uuid,
+            'payment_method_uuid' => $rpPaymentMethod->uuid,
+            'sale' => [
+                'invoice_uuid' => $rpInvoice->uuid,
+                'invoice_item_uuid' => $rpInvoiceItem->uuid,
+                'product_uuid' => $rpProduct->uuid,
+                'quantity' => '2.000',
+                'subtotal_amount' => 3000,
+                'tax_amount' => 0,
+                'total_amount' => 3000,
+            ],
+            // The unconditionally-minted base CP3G5 fixture (a wholly separate company) doubles as
+            // the "foreign company" for the tenant-isolation scenario.
+            'foreign_company' => [
+                'token' => $token,
+                'device_uuid' => $device->device_uuid,
+                'company_uuid' => $company->uuid,
+            ],
+        ];
+    }
+
     $cp3g5Phase = 'fixture-write';
     $cp3g5Operation = 'encode-fixture';
 
@@ -857,6 +962,7 @@ try {
         'shift_uuid' => $shift->uuid,
         'payloads' => $payloads,
         'refund_context' => $refundContext,
+        'receipt_profile_context' => $receiptProfileContext,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
     $cp3g5Operation = 'write-fixture';

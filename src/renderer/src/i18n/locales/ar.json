@@ -235,6 +235,7 @@
       "dueAmount": "المبلغ المتبقي",
       "validating": "جارٍ التحقق…",
       "completeSale": "إتمام البيع",
+      "printReceipt": "طباعة الإيصال",
       "unknownMethod": "طريقة غير معروفة",
       "refreshRequired": "تغيّر الكتالوج. حدّث بيانات محطة العمل قبل المتابعة.",
       "contextChanged": "تغيّر شيء ما أثناء التحقق. راجع الدفعة وحاول مرة أخرى.",
@@ -660,6 +661,8 @@
     "refundHistory": "سجل الاسترداد",
     "noRefunds": "لا توجد عمليات استرداد على هذه الفاتورة بعد.",
     "returnAction": "إرجاع / استرداد",
+    "printAction": "طباعة الإيصال",
+    "printRefundAction": "طباعة إيصال الاسترداد",
     "invoiceNumber": "الفاتورة"
   },
   "refunds": {
@@ -736,6 +739,43 @@
       "refund_contract_version_unsupported": "إصدار عقد الاسترداد لهذا الاتصال غير مدعوم في هذا التطبيق.",
       "line_refund_infeasible_historically": "سجل استرداد هذا الصنف غير متسق ولا يمكن استرداده من هنا.",
       "original_sale_stock_effect_indeterminate": "تعذر تحديد أثر المخزون لعملية البيع الأصلية. يحتاج هذا الاسترداد إلى مراجعة من المدير أو المخزون قبل المتابعة."
+    }
+  },
+  "printing": {
+    "previewTitle": "معاينة الطباعة",
+    "previewAlt": "معاينة الإيصال",
+    "previewUnavailable": "تعذر تجهيز المعاينة.",
+    "paperGauge": "ورق {paper} مم · {printable} مم قابل للطباعة",
+    "pageCount": "{count} صفحات",
+    "reprintNotice": "تم إرسال هذا الإيصال للطابعة من قبل. هذه النسخة مُعلَّمة كنسخة مكررة.",
+    "printerLabel": "الطابعة",
+    "printerDefault": "الطابعة الافتراضية لمحطة العمل",
+    "copiesLabel": "عدد النسخ",
+    "printAction": "طباعة الإيصال",
+    "reprintAction": "إعادة طباعة الإيصال",
+    "cancelPrintAction": "إلغاء الطباعة",
+    "testReceiptAction": "طباعة إيصال تجريبي",
+    "autoPrintLabel": "الطباعة تلقائيًا بعد كل عملية بيع",
+    "autoPrintDescription": "تتم الطباعة مرة واحدة لكل عملية بيع. يمكنك دائمًا الطباعة أو إعادة الطباعة يدويًا.",
+    "paperWidthLabel": "عرض الورق",
+    "dispatchModeLabel": "وضع الطباعة",
+    "dispatchModeDirect": "طباعة مباشرة",
+    "dispatchModeSystemDialog": "استخدام مربع حوار الطباعة الخاص بالنظام",
+    "saveSettings": "حفظ إعدادات الطابعة",
+    "settingsSaved": "تم حفظ إعدادات الطابعة.",
+    "settingsTitle": "طابعة الإيصالات",
+    "settingsDescription": "اختر الطابعة وعرض الورق وسلوك الطباعة لمحطة العمل هذه.",
+    "status": {
+      "queued": "بانتظار الطابعة…",
+      "preparing": "جارٍ تجهيز الإيصال…",
+      "dispatching": "جارٍ الإرسال إلى الطابعة…",
+      "submitted": "تم الإرسال إلى الطابعة. تحقق من خروج الإيصال كاملاً.",
+      "cancelled": "تم إلغاء الطباعة. لم يتم إرسال شيء.",
+      "failed_before_dispatch": "تعذّرت الطباعة. لم يتم إرسال شيء إلى الطابعة.",
+      "outcome_unknown": "لا يمكن تأكيد ما تمت طباعته. تحقق من الورق قبل الطباعة مرة أخرى. قد تؤدي طباعة أخرى إلى تكرار الإيصال وستُعلَّم كنسخة مكررة."
+    },
+    "errors": {
+      "previewStale": "تغيّر الإيصال منذ آخر معاينة له. راجعه مرة أخرى قبل الطباعة."
     }
   }
 }

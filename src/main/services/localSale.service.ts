@@ -27,6 +27,7 @@ import type { OwnerTuple, SaleAttemptRepository } from '../repositories/saleAtte
 import type { StockAllocationRepository } from '../repositories/stockAllocation.repository'
 import type { OfflineSaleAuthorityRepository } from '../repositories/offlineSaleAuthority.repository'
 import type { SyncQueueRepository } from '../repositories/syncQueue.repository'
+import type { ReceiptContextCaptureService } from '../receipt/receiptContextCapture.service'
 import type { CatalogService } from './catalog.service'
 import type { CommercialAccessService } from './commercialAccess.service'
 import {
@@ -183,6 +184,13 @@ export interface LocalSaleDependencies {
    * it does today. Absence must mean legacy, never "assume permitted".
    */
   readonly offlineSaleAuthorities?: Pick<OfflineSaleAuthorityRepository, 'findUsable'>
+  /**
+   * Receipt-printing plan §D-2: optional so every existing test/wiring that constructs
+   * `LocalSaleDependencies` without it keeps compiling and behaving identically -- absence simply
+   * means no receipt-context row is captured for the sale, and printing then falls back to the
+   * labelled historical path (plan §D-2), never a hard failure of the sale itself.
+   */
+  readonly receiptContext?: Pick<ReceiptContextCaptureService, 'captureForSale'>
   readonly now?: () => Date
   readonly createUuid?: () => string
 }
@@ -1100,6 +1108,15 @@ export class LocalSaleService {
       offlineSaleAuthorityUuid: offlineSaleAuthority?.authorityUuid ?? null,
       stockAuthorizationPolicy: offlineSaleAuthority === null ? null : 'physical_presence',
       createdAt: committedAt
+    })
+
+    // Receipt-printing plan §D-2: the immutable receipt context, captured in this SAME
+    // transaction right after the invoice row. Never read by the upload mapping or the request
+    // hash -- purely additive, presentation-only state.
+    this.dependencies.receiptContext?.captureForSale({
+      invoiceLocalUuid,
+      companyUuid: owner.companyUuid,
+      customerUuid: intent.customerUuid
     })
 
     // 12-15. one item + zero-or-more allocation consumptions + one movement per tracked line; one payment per row.

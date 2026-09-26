@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
-const props = defineProps<{ open: boolean }>()
+const props = withDefaults(defineProps<{ open: boolean; size?: 'md' | 'lg' }>(), { size: 'md' })
 const emit = defineEmits<{ close: [] }>()
 
 const headingId = useId()
@@ -76,6 +76,7 @@ onBeforeUnmount(() => {
       <div
         ref="dialogRef"
         class="app-dialog"
+        :class="`app-dialog--${props.size}`"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="headingId"
@@ -101,7 +102,6 @@ onBeforeUnmount(() => {
 }
 
 .app-dialog {
-  width: min(480px, 100%);
   max-height: 90vh;
   overflow-y: auto;
   display: flex;
@@ -112,6 +112,14 @@ onBeforeUnmount(() => {
   background: var(--color-surface-container-lowest);
   border: 1px solid var(--color-outline-variant);
   box-shadow: 0 24px 48px var(--color-scrim);
+}
+
+.app-dialog--md {
+  width: min(480px, 100%);
+}
+
+.app-dialog--lg {
+  width: min(720px, 100%);
 }
 
 .app-dialog__title {

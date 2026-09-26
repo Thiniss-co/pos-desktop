@@ -235,6 +235,7 @@
       "dueAmount": "Amount due",
       "validating": "Validating…",
       "completeSale": "Complete sale",
+      "printReceipt": "Print receipt",
       "unknownMethod": "Unknown method",
       "refreshRequired": "The catalog changed. Refresh workstation data before continuing.",
       "contextChanged": "Something changed while validating. Review the payment and try again.",
@@ -660,6 +661,8 @@
     "refundHistory": "Refund history",
     "noRefunds": "No refunds on this sale yet.",
     "returnAction": "Return / Refund",
+    "printAction": "Print receipt",
+    "printRefundAction": "Print refund receipt",
     "invoiceNumber": "Invoice"
   },
   "refunds": {
@@ -736,6 +739,43 @@
       "refund_contract_version_unsupported": "This connection's refund contract version is not supported by this app.",
       "line_refund_infeasible_historically": "This line's refund history is inconsistent and cannot be refunded here.",
       "original_sale_stock_effect_indeterminate": "The original sale's stock effect could not be determined. This refund needs a manager or inventory check before it can proceed."
+    }
+  },
+  "printing": {
+    "previewTitle": "Print preview",
+    "previewAlt": "Receipt preview",
+    "previewUnavailable": "The preview could not be prepared.",
+    "paperGauge": "{paper} mm paper · {printable} mm printable",
+    "pageCount": "{count} pages",
+    "reprintNotice": "This receipt was already sent to the printer. This copy is marked Reprint.",
+    "printerLabel": "Printer",
+    "printerDefault": "Workstation default",
+    "copiesLabel": "Copies",
+    "printAction": "Print receipt",
+    "reprintAction": "Reprint receipt",
+    "cancelPrintAction": "Cancel print",
+    "testReceiptAction": "Print test receipt",
+    "autoPrintLabel": "Print automatically after each sale",
+    "autoPrintDescription": "Prints once per sale. You can always print or reprint manually.",
+    "paperWidthLabel": "Paper width",
+    "dispatchModeLabel": "Printing mode",
+    "dispatchModeDirect": "Print directly",
+    "dispatchModeSystemDialog": "Use the system print dialog",
+    "saveSettings": "Save printer settings",
+    "settingsSaved": "Printer settings saved.",
+    "settingsTitle": "Receipt printer",
+    "settingsDescription": "Choose the printer, paper width and printing behaviour for this workstation.",
+    "status": {
+      "queued": "Waiting for the printer…",
+      "preparing": "Preparing the receipt…",
+      "dispatching": "Sending to the printer…",
+      "submitted": "Sent to the printer. Check that the whole receipt came out.",
+      "cancelled": "Printing cancelled. Nothing was sent.",
+      "failed_before_dispatch": "Couldn't print. Nothing was sent to the printer.",
+      "outcome_unknown": "Can't confirm what printed. Check the paper before printing again. Another print may duplicate it and will be marked Reprint."
+    },
+    "errors": {
+      "previewStale": "The receipt changed since it was last previewed. Review it again before printing."
     }
   }
 }

@@ -49,7 +49,8 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     // The shift is unknown to this company, or belongs to another device. The backend returns one
     // opaque response for both on purpose, so the desktop must not try to distinguish them.
     code === 'DESKTOP_HISTORICAL_ATTRIBUTION_FORBIDDEN' ||
-    code === 'ROLE_ASSIGNMENT_FORBIDDEN'
+    code === 'ROLE_ASSIGNMENT_FORBIDDEN' ||
+    code === 'RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN'
   ) {
     return 'authorization'
   }
@@ -68,7 +69,11 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     return 'rejected'
   }
 
-  if (code === 'VALIDATION_ERROR' || code === 'COMPANY_LIMIT_REACHED') {
+  if (
+    code === 'VALIDATION_ERROR' ||
+    code === 'COMPANY_LIMIT_REACHED' ||
+    code === 'RECEIPT_PROFILE_ASSET_INVALID'
+  ) {
     return 'validation'
   }
 
@@ -80,7 +85,8 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
     code === 'DESKTOP_SHIFT_NOT_OPEN' ||
     code === 'DESKTOP_SHIFT_ALREADY_PAUSED' ||
     code === 'DESKTOP_SHIFT_NOT_PAUSED' ||
-    code === 'DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND'
+    code === 'DESKTOP_SHIFT_ACTIVE_PAUSE_NOT_FOUND' ||
+    code === 'RECEIPT_PROFILE_REVISION_CONFLICT'
   ) {
     return 'conflict'
   }

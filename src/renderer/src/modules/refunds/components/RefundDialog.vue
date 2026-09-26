@@ -17,6 +17,8 @@ import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
 import OrderTotals from '@renderer/shared/components/pos/OrderTotals.vue'
 import RefundLineRow from '@renderer/shared/components/pos/RefundLineRow.vue'
+import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
+import type { ReceiptDocumentRef } from '@shared/contracts/printing.contract'
 
 /**
  * Plan §6 -- the refund action, in full. Reached from the sale-detail page's "Return / Refund"
@@ -134,6 +136,19 @@ function close(): void {
 async function resumeOutcome(): Promise<void> {
   if (!outcome.value) return
   await store.resume(outcome.value.localRefundUuid)
+}
+
+const receiptDialogOpen = ref(false)
+const receiptDocument = ref<ReceiptDocumentRef | null>(null)
+
+function printRefundReceipt(): void {
+  if (!outcome.value || outcome.value.state !== 'accepted') return
+  receiptDocument.value = { kind: 'refund', refundLocalUuid: outcome.value.localRefundUuid }
+  receiptDialogOpen.value = true
+}
+
+function closeReceiptDialog(): void {
+  receiptDialogOpen.value = false
 }
 </script>
 
@@ -319,6 +334,13 @@ async function resumeOutcome(): Promise<void> {
         >
           {{ t('refunds.resumeAction') }}
         </AppButton>
+        <AppButton
+          v-if="outcome.state === 'accepted'"
+          variant="secondary"
+          @click="printRefundReceipt"
+        >
+          {{ t('sales.printRefundAction') }}
+        </AppButton>
         <AppButton variant="primary" @click="close">{{ t('refunds.close') }}</AppButton>
       </template>
 
@@ -327,6 +349,12 @@ async function resumeOutcome(): Promise<void> {
       </template>
     </template>
   </AppDialog>
+
+  <ReceiptPreviewDialog
+    :open="receiptDialogOpen"
+    :document="receiptDocument"
+    @close="closeReceiptDialog"
+  />
 </template>
 
 <style scoped>

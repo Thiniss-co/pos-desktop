@@ -16,6 +16,7 @@ import { LicenseMetadataRepository } from '../repositories/licenseMetadata.repos
 import { LocalSaleRepository } from '../repositories/localSale.repository'
 import { LocalRefundRepository } from '../repositories/localRefund.repository'
 import { LocalStockRepository } from '../repositories/localStock.repository'
+import { ReceiptContextRepository } from '../repositories/receiptContext.repository'
 import { SaleAttemptRepository } from '../repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../repositories/secureSecrets.repository'
 import { SessionEpochRepository } from '../repositories/sessionEpoch.repository'
@@ -54,6 +55,17 @@ import { CommercialAccessService } from '../services/commercialAccess.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { LocalSaleService } from '../services/localSale.service'
+import { ReceiptContextCaptureService } from '../receipt/receiptContextCapture.service'
+import { ReceiptAccessService } from '../receipt/receiptAccess.service'
+import { ReceiptDocumentService } from '../receipt/receiptDocument.service'
+import { PrinterSettingsService } from '../receipt/printerSettings.service'
+import { ReceiptPrintJobRepository } from '../repositories/receiptPrintJob.repository'
+import { ReceiptPrintingService } from '../receipt/receiptPrinting.service'
+import { ReceiptProfileRepository } from '../repositories/receiptProfile.repository'
+import {
+  destroySharedReceiptRenderWindow,
+  getSharedReceiptRenderWindow
+} from '../receipt/receiptRenderer'
 import { SaleCompletionService } from '../services/saleCompletion.service'
 import { RefundAccessService } from '../services/refundAccess.service'
 import { RefundService } from '../services/refund.service'
@@ -118,6 +130,9 @@ export interface ApplicationServices {
   readonly saleCompletion: SaleCompletionService
   readonly refunds: RefundService
   readonly localRefunds: LocalRefundRepository
+  readonly receiptAccess: ReceiptAccessService
+  readonly printerSettings: PrinterSettingsService
+  readonly receiptPrinting: ReceiptPrintingService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   readonly invoiceUploads: InvoiceUploadWorker
@@ -272,6 +287,10 @@ export function createApplicationServices(): ApplicationServices {
     catalogClock,
     stockAllocations
   )
+  // Receipt-printing plan §D-11 -- constructed before `bootstrap` because printing's branding
+  // rendering reads the mirror the sync service will later populate; wired here so the mirror
+  // always exists once printing needs it.
+  const receiptProfileRepository = new ReceiptProfileRepository(database)
   const bootstrap = new BootstrapService(
     apiClient,
     deviceIdentityRepository,
@@ -319,6 +338,24 @@ export function createApplicationServices(): ApplicationServices {
   // commit path takes the legacy branch, so this is what makes the mode reachable at all — and its
   // absence, not a flag, is what keeps every unconfigured device behaving exactly as it does today.
   const offlineSaleAuthorities = new OfflineSaleAuthorityRepository(database)
+  // Receipt-printing plan §D-2: additive to the existing sale/refund commit paths -- absence of
+  // any of its own dependencies is never possible here (all are already constructed above), so
+  // this is always wired in production. Tests that construct `LocalSaleDependencies`/
+  // `RefundServiceDependencies` directly simply omit `receiptContext` and keep working unchanged.
+  const receiptContextRepository = new ReceiptContextRepository(database)
+  const receiptContextCapture = new ReceiptContextCaptureService({
+    receiptContext: receiptContextRepository,
+    bootstrapSnapshot,
+    sessionMetadata,
+    customers: {
+      findNameAndTaxNumber(customerUuid: string) {
+        const row = database
+          .prepare('SELECT name, tax_number AS taxNumber FROM customers WHERE id = ?')
+          .get(customerUuid) as { name: string; taxNumber: string | null } | undefined
+        return row ? { name: row.name, taxNumber: row.taxNumber } : null
+      }
+    }
+  })
   const localSale = new LocalSaleService({
     database,
     saleAttempts,
@@ -333,7 +370,8 @@ export function createApplicationServices(): ApplicationServices {
     catalog,
     connectivity,
     syncQueue,
-    offlineSaleAuthorities
+    offlineSaleAuthorities,
+    receiptContext: receiptContextCapture
   })
   const localRefundRepository = new LocalRefundRepository(database)
   const refundAccess = new RefundAccessService({
@@ -347,7 +385,8 @@ export function createApplicationServices(): ApplicationServices {
     access: refundAccess,
     shiftAuthority,
     catalog,
-    uploadRefund
+    uploadRefund,
+    receiptContext: receiptContextCapture
   })
   // Startup crash recovery (plan §3b): every `dispatched` row this device owns becomes
   // `unresolved` before anything else touches it. Best-effort -- a session with no established
@@ -358,6 +397,33 @@ export function createApplicationServices(): ApplicationServices {
   } catch {
     // No established session yet; nothing was dispatched under it either.
   }
+
+  // Receipt-printing plan §D-3/§D-5/§D-6/BD-2.
+  const receiptAccess = new ReceiptAccessService({ shiftAuthority, permissions: bootstrapSnapshot })
+  const receiptDocument = new ReceiptDocumentService({
+    localSale: localSaleRepository,
+    localRefunds: localRefundRepository,
+    receiptContext: receiptContextRepository,
+    bootstrapSnapshot,
+    receiptProfile: receiptProfileRepository
+  })
+  const printerSettings = new PrinterSettingsService(appSettings)
+  const receiptPrintJobs = new ReceiptPrintJobRepository(database)
+  const receiptPrinting = new ReceiptPrintingService({
+    jobs: receiptPrintJobs,
+    access: receiptAccess,
+    documents: receiptDocument,
+    printerSettings,
+    localSale: localSaleRepository,
+    localRefunds: localRefundRepository,
+    getPrinters: () => getSharedReceiptRenderWindow().listPrinters(),
+    getRenderWindow: () => getSharedReceiptRenderWindow(),
+    receiptProfile: receiptProfileRepository
+  })
+  // Plan §D-5 E T17: every job left `queued`/`preparing`/`dispatching` by a prior process becomes
+  // terminal before anything else can claim a reservation. Runs before IPC registration.
+  receiptPrinting.reconcileStartup()
+
   // CP-5D: the only production caller of `POST /api/v1/desktop/stock-allocations/top-up`. It is
   // main-only and reachable exclusively through `checkout:complete` / `checkout:retry-attempt`;
   // nothing in preload exposes an allocation request, a raw payload, or a generic HTTP method.
@@ -665,7 +731,24 @@ export function createApplicationServices(): ApplicationServices {
     localSale,
     acquisition: allocationAcquisition,
     // A sale that just queued a row should not wait for an unrelated trigger to be uploaded.
-    onSaleCommitted: () => invoiceUploads.requestRun()
+    onSaleCommitted: () => invoiceUploads.requestRun(),
+    // Receipt-printing plan §D-5 D: main-owned auto-print, scheduled after this tick (never inside
+    // the commit's own call stack) and fully isolated from the sale outcome by both this catch and
+    // the try/catch already wrapping every `onSaleCommittedForPrint` call in
+    // `SaleCompletionService` itself.
+    onSaleCommittedForPrint: ({ invoiceLocalUuid, companyUuid, deviceUuid, userUuid }) => {
+      setImmediate(() => {
+        receiptPrinting
+          .runAutoPrintForSale(
+            { companyUuid, deviceUuid, userUuid, sessionEpoch: sessionEpoch.current() },
+            invoiceLocalUuid
+          )
+          .catch(() => {
+            // Best-effort. A failed auto-print attempt is recorded in receipt_print_jobs (when it
+            // got that far) and is never retried automatically; it never revisits the sale.
+          })
+      })
+    }
   })
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
@@ -698,6 +781,9 @@ export function createApplicationServices(): ApplicationServices {
     saleCompletion,
     refunds,
     localRefunds: localRefundRepository,
+    receiptAccess,
+    printerSettings,
+    receiptPrinting,
     companyUsers,
     connectivity,
     invoiceUploads,
@@ -725,6 +811,7 @@ export function createApplicationServices(): ApplicationServices {
       invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()
+      destroySharedReceiptRenderWindow()
       closeDatabase(database)
     }
   }

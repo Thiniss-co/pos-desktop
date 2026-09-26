@@ -45,6 +45,12 @@ export interface LiveUploadFixture {
    * `refundLiveUpload.suite.ts` skips rather than failing.
    */
   readonly refundContext: RefundLiveContext | null
+  /**
+   * Receipt-printing plan §D-10/§D-11 -- the receipt-profile live-gate context. Absent from a
+   * fixture minted without `CP3G5_MINT_RECEIPT_PROFILE_CONTEXT=1`, in which case
+   * `receiptProfileLiveUpload.suite.ts` skips entirely.
+   */
+  readonly receiptProfileContext: ReceiptProfileLiveContext | null
 }
 
 /** One already-committed original-sale line, as `PosInvoiceItemResource` would report it. */
@@ -137,6 +143,35 @@ export interface ServiceLineContext {
   readonly tracked: ServiceLineCatalogEntry
 }
 
+/** One already-committed original sale, minted directly, for the live refund precondition. */
+export interface ReceiptProfileLiveSale {
+  readonly invoice_uuid: string
+  readonly invoice_item_uuid: string
+  readonly product_uuid: string
+  readonly quantity: string
+  readonly subtotal_amount: number
+  readonly tax_amount: number
+  readonly total_amount: number
+}
+
+export interface ReceiptProfileLiveContext {
+  readonly company_uuid: string
+  readonly device_uuid: string
+  readonly admin: { readonly token: string; readonly user_uuid: string }
+  readonly cashier: { readonly token: string; readonly user_uuid: string }
+  /** Manager with `receipts.profile.manage` granted DIRECTLY (BD-1b) -- must still be refused. */
+  readonly manager: { readonly token: string; readonly user_uuid: string }
+  readonly shift_uuid: string
+  readonly payment_method_uuid: string
+  readonly sale: ReceiptProfileLiveSale
+  /** A wholly separate company (the base CP3G5 fixture), for the tenant-isolation scenario. */
+  readonly foreign_company: {
+    readonly token: string
+    readonly device_uuid: string
+    readonly company_uuid: string
+  }
+}
+
 let cached: LiveUploadFixture | null | undefined
 
 export function liveUploadFixture(): LiveUploadFixture | null {
@@ -164,6 +199,7 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     service_line_context?: ServiceLineContext
     historical_track_stock_context?: HistoricalTrackStockContext
     refund_context?: RefundLiveContext
+    receipt_profile_context?: ReceiptProfileLiveContext
   }
 
   cached = {
@@ -177,7 +213,8 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     physicalPresenceProductUuid: raw.physical_presence_product_uuid ?? null,
     serviceLineContext: raw.service_line_context ?? null,
     historicalTrackStockContext: raw.historical_track_stock_context ?? null,
-    refundContext: raw.refund_context ?? null
+    refundContext: raw.refund_context ?? null,
+    receiptProfileContext: raw.receipt_profile_context ?? null
   }
 
   return cached
@@ -349,6 +386,17 @@ export function liveRefundBackendAvailable(): boolean {
   const fixture = liveUploadFixture()
 
   return fixture !== null && fixture.refundContext !== null && Boolean(process.env.CP3G5_BACKEND_DB)
+}
+
+/** Whether a live backend carrying the receipt-profile live-gate context was provided. */
+export function liveReceiptProfileBackendAvailable(): boolean {
+  const fixture = liveUploadFixture()
+
+  return (
+    fixture !== null &&
+    fixture.receiptProfileContext !== null &&
+    Boolean(process.env.CP3G5_BACKEND_DB)
+  )
 }
 
 /**

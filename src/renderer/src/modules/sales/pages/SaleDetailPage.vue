@@ -15,6 +15,8 @@ import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
 import RefundDialog from '@renderer/modules/refunds/components/RefundDialog.vue'
+import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
+import type { ReceiptDocumentRef } from '@shared/contracts/printing.contract'
 
 /**
  * Plan §6 -- exact location of the refund action: a "Return / Refund" button in this page's
@@ -35,6 +37,23 @@ const localeStore = useLocaleStore()
 const { t } = useI18n()
 
 const dialogOpen = ref(false)
+
+const receiptDialogOpen = ref(false)
+const receiptDocument = ref<ReceiptDocumentRef | null>(null)
+
+function printSaleReceipt(): void {
+  receiptDocument.value = { kind: 'sale', invoiceLocalUuid: invoiceLocalUuid.value }
+  receiptDialogOpen.value = true
+}
+
+function printRefundReceipt(refundLocalUuid: string): void {
+  receiptDocument.value = { kind: 'refund', refundLocalUuid }
+  receiptDialogOpen.value = true
+}
+
+function closeReceiptDialog(): void {
+  receiptDialogOpen.value = false
+}
 
 onMounted(() => {
   void salesStore.loadDetail(invoiceLocalUuid.value)
@@ -92,6 +111,9 @@ const canOpenNewRefund = computed(() => detail.value !== null && detail.value.op
         :description="detail.invoice.soldAt"
       >
         <template #actions>
+          <AppButton variant="secondary" @click="printSaleReceipt">
+            {{ t('sales.printAction') }}
+          </AppButton>
           <AppButton v-if="canOpenNewRefund" variant="transaction" @click="openRefundDialog">
             {{ t('sales.returnAction') }}
           </AppButton>
@@ -172,6 +194,7 @@ const canOpenNewRefund = computed(() => detail.value !== null && detail.value.op
           <tr>
             <th scope="col">{{ t('sales.total') }}</th>
             <th scope="col"></th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -179,6 +202,15 @@ const canOpenNewRefund = computed(() => detail.value !== null && detail.value.op
             <td class="numeric">{{ refund.grandTotalAmount }}</td>
             <td>
               <AppStatusChip>{{ refund.submissionState }}</AppStatusChip>
+            </td>
+            <td>
+              <AppButton
+                v-if="refund.submissionState === 'accepted'"
+                variant="ghost"
+                @click="printRefundReceipt(refund.localUuid)"
+              >
+                {{ t('sales.printRefundAction') }}
+              </AppButton>
             </td>
           </tr>
         </tbody>
@@ -188,6 +220,12 @@ const canOpenNewRefund = computed(() => detail.value !== null && detail.value.op
         :open="dialogOpen"
         :invoice-local-uuid="invoiceLocalUuid"
         @close="closeRefundDialog"
+      />
+
+      <ReceiptPreviewDialog
+        :open="receiptDialogOpen"
+        :document="receiptDocument"
+        @close="closeReceiptDialog"
       />
     </template>
   </div>

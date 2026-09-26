@@ -3,6 +3,7 @@ import { DesktopApiClient } from '../http/desktopApiClient'
 import { BootstrapService } from './bootstrap.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 import { desktopBootstrapFixture } from '../testing/fixtures/desktopBootstrap.fixture'
+import type { SessionContext } from '../repositories/sessionMetadata.repository'
 
 const identity: StoredDeviceIdentity = {
   deviceUuid: '00000000-0000-4000-8000-000000000003',
@@ -265,5 +266,59 @@ describe('BootstrapService.refresh', () => {
         process.env.POS_API_TRACE = originalTraceSetting
       }
     }
+  })
+
+  it('ingests the negotiated receipt_profile block for the responding company and the current session user', async () => {
+    const ingestFromBootstrap = vi.fn()
+    const fetchPendingAssets = vi.fn().mockResolvedValue(undefined)
+    const service = new BootstrapService(
+      createApiClient(
+        bootstrapSuccessEnvelope({ receipt_profile: { can_manage: true, profile: null } })
+      ),
+      { get: () => identity },
+      syncAllowed,
+      { persistSnapshot: () => ({ snapshotVersion: 'x', serverTime: 'x', counts: {} }) },
+      undefined,
+      undefined,
+      {
+        getContext: (): SessionContext => ({
+          isAuthenticated: true,
+          userUuid: 'user-1',
+          userIsActive: true,
+          companyUuid: '11111111-1111-4111-8111-111111111111',
+          deviceUuid: identity.deviceUuid,
+          serverDeviceId: 'server-device-1'
+        })
+      },
+      { ingestFromBootstrap, fetchPendingAssets }
+    )
+
+    await service.refresh()
+
+    expect(ingestFromBootstrap).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      'user-1',
+      { can_manage: true, profile: null }
+    )
+    expect(fetchPendingAssets).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111')
+  })
+
+  it('never fails bootstrap when receipt-profile sync throws or its asset fetch never resolves', async () => {
+    const ingestFromBootstrap = vi.fn(() => {
+      throw new Error('mirror write failed')
+    })
+    const fetchPendingAssets = vi.fn(() => new Promise<void>(() => {})) // never resolves
+    const service = new BootstrapService(
+      createApiClient(bootstrapSuccessEnvelope()),
+      { get: () => identity },
+      syncAllowed,
+      { persistSnapshot: () => ({ snapshotVersion: 'x', serverTime: 'x', counts: {} }) },
+      undefined,
+      undefined,
+      undefined,
+      { ingestFromBootstrap, fetchPendingAssets }
+    )
+
+    await expect(service.refresh()).resolves.toMatchObject({ isComplete: true })
   })
 })

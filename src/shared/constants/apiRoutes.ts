@@ -58,9 +58,14 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * capability marker. Same discipline as the other negotiated parameters above -- a backend that
    * predates it ignores the parameter and answers without `refund_contract`, and this app then
    * offers no refund at all rather than guessing whether the write path is protected.
+   *
+   * Receipt-printing plan §D-10/§D-11: `receipt_profile_version=1` additionally asks for the
+   * company receipt-profile block (branding) and the caller's `can_manage` capability. Same
+   * discipline -- a backend that predates it ignores the parameter and answers without
+   * `receipt_profile`, and this app mirrors nothing and hides the branding editor.
    */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
@@ -185,6 +190,23 @@ export const DESKTOP_API_ROUTES = Object.freeze({
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
+  },
+  /**
+   * Receipt-printing plan §D-10 — administration only. The backend re-checks CompanyAdmin role AND
+   * `receipts.profile.manage` on every write (§D-10 "Correction A"); these routes carry no
+   * authority of their own.
+   */
+  receiptProfileUploadLogo: {
+    path: '/receipt-profile/logo',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  receiptProfilePublish: {
+    path: '/receipt-profile',
+    method: 'PUT',
+    requiresAuth: true,
+    requiresDeviceUuid: true
   }
 } satisfies Record<string, DesktopApiRoute>)
 
@@ -220,6 +242,24 @@ export function invoiceShowRoute(invoiceRemoteUuid: string): DesktopApiRoute {
 
   return {
     path: `/invoices/${invoiceRemoteUuid.toLowerCase()}`,
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  }
+}
+
+/**
+ * Receipt-printing plan §D-10/§D-11 — `GET /api/v1/desktop/receipt-profile/assets/{sha256}`. The
+ * sha must already be a lowercase 64-hex string (as recorded by the mirror), which this validates
+ * before it ever reaches a URL path segment.
+ */
+export function receiptProfileAssetRoute(sha256: string): DesktopApiRoute {
+  if (!/^[a-f0-9]{64}$/.test(sha256)) {
+    throw new Error('A valid asset sha256 is required')
+  }
+
+  return {
+    path: `/receipt-profile/assets/${sha256}`,
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true

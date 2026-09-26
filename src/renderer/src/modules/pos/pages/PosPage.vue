@@ -43,6 +43,8 @@ import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.v
 import PaymentMethodTile from '@renderer/shared/components/pos/PaymentMethodTile.vue'
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
 import SaleRecoveryBanner from '@renderer/shared/components/pos/SaleRecoveryBanner.vue'
+import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
+import type { ReceiptDocumentRef } from '@shared/contracts/printing.contract'
 import { useCartStore } from '../cart.store'
 import { useCatalogStore } from '../catalog.store'
 import { usePaymentStore } from '../payment.store'
@@ -552,6 +554,23 @@ function openPaymentPanel(): void {
 
 function closePaymentPanel(): void {
   paymentPanelOpen.value = false
+}
+
+const receiptDialogOpen = ref(false)
+const receiptDocument = ref<ReceiptDocumentRef | null>(null)
+
+function handlePrintReceipt(): void {
+  const outcome = completionOutcome.value
+  if (!outcome || (outcome.outcome !== 'committed' && outcome.outcome !== 'acknowledged')) {
+    return
+  }
+
+  receiptDocument.value = { kind: 'sale', invoiceLocalUuid: outcome.invoice.localUuid }
+  receiptDialogOpen.value = true
+}
+
+function closeReceiptDialog(): void {
+  receiptDialogOpen.value = false
 }
 
 function selectPaymentMethod(methodId: string): void {
@@ -1219,6 +1238,7 @@ onMounted(async () => {
       :abandon-warning="t('pos.payment.completion.abandonWarning')"
       :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
       :cancel-confirm-label="t('common.cancel')"
+      :print-receipt-label="t('pos.payment.printReceipt')"
       @close="closePaymentPanel"
       @select-method="selectPaymentMethod"
       @edit-row="editPaymentRow"
@@ -1232,11 +1252,18 @@ onMounted(async () => {
       @retry="handleRetryAttempt"
       @abandon="handleAbandonAttempt"
       @acknowledge="handleAcknowledgeAttempt"
+      @print="handlePrintReceipt"
     >
       <template #actions>
         <AppButton variant="ghost" @click="closePaymentPanel">{{ t('common.close') }}</AppButton>
       </template>
     </PaymentPanel>
+
+    <ReceiptPreviewDialog
+      :open="receiptDialogOpen"
+      :document="receiptDocument"
+      @close="closeReceiptDialog"
+    />
 
     <AppDialog :open="dialogMode !== null" @close="dialogMode = null">
       <template #title>

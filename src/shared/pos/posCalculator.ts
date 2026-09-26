@@ -141,7 +141,13 @@ function checkedNumber(
   return success(Number(value))
 }
 
-function calculateDiscount(
+/**
+ * Exported so the receipt document builder (main-only, `src/main/receipt/receiptDocument.service.ts`)
+ * can derive a stored line's OWN discount share from its persisted `discountType`/`discountValue` --
+ * the exact same arithmetic the cart used to compute it at commit time, never a re-derivation from
+ * current catalog data. Behavior is unchanged; this export adds no new logic.
+ */
+export function calculateDiscount(
   amount: bigint,
   type: DiscountType,
   rawValue: number

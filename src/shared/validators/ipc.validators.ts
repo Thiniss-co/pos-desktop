@@ -18,6 +18,14 @@ import {
 import { localeCodeSchema, themePreferenceSchema } from '@shared/contracts/preferences.contract'
 import { syncListFailuresInputSchema as syncListFailuresContractSchema } from '@shared/contracts/sync.contract'
 import {
+  printerSettingsSchema,
+  printingPreviewInputSchema as printingPreviewContractSchema,
+  printingDispatchInputSchema as printingDispatchContractSchema,
+  printingGetJobInputSchema as printingGetJobContractSchema,
+  printingCancelJobInputSchema as printingCancelJobContractSchema,
+  printingLatestForDocumentInputSchema as printingLatestForDocumentContractSchema
+} from '@shared/contracts/printing.contract'
+import {
   refundsCancelPreparedInputSchema as refundsCancelPreparedContractSchema,
   refundsPreviewInputSchema as refundsPreviewContractSchema,
   refundsResumeInputSchema as refundsResumeContractSchema,
@@ -119,3 +127,12 @@ export const refundsPreviewInputSchema = refundsPreviewContractSchema
 export const refundsSubmitInputSchema = refundsSubmitContractSchema
 export const refundsResumeInputSchema = refundsResumeContractSchema
 export const refundsCancelPreparedInputSchema = refundsCancelPreparedContractSchema
+
+export const printingGetWorkstationSettingsInputSchema = z.undefined()
+export const printingSaveWorkstationSettingsInputSchema = printerSettingsSchema
+export const printingListPrintersInputSchema = z.undefined()
+export const printingPreviewInputSchema = printingPreviewContractSchema
+export const printingDispatchInputSchema = printingDispatchContractSchema
+export const printingGetJobInputSchema = printingGetJobContractSchema
+export const printingCancelJobInputSchema = printingCancelJobContractSchema
+export const printingLatestForDocumentInputSchema = printingLatestForDocumentContractSchema

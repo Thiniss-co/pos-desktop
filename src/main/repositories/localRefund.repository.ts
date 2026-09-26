@@ -142,11 +142,17 @@ export class LocalRefundRepository {
   /**
    * Persists the frozen refund + its items + its payment in one transaction, in `prepared` state
    * with `dispatch_count = 0`. Nothing has been sent yet, so this is provably undispatched.
+   *
+   * `onPersisted`, when given, runs INSIDE this same transaction, immediately after the refund,
+   * items and payment rows are written — receipt-printing plan §D-2 uses this to write the
+   * immutable receipt-context rows atomically with the refund itself, without coupling this
+   * repository to `ReceiptContextCaptureService`.
    */
   insert(
     refund: NewLocalRefund,
     items: readonly NewLocalRefundItem[],
-    payments: readonly NewLocalRefundPayment[]
+    payments: readonly NewLocalRefundPayment[],
+    onPersisted?: () => void
   ): LocalRefundRow {
     return runSerializedWrite(this.database, () => {
       this.database
@@ -230,6 +236,8 @@ export class LocalRefundRepository {
             payment.createdAt
           )
       })
+
+      onPersisted?.()
 
       const created = this.findByLocalUuid(refund.localUuid)
 

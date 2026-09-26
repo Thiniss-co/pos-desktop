@@ -748,7 +748,16 @@ export const desktopInvoiceShowResourceSchema = z
           discount_amount: invoiceMoneySchema,
           tax_amount: invoiceMoneySchema,
           total_amount: invoiceMoneySchema,
-          tax_mode: z.enum(['none', 'inclusive', 'exclusive'])
+          tax_mode: z.enum(['none', 'inclusive', 'exclusive']),
+          // Receipt-printing plan §D-1: the original line's descriptors, retained ONLY for the
+          // refund receipt (never used by the R4 calculator). PosInvoiceItemResource already
+          // includes these; they were simply undeclared here before. Optional so an older backend
+          // response (missing any of them) still parses -- the receipt then omits that field
+          // rather than failing the whole refund preview.
+          unit_price_amount: invoiceMoneySchema.optional(),
+          unit: z.string().nullable().optional(),
+          sku: z.string().nullable().optional(),
+          tax_rate: z.string().nullable().optional()
         })
         .extend(invoiceItemRefundReadModelResourceSchema.shape)
         .passthrough()

@@ -11,6 +11,7 @@ import {
 } from '../http/desktopResources.contract'
 import type { BootstrapPersistResult } from '../repositories/bootstrapSnapshot.repository'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
+import type { SessionContext } from '../repositories/sessionMetadata.repository'
 
 export interface BootstrapDeviceIdentityRepository {
   get(): StoredDeviceIdentity | null
@@ -22,6 +23,21 @@ export interface BootstrapCommercialAccessChecker {
 
 export interface BootstrapSnapshotWriter {
   persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult
+}
+
+/**
+ * Receipt-printing plan §D-11 — optional so every existing bootstrap test/fake keeps working
+ * unchanged. `ingestFromBootstrap` is synchronous and its own transaction; `fetchPendingAssets` is
+ * fire-and-forget and MUST NOT be awaited here, so a slow or offline asset download can never delay
+ * (or fail) an otherwise-successful bootstrap.
+ */
+export interface BootstrapReceiptProfileSync {
+  ingestFromBootstrap(
+    companyUuid: string,
+    userUuid: string | null,
+    block: DesktopBootstrapResource['receipt_profile']
+  ): void
+  fetchPendingAssets(companyUuid: string): Promise<void>
 }
 
 function authorizationError(message: string): PublicAppError {
@@ -75,7 +91,9 @@ export class BootstrapService {
     private readonly commercialAccess: BootstrapCommercialAccessChecker,
     private readonly bootstrapSnapshotRepository: BootstrapSnapshotWriter,
     private readonly onSnapshotPersisted?: (result: BootstrapPersistResult) => void,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    private readonly sessionMetadata?: { getContext(): SessionContext },
+    private readonly receiptProfileSync?: BootstrapReceiptProfileSync
   ) {}
 
   refresh(): Promise<BootstrapResult> {
@@ -127,6 +145,21 @@ export class BootstrapService {
 
     const persisted = this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt)
     this.onSnapshotPersisted?.(persisted)
+
+    if (this.receiptProfileSync) {
+      try {
+        const userUuid = this.sessionMetadata?.getContext().userUuid ?? null
+        this.receiptProfileSync.ingestFromBootstrap(
+          resource.company.id,
+          userUuid,
+          resource.receipt_profile
+        )
+        // Fire-and-forget: never awaited, and never allowed to delay or fail bootstrap itself.
+        void this.receiptProfileSync.fetchPendingAssets(resource.company.id).catch(() => undefined)
+      } catch {
+        // A receipt-profile sync failure must never fail an otherwise-successful bootstrap.
+      }
+    }
 
     return bootstrapResultSchema.parse({
       isComplete: true,

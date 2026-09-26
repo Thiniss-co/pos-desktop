@@ -19,6 +19,20 @@ export interface SaleCompletionDependencies {
    * the sale path — a sale is complete whether or not anything is listening.
    */
   readonly onSaleCommitted?: () => void
+  /**
+   * Receipt-printing plan §D-5 D — fired ONLY for a fresh, non-replay `committed` outcome (never
+   * for `acknowledged`, a replay, or a restart), so auto-print can never fire twice for the same
+   * sale from this call site. Carries the invoice's local UUID and owner tuple, which is all
+   * `ReceiptPrintingService.runAutoPrintForSale` needs -- it re-reads and re-verifies everything
+   * else itself. Wrapped the same way as `onSaleCommitted`: a printing failure must never turn a
+   * completed sale into a failed one.
+   */
+  readonly onSaleCommittedForPrint?: (params: {
+    readonly invoiceLocalUuid: string
+    readonly companyUuid: string
+    readonly deviceUuid: string
+    readonly userUuid: string
+  }) => void
 }
 
 /**
@@ -133,6 +147,16 @@ export class SaleCompletionService {
       } catch {
         // The sale is committed and durable. A listener that throws must never turn a completed
         // sale into a failed one.
+      }
+      try {
+        this.dependencies.onSaleCommittedForPrint?.({
+          invoiceLocalUuid: outcome.invoice.localUuid,
+          companyUuid: outcome.invoice.companyUuid,
+          deviceUuid: outcome.invoice.deviceUuid,
+          userUuid: outcome.invoice.userUuid
+        })
+      } catch {
+        // Same guarantee as above: printing is never allowed to affect the recorded sale outcome.
       }
     }
 

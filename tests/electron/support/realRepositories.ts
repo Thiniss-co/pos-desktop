@@ -12,6 +12,8 @@ import { LocalSaleRepository } from '../../../src/main/repositories/localSale.re
 import { LocalRefundRepository } from '../../../src/main/repositories/localRefund.repository'
 import { LocalStockRepository } from '../../../src/main/repositories/localStock.repository'
 import { PreparationRepository } from '../../../src/main/repositories/preparation.repository'
+import { ReceiptContextRepository } from '../../../src/main/repositories/receiptContext.repository'
+import { ReceiptProfileRepository } from '../../../src/main/repositories/receiptProfile.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../../../src/main/repositories/secureSecrets.repository'
 import { SessionEpochRepository } from '../../../src/main/repositories/sessionEpoch.repository'
@@ -39,6 +41,10 @@ export interface RealRepositories {
   readonly offlineSaleAuthorities: OfflineSaleAuthorityRepository
   /** CP3: durable preparation cycles and operations. */
   readonly preparation: PreparationRepository
+  /** Receipt-printing plan §D-11: the company receipt-profile mirror. */
+  readonly receiptProfile: ReceiptProfileRepository
+  /** Receipt-printing plan §D-2/§D-8: the immutable receipt context (issuer/cashier/profile). */
+  readonly receiptContext: ReceiptContextRepository
   readonly saleAttempts: SaleAttemptRepository
   readonly secureSecrets: SecureSecretsRepository
   readonly sessionEpoch: SessionEpochRepository
@@ -83,6 +89,8 @@ export function realRepositories(
     localStock: new LocalStockRepository(database),
     offlineSaleAuthorities: new OfflineSaleAuthorityRepository(database),
     preparation: new PreparationRepository(database, now),
+    receiptProfile: new ReceiptProfileRepository(database),
+    receiptContext: new ReceiptContextRepository(database),
     saleAttempts: new SaleAttemptRepository(database),
     secureSecrets: new SecureSecretsRepository(database),
     sessionEpoch: new SessionEpochRepository(database),
@@ -110,6 +118,8 @@ export function realRepositories(
   assert.ok(repositories.sessionMetadata instanceof SqliteSessionMetadataRepository)
   assert.ok(repositories.shiftObservations instanceof ShiftObservationRepository)
   assert.ok(repositories.preparation instanceof PreparationRepository)
+  assert.ok(repositories.receiptProfile instanceof ReceiptProfileRepository)
+  assert.ok(repositories.receiptContext instanceof ReceiptContextRepository)
   assert.ok(repositories.stockAllocations instanceof StockAllocationRepository)
   assert.ok(repositories.syncQueue instanceof SyncQueueRepository)
 

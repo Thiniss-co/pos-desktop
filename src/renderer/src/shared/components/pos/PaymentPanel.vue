@@ -75,6 +75,7 @@ const props = withDefaults(
     abandonWarning: string
     confirmAbandonLabel: string
     cancelConfirmLabel: string
+    printReceiptLabel?: string
   }>(),
   {
     discountLabel: undefined,
@@ -86,7 +87,8 @@ const props = withDefaults(
     dueLabel: undefined,
     due: undefined,
     previewMessage: undefined,
-    completionMessage: undefined
+    completionMessage: undefined,
+    printReceiptLabel: undefined
   }
 )
 
@@ -104,6 +106,7 @@ const emit = defineEmits<{
   retry: []
   abandon: []
   acknowledge: []
+  print: []
 }>()
 
 /**
@@ -272,6 +275,15 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
         {{ recoveryState.message }}
       </AppStatusChip>
       <AppButton
+        v-if="printReceiptLabel"
+        class="payment-panel__print"
+        variant="secondary"
+        full-width
+        @click="emit('print')"
+      >
+        {{ printReceiptLabel }}
+      </AppButton>
+      <AppButton
         class="payment-panel__complete"
         variant="transaction"
         full-width
@@ -420,6 +432,10 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
 }
 
 .payment-panel__complete {
+  margin-block-start: var(--space-2);
+}
+
+.payment-panel__print {
   margin-block-start: var(--space-2);
 }
 

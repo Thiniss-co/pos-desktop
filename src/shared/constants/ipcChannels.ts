@@ -75,5 +75,16 @@ export const IPC_CHANNELS = Object.freeze({
   refundsPreview: 'refunds:preview',
   refundsSubmit: 'refunds:submit',
   refundsResume: 'refunds:resume',
-  refundsCancelPrepared: 'refunds:cancel-prepared'
+  refundsCancelPrepared: 'refunds:cancel-prepared',
+  // Receipt-printing plan (rev 5) -- printing (main-owned document build, render, dispatch). Every
+  // channel: assertTrustedSender, then a strict Zod input schema, then the channel's own
+  // authority check.
+  printingGetWorkstationSettings: 'printing:get-workstation-settings',
+  printingSaveWorkstationSettings: 'printing:save-workstation-settings',
+  printingListPrinters: 'printing:list-printers',
+  printingPreview: 'printing:preview',
+  printingDispatch: 'printing:dispatch',
+  printingGetJob: 'printing:get-job',
+  printingCancelJob: 'printing:cancel-job',
+  printingLatestForDocument: 'printing:latest-for-document'
 })

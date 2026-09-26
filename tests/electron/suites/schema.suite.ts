@@ -72,7 +72,17 @@ const expectedTables = [
   'invoice_disposition_applications',
   'invoice_disposition_proof_results',
   'stock_allocation_disposition_holds',
-  'invoice_disposition_conflicts'
+  'invoice_disposition_conflicts',
+  // Receipt-printing plan (migration 0015): receipt context, the print-job journal, and the
+  // company receipt-profile mirror.
+  'receipt_profile_assets',
+  'receipt_profile_versions',
+  'receipt_profile_current',
+  'receipt_profile_authority',
+  'local_invoice_receipt_context',
+  'local_refund_receipt_context',
+  'local_refund_line_receipt_context',
+  'receipt_print_jobs'
 ]
 
 databaseTest(
@@ -115,12 +125,16 @@ databaseTest(
       'idx_local_allocation_consumptions_journal',
       'idx_local_invoice_items_invoice',
       'idx_local_invoice_payments_invoice',
+      'idx_local_invoices_owner',
       'idx_local_invoices_sold_at',
       'idx_local_invoices_sync_status',
+      'idx_local_refund_items_identity',
       'idx_local_refund_items_refund',
+      'idx_local_refund_line_receipt_context_refund',
       'idx_local_refund_payments_refund',
       'idx_local_refunds_invoice',
       'idx_local_refunds_one_open',
+      'idx_local_refunds_owner',
       'idx_local_refunds_state',
       'idx_local_stock_movements_invoice',
       'idx_local_stock_movements_projection',
@@ -129,6 +143,10 @@ databaseTest(
       'idx_prepare_operations_owner',
       'idx_product_barcodes_barcode',
       'idx_product_barcodes_product_id',
+      'idx_receipt_print_jobs_auto',
+      'idx_receipt_print_jobs_document',
+      'idx_receipt_print_jobs_reservation',
+      'idx_receipt_profile_versions_company',
       'idx_sale_attempts_one_blocking',
       'idx_sale_attempts_owner_state',
       'idx_stock_allocation_grants_available',

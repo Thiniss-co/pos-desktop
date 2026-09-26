@@ -141,4 +141,26 @@ describe('posApi surface', () => {
     // ownership and the idempotency key are resolved and frozen by RefundService, never here.
     expect(source).not.toMatch(/grandTotal|subtotalAmount|idempotencyKey|refundedAt/i)
   })
+
+  it('exposes the narrow printing domain channels (receipt-printing plan)', () => {
+    expect(source).toContain('printing:')
+    expect(source).toContain('getWorkstationSettings')
+    expect(source).toContain('saveWorkstationSettings')
+    expect(source).toContain('listPrinters')
+    expect(source).toContain('IPC_CHANNELS.printingPreview')
+    expect(source).toContain('IPC_CHANNELS.printingDispatch')
+    expect(source).toContain('IPC_CHANNELS.printingGetJob')
+    expect(source).toContain('IPC_CHANNELS.printingCancelJob')
+    expect(source).toContain('IPC_CHANNELS.printingLatestForDocument')
+    expect(source).toContain('IPC_CHANNELS.printingGetWorkstationSettings')
+    expect(source).toContain('IPC_CHANNELS.printingSaveWorkstationSettings')
+    expect(source).toContain('IPC_CHANNELS.printingListPrinters')
+  })
+
+  it('the printing preload never sends raw HTML, a URL, a filesystem path, or a printer command', () => {
+    // The renderer sends only a document reference (kind + local uuid), locale and narrow output
+    // overrides -- never the receipt markup, an asset path, or a device-level print command. Main
+    // alone builds and renders the document (receiptDocument.service.ts / receiptHtml.ts).
+    expect(source).not.toMatch(/<html|<!doctype|deviceName\s*:\s*['"`]|printerCommand|escpos/i)
+  })
 })

@@ -12,6 +12,7 @@ import { offlineStockPreparationMigration } from './0011_offline_stock_preparati
 import { offlineSalePolicyMigration } from './0012_offline_sale_policy'
 import { dispositionDiscoveryMigration } from './0013_disposition_discovery'
 import { localRefundsMigration } from './0014_local_refunds'
+import { receiptPrintingMigration } from './0015_receipt_printing'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -27,5 +28,6 @@ export const databaseMigrations = [
   offlineStockPreparationMigration,
   offlineSalePolicyMigration,
   dispositionDiscoveryMigration,
-  localRefundsMigration
+  localRefundsMigration,
+  receiptPrintingMigration
 ] as const
