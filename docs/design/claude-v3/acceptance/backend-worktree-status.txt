@@ -1,0 +1,92 @@
+ M app/Console/Commands/ArchitectureScanPermissionMatrixCommand.php
+ M app/Modules/Devices/Actions/RevokeDeviceAction.php
+ M app/Modules/Identity/Actions/GetCompanyOwnerReferenceDataAction.php
+ M app/Modules/POS/Actions/UploadDesktopInvoiceAction.php
+ M app/Modules/POS/Services/PosRefundValidationService.php
+ M app/Modules/Shifts/Actions/CloseDesktopShiftAction.php
+ M app/Modules/Shifts/Actions/OpenDesktopShiftAction.php
+ M app/Modules/Shifts/Http/Controllers/CompanyOwner/OwnerShiftMonitoringController.php
+ M app/Modules/Shifts/Http/Resources/CompanyOwner/OwnerShiftResource.php
+ M app/Modules/Shifts/Models/Shift.php
+ M app/Modules/Shifts/Policies/ShiftPolicy.php
+ M app/Modules/Shifts/Services/ShiftMonitoringService.php
+ M app/Modules/Shifts/Services/ShiftSummaryService.php
+ M app/Modules/Tenancy/Services/CompanyCurrencyProvisioner.php
+ M app/Shared/Authorization/RouteAuthorizationRequirements.php
+ M app/Shared/Authorization/SystemRolePermissionMap.php
+ M app/Shared/Http/Responses/ApiErrorCode.php
+ M app/Shared/Services/FeaturePermissionMap.php
+ M config/desktop_invoice_contract.php
+ M database/seeders/DesktopMvpSmokeSeeder.php
+ M docs/api/desktop-api-contract.md
+ M docs/architecture/company-owner-endpoint-inventory.md
+ M docs/architecture/company-owner-modules.md
+ M docs/architecture/company-owner-sales-and-shifts.md
+ M docs/architecture/permission-naming-standard.md
+ M docs/architecture/route-feature-permission-matrix.md
+ M docs/architecture/security-note-company-device-administration.md
+ M docs/development/company-owner-browser-checks.md
+ M docs/development/desktop-mvp-smoke-data.md
+ M resources/company-owner/components/shifts/ShiftCashMovements.vue
+ M resources/company-owner/layouts/AuthenticatedLayout.vue
+ M resources/company-owner/pages/shifts/ShiftDetailPage.vue
+ M resources/company-owner/pages/shifts/ShiftListPage.vue
+ M resources/company-owner/router/index.ts
+ M resources/company-owner/stores/referenceData.ts
+ M resources/company-owner/types/shifts.ts
+ M resources/company-owner/utils/money.test.ts
+ M resources/company-owner/utils/money.ts
+ M resources/company-owner/utils/shifts.test.ts
+ M resources/company-owner/utils/shifts.ts
+ M routes/company-owner.php
+ M scripts/owner-browser-check.sh
+ M tests/Browser/CompanyOwner/sales-and-shifts.browser.mjs
+ M tests/Browser/CompanyOwner/seed-sales-and-shifts-fixtures.php
+ M tests/Feature/ArchitectureScanPermissionMatrixTest.php
+ M tests/Feature/CompanyDeviceAdministrationSecurityTest.php
+ M tests/Feature/CompanyOwner/Modules/OwnerShiftCurrencyAndCashMovementsTest.php
+ M tests/Feature/CompanyOwner/Modules/OwnerShiftMonitoringModuleTest.php
+ M tests/Feature/DesktopMvpSmokeSeederTest.php
+ M tests/Feature/DesktopRefundUploadTest.php
+ M tests/Pest.php
+ M tests/Unit/RouteAuthorizationRequirementsTest.php
+?? app/Modules/Devices/Actions/OwnerDeviceLifecycleAction.php
+?? app/Modules/Devices/Http/Controllers/CompanyOwner/OwnerDeviceController.php
+?? app/Modules/Devices/Http/Requests/CompanyOwner/OwnerBlockDeviceRequest.php
+?? app/Modules/Devices/Http/Requests/CompanyOwner/OwnerIndexDeviceRequest.php
+?? app/Modules/Devices/Http/Requests/CompanyOwner/OwnerRevokeDeviceRequest.php
+?? app/Modules/Devices/Http/Requests/CompanyOwner/OwnerUnblockDeviceRequest.php
+?? app/Modules/Devices/Http/Resources/CompanyOwner/OwnerDeviceResource.php
+?? app/Modules/Devices/Query/OwnerDeviceQuery.php
+?? app/Modules/Devices/Services/DeviceOfflineExposureService.php
+?? app/Modules/Shifts/Actions/RecoverStrandedShiftAction.php
+?? app/Modules/Shifts/Enums/ShiftAuditEventType.php
+?? app/Modules/Shifts/Enums/ShiftCloseMethod.php
+?? app/Modules/Shifts/Enums/ShiftSettlementCurrencyStatus.php
+?? app/Modules/Shifts/Http/Controllers/CompanyOwner/OwnerShiftRecoveryController.php
+?? app/Modules/Shifts/Http/Requests/CompanyOwner/OwnerRecoverShiftRequest.php
+?? app/Modules/Shifts/Models/ShiftAuditEvent.php
+?? app/Modules/Shifts/Services/ShiftCurrencyService.php
+?? app/Modules/Shifts/Services/ShiftReleaseEligibilityService.php
+?? database/migrations/2026_09_27_182432_add_currency_to_shifts_table.php
+?? database/migrations/2026_09_27_183408_add_recovery_to_shifts_and_create_shift_audit_events.php
+?? database/migrations/2026_09_28_120000_add_shift_recovery_permission.php
+?? docs/architecture/company-owner-operational-controls.md
+?? resources/company-owner/components/devices/RevokeDeviceDialog.vue
+?? resources/company-owner/components/shifts/ShiftRecoveryDialog.vue
+?? resources/company-owner/pages/devices/DeviceDetailPage.vue
+?? resources/company-owner/pages/devices/DeviceListPage.vue
+?? resources/company-owner/services/devicesApi.ts
+?? resources/company-owner/services/shiftRecoveryApi.ts
+?? resources/company-owner/types/devices.ts
+?? resources/company-owner/utils/devices.test.ts
+?? resources/company-owner/utils/devices.ts
+?? tests/Feature/CompanyOwner/DelegatedPermissionsOwnerAccessTest.php
+?? tests/Feature/CompanyOwner/Modules/OwnerDeviceManagementModuleTest.php
+?? tests/Feature/CompanyOwner/Modules/OwnerShiftRecoveryTest.php
+?? tests/Feature/OwnerDeviceLifecycleMySqlConcurrencyTest.php
+?? tests/Feature/ShiftCurrencyContractTest.php
+?? tests/Feature/ShiftCurrencyMySqlConcurrencyTest.php
+?? tests/Feature/ShiftRecoveryMySqlConcurrencyTest.php
+?? tests/Feature/ShiftRecoveryPermissionProvisioningTest.php
+?? tests/Support/desktop-refund-fixtures.php

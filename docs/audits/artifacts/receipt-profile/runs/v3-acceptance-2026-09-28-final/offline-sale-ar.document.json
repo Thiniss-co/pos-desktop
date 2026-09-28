@@ -1,0 +1,67 @@
+{
+  "kind": "sale",
+  "templateVersion": 1,
+  "locale": "ar",
+  "isReprint": false,
+  "header": {
+    "companyName": "Kling Ltd",
+    "branchName": "South Ramontown Branch",
+    "addressLines": [
+      "123 Main St",
+      "Cairo, Egypt"
+    ],
+    "phone": "+20 100 123 4567",
+    "taxIdentifierLabel": "Tax ID",
+    "taxIdentifierValue": "RP-TAX-1",
+    "logo": {
+      "sha256": "a439dd8761d9fd4ff88e82e83200877703594491065880dbd4e59ddf4ce1b204",
+      "included": true
+    }
+  },
+  "meta": {
+    "receiptNumberLabel": "رقم الإيصال",
+    "receiptNumber": "CP3G5RP-LOCAL-ef271918",
+    "serverNumberLabel": "رقم الفاتورة على الخادم",
+    "serverNumber": "CP3G5RP-decd3fc6",
+    "dateTimeText": "28‏/09‏/2026 03:53 م (UTC+03:00)",
+    "cashierLabel": "الكاشير",
+    "cashierName": "CP3G5 Cashier",
+    "customerName": null,
+    "customerTaxNumber": null,
+    "currency": "USD"
+  },
+  "items": [
+    {
+      "productName": "CP3G5 Receipt-Profile Service",
+      "sku": null,
+      "quantityText": "2.000",
+      "unit": "pc",
+      "unitPriceText": "‏15.00 US$",
+      "lineTotalText": "‏30.00 US$",
+      "ownDiscountText": null,
+      "invoiceDiscountShareText": null,
+      "taxRateLabel": null
+    }
+  ],
+  "totals": {
+    "subtotalText": "‏30.00 US$",
+    "itemDiscountText": null,
+    "invoiceDiscountText": null,
+    "taxLines": [],
+    "grandTotalText": "‏30.00 US$",
+    "payments": [
+      {
+        "label": "Cash",
+        "amountText": "‏30.00 US$",
+        "maskedReference": null
+      }
+    ],
+    "paidText": null,
+    "changeText": null
+  },
+  "refund": null,
+  "notices": [],
+  "footer": [
+    "Thank you for shopping with us"
+  ]
+}

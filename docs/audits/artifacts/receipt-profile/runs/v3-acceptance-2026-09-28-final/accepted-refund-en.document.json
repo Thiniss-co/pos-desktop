@@ -1,0 +1,74 @@
+{
+  "kind": "refund",
+  "templateVersion": 1,
+  "locale": "en",
+  "isReprint": false,
+  "header": {
+    "companyName": "Kling Ltd",
+    "branchName": "South Ramontown Branch",
+    "addressLines": [
+      "123 Main St",
+      "Cairo, Egypt"
+    ],
+    "phone": "+20 100 123 4567",
+    "taxIdentifierLabel": "Tax ID",
+    "taxIdentifierValue": "RP-TAX-1",
+    "logo": {
+      "sha256": "a439dd8761d9fd4ff88e82e83200877703594491065880dbd4e59ddf4ce1b204",
+      "included": true
+    }
+  },
+  "meta": {
+    "receiptNumberLabel": "Refund no.",
+    "receiptNumber": "REF-20260928-000001",
+    "serverNumberLabel": null,
+    "serverNumber": null,
+    "dateTimeText": "09/28/2026, 03:53 PM (UTC+03:00)",
+    "cashierLabel": "Cashier",
+    "cashierName": "CP3G5 Cashier",
+    "customerName": null,
+    "customerTaxNumber": null,
+    "currency": "USD"
+  },
+  "items": [
+    {
+      "productName": "et ut reiciendis",
+      "sku": null,
+      "quantityText": "1.000",
+      "unit": null,
+      "unitPriceText": "$15.00",
+      "lineTotalText": "$15.00",
+      "ownDiscountText": null,
+      "invoiceDiscountShareText": null,
+      "taxRateLabel": "0.0000%"
+    }
+  ],
+  "totals": {
+    "subtotalText": "$15.00",
+    "itemDiscountText": null,
+    "invoiceDiscountText": null,
+    "taxLines": [],
+    "grandTotalText": "$15.00",
+    "payments": [
+      {
+        "label": "Cash",
+        "amountText": "$15.00",
+        "maskedReference": null
+      }
+    ],
+    "paidText": null,
+    "changeText": null
+  },
+  "refund": {
+    "refundNumber": "REF-20260928-000001",
+    "refundDateText": "09/28/2026, 03:53 PM (UTC+03:00)",
+    "originalOfflineNumber": "CP3G5RP-LOCAL-ef271918",
+    "originalServerNumber": "CP3G5RP-decd3fc6",
+    "stockReturned": false,
+    "reason": null
+  },
+  "notices": [],
+  "footer": [
+    "Thank you for shopping with us"
+  ]
+}

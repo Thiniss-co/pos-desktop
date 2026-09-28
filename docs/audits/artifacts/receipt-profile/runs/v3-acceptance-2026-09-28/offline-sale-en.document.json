@@ -1,0 +1,67 @@
+{
+  "kind": "sale",
+  "templateVersion": 1,
+  "locale": "en",
+  "isReprint": false,
+  "header": {
+    "companyName": "Nienow, Schmidt and Steuber",
+    "branchName": "Mozelltown Branch",
+    "addressLines": [
+      "123 Main St",
+      "Cairo, Egypt"
+    ],
+    "phone": "+20 100 123 4567",
+    "taxIdentifierLabel": "Tax ID",
+    "taxIdentifierValue": "RP-TAX-1",
+    "logo": {
+      "sha256": "a439dd8761d9fd4ff88e82e83200877703594491065880dbd4e59ddf4ce1b204",
+      "included": true
+    }
+  },
+  "meta": {
+    "receiptNumberLabel": "Receipt no.",
+    "receiptNumber": "CP3G5RP-LOCAL-12b9d927",
+    "serverNumberLabel": "Server invoice no.",
+    "serverNumber": "CP3G5RP-cdced3a9",
+    "dateTimeText": "09/28/2026, 02:54 PM (UTC+03:00)",
+    "cashierLabel": "Cashier",
+    "cashierName": "CP3G5 Cashier",
+    "customerName": null,
+    "customerTaxNumber": null,
+    "currency": "USD"
+  },
+  "items": [
+    {
+      "productName": "CP3G5 Receipt-Profile Service",
+      "sku": null,
+      "quantityText": "2.000",
+      "unit": "pc",
+      "unitPriceText": "$15.00",
+      "lineTotalText": "$30.00",
+      "ownDiscountText": null,
+      "invoiceDiscountShareText": null,
+      "taxRateLabel": null
+    }
+  ],
+  "totals": {
+    "subtotalText": "$30.00",
+    "itemDiscountText": null,
+    "invoiceDiscountText": null,
+    "taxLines": [],
+    "grandTotalText": "$30.00",
+    "payments": [
+      {
+        "label": "Cash",
+        "amountText": "$30.00",
+        "maskedReference": null
+      }
+    ],
+    "paidText": null,
+    "changeText": null
+  },
+  "refund": null,
+  "notices": [],
+  "footer": [
+    "Thank you for shopping with us"
+  ]
+}

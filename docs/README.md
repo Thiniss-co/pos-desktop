@@ -24,3 +24,8 @@ Phase 1’s application foundation is complete: hardened Electron boundaries, a 
 SQLite migrations and repositories, and a test/packaging baseline. Activation, login, bootstrap
 fetching, sync work, and all POS workflows remain Phase 2+ work. See
 [phases/01-foundation-structure.md](phases/01-foundation-structure.md).
+
+## Design
+
+- [Thinis POS V3 (Claude Design)](design/claude-v3/README.md): design source, reference renders, the
+  implementation guide and matrix, and verification screenshots.
