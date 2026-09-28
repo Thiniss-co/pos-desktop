@@ -206,7 +206,8 @@
       "pause": "Pause shift",
       "close": "Close shift",
       "rebuild": "Review cart rebuild",
-      "discount": "Cart discount"
+      "discount": "Cart discount",
+      "held": "Held sales"
     },
     "openingCash": "Opening cash",
     "actualCash": "Actual cash",
@@ -322,7 +323,8 @@
       "PAYMENT_REFERENCE_REQUIRED": "This payment method requires a reference.",
       "PAYMENT_INSUFFICIENT_TENDER": "The tendered amount does not cover the total.",
       "PAYMENT_NON_CASH_OVERPAYMENT": "Only cash payments may exceed the total. Reduce the non-cash amount.",
-      "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit."
+      "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit.",
+      "CART_HOLD_LIMIT": "Too many held sales. Recall or discard one first."
     },
     "catalogRefresh": {
       "action": "Refresh workstation data",
@@ -333,7 +335,36 @@
     },
     "syncIdle": "Sync: {count} queued",
     "syncPaused": "Sync paused: {count} queued",
-    "syncReview": "{count} need review"
+    "syncReview": "{count} need review",
+    "quickSale": {
+      "scanLabel": "Scan or type code",
+      "scanPlaceholder": "Scan barcode — or type 3*code",
+      "scanHint": "Scans are added straight to the sale. Prefix a quantity with *, e.g. 3*6221234567890.",
+      "multiplier": "Next scan",
+      "clearMultiplier": "Reset",
+      "actionsLabel": "Quick actions",
+      "added": "Added to sale",
+      "addBlocked": "Finish or acknowledge the current payment before adding items.",
+      "invalidQuantity": "The quantity before * is not valid.",
+      "hold": "Hold",
+      "recall": "Recall",
+      "customer": "Customer",
+      "repeatLast": "+1 last item",
+      "discard": "Discard",
+      "heldTitle": "Held sale #{number}",
+      "heldItems": "{count} line | {count} lines",
+      "heldCount": "{count} held",
+      "heldNotice": "Sale held ({count} lines). Ready for the next customer.",
+      "noHeld": "No held sales",
+      "heldNote": "Held sales stay on this till until you recall them. They are cleared when you sign out or the shift changes.",
+      "customerAttached": "Customer attached",
+      "quickCash": "Quick cash",
+      "exactCash": "Exact {amount}",
+      "backToCart": "Back to cart",
+      "shortcutScan": "Focus the scan field",
+      "shortcutPay": "Pay, then complete the sale",
+      "shortcutMultiplier": "Type a quantity before the code"
+    }
   },
   "sync": {
     "label": "Sync",

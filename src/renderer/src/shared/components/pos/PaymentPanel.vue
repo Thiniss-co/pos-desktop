@@ -5,12 +5,14 @@ import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
+import InlinePanelFrame from './InlinePanelFrame.vue'
 import NumericAmountInput from './NumericAmountInput.vue'
 import OrderTotals from './OrderTotals.vue'
 import PaymentMethodTile from './PaymentMethodTile.vue'
 import SplitPaymentRow from './SplitPaymentRow.vue'
 import type {
   DisplayPaymentMethodOption,
+  DisplayQuickTender,
   DisplaySplitPayment,
   PaymentPanelRecoveryState
 } from './types'
@@ -75,8 +77,15 @@ const props = withDefaults(
     abandonWarning: string
     confirmAbandonLabel: string
     cancelConfirmLabel: string
+    /** `inline` renders the same flow in place (the checkout column) instead of as a modal. */
+    inline?: boolean
+    quickTenders?: readonly DisplayQuickTender[]
+    quickTendersLabel?: string
   }>(),
   {
+    inline: false,
+    quickTenders: () => [],
+    quickTendersLabel: undefined,
     discountLabel: undefined,
     discount: undefined,
     draftMethodLabel: undefined,
@@ -100,6 +109,7 @@ const emit = defineEmits<{
   commitDraft: []
   cancelDraft: []
   complete: []
+  quickTender: [string]
   refreshWorkstation: []
   retry: []
   abandon: []
@@ -149,7 +159,7 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
 </script>
 
 <template>
-  <AppDialog :open="open" @close="emit('close')">
+  <component :is="inline ? InlinePanelFrame : AppDialog" :open="open" @close="emit('close')">
     <template #title>{{ title }}</template>
 
     <AppStatusChip variant="information" class="payment-panel__status">
@@ -181,6 +191,28 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
         :title="option.ineligibleReason"
         @select="emit('selectMethod', option.method.id)"
       />
+    </div>
+
+    <div
+      v-if="quickTenders.length > 0 && recoveryState.kind === 'clear'"
+      class="payment-panel__quick"
+      role="group"
+      :aria-label="quickTendersLabel"
+    >
+      <span v-if="quickTendersLabel" class="payment-panel__quick-label">{{
+        quickTendersLabel
+      }}</span>
+      <button
+        v-for="tender in quickTenders"
+        :key="tender.id"
+        type="button"
+        class="payment-panel__quick-tender numeric"
+        :class="{ 'payment-panel__quick-tender--exact': tender.exact }"
+        :disabled="tender.disabled"
+        @click="emit('quickTender', tender.id)"
+      >
+        {{ tender.label }}
+      </button>
     </div>
 
     <div v-if="isEditingDraft" class="payment-panel__draft">
@@ -323,10 +355,46 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
     <template #actions>
       <slot name="actions" />
     </template>
-  </AppDialog>
+  </component>
 </template>
 
 <style scoped>
+.payment-panel__quick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-block-end: var(--space-4);
+}
+
+.payment-panel__quick-label {
+  grid-column: 1 / -1;
+  font-size: var(--text-body-sm-size);
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+}
+
+.payment-panel__quick-tender {
+  min-block-size: 3rem;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-size: var(--text-body-md-size, 1rem);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.payment-panel__quick-tender--exact {
+  grid-column: 1 / -1;
+  border-color: var(--color-transaction-accent);
+  color: var(--color-transaction-accent);
+}
+
+.payment-panel__quick-tender:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .payment-panel__status {
   margin-block-end: var(--space-3);
 }

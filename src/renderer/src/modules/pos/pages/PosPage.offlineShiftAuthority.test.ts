@@ -410,3 +410,80 @@ describe('POS page after the backend becomes unreachable', () => {
     expect(window.posApi.shifts.pause).not.toHaveBeenCalled()
   })
 })
+
+describe('POS quick-sale column', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  async function renderWithBarcode(): Promise<PosWrapper> {
+    const bus = harness()
+    const wrapper = await renderPos(bus)
+    window.posApi.catalog.findProductByBarcode = vi.fn(async () =>
+      ok({ outcome: 'found' as const, product: SERVICE_ITEM })
+    ) as unknown as Window['posApi']['catalog']['findProductByBarcode']
+    return wrapper
+  }
+
+  async function scan(wrapper: PosWrapper, text: string): Promise<void> {
+    const entry = wrapper.findComponent({ name: 'ScanEntry' })
+    await entry.find('input').setValue(text)
+    await entry.find('form').trigger('submit')
+    await flushPromises()
+  }
+
+  function quickAction(wrapper: PosWrapper, id: string): ReturnType<PosWrapper['find']> {
+    return wrapper.find(`.quick-actions__tile[data-action="${id}"]`)
+  }
+
+  it('adds a scanned code with a typed quantity straight to the cart', async () => {
+    const wrapper = await renderWithBarcode()
+    await scan(wrapper, '3*SVC-1')
+
+    const cart = useCartStore()
+    expect(cart.lines).toHaveLength(1)
+    expect(cart.lines[0].quantity).toBe('3.000')
+    expect(wrapper.find('.scan-entry__result--success').text()).toContain('Service Item')
+    // The field clears itself for the next scan.
+    expect((wrapper.find('#scan-entry-input').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('holds the sale, frees the till, and recalls it from the held list', async () => {
+    const wrapper = await renderWithBarcode()
+    await scan(wrapper, 'SVC-1')
+
+    await quickAction(wrapper, 'hold').trigger('click')
+    const cart = useCartStore()
+    expect(cart.lines).toHaveLength(0)
+    expect(cart.heldDrafts).toHaveLength(1)
+    expect(quickAction(wrapper, 'recall').text()).toContain('1')
+
+    await quickAction(wrapper, 'recall').trigger('click')
+    await flushPromises()
+    const list = wrapper.findComponent({ name: 'HeldSalesList' })
+    expect(list.exists()).toBe(true)
+    list.vm.$emit('recall', cart.heldDrafts[0].id)
+    await flushPromises()
+
+    expect(cart.heldDrafts).toHaveLength(0)
+    expect(cart.lines.map((line) => line.product.uuid)).toEqual([SERVICE_PRODUCT_UUID])
+  })
+
+  it('opens payment inside the checkout column with quick cash tenders, not a modal', async () => {
+    const wrapper = await renderWithBarcode()
+    await scan(wrapper, 'SVC-1')
+
+    await wrapper.find('.pos-page__future-action').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.pos-page__cart-spine .inline-panel-frame').exists()).toBe(true)
+    expect(wrapper.find('[aria-modal="true"]').exists()).toBe(false)
+    const tenders = wrapper.findAll('.payment-panel__quick-tender')
+    expect(tenders.length).toBeGreaterThan(0)
+    expect(tenders[0].text()).toContain('Exact')
+
+    await tenders[0].trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.payment-panel__row')).toHaveLength(1)
+  })
+})

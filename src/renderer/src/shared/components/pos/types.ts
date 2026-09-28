@@ -92,3 +92,40 @@ export interface DisplayRecoveryResult {
   /** Pre-formatted, locale-aware display string — never a raw ISO timestamp. */
   readonly committedAtLabel: string
 }
+
+/** The outcome strip under `ScanEntry`. `sequence` changes on every scan so a repeat re-animates. */
+export interface DisplayScanResult {
+  sequence: number
+  code: string
+  tone: 'success' | 'warning' | 'error'
+  message: string
+  /** Pre-formatted detail, e.g. "Milk 1L · ×3 · 45.00". */
+  detail?: string
+}
+
+export interface DisplayQuickAction {
+  id: string
+  label: string
+  /** Shown as a key hint and exposed via `aria-keyshortcuts`, e.g. "F4". */
+  shortcut?: string
+  badge?: string
+  disabled?: boolean
+  tone?: 'default' | 'danger'
+}
+
+export interface DisplayHeldSale {
+  id: string
+  title: string
+  /** Pre-formatted: time held, item count, customer. */
+  meta: string
+  /** Pre-formatted grand total at the moment the sale was held. */
+  total: string
+}
+
+/** One quick cash tender button, e.g. "Exact 37.40" or "50.00". */
+export interface DisplayQuickTender {
+  id: string
+  label: string
+  exact?: boolean
+  disabled?: boolean
+}

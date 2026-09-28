@@ -6,8 +6,12 @@ import type { CatalogProduct, PaymentMethodType } from '@shared/contracts/catalo
 import type { CheckoutIntent } from '@shared/contracts/checkout.contract'
 import type { LocaleCode } from '@shared/contracts/preferences.contract'
 import type {
+  DisplayHeldSale,
   DisplayPaymentMethodOption,
+  DisplayQuickAction,
+  DisplayQuickTender,
   DisplayRecoveryResult,
+  DisplayScanResult,
   DisplaySplitPayment,
   PaymentPanelRecoveryState,
   ShiftPhase
@@ -29,7 +33,6 @@ import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingS
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
 import AppInput from '@renderer/shared/components/forms/AppInput.vue'
 import AppSelect from '@renderer/shared/components/forms/AppSelect.vue'
-import BarcodeFeedback from '@renderer/shared/components/pos/BarcodeFeedback.vue'
 import CartLineItem from '@renderer/shared/components/pos/CartLineItem.vue'
 import CatalogRefreshPanel from '@renderer/shared/components/pos/CatalogRefreshPanel.vue'
 import CartPanel from '@renderer/shared/components/pos/CartPanel.vue'
@@ -42,6 +45,9 @@ import ShiftStatusControl from '@renderer/shared/components/pos/ShiftStatusContr
 import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.vue'
 import PaymentMethodTile from '@renderer/shared/components/pos/PaymentMethodTile.vue'
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
+import HeldSalesList from '@renderer/shared/components/pos/HeldSalesList.vue'
+import QuickActionsBar from '@renderer/shared/components/pos/QuickActionsBar.vue'
+import ScanEntry from '@renderer/shared/components/pos/ScanEntry.vue'
 import SaleRecoveryBanner from '@renderer/shared/components/pos/SaleRecoveryBanner.vue'
 import { useCartStore } from '../cart.store'
 import { useCatalogStore } from '../catalog.store'
@@ -49,6 +55,7 @@ import { usePaymentStore } from '../payment.store'
 import { useShiftStore } from '../shift.store'
 import { useBarcodeScanner } from '../useBarcodeScanner'
 import { usePosShortcuts } from '../usePosShortcuts'
+import { minorToDecimalText, parseScanEntry, quickCashAmounts } from '../quickSale'
 
 type DialogMode =
   | 'open'
@@ -59,6 +66,7 @@ type DialogMode =
   | 'payment-methods'
   | 'rebuild'
   | 'discount'
+  | 'held'
   | null
 
 type InvoiceDiscountSelection = 'none' | 'fixed' | 'percentage'
@@ -116,7 +124,8 @@ const {
   error: cartError,
   invoiceDiscountType,
   invoiceDiscountValue,
-  draftRevision: cartDraftRevision
+  draftRevision: cartDraftRevision,
+  heldDrafts
 } = storeToRefs(cart)
 const {
   currentShift,
@@ -160,10 +169,12 @@ const rebuildPreview = ref<{
   readonly revision: string
   readonly products: readonly CatalogProduct[]
 } | null>(null)
-const lastBarcode = ref<{
-  code: string
-  outcome: 'found' | 'not-found' | 'ambiguous' | 'stale-catalog' | 'unavailable-catalog'
-} | null>(null)
+const scanRef = ref<InstanceType<typeof ScanEntry> | null>(null)
+const scanText = ref('')
+const pendingMultiplier = ref<number | null>(null)
+const scanResult = ref<DisplayScanResult | null>(null)
+const lastAddedProductUuid = ref<string | null>(null)
+let scanSequence = 0
 const paymentPanelOpen = ref(false)
 let searchTimer: number | undefined
 let customerSearchTimer: number | undefined
@@ -478,6 +489,307 @@ const displayUnacknowledgedResults = computed<DisplayRecoveryResult[]>(() =>
   }))
 )
 
+// --- Quick sale column: scan entry, quick actions, held sales, quick tender ---------------------
+/**
+ * A sale that is committing, blocked on recovery, or committed-but-unacknowledged still owns the
+ * attempt key. Adding lines then would start the next sale inside the previous attempt, so the
+ * scan entry and quick actions stay locked until that attempt is resolved.
+ */
+const attemptSettled = computed(
+  () => !completionPending.value && paymentPanelRecoveryState.value.kind === 'clear'
+)
+const canAddToCart = computed(
+  () => canSell.value && catalogUsableForDraft.value && attemptSettled.value
+)
+const canHold = computed(() => lines.value.length > 0 && attemptSettled.value)
+const selectedCustomer = computed(() =>
+  selectedCustomerUuid.value
+    ? (customers.value.find((customer) => customer.uuid === selectedCustomerUuid.value) ?? null)
+    : null
+)
+const selectedCustomerLabel = computed(() => {
+  if (!selectedCustomerUuid.value) {
+    return null
+  }
+
+  return selectedCustomer.value?.name ?? String(t('pos.quickSale.customerAttached'))
+})
+const lastAddedLine = computed(() =>
+  lastAddedProductUuid.value
+    ? ([...lines.value]
+        .reverse()
+        .find((line) => line.product.uuid === lastAddedProductUuid.value) ?? null)
+    : null
+)
+
+const quickActions = computed<DisplayQuickAction[]>(() => [
+  {
+    id: 'hold',
+    label: String(t('pos.quickSale.hold')),
+    shortcut: 'F4',
+    disabled: !canHold.value
+  },
+  {
+    id: 'recall',
+    label: String(t('pos.quickSale.recall')),
+    shortcut: 'F6',
+    badge: heldDrafts.value.length > 0 ? String(heldDrafts.value.length) : undefined,
+    disabled: heldDrafts.value.length === 0 || !attemptSettled.value
+  },
+  {
+    id: 'customer',
+    label: String(t('pos.quickSale.customer')),
+    shortcut: 'F7',
+    disabled: !catalogAvailable.value || !attemptSettled.value
+  },
+  {
+    id: 'discount',
+    label: String(t('pos.discount')),
+    shortcut: 'F8',
+    disabled: lines.value.length === 0 || !canEdit.value || !attemptSettled.value
+  },
+  {
+    id: 'repeat',
+    label: String(t('pos.quickSale.repeatLast')),
+    disabled: lastAddedLine.value === null || !canEdit.value || !canAddToCart.value
+  },
+  {
+    id: 'clear',
+    label: String(t('pos.clearCart')),
+    tone: 'danger',
+    disabled: lines.value.length === 0 || !attemptSettled.value
+  }
+])
+
+const heldSalesDisplay = computed<DisplayHeldSale[]>(() =>
+  [...heldDrafts.value].reverse().map((held, index, all) => ({
+    id: held.id,
+    title: String(t('pos.quickSale.heldTitle', { number: all.length - index })),
+    meta: [
+      formatDateTime(held.heldAt, localeStore.locale as LocaleCode, { timeStyle: 'short' }),
+      String(t('pos.quickSale.heldItems', { count: held.itemCount })),
+      held.customerName ?? (held.customerUuid ? String(t('pos.quickSale.customerAttached')) : null)
+    ]
+      .filter((part): part is string => Boolean(part))
+      .join(' · '),
+    total: held.grandTotalAmount === null ? '—' : money(held.grandTotalAmount)
+  }))
+)
+
+const cashTenderMethod = computed(
+  () =>
+    paymentMethods.value.find((method) => method.type === 'cash' && !method.requiresReference) ??
+    null
+)
+/** Authoritative due amount from the main-process preview when it has one, else a local estimate. */
+const outstandingAmount = computed(() => {
+  const outcome = previewOutcome.value
+  if (outcome?.outcome === 'valid') {
+    return Math.max(0, outcome.dueAmount)
+  }
+
+  return Math.max(0, (calculation.value?.grandTotalAmount ?? 0) - paidTotalAmount.value)
+})
+const quickTenders = computed<DisplayQuickTender[]>(() => {
+  if (!cashTenderMethod.value || cartState.value.kind !== 'valid') {
+    return []
+  }
+
+  return quickCashAmounts(outstandingAmount.value, currencyExponent.value).map((amount, index) => ({
+    id: String(amount),
+    label:
+      index === 0 ? String(t('pos.quickSale.exactCash', { amount: money(amount) })) : money(amount),
+    exact: index === 0,
+    disabled: isEditingDraft.value || completionPending.value || isBlocked.value
+  }))
+})
+
+function reportScan(
+  code: string,
+  tone: DisplayScanResult['tone'],
+  message: string,
+  detail?: string
+): void {
+  scanSequence += 1
+  scanResult.value = { sequence: scanSequence, code, tone, message, detail }
+}
+
+function quantityLabel(quantityMilli: number): string {
+  return String(quantityMilli / 1000)
+}
+
+/**
+ * The single add-by-code path shared by the scan-entry field and the page-level scanner listener.
+ * `explicitMilli` comes from a typed `3*code` prefix; otherwise a pending multiplier tile applies
+ * once, then resets, so the next scan is back to one unit.
+ */
+async function addByCode(code: string, explicitMilli: number | null): Promise<void> {
+  const quantityMilli = explicitMilli ?? (pendingMultiplier.value ?? 1) * 1000
+  const result = await catalog.findProductByBarcode(code)
+
+  if (result.outcome !== 'found') {
+    reportScan(
+      code,
+      result.outcome === 'stale-catalog' ? 'warning' : 'error',
+      String(t(`pos.barcode.${result.outcome}`))
+    )
+    return
+  }
+
+  if (!canAddToCart.value) {
+    reportScan(
+      code,
+      'warning',
+      String(t(canSell.value ? 'pos.quickSale.addBlocked' : 'pos.openShiftToSell'))
+    )
+    return
+  }
+
+  if (!cart.addProduct(result.product, quantityMilli)) {
+    reportScan(code, 'error', cartError.value ?? String(t('pos.errors.CART_INVALID')))
+    return
+  }
+
+  pendingMultiplier.value = null
+  lastAddedProductUuid.value = result.product.uuid
+  reportScan(
+    code,
+    'success',
+    String(t('pos.quickSale.added')),
+    `${result.product.name} · ×${quantityLabel(quantityMilli)} · ${money(result.product.price.amount, result.product.price.currency)}`
+  )
+}
+
+function handleScanSubmit(text: string): void {
+  const parsed = parseScanEntry(text)
+  if (!parsed.ok) {
+    if (parsed.code === 'SCAN_QUANTITY_INVALID') {
+      reportScan(text.trim(), 'error', String(t('pos.quickSale.invalidQuantity')))
+    }
+    return
+  }
+
+  scanText.value = ''
+  void addByCode(parsed.code, parsed.quantityMilli)
+}
+
+function focusScanEntry(): void {
+  scanRef.value?.focus()
+}
+
+function holdCurrentSale(): boolean {
+  if (!canHold.value) {
+    return false
+  }
+
+  const customer = selectedCustomerUuid.value
+    ? { uuid: selectedCustomerUuid.value, name: selectedCustomer.value?.name ?? null }
+    : null
+  const held = cart.holdDraft(customer)
+  if (!held) {
+    return false
+  }
+
+  payment.clearDraft()
+  catalog.selectCustomer(null)
+  paymentPanelOpen.value = false
+  pendingMultiplier.value = null
+  lastAddedProductUuid.value = null
+  reportScan('—', 'success', String(t('pos.quickSale.heldNotice', { count: held.itemCount })))
+  return true
+}
+
+function recallHeldSale(id: string): void {
+  if (!attemptSettled.value) {
+    return
+  }
+
+  // Recall never merges: a non-empty live draft is parked first, so switching customers is one tap.
+  if (lines.value.length > 0 && !holdCurrentSale()) {
+    return
+  }
+
+  const held = cart.recallDraft(id)
+  if (!held) {
+    return
+  }
+
+  payment.clearDraft()
+  catalog.selectCustomer(held.customerUuid)
+  lastAddedProductUuid.value = null
+  dialogMode.value = null
+  focusScanEntry()
+}
+
+function discardHeldSale(id: string): void {
+  cart.discardHeldDraft(id)
+  if (heldDrafts.value.length === 0) {
+    dialogMode.value = null
+  }
+}
+
+function repeatLastItem(): void {
+  const line = lastAddedLine.value
+  if (line && canAddToCart.value) {
+    cart.incrementQuantity(line.id)
+  }
+}
+
+function clearSale(): void {
+  if (!attemptSettled.value) {
+    return
+  }
+
+  cart.clear()
+  payment.clearDraft()
+  catalog.selectCustomer(null)
+  pendingMultiplier.value = null
+  lastAddedProductUuid.value = null
+  paymentPanelOpen.value = false
+}
+
+function handleQuickAction(id: string): void {
+  const action = quickActions.value.find((candidate) => candidate.id === id)
+  if (!action || action.disabled) {
+    return
+  }
+
+  if (id === 'hold') {
+    holdCurrentSale()
+  } else if (id === 'recall') {
+    dialogMode.value = 'held'
+  } else if (id === 'customer') {
+    openDialog('customers')
+  } else if (id === 'discount') {
+    openInvoiceDiscountDialog()
+  } else if (id === 'repeat') {
+    repeatLastItem()
+  } else if (id === 'clear') {
+    clearSale()
+  }
+}
+
+function handleQuickTender(id: string): void {
+  const method = cashTenderMethod.value
+  const amount = Number(id)
+  if (!method || !Number.isSafeInteger(amount) || amount <= 0) {
+    return
+  }
+
+  payment.beginAddRow(method.uuid)
+  payment.setDraftAmountText(minorToDecimalText(amount, currencyExponent.value))
+  payment.commitDraftRow(currencyExponent.value)
+}
+
+/** F9: first press opens payment in the column; once a valid tender covers the sale, completes it. */
+function handlePayShortcut(): void {
+  if (!paymentPanelOpen.value) {
+    openPaymentPanel()
+  } else if (completionEnabled.value && !completionPending.value) {
+    handleComplete()
+  }
+}
+
 function handleComplete(): void {
   if (!checkoutIntent.value) {
     return
@@ -556,6 +868,10 @@ function closePaymentPanel(): void {
 
 function selectPaymentMethod(methodId: string): void {
   payment.beginAddRow(methodId)
+  // Pre-fill what is still owed: the common case (exact card/cash) becomes one Enter.
+  if (outstandingAmount.value > 0) {
+    payment.setDraftAmountText(minorToDecimalText(outstandingAmount.value, currencyExponent.value))
+  }
 }
 
 function editPaymentRow(rowId: string): void {
@@ -648,11 +964,12 @@ function stock(product: CatalogProduct): {
 }
 
 async function addSelectedProduct(uuid: string): Promise<void> {
-  if (canSell.value && catalogUsableForDraft.value) {
+  if (canAddToCart.value) {
     const currentProduct = await catalog.getProduct(uuid)
 
-    if (currentProduct) {
-      cart.addProduct(currentProduct)
+    if (currentProduct && cart.addProduct(currentProduct, (pendingMultiplier.value ?? 1) * 1000)) {
+      pendingMultiplier.value = null
+      lastAddedProductUuid.value = currentProduct.uuid
     }
   }
 }
@@ -792,16 +1109,12 @@ async function resumeShift(): Promise<void> {
   }
 }
 
+/**
+ * A scan made while no input has focus. The scan outcome is always reported: found, not-found,
+ * ambiguous, stale-catalog, and unavailable-catalog stay distinguishable in the scan strip.
+ */
 async function handleBarcode(barcode: string): Promise<void> {
-  const result = await catalog.findProductByBarcode(barcode)
-
-  if (result.outcome === 'found' && canSell.value && catalogUsableForDraft.value) {
-    cart.addProduct(result.product)
-  }
-
-  // The scan outcome is always reported: Phase 3C must still distinguish found, not-found,
-  // ambiguous, stale-catalog, and unavailable-catalog without building a draft line.
-  lastBarcode.value = { code: barcode, outcome: result.outcome }
+  await addByCode(barcode, null)
 }
 
 async function refreshCatalog(): Promise<void> {
@@ -872,8 +1185,31 @@ function confirmCartRebuild(): void {
 useBarcodeScanner({ onScan: handleBarcode })
 usePosShortcuts({
   focusSearch: () => searchRef.value?.focus(),
-  showHelp: () => openDialog('help')
+  showHelp: () => openDialog('help'),
+  bindings: {
+    F3: focusScanEntry,
+    F4: () => handleQuickAction('hold'),
+    F6: () => handleQuickAction('recall'),
+    F7: () => handleQuickAction('customer'),
+    F8: () => handleQuickAction('discount'),
+    F9: handlePayShortcut
+  }
 })
+
+// Payment lives in the checkout column now, so it folds away by itself once there is nothing left
+// to pay for — but never while a committed sale is still waiting for the cashier's acknowledgment.
+watch(
+  () => [lines.value.length, attemptSettled.value] as const,
+  ([lineCount, settled], previous) => {
+    if (lineCount === 0 && settled && paymentPanelOpen.value) {
+      paymentPanelOpen.value = false
+    }
+
+    if (settled && previous && !previous[1]) {
+      focusScanEntry()
+    }
+  }
+)
 
 watch(query, () => {
   window.clearTimeout(searchTimer)
@@ -892,6 +1228,9 @@ watch(
       cart.resetDraft('shift-changed')
       payment.resetPayment()
       paymentPanelOpen.value = false
+      pendingMultiplier.value = null
+      lastAddedProductUuid.value = null
+      scanResult.value = null
     }
   }
 )
@@ -1049,9 +1388,6 @@ onMounted(async () => {
       </template>
 
       <template #catalog>
-        <BarcodeFeedback v-if="lastBarcode" :outcome="lastBarcode.outcome" :code="lastBarcode.code">
-          {{ t(`pos.barcode.${lastBarcode.outcome}`) }}
-        </BarcodeFeedback>
         <AppInlineError v-if="catalogError">{{ catalogError }}</AppInlineError>
         <AppInlineError v-if="bootstrapError">{{ bootstrapError }}</AppInlineError>
         <AppLoadingSkeleton v-if="catalogLoading" :label="t('pos.loadingCatalog')" :lines="6" />
@@ -1084,7 +1420,7 @@ onMounted(async () => {
               categoryId: product.categoryUuid
             }"
             :stock-label="stock(product).label"
-            :disabled="!canSell || !catalogUsableForDraft"
+            :disabled="!canAddToCart"
             @select="addSelectedProduct(product.uuid)"
           />
         </div>
@@ -1097,10 +1433,34 @@ onMounted(async () => {
               <p class="pos-page__eyebrow">{{ t('pos.currentSale') }}</p>
               <h3>{{ t('pos.cartTitle') }}</h3>
             </div>
-            <AppButton variant="ghost" :disabled="lines.length === 0" @click="cart.clear">
-              {{ t('pos.clearCart') }}
-            </AppButton>
+            <div class="pos-page__cart-badges">
+              <AppStatusChip v-if="selectedCustomerLabel" variant="information">
+                {{ selectedCustomerLabel }}
+              </AppStatusChip>
+              <AppStatusChip v-if="heldDrafts.length > 0" variant="warning">
+                {{ t('pos.quickSale.heldCount', { count: heldDrafts.length }) }}
+              </AppStatusChip>
+            </div>
           </div>
+          <ScanEntry
+            ref="scanRef"
+            v-model="scanText"
+            :label="t('pos.quickSale.scanLabel')"
+            :placeholder="t('pos.quickSale.scanPlaceholder')"
+            :hint="t('pos.quickSale.scanHint')"
+            :multiplier-label="t('pos.quickSale.multiplier')"
+            :clear-multiplier-label="t('pos.quickSale.clearMultiplier')"
+            :pending-multiplier="pendingMultiplier"
+            :result="scanResult"
+            :disabled="!canAddToCart"
+            @submit="handleScanSubmit"
+            @set-multiplier="pendingMultiplier = $event"
+          />
+          <QuickActionsBar
+            :actions="quickActions"
+            :label="t('pos.quickSale.actionsLabel')"
+            @action="handleQuickAction"
+          />
           <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
           <p v-if="!canSell" class="pos-page__cart-guard">{{ t('pos.openShiftToSell') }}</p>
           <p v-if="cartState.kind === 'invalid'" class="pos-page__cart-guard">
@@ -1115,6 +1475,8 @@ onMounted(async () => {
             </AppButton>
           </div>
           <CartPanel
+            class="pos-page__cart-lines"
+            :class="{ 'pos-page__cart-lines--paying': paymentPanelOpen }"
             :lines="cartDisplayLines"
             :empty-title="t('pos.emptyCart')"
             :empty-description="t('pos.emptyCartDescription')"
@@ -1126,19 +1488,12 @@ onMounted(async () => {
               :decrease-label="t('pos.decreaseQuantity')"
               :increase-label="t('pos.increaseQuantity')"
               :remove-label="t('pos.removeLine')"
-              :disabled="!canEdit"
+              :disabled="!canEdit || !attemptSettled"
               @decrease="cart.decrementQuantity(line.id)"
               @increase="cart.incrementQuantity(line.id)"
               @remove="cart.remove(line.id)"
             />
-            <template #footer>
-              <AppButton
-                variant="ghost"
-                :disabled="lines.length === 0 || !canEdit"
-                @click="openInvoiceDiscountDialog"
-              >
-                {{ t('pos.discount') }}
-              </AppButton>
+            <template v-if="!paymentPanelOpen" #footer>
               <OrderTotals
                 :subtotal-label="t('pos.subtotal')"
                 :subtotal="money(calculation?.subtotalAmount ?? 0)"
@@ -1155,88 +1510,97 @@ onMounted(async () => {
                 full-width
                 :disabled="!canOpenPaymentPanel"
                 :aria-disabled="!canOpenPaymentPanel ? 'true' : undefined"
+                :aria-keyshortcuts="'F9'"
                 @click="openPaymentPanel"
               >
                 {{ checkoutActionLabel }}
               </AppButton>
             </template>
           </CartPanel>
+          <PaymentPanel
+            inline
+            class="pos-page__payment"
+            :open="paymentPanelOpen"
+            :title="t('pos.payment.title')"
+            :status-chip-label="t('pos.payment.statusChip')"
+            :subtotal-label="t('pos.subtotal')"
+            :subtotal="money(calculation?.subtotalAmount ?? 0)"
+            :discount-label="t('pos.discount')"
+            :discount="money(calculation?.discountTotalAmount ?? 0)"
+            :tax-label="t('pos.tax')"
+            :tax="money(calculation?.taxTotalAmount ?? 0)"
+            :total-label="t('pos.total')"
+            :total="money(calculation?.grandTotalAmount ?? 0)"
+            :method-options="paymentMethodOptions"
+            :no-methods-title="t('pos.payment.noMethodsTitle')"
+            :no-methods-description="t('pos.payment.noMethodsDescription')"
+            :rows="paymentDisplayRows"
+            :edit-row-label="t('pos.payment.editRow')"
+            :remove-row-label="t('pos.payment.removeRow')"
+            :is-editing-draft="isEditingDraft"
+            :draft-method-label="activeMethod?.name"
+            :draft-amount-label="t('pos.payment.amount')"
+            :draft-amount="draftAmountText"
+            :draft-amount-error="
+              draftErrorCode ? t(`pos.payment.errors.${draftErrorCode}`) : undefined
+            "
+            :draft-reference-label="t('pos.payment.reference')"
+            :draft-reference="draftReferenceText"
+            :requires-reference="activeMethod?.requiresReference ?? false"
+            :cancel-draft-label="t('common.cancel')"
+            :commit-draft-label="t('pos.payment.addTender')"
+            :paid-total-label="t('pos.payment.tendered')"
+            :paid-total="paidTotalDisplay"
+            :change-due-label="changeDueDisplay ? t('pos.payment.changeDue') : undefined"
+            :change-due="changeDueDisplay"
+            :due-label="dueDisplay ? t('pos.payment.dueAmount') : undefined"
+            :due="dueDisplay"
+            :preview-pending="previewPending"
+            :preview-pending-label="t('pos.payment.validating')"
+            :preview-message="previewMessage"
+            :preview-is-error="previewIsError"
+            :completion-label="t('pos.payment.completeSale')"
+            :completion-enabled="completionEnabled"
+            :completion-pending="completionPending"
+            :completion-pending-label="t('pos.payment.completion.pending')"
+            :completion-message="completionMessage"
+            :completion-is-error="completionIsError"
+            :completion-refresh-available="completionRefreshAvailable"
+            :completion-refresh-pending="catalogRefreshing"
+            :refresh-workstation-label="t('pos.catalogRefresh.action')"
+            :recovery-state="paymentPanelRecoveryState"
+            :retry-label="t('pos.payment.completion.retry')"
+            :abandon-label="t('pos.payment.completion.abandon')"
+            :acknowledge-label="t('pos.payment.completion.acknowledge')"
+            :abandon-warning="t('pos.payment.completion.abandonWarning')"
+            :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
+            :cancel-confirm-label="t('common.cancel')"
+            :quick-tenders="quickTenders"
+            :quick-tenders-label="t('pos.quickSale.quickCash')"
+            @close="closePaymentPanel"
+            @select-method="selectPaymentMethod"
+            @edit-row="editPaymentRow"
+            @remove-row="payment.removeRow"
+            @update:draft-amount="payment.setDraftAmountText"
+            @update:draft-reference="payment.setDraftReferenceText"
+            @commit-draft="commitPaymentDraft"
+            @cancel-draft="payment.cancelDraftRow"
+            @complete="handleComplete"
+            @quick-tender="handleQuickTender"
+            @refresh-workstation="handleRefreshCatalog"
+            @retry="handleRetryAttempt"
+            @abandon="handleAbandonAttempt"
+            @acknowledge="handleAcknowledgeAttempt"
+          >
+            <template #actions>
+              <AppButton variant="ghost" @click="closePaymentPanel">{{
+                t('pos.quickSale.backToCart')
+              }}</AppButton>
+            </template>
+          </PaymentPanel>
         </div>
       </template>
     </PosWorkspaceShell>
-
-    <PaymentPanel
-      :open="paymentPanelOpen"
-      :title="t('pos.payment.title')"
-      :status-chip-label="t('pos.payment.statusChip')"
-      :subtotal-label="t('pos.subtotal')"
-      :subtotal="money(calculation?.subtotalAmount ?? 0)"
-      :discount-label="t('pos.discount')"
-      :discount="money(calculation?.discountTotalAmount ?? 0)"
-      :tax-label="t('pos.tax')"
-      :tax="money(calculation?.taxTotalAmount ?? 0)"
-      :total-label="t('pos.total')"
-      :total="money(calculation?.grandTotalAmount ?? 0)"
-      :method-options="paymentMethodOptions"
-      :no-methods-title="t('pos.payment.noMethodsTitle')"
-      :no-methods-description="t('pos.payment.noMethodsDescription')"
-      :rows="paymentDisplayRows"
-      :edit-row-label="t('pos.payment.editRow')"
-      :remove-row-label="t('pos.payment.removeRow')"
-      :is-editing-draft="isEditingDraft"
-      :draft-method-label="activeMethod?.name"
-      :draft-amount-label="t('pos.payment.amount')"
-      :draft-amount="draftAmountText"
-      :draft-amount-error="draftErrorCode ? t(`pos.payment.errors.${draftErrorCode}`) : undefined"
-      :draft-reference-label="t('pos.payment.reference')"
-      :draft-reference="draftReferenceText"
-      :requires-reference="activeMethod?.requiresReference ?? false"
-      :cancel-draft-label="t('common.cancel')"
-      :commit-draft-label="t('pos.payment.addTender')"
-      :paid-total-label="t('pos.payment.tendered')"
-      :paid-total="paidTotalDisplay"
-      :change-due-label="changeDueDisplay ? t('pos.payment.changeDue') : undefined"
-      :change-due="changeDueDisplay"
-      :due-label="dueDisplay ? t('pos.payment.dueAmount') : undefined"
-      :due="dueDisplay"
-      :preview-pending="previewPending"
-      :preview-pending-label="t('pos.payment.validating')"
-      :preview-message="previewMessage"
-      :preview-is-error="previewIsError"
-      :completion-label="t('pos.payment.completeSale')"
-      :completion-enabled="completionEnabled"
-      :completion-pending="completionPending"
-      :completion-pending-label="t('pos.payment.completion.pending')"
-      :completion-message="completionMessage"
-      :completion-is-error="completionIsError"
-      :completion-refresh-available="completionRefreshAvailable"
-      :completion-refresh-pending="catalogRefreshing"
-      :refresh-workstation-label="t('pos.catalogRefresh.action')"
-      :recovery-state="paymentPanelRecoveryState"
-      :retry-label="t('pos.payment.completion.retry')"
-      :abandon-label="t('pos.payment.completion.abandon')"
-      :acknowledge-label="t('pos.payment.completion.acknowledge')"
-      :abandon-warning="t('pos.payment.completion.abandonWarning')"
-      :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
-      :cancel-confirm-label="t('common.cancel')"
-      @close="closePaymentPanel"
-      @select-method="selectPaymentMethod"
-      @edit-row="editPaymentRow"
-      @remove-row="payment.removeRow"
-      @update:draft-amount="payment.setDraftAmountText"
-      @update:draft-reference="payment.setDraftReferenceText"
-      @commit-draft="commitPaymentDraft"
-      @cancel-draft="payment.cancelDraftRow"
-      @complete="handleComplete"
-      @refresh-workstation="handleRefreshCatalog"
-      @retry="handleRetryAttempt"
-      @abandon="handleAbandonAttempt"
-      @acknowledge="handleAcknowledgeAttempt"
-    >
-      <template #actions>
-        <AppButton variant="ghost" @click="closePaymentPanel">{{ t('common.close') }}</AppButton>
-      </template>
-    </PaymentPanel>
 
     <AppDialog :open="dialogMode !== null" @close="dialogMode = null">
       <template #title>
@@ -1262,6 +1626,34 @@ onMounted(async () => {
             <dt class="numeric">F2</dt>
             <dd>{{ t('pos.shortcutSearch') }}</dd>
           </div>
+          <div>
+            <dt class="numeric">F3</dt>
+            <dd>{{ t('pos.quickSale.shortcutScan') }}</dd>
+          </div>
+          <div>
+            <dt class="numeric">F4</dt>
+            <dd>{{ t('pos.quickSale.hold') }}</dd>
+          </div>
+          <div>
+            <dt class="numeric">F6</dt>
+            <dd>{{ t('pos.quickSale.recall') }}</dd>
+          </div>
+          <div>
+            <dt class="numeric">F7</dt>
+            <dd>{{ t('pos.quickSale.customer') }}</dd>
+          </div>
+          <div>
+            <dt class="numeric">F8</dt>
+            <dd>{{ t('pos.discount') }}</dd>
+          </div>
+          <div>
+            <dt class="numeric">F9</dt>
+            <dd>{{ t('pos.quickSale.shortcutPay') }}</dd>
+          </div>
+          <div>
+            <dt class="numeric">3*</dt>
+            <dd>{{ t('pos.quickSale.shortcutMultiplier') }}</dd>
+          </div>
         </dl>
       </template>
       <template v-else-if="dialogMode === 'customers'">
@@ -1283,6 +1675,17 @@ onMounted(async () => {
               dialogMode = null
             }
           "
+        />
+      </template>
+      <template v-else-if="dialogMode === 'held'">
+        <HeldSalesList
+          :sales="heldSalesDisplay"
+          :empty-title="t('pos.quickSale.noHeld')"
+          :note="t('pos.quickSale.heldNote')"
+          :recall-label="t('pos.quickSale.recall')"
+          :discard-label="t('pos.quickSale.discard')"
+          @recall="recallHeldSale"
+          @discard="discardHeldSale"
         />
       </template>
       <template v-else-if="dialogMode === 'payment-methods'">
@@ -1352,7 +1755,10 @@ onMounted(async () => {
         <AppButton variant="ghost" @click="dialogMode = null">{{ t('common.cancel') }}</AppButton>
         <AppButton
           v-if="
-            dialogMode !== 'help' && dialogMode !== 'customers' && dialogMode !== 'payment-methods'
+            dialogMode !== 'help' &&
+            dialogMode !== 'customers' &&
+            dialogMode !== 'payment-methods' &&
+            dialogMode !== 'held'
           "
           variant="secondary"
           :loading="dialogMode === 'rebuild' ? false : mutation !== null"
@@ -1444,7 +1850,7 @@ html[dir='rtl'] .pos-page__eyebrow {
   flex-direction: column;
   block-size: 100%;
   min-block-size: 0;
-  overflow: hidden;
+  overflow-y: auto;
   border: 1px solid var(--color-outline-variant);
   border-inline-start: 4px solid var(--color-transaction-accent);
   border-radius: var(--radius-lg);
@@ -1454,6 +1860,25 @@ html[dir='rtl'] .pos-page__eyebrow {
 .pos-page__cart-heading {
   padding: var(--space-4);
   border-block-end: 1px solid var(--color-divider-subtle);
+}
+
+.pos-page__cart-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pos-page__cart-lines {
+  flex: 1 1 auto;
+  min-block-size: 8rem;
+}
+
+.pos-page__cart-lines--paying {
+  flex: 0 1 12rem;
+}
+
+.pos-page__payment {
+  flex: none;
 }
 
 .pos-page__cart-heading h3 {

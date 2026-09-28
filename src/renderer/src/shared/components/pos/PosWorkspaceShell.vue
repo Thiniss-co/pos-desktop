@@ -33,7 +33,7 @@
 
 .pos-workspace-shell__body {
   display: grid;
-  grid-template-columns: 1fr 24rem;
+  grid-template-columns: 1fr 28rem;
   gap: var(--space-4);
   min-height: 0;
 }
