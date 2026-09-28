@@ -1,29 +1,12 @@
 <script setup lang="ts"></script>
 
 <template>
-  <div class="action-bar">
-    <div class="action-bar__info">
+  <div class="action-bar flex flex-wrap items-center gap-3 border-t border-line bg-surf px-5 py-3">
+    <div class="action-bar__info min-w-[220px] flex-1">
       <slot name="info" />
     </div>
-    <div class="action-bar__actions">
+    <div class="action-bar__actions flex flex-wrap gap-2.5">
       <slot />
     </div>
   </div>
 </template>
-
-<style scoped>
-.action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border-block-start: 1px solid var(--color-outline-variant);
-  background: var(--color-surface-container-lowest);
-}
-
-.action-bar__actions {
-  display: flex;
-  gap: var(--space-3);
-}
-</style>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** Tender amount field (V3): currency prefix, 48px bold tabular input, optional label action. */
 import { useId } from 'vue'
 
 withDefaults(
@@ -7,70 +8,58 @@ withDefaults(
     label: string
     disabled?: boolean
     error?: string
+    prefix?: string
+    autofocus?: boolean
   }>(),
-  { disabled: false, error: undefined }
+  { disabled: false, error: undefined, prefix: undefined, autofocus: false }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
 
 const inputId = useId()
+const errorId = useId()
 </script>
 
 <template>
-  <div class="numeric-amount-input">
-    <label :for="inputId" class="numeric-amount-input__label">{{ label }}</label>
-    <input
-      :id="inputId"
-      class="numeric-amount-input__control numeric"
-      :class="{ 'numeric-amount-input__control--error': error }"
-      type="text"
-      inputmode="decimal"
-      :disabled="disabled"
-      :value="modelValue"
-      :aria-invalid="Boolean(error) || undefined"
-      @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-    />
-    <p v-if="error" class="numeric-amount-input__error" role="alert">{{ error }}</p>
+  <div class="numeric-amount-input flex flex-col gap-1.5">
+    <div class="flex items-center justify-between gap-2">
+      <label :for="inputId" class="numeric-amount-input__label text-sm font-semibold">{{
+        label
+      }}</label>
+      <slot name="label-action" />
+    </div>
+    <div class="relative">
+      <span
+        v-if="prefix"
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-y-0 start-3 flex items-center font-medium text-muted"
+        >{{ prefix }}</span
+      >
+      <input
+        :id="inputId"
+        class="numeric-amount-input__control numeric h-12 w-full rounded-md border bg-surf text-[1.125rem] font-bold text-ink"
+        :class="[
+          { 'numeric-amount-input__control--error border-err': error, 'border-control': !error },
+          prefix ? 'ps-13 pe-3' : 'px-3'
+        ]"
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
+        :disabled="disabled"
+        :value="modelValue"
+        :data-autofocus="autofocus || undefined"
+        :aria-invalid="Boolean(error) || undefined"
+        :aria-describedby="error ? errorId : undefined"
+        @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      />
+    </div>
+    <p
+      v-if="error"
+      :id="errorId"
+      class="numeric-amount-input__error text-xs font-medium text-err"
+      role="alert"
+    >
+      {{ error }}
+    </p>
   </div>
 </template>
-
-<style scoped>
-.numeric-amount-input {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.numeric-amount-input__label {
-  font-size: var(--text-body-sm-size);
-  font-weight: 600;
-  color: var(--color-on-surface-variant);
-}
-
-.numeric-amount-input__control {
-  min-height: calc(var(--size-target-min) * 1.2);
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface-container-lowest);
-  color: var(--color-on-surface);
-  font-size: var(--text-numeric-lg-size);
-  font-weight: var(--text-numeric-lg-weight);
-  text-align: end;
-}
-
-.numeric-amount-input__control:disabled {
-  background: var(--color-disabled-surface);
-  color: var(--color-disabled-text);
-}
-
-.numeric-amount-input__control--error {
-  border-color: var(--color-error);
-}
-
-.numeric-amount-input__error {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-error);
-  font-weight: 600;
-}
-</style>

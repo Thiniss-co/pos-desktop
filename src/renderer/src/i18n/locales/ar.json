@@ -64,7 +64,13 @@
     "returnToStartup": "العودة إلى البدء",
     "accessBlockedLabel": "تم حظر الوصول",
     "accessBlockedTitle": "لا يمكن لمحطة العمل المتابعة بعد.",
-    "reference": "المرجع: {traceId}"
+    "reference": "المرجع: {traceId}",
+    "steps": {
+      "label": "إعداد محطة العمل",
+      "activate": "التفعيل",
+      "signIn": "تسجيل الدخول",
+      "prepare": "تجهيز البيانات"
+    }
   },
   "activation": {
     "label": "01 / تفعيل الجهاز",
@@ -80,7 +86,9 @@
     "activating": "جارٍ التفعيل…",
     "deviceInfoUnavailable": "معلومات الجهاز غير متاحة",
     "activationFailed": "تعذر تفعيل الجهاز",
-    "deviceRecoveryRequired": "يجب تفعيل هذا الجهاز مرة أخرى قبل أن تتمكن محطة العمل من المتابعة."
+    "deviceRecoveryRequired": "يجب تفعيل هذا الجهاز مرة أخرى قبل أن تتمكن محطة العمل من المتابعة.",
+    "offlineHint": "يتطلب التفعيل اتصالاً.",
+    "help": "تحتاج إلى الرموز؟ اطلبها من مسؤول شركتك."
   },
   "auth": {
     "label": "02 / تسجيل دخول سطح المكتب",
@@ -92,7 +100,15 @@
     "signIn": "تسجيل الدخول",
     "signingIn": "جارٍ تسجيل الدخول…",
     "sessionUnavailable": "معلومات الجلسة غير متاحة",
-    "signInFailed": "تعذر تسجيل الدخول"
+    "signInFailed": "تعذر تسجيل الدخول",
+    "workstation": "محطة العمل: {name} · مفعّلة",
+    "showPassword": "إظهار",
+    "hidePassword": "إخفاء",
+    "showPasswordLabel": "إظهار كلمة المرور",
+    "hidePasswordLabel": "إخفاء كلمة المرور",
+    "offlineHint": "محطة العمل غير متصلة. يتطلب تسجيل الدخول اتصالاً.",
+    "note": "يتطلب تسجيل الدخول اتصالاً بالخادم. بعد تسجيل الدخول، يعمل البيع دون اتصال.",
+    "workstationActivated": "محطة العمل هذه مفعّلة."
   },
   "bootstrap": {
     "label": "03 / التهيئة المحلية",
@@ -103,10 +119,18 @@
     "downloading": "جارٍ تنزيل البيانات المحلية وحفظها…",
     "complete": "تم حفظ البيانات المحلية.",
     "statusUnavailable": "حالة التهيئة غير متاحة",
-    "failed": "تعذرت إكمال التهيئة"
+    "failed": "تعذرت إكمال التهيئة",
+    "subtitle": "يحدث هذا مرة واحدة بعد تسجيل الدخول، ليتمكن الكاونتر من العمل دون اتصال.",
+    "keepOpen": "أبقِ التطبيق مفتوحاً. يستغرق هذا عادةً أقل من دقيقة.",
+    "opening": "جارٍ فتح الكاونتر…",
+    "failTitle": "تعذّر تجهيز البيانات المحلية",
+    "stepDone": "تم",
+    "stepCurrent": "قيد التنفيذ",
+    "stepPending": "لم يبدأ"
   },
   "access": {
-    "defaultMessage": "وصول سطح المكتب غير متاح لمحطة العمل هذه."
+    "defaultMessage": "وصول سطح المكتب غير متاح لمحطة العمل هذه.",
+    "shareReference": "شارك هذا المرجع مع الدعم إذا استمرت المشكلة."
   },
   "pos": {
     "label": "الكاونتر / الكتالوج المحلي",
@@ -334,7 +358,119 @@
     },
     "syncIdle": "المزامنة: {count} في الانتظار",
     "syncPaused": "المزامنة متوقفة: {count} في الانتظار",
-    "syncReview": "{count} تحتاج مراجعة"
+    "syncReview": "{count} تحتاج مراجعة",
+    "shiftDialog": {
+      "openHelp": "عُدّ النقد في الدرج قبل البدء.",
+      "closeHelp": "عُدّ النقد في الدرج وأدخل الإجمالي.",
+      "pauseBody": "يتوقف البيع حتى تستأنف. تبقى سلتك كما هي.",
+      "pausePlaceholder": "سبب الإيقاف المؤقت",
+      "expectedCash": "النقدية المتوقعة: {amount}"
+    },
+    "catalogLabel": "الكتالوج",
+    "categoriesLabel": "الفئات",
+    "search": {
+      "label": "البحث عن المنتجات",
+      "placeholder": "امسح الباركود أو ابحث عن منتج",
+      "clear": "مسح البحث"
+    },
+    "catalogLine": {
+      "fresh": "الكتالوج سارٍ · آخر تحديث {relative}",
+      "cached": "الكتالوج المحفوظ · آخر تحديث {relative}",
+      "stale": "الكتالوج قديم · آخر تحديث {relative}",
+      "unknown": "الكتالوج المحفوظ",
+      "refreshNote": "التحديث يُحدّث الكتالوج والأسعار فقط، ولا ينشئ تخصيص مخزون ولا يزيده."
+    },
+    "stock": {
+      "inStockCount": "متوفر {count}",
+      "lowStockCount": "مخزون منخفض {count}"
+    },
+    "addToCart": "إضافة {name} إلى السلة · {price}",
+    "pagination": {
+      "perPage": "العناصر في الصفحة",
+      "range": "{from}–{to} من {total}",
+      "first": "الصفحة الأولى",
+      "previous": "الصفحة السابقة",
+      "next": "الصفحة التالية",
+      "last": "الصفحة الأخيرة"
+    },
+    "notices": {
+      "browseOnly": "تصفح فقط — افتح وردية للبيع.",
+      "paused": "البيع متوقف مؤقتاً. تبقى سلتك كما هي.",
+      "reviewRebuild": "مراجعة وإعادة البناء",
+      "barcodeUnknownHint": "تحقق من الرمز أو ابحث بالاسم.",
+      "dismiss": "إخفاء"
+    },
+    "cart": {
+      "title": "السلة",
+      "items": "{count} أصناف",
+      "item1": "صنف واحد",
+      "clear": "مسح السلة",
+      "customer": "العميل",
+      "walkIn": "عميل نقدي",
+      "choose": "اختيار عميل",
+      "change": "تغيير",
+      "selectedCustomer": "العميل المحدد",
+      "colItem": "الصنف",
+      "colQty": "الكمية",
+      "colAmount": "المبلغ",
+      "each": "{price} للوحدة",
+      "decreaseOf": "إنقاص كمية {name}",
+      "increaseOf": "زيادة كمية {name}",
+      "quantityOf": "كمية {name}",
+      "removeOf": "إزالة {name}",
+      "emptyBody": "امسح باركود أو اختر منتجاً لبدء البيع.",
+      "addDiscount": "إضافة خصم",
+      "editDiscount": "تعديل",
+      "discountPercent": "الخصم {rate}%",
+      "totalDue": "الإجمالي المستحق",
+      "pay": "ادفع {amount}",
+      "payShort": "ادفع",
+      "shortcutsHint": "F1 الاختصارات · F2 البحث",
+      "viewCart": "عرض السلة",
+      "closeCart": "إغلاق السلة"
+    },
+    "clearDialog": {
+      "title": "مسح السلة؟",
+      "body": "ستُزال كل الأصناف ({count}) من هذه السلة.",
+      "bodyWithDiscount": "ستُزال كل الأصناف ({count}) والخصم من هذه السلة."
+    },
+    "customerDialog": {
+      "title": "اختيار العميل",
+      "matches": "العملاء المطابقون ({count})",
+      "noneBody": "تحقق من الاسم أو رقم الهاتف.",
+      "selected": "محدد",
+      "useWalkIn": "استخدام عميل نقدي"
+    },
+    "shortcuts": {
+      "esc": "إغلاق النافذة المفتوحة",
+      "scanner": "يعمل قارئ الباركود في أي وقت — لا حاجة للنقر أولاً."
+    },
+    "rebuildTable": {
+      "product": "المنتج",
+      "was": "السابق",
+      "now": "الحالي",
+      "same": "بدون تغيير"
+    },
+    "tender": {
+      "statusChip": "لم يتم حفظ عملية البيع هذه بعد",
+      "methodsLabel": "طريقة الدفع",
+      "fillDue": "استخدام المبلغ المستحق",
+      "enterHint": "Enter للإضافة",
+      "addPayment": "إضافة الدفعة",
+      "rowsTitle": "المدفوعات المضافة",
+      "rowsLimit": "حتى 20 دفعة.",
+      "noRows": "لا توجد مدفوعات بعد. اختر طريقة وأدخل المبلغ ثم أضفه.",
+      "remove": "إزالة",
+      "removeOf": "إزالة {method} {amount}",
+      "completingBody": "أبقِ التطبيق مفتوحاً أثناء حفظ عملية البيع.",
+      "completedTitle": "تم إتمام البيع",
+      "savedLocal": "محفوظ على محطة العمل هذه",
+      "paid": "المدفوع",
+      "newSale": "بيع جديد",
+      "failedTitle": "لم يكتمل البيع",
+      "retrySale": "إعادة محاولة البيع",
+      "abandonSale": "التخلي عن البيع"
+    }
   },
   "sync": {
     "label": "المزامنة",
@@ -345,7 +481,8 @@
     "failuresUnavailable": "تعذر تحميل قائمة حالات الإخفاق",
     "state": {
       "idle": "قيد التشغيل",
-      "paused": "متوقفة مؤقتاً"
+      "paused": "متوقفة مؤقتاً",
+      "offline": "بانتظار الاتصال"
     },
     "counts": {
       "pending": "قيد الانتظار",
@@ -391,7 +528,17 @@
         "DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE": "تم تسجيل هذه الفاتورة بشكل صحيح. لا يستطيع الخادم التأكد، من قائمة الأسعار التي كان هذا الجهاز يحملها وقت البيع، مما إذا كان المنتج يتتبع المخزون عند بيعه — ولن يخمّن ذلك. إعادة المحاولة لن تغيّر شيئًا. اعرض هذه الفاتورة على مديرك."
       },
       "preservationTitle": "لم يتم عكس البيع أو دفعته",
-      "preservation": "تم استلام المبلغ فعلياً. هذه الفاتورة ومدفوعاتها وسجلات مخزونها محفوظة على هذا الجهاز كما تم تسجيلها تماماً. لم يتم أي استرداد أو إلغاء تلقائي — تحقق من هذه المبيعات يدوياً مع مديرك."
+      "preservation": "تم استلام المبلغ فعلياً. هذه الفاتورة ومدفوعاتها وسجلات مخزونها محفوظة على هذا الجهاز كما تم تسجيلها تماماً. لم يتم أي استرداد أو إلغاء تلقائي — تحقق من هذه المبيعات يدوياً مع مديرك.",
+      "reviewSafe": "هذه المبيعات محفوظة محلياً بأمان. تحقق منها يدوياً مع مديرك.",
+      "detailsForSupport": "تفاصيل للدعم"
+    },
+    "statusLabel": "الحالة",
+    "uploadAuto": "يتم الرفع تلقائياً أيضاً.",
+    "pausedSafe": "مبيعاتك محفوظة بأمان على محطة العمل هذه وستُرفع بمجرد حل المشكلة.",
+    "waiting": {
+      "title": "بانتظار الرفع",
+      "summary": "{count} سجلات في قائمة الانتظار بانتظار الرفع.",
+      "none": "لا يوجد شيء بانتظار الرفع."
     }
   },
   "preparation": {
@@ -402,7 +549,8 @@
     "readinessUnavailable": "تعذّر تحميل حالة الجاهزية",
     "cycleUnavailable": "تعذّر طلب التجهيز",
     "actions": {
-      "prepare": "تجهيز محطة العمل"
+      "prepare": "تجهيز محطة العمل",
+      "preparing": "جارٍ التجهيز…"
     },
     "empty": {
       "title": "لم يتم التجهيز بعد",
@@ -427,7 +575,9 @@
         "expired": "منتهي",
         "blocked": "محظور",
         "not_prepared": "غير مجهّز"
-      }
+      },
+      "window": "فترة {hours} ساعة",
+      "remainingShare": "الجزء المتبقي من فترة التجهيز"
     },
     "quantity": {
       "title": "تغطية المخزون",
@@ -442,11 +592,15 @@
         "partial": "تغطية جزئية",
         "zero": "لا توجد تغطية",
         "reconciliation_required": "تحتاج إلى تسوية"
-      }
+      },
+      "status": "الحالة",
+      "empty": "لا توجد منتجات بمخزون مجهّز بعد."
     },
     "unresolved": "هناك {count} من طلبات التجهيز لم تُحسم بعد. لا تُحتسب كمجهّزة حتى تكتمل.",
     "blocked": {
-      "title": "منتجات لم يتم تجهيزها"
+      "title": "منتجات لم يتم تجهيزها",
+      "titleCount": "منتجات لم يتم تجهيزها ({count})",
+      "description": "تعذّر على هذا التجهيز تغطية هذه المنتجات."
     },
     "reason": {
       "required_window": "المدة المطلوبة",
@@ -473,7 +627,9 @@
       "policy_disabled": "التجهيز غير مُعدّ لهذا المنتج",
       "blocked_by_unreleased_hold": "ما زال مخزون سابق محجوزاً ولم يُفرج عنه",
       "unknown": "سبب آخر"
-    }
+    },
+    "loading": "جارٍ تحميل حالة الجاهزية…",
+    "descriptionPhysicalPresence": "يصرّح الخادم بالبيع دون اتصال على هذه المحطة، لذا لا حاجة لتجهيز المخزون. توضح الحالة أدناه مدة التصريح وما ينتظر الإرسال."
   },
   "settings": {
     "label": "إعدادات محطة العمل",
@@ -483,7 +639,20 @@
     "deviceState": "حالة الجهاز",
     "registered": "مسجل",
     "notRegistered": "غير مسجل",
-    "unavailable": "تفاصيل محطة العمل غير متاحة بعد."
+    "unavailable": "تفاصيل محطة العمل غير متاحة بعد.",
+    "pageTitle": "الإعدادات",
+    "pageDescription": "إعدادات الطابعة لمحطة العمل هذه وملف الإيصال لشركتك.",
+    "tabsLabel": "أقسام الإعدادات",
+    "tabWorkstation": "محطة العمل والطابعة",
+    "tabReceiptProfile": "ملف إيصال الشركة",
+    "workstationDetails": "تفاصيل محطة العمل",
+    "serviceConnection": "الاتصال بالخدمة",
+    "device": "الجهاز",
+    "configured": "مُعدّ",
+    "notConfigured": "غير مُعدّ",
+    "deviceRegistered": "مسجّل",
+    "deviceNotRegistered": "غير مسجّل",
+    "themeNote": "المظهر واللغة في قائمة المستخدم (الزاوية العلوية)."
   },
   "companyUsers": {
     "label": "مستخدمو الشركة",
@@ -525,7 +694,17 @@
       "PERMISSION_DENIED": "تمت إزالة صلاحيتك لإدارة مستخدمي الشركة. عناصر التحكم لم تعد متاحة.",
       "FEATURE_NOT_ENABLED": "إدارة مستخدمي الشركة غير مفعّلة في اشتراكك الحالي.",
       "transport": "يبدو أنك غير متصل بالإنترنت. لم يتم حفظ أي تغييرات."
-    }
+    },
+    "pageTitle": "مستخدمو الشركة",
+    "pageDescription": "تتم إدارة الوصول عبر الإنترنت. التعطيل يمنع تسجيل الدخول، ولا يحذف المستخدم أو جهازه أو بيانات العمل.",
+    "seatsUsed": "{used} من {limit} مقاعد مستخدمة",
+    "seatsNote": "المستخدمون المعطّلون يُحتسبون ضمن الحد.",
+    "seatsFull": "كل المقاعد مستخدمة. تعطيل مستخدم لا يحرر مقعداً.",
+    "statusFilterLabel": "التصفية حسب الحالة",
+    "noResultsHint": "جرّب كلمة أخرى أو امسح عامل التصفية.",
+    "range": "{from}–{to} من {total}",
+    "fullName": "الاسم الكامل",
+    "saveUser": "حفظ المستخدم"
   },
   "errors": {
     "generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
@@ -644,7 +823,20 @@
     "lastSyncNever": "لا توجد مزامنة ناجحة بعد من هذه المحطة",
     "inventoryWarningTitle": "سجلات المخزون متأخرة",
     "inventoryWarningBody": "يُظهر {count} منتج مخزونًا مسجلًا صفريًا أو بالسالب. هذا لا يمنعك من البيع — الرفّ هو المرجع، والفارق مُسجَّل للمراجعة.",
-    "noPreparationNeeded": "لا يلزم تجهيز مخزون في هذا الوضع."
+    "noPreparationNeeded": "لا يلزم تجهيز مخزون في هذا الوضع.",
+    "readinessUnavailable": "تعذّر تحميل حالة البيع دون اتصال.",
+    "loading": "جارٍ تحميل حالة البيع دون اتصال…",
+    "categoricalBlock": {
+      "device-not-registered": "هذه المحطة غير مفعّلة",
+      "device-revoked": "تم إلغاء هذه المحطة",
+      "device-blocked": "هذه المحطة محظورة",
+      "session-invalid": "تسجيل الدخول لم يعد صالحًا",
+      "permission-denied": "دورك لا يسمح بالبيع",
+      "feature-not-enabled": "البيع دون اتصال غير مفعّل لهذه الشركة",
+      "company-inactive": "حساب الشركة غير نشط",
+      "shift-not-open": "لا توجد وردية مفتوحة",
+      "unknown": "قيد مفروض من الخادم"
+    }
   },
   "sales": {
     "title": "المبيعات",
@@ -669,7 +861,41 @@
     "returnAction": "إرجاع / استرداد",
     "printAction": "طباعة الإيصال",
     "printRefundAction": "طباعة إيصال الاسترداد",
-    "invoiceNumber": "الفاتورة"
+    "invoiceNumber": "الفاتورة",
+    "legendLabel": "دليل الحالات",
+    "legendSynced": "رُفعت إلى الخادم",
+    "legendPending": "محفوظة هنا بانتظار الرفع",
+    "legendFailed": "تحتاج مراجعة في المزامنة",
+    "colStatus": "الحالة",
+    "colAction": "إجراء",
+    "noServerInvoice": "لا توجد فاتورة خادم بعد",
+    "serverInvoice": "فاتورة الخادم",
+    "viewSaleLabel": "عرض عملية البيع {number}",
+    "emptyFilteredTitle": "لا توجد عملية بيع بهذا الرقم.",
+    "emptyFilteredBody": "تحقق من الرقم أو ابحث برقم الفاتورة المحلي.",
+    "clearSearch": "مسح البحث",
+    "loadErrorTitle": "تعذّر تحميل المبيعات.",
+    "soldAtMeta": "بيعت {when}",
+    "productsCount": "{n} منتج | {n} منتجات",
+    "unitPrice": "سعر الوحدة",
+    "amount": "المبلغ",
+    "totals": "الإجماليات",
+    "noPayments": "لا توجد مدفوعات مسجلة على هذه العملية.",
+    "paymentType": {
+      "cash": "نقدًا",
+      "card": "بطاقة",
+      "other": "أخرى"
+    },
+    "refundItemsAction": "استرداد أصناف",
+    "refundState": {
+      "prepared": "لم يُرسل بعد",
+      "dispatched": "جارٍ الإرسال",
+      "unresolved": "النتيجة غير معروفة",
+      "accepted": "مقبول",
+      "rejected": "غير مقبول",
+      "conflict": "تعارض",
+      "cancelled": "تم التجاهل"
+    }
   },
   "refunds": {
     "dialogTitle": "إرجاع / استرداد",
@@ -745,7 +971,25 @@
       "refund_contract_version_unsupported": "إصدار عقد الاسترداد لهذا الاتصال غير مدعوم في هذا التطبيق.",
       "line_refund_infeasible_historically": "سجل استرداد هذا الصنف غير متسق ولا يمكن استرداده من هنا.",
       "original_sale_stock_effect_indeterminate": "تعذر تحديد أثر المخزون لعملية البيع الأصلية. يحتاج هذا الاسترداد إلى مراجعة من المدير أو المخزون قبل المتابعة."
-    }
+    },
+    "supportReference": "مرجع الدعم",
+    "stepsLabel": "خطوات الاسترداد",
+    "selectionCount": "الأصناف المحددة: {n}",
+    "selectionNone": "اختر صنفًا واحدًا على الأقل للاسترداد.",
+    "needsConnection": "يتطلب الاسترداد اتصالًا.",
+    "whatRefunded": "ما يتم استرداده",
+    "howRefunded": "طريقة الاسترداد",
+    "toStock": "تعود الأصناف إلى المخزون",
+    "notToStock": "لا تعود الأصناف إلى المخزون",
+    "referenceOptional": "المرجع (اختياري)",
+    "reasonOptional": "السبب (اختياري)",
+    "reasonPlaceholder": "مثال: أعاد العميل صنفًا غير مفتوح",
+    "notesOptional": "ملاحظات (اختياري)",
+    "confirmActionAmount": "تأكيد استرداد {amount}",
+    "submittingHint": "أبقِ هذه النافذة مفتوحة. لا تبدأ استردادًا آخر لهذه العملية.",
+    "unknownTitle": "النتيجة غير مؤكدة بعد",
+    "conflictTitle": "تعارض في سجل الاسترداد",
+    "backToSale": "العودة إلى عملية البيع"
   },
   "printing": {
     "previewTitle": "معاينة الطباعة",
@@ -782,6 +1026,118 @@
     },
     "errors": {
       "previewStale": "تغيّر الإيصال منذ آخر معاينة له. راجعه مرة أخرى قبل الطباعة."
-    }
+    },
+    "printerReady": "جاهزة",
+    "printerBusy": "مشغولة",
+    "printerStopped": "متوقفة",
+    "printerNotFound": "غير موجودة على هذا الجهاز",
+    "printersLoading": "جارٍ البحث عن الطابعات…",
+    "paper58": "58 مم",
+    "paper58Sub": "لفافة ضيقة",
+    "paper80": "80 مم",
+    "paper80Sub": "لفافة قياسية",
+    "copiesHelp": "من 1 إلى 3 نسخ لكل إيصال.",
+    "copiesDecrease": "تقليل النسخ",
+    "copiesIncrease": "زيادة النسخ",
+    "dispatchModeDirectSub": "تُرسل مباشرة إلى الطابعة",
+    "dispatchModeSystemDialogSub": "تتيح تأكيد كل طباعة",
+    "duplicateTitle": "طباعة مكررة",
+    "submittedHint": "لا يستطيع التطبيق رؤية الورق؛ يرجى النظر إلى الطابعة.",
+    "printerState": {
+      "idle": "الطابعة جاهزة",
+      "busy": "الطابعة مشغولة",
+      "stopped": "الطابعة متوقفة"
+    },
+    "paperOnly": "ورق {paper} مم"
+  },
+  "shell": {
+    "brand": "Thinis POS",
+    "menu": "القائمة",
+    "mainNavigation": "التنقل الرئيسي",
+    "statusArea": "حالة محطة العمل",
+    "network": {
+      "online": "متصل",
+      "offline": "غير متصل",
+      "unreachable": "تعذّر الوصول إلى الخدمة",
+      "checking": "جارٍ التحقق من الاتصال…"
+    },
+    "sync": {
+      "queued": "{count} في الانتظار",
+      "paused": "المزامنة متوقفة · {count}",
+      "review": "{count} بحاجة لمراجعة",
+      "ok": "تم رفع الكل",
+      "loading": "جارٍ التحقق من المزامنة…",
+      "unavailable": "حالة المزامنة غير متاحة"
+    },
+    "shift": {
+      "none": "لا توجد وردية مفتوحة",
+      "open": "الوردية مفتوحة · منذ {time}",
+      "openNoTime": "الوردية مفتوحة",
+      "paused": "الوردية متوقفة مؤقتاً",
+      "opening": "جارٍ فتح الوردية…",
+      "pausing": "جارٍ إيقاف الوردية مؤقتاً…",
+      "resuming": "جارٍ استئناف الوردية…",
+      "closing": "جارٍ إغلاق الوردية…",
+      "unavailable": "حالة الوردية غير متاحة",
+      "unknown": "حالة الوردية غير معروفة",
+      "loading": "جارٍ التحقق من الوردية…",
+      "needsConnection": "تغييرات الوردية تتطلب اتصالاً.",
+      "refreshStatus": "تحديث الحالة",
+      "menuLabel": "إجراءات الوردية"
+    },
+    "user": {
+      "menuLabel": "الحساب واللغة والمظهر",
+      "signedIn": "تم تسجيل الدخول",
+      "fallbackName": "كاشير"
+    },
+    "signOut": {
+      "title": "تسجيل الخروج من محطة العمل هذه؟",
+      "body": "ستحتاج إلى اتصال لتسجيل الدخول مرة أخرى.",
+      "queue": "لا تزال {count} عمليات بيع بانتظار الرفع. تبقى محفوظة على محطة العمل هذه وتُرفع بعد تسجيل الدخول التالي.",
+      "failed": "لم يكتمل تسجيل الخروج. حاول مرة أخرى."
+    },
+    "notices": {
+      "offlineBody": "يمكنك مواصلة البيع — تُرفع المبيعات عند عودة الاتصال.",
+      "unreachableBody": "يمكنك مواصلة البيع. سنواصل المحاولة في الخلفية.",
+      "restoredBody": "ستُرفع المبيعات المنتظرة تلقائياً.",
+      "pausedTitle": "الرفع متوقف مؤقتاً.",
+      "pausedBody": "المبيعات محفوظة على محطة العمل هذه وستُرفع عند استئناف المزامنة.",
+      "reviewTitle": "{count} من المبيعات المرفوعة بحاجة لمراجعة.",
+      "reviewBody": "لا يتأثر البيع. راجعها مع مديرك.",
+      "openSync": "فتح المزامنة",
+      "dismiss": "إخفاء"
+    },
+    "skipToContent": "تخطَّ إلى المحتوى الرئيسي"
+  },
+  "receiptProfile": {
+    "title": "ملف إيصال الشركة",
+    "description": "الشعار والعنوان والتذييل المطبوعة على الإيصالات في كل محطات العمل في شركتك.",
+    "onlineRequired": "التغييرات تتطلب اتصالاً",
+    "offlineNotice": "أنت غير متصل. تغيير ملف الإيصال يتطلب اتصالاً.",
+    "loading": "جارٍ تحميل ملف الإيصال…",
+    "logoLabel": "الشعار",
+    "noLogo": "بدون شعار",
+    "chooseLogo": "اختيار شعار",
+    "removeLogo": "إزالة الشعار",
+    "undoLogoChange": "التراجع عن تغيير الشعار",
+    "logoPendingNew": "الشعار الجديد لم يُحفظ بعد",
+    "logoPendingRemove": "إزالة الشعار لم تُحفظ بعد",
+    "addressLinesLabel": "أسطر العنوان (حتى {max})",
+    "addressLineNumberLabel": "سطر العنوان {number}",
+    "removeAddressLine": "إزالة سطر العنوان {number}",
+    "footerLinesLabel": "أسطر التذييل (حتى {max})",
+    "footerLineNumberLabel": "سطر التذييل {number}",
+    "removeFooterLine": "إزالة سطر التذييل {number}",
+    "addLine": "إضافة سطر",
+    "phoneLabel": "الهاتف",
+    "taxIdentifierLabelLabel": "تسمية الرقم الضريبي",
+    "taxIdentifierValueLabel": "الرقم الضريبي",
+    "conflictReloaded": "قام شخص آخر بحفظ ملف الإيصال أولاً. تم تحميل نسخته الآن. راجعها ثم أعد إجراء تغييراتك.",
+    "yourChanges": "تغييراتك التي لم تُحفظ",
+    "saved": "تم حفظ ملف الإيصال.",
+    "save": "حفظ ملف الإيصال",
+    "previewTitle": "معاينة رأس الإيصال",
+    "previewEmpty": "لا توجد أسطر في الرأس أو التذييل بعد.",
+    "previewNote": "معاينة للرأس والتذييل فقط. تبقى الإيصالات المطبوعة بيضاء في كلا المظهرين."
   }
 }

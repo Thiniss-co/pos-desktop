@@ -8,12 +8,13 @@ import {
   type CheckoutRecoveryState
 } from '@shared/contracts/checkout.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 export class CheckoutRendererService {
   constructor(private readonly gateway: Window['posApi']['checkout'] = window.posApi.checkout) {}
 
   async validate(intent: CheckoutIntent): Promise<CheckoutPreviewOutcome> {
-    return unwrapIpcResult(await this.gateway.validate(intent))
+    return unwrapIpcResult(await this.gateway.validate(toIpcPayload(intent)))
   }
 
   /** `checkout:complete` (T1 → T2/T3). */
@@ -47,7 +48,7 @@ export class CheckoutRendererService {
   /** `checkout:pending-attempts` — read-only discovery, never mutates. */
   async pendingAttempts(input: CheckoutPendingAttemptsInput): Promise<CheckoutRecoveryState> {
     return checkoutRecoveryStateSchema.parse(
-      unwrapIpcResult(await this.gateway.pendingAttempts(input))
+      unwrapIpcResult(await this.gateway.pendingAttempts(toIpcPayload(input)))
     )
   }
 }

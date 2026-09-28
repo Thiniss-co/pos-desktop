@@ -1,77 +1,50 @@
 <script setup lang="ts">
+/** Cart-line quantity stepper (V3): − value + in a 112×40 bordered group. Display only. */
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+
 withDefaults(
   defineProps<{
     quantity: number
     decreaseLabel: string
     increaseLabel: string
+    groupLabel?: string
     disabled?: boolean
     min?: number
   }>(),
-  { disabled: false, min: 1 }
+  { groupLabel: undefined, disabled: false, min: 1 }
 )
 
 const emit = defineEmits<{ decrease: []; increase: [] }>()
 </script>
 
 <template>
-  <div class="quantity-control">
+  <div
+    class="quantity-control flex h-10 w-28 items-center rounded-md border border-control"
+    role="group"
+    :aria-label="groupLabel"
+  >
     <button
       type="button"
-      class="quantity-control__button"
+      class="quantity-control__button flex h-full w-[38px] items-center justify-center rounded-s-md text-ink enabled:hover:bg-subtle disabled:text-line-strong"
       :aria-label="decreaseLabel"
       :disabled="disabled || quantity <= min"
       @click="emit('decrease')"
     >
-      −
+      <AppIcon name="remove" :size="20" />
     </button>
-    <span class="quantity-control__value numeric" aria-live="polite">{{ quantity }}</span>
+    <span
+      class="quantity-control__value numeric flex-1 text-center text-base font-bold"
+      aria-live="polite"
+      >{{ quantity }}</span
+    >
     <button
       type="button"
-      class="quantity-control__button"
+      class="quantity-control__button flex h-full w-[38px] items-center justify-center rounded-e-md text-ink enabled:hover:bg-subtle disabled:text-line-strong"
       :aria-label="increaseLabel"
       :disabled="disabled"
       @click="emit('increase')"
     >
-      +
+      <AppIcon name="add" :size="20" />
     </button>
   </div>
 </template>
-
-<style scoped>
-.quantity-control {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-sm);
-}
-
-.quantity-control__button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-target-min);
-  height: var(--size-target-min);
-  border: none;
-  background: transparent;
-  color: var(--color-on-surface);
-  font-size: var(--text-headline-sm-size);
-  cursor: pointer;
-}
-
-.quantity-control__button:hover:not(:disabled) {
-  background: var(--color-surface-container);
-}
-
-.quantity-control__button:disabled {
-  color: var(--color-disabled-text);
-  cursor: not-allowed;
-}
-
-.quantity-control__value {
-  min-width: 2ch;
-  text-align: center;
-  font-size: var(--text-numeric-data-size);
-  font-weight: var(--text-numeric-data-weight);
-}
-</style>

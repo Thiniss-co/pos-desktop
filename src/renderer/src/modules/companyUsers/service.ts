@@ -10,6 +10,7 @@ import type {
   UpdateCompanyUserInput
 } from '@shared/contracts/company-users.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 export class CompanyUsersService {
   constructor(
@@ -21,7 +22,7 @@ export class CompanyUsersService {
   }
 
   async list(input: ListUsersInput): Promise<CompanyUserList> {
-    return unwrapIpcResult(await this.gateway.list(input))
+    return unwrapIpcResult(await this.gateway.list(toIpcPayload(input)))
   }
 
   async get(uuid: string): Promise<CompanyUser> {
@@ -29,19 +30,19 @@ export class CompanyUsersService {
   }
 
   async create(input: CreateCompanyUserInput): Promise<CompanyUser> {
-    return unwrapIpcResult(await this.gateway.create(input))
+    return unwrapIpcResult(await this.gateway.create(toIpcPayload(input)))
   }
 
   async update(input: UpdateCompanyUserInput): Promise<CompanyUser> {
-    return unwrapIpcResult(await this.gateway.update(input))
+    return unwrapIpcResult(await this.gateway.update(toIpcPayload(input)))
   }
 
   async setRoles(input: SetRolesInput): Promise<CompanyUser> {
-    return unwrapIpcResult(await this.gateway.setRoles(input))
+    return unwrapIpcResult(await this.gateway.setRoles(toIpcPayload(input)))
   }
 
   async setEnabled(input: SetEnabledInput): Promise<CompanyUser> {
-    return unwrapIpcResult(await this.gateway.setEnabled(input))
+    return unwrapIpcResult(await this.gateway.setEnabled(toIpcPayload(input)))
   }
 
   async listAssignableRoles(): Promise<AssignableRoles> {

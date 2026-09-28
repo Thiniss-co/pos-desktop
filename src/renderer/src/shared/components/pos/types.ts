@@ -18,11 +18,23 @@ export interface DisplayProduct {
   price: string
   stock: StockLevel
   categoryId?: string
+  /** Sale unit as recorded in the catalog (e.g. "1L"); omitted when the catalog has none. */
+  unit?: string
+  /** Two-letter monogram shown on the pastel band (the catalog has no product images). */
+  monogram?: string
+  /** Pastel tone 0–5, cycled from the product's category position — never a status. */
+  tone?: number
+  /** Quantity already in the cart, pre-formatted; omitted when the product is not in the cart. */
+  inCartQuantity?: string
+  /** Full accessible name for the add action, e.g. "Add Cola Can to cart · EGP 15.00". */
+  ariaLabel?: string
 }
 
 export interface DisplayCategory {
   id: string
   label: string
+  /** Pastel tone 0–5, cycled by position. */
+  tone?: number
 }
 
 export interface DisplayCartLine {
@@ -34,6 +46,8 @@ export interface DisplayCartLine {
   unitPrice: string
   /** Pre-formatted line total (quantity × unit price, already computed upstream). */
   lineTotal: string
+  /** Pre-formatted "EGP 42.50 each" line; falls back to `unitPrice`. */
+  eachLabel?: string
 }
 
 export interface DisplayCustomer {

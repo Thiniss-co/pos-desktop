@@ -19,7 +19,7 @@ const emit = defineEmits<{ close: []; selectMethod: [string] }>()
 <template>
   <AppDialog :open="open" @close="emit('close')">
     <template #title>{{ title }}</template>
-    <div class="payment-dialog__methods">
+    <div class="payment-dialog__methods grid grid-cols-3 gap-2">
       <PaymentMethodTile
         v-for="method in methods"
         :key="method.id"
@@ -34,12 +34,3 @@ const emit = defineEmits<{ close: []; selectMethod: [string] }>()
     </template>
   </AppDialog>
 </template>
-
-<style scoped>
-.payment-dialog__methods {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-  gap: var(--space-3);
-  margin-block-end: var(--space-4);
-}
-</style>

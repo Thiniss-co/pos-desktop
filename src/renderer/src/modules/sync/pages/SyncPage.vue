@@ -11,7 +11,12 @@ import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
+import AppPanel from '@renderer/shared/components/common/AppPanel.vue'
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
+import type { IconName } from '@renderer/shared/components/common/icons.generated'
+import PageContainer from '@renderer/shared/components/layout/PageContainer.vue'
 import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useSyncStore } from '../store'
 
@@ -66,6 +71,51 @@ const uploadDisabledExplanation = computed(() => {
   return ''
 })
 
+// Presentation only: the note under Upload now. A disabled button explains itself; an enabled one
+// says uploads do not depend on it (main's worker drains the queue in the background).
+const uploadNote = computed(() => uploadDisabledExplanation.value || t('sync.uploadAuto'))
+
+type Tone = 'info' | 'warn' | 'err' | 'ok' | 'neutral'
+
+const TONE_TEXT: Record<Tone, string> = {
+  info: 'text-info',
+  warn: 'text-warn',
+  err: 'text-err',
+  ok: 'text-ok',
+  neutral: 'text-muted'
+}
+
+/** The status card: always icon + colour + text, read from the live status and connectivity. */
+const statusCard = computed<{ icon: IconName; tone: Tone; label: string }>(() => {
+  if (isPaused.value) {
+    return { icon: 'pause_circle', tone: 'warn', label: t('sync.state.paused') }
+  }
+
+  if (isOffline.value) {
+    return { icon: 'wifi_off', tone: 'neutral', label: t('sync.state.offline') }
+  }
+
+  return { icon: 'sync', tone: 'ok', label: t('sync.state.idle') }
+})
+
+/** One card per real queue count; a non-zero count takes its state's colour, zero stays ink. */
+const metrics = computed(() =>
+  (
+    [
+      ['pending', counts.value.pending, 'info'],
+      ['uploading', counts.value.uploading, 'info'],
+      ['retryableError', counts.value.retryableError, 'warn'],
+      ['conflict', counts.value.conflict, 'err'],
+      ['rejected', counts.value.rejected, 'err']
+    ] as const
+  ).map(([key, count, tone]) => ({
+    key,
+    label: t(`sync.counts.${key}`),
+    count,
+    colour: count > 0 ? TONE_TEXT[tone] : 'text-ink'
+  }))
+)
+
 function failureTotal(failure: SyncFailure): string {
   if (
     failure.totalAmount === null ||
@@ -119,203 +169,194 @@ onBeforeUnmount(() => sync.dispose())
 </script>
 
 <template>
-  <section class="sync-page">
-    <PageHeader
-      :eyebrow="t('sync.label')"
-      :title="t('sync.queuedRecords', { count: queuedCount })"
-      :description="t('sync.description')"
-    />
-
-    <div class="sync-page__status-row">
-      <AppStatusChip :variant="isPaused ? 'warning' : 'information'">
-        {{ isPaused ? t('sync.state.paused') : t('sync.state.idle') }}
-      </AppStatusChip>
-      <AppStatusChip variant="neutral">
-        {{ t('sync.counts.pending') }}: <span class="numeric">{{ counts.pending }}</span>
-      </AppStatusChip>
-      <AppStatusChip variant="neutral">
-        {{ t('sync.counts.uploading') }}: <span class="numeric">{{ counts.uploading }}</span>
-      </AppStatusChip>
-      <AppStatusChip :variant="counts.retryableError > 0 ? 'warning' : 'neutral'">
-        {{ t('sync.counts.retryableError') }}:
-        <span class="numeric">{{ counts.retryableError }}</span>
-      </AppStatusChip>
-      <AppStatusChip :variant="counts.conflict > 0 ? 'error' : 'neutral'">
-        {{ t('sync.counts.conflict') }}: <span class="numeric">{{ counts.conflict }}</span>
-      </AppStatusChip>
-      <AppStatusChip :variant="counts.rejected > 0 ? 'error' : 'neutral'">
-        {{ t('sync.counts.rejected') }}: <span class="numeric">{{ counts.rejected }}</span>
-      </AppStatusChip>
-    </div>
-
-    <AppBanner v-if="isPaused" variant="warning" role="status">
-      <strong>{{ t('sync.pausedReason.title') }}</strong>
-      <p>{{ pausedReasonText }}</p>
-    </AppBanner>
-
-    <div class="sync-page__actions">
-      <AppButton
-        variant="secondary"
-        :disabled="isUploadDisabled"
-        :loading="isUploading"
-        :aria-label="t('sync.uploadNow')"
-        :aria-describedby="uploadDisabledExplanation ? 'sync-upload-hint' : undefined"
-        @click="sync.uploadNow()"
-      >
-        {{ isUploading ? t('sync.uploadNowBusy') : t('sync.uploadNow') }}
-      </AppButton>
-      <p v-if="uploadDisabledExplanation" id="sync-upload-hint" class="sync-page__hint">
-        {{ uploadDisabledExplanation }}
-      </p>
-    </div>
+  <PageContainer class="sync-page">
+    <PageHeader :title="t('sync.label')" :description="t('sync.description')">
+      <template #badge>
+        <span class="text-sm font-semibold text-muted numeric">
+          {{ t('sync.queuedRecords', { count: queuedCount }) }}
+        </span>
+      </template>
+      <template #actions>
+        <div class="flex flex-col items-end gap-1.5">
+          <AppButton
+            :variant="queuedCount > 0 ? 'primary' : 'secondary'"
+            icon="cloud_upload"
+            :disabled="isUploadDisabled"
+            :loading="isUploading"
+            :aria-label="t('sync.uploadNow')"
+            :aria-describedby="uploadDisabledExplanation ? 'sync-upload-hint' : undefined"
+            @click="sync.uploadNow()"
+          >
+            {{ isUploading ? t('sync.uploadNowBusy') : t('sync.uploadNow') }}
+          </AppButton>
+          <p
+            :id="uploadDisabledExplanation ? 'sync-upload-hint' : undefined"
+            class="sync-page__hint text-xs text-muted"
+          >
+            {{ uploadNote }}
+          </p>
+        </div>
+      </template>
+    </PageHeader>
 
     <AppInlineError v-if="error">{{ error }}</AppInlineError>
 
-    <section class="sync-page__failures" aria-live="polite">
-      <h3>{{ t('sync.failures.title') }}</h3>
+    <dl class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
+      <div class="flex flex-col gap-1.5 rounded-lg border border-line bg-surf px-4 py-3.5">
+        <dt class="text-xs font-semibold text-muted">{{ t('sync.statusLabel') }}</dt>
+        <dd class="flex items-center gap-1.5 font-bold">
+          <AppIcon :name="statusCard.icon" :class="TONE_TEXT[statusCard.tone]" />
+          <span>{{ statusCard.label }}</span>
+        </dd>
+      </div>
+      <div
+        v-for="metric in metrics"
+        :key="metric.key"
+        class="flex flex-col gap-1 rounded-lg border border-line bg-surf px-4 py-3.5"
+      >
+        <dt class="text-xs font-semibold text-muted">{{ metric.label }}</dt>
+        <dd class="text-3xl font-extrabold numeric" :class="metric.colour">{{ metric.count }}</dd>
+      </div>
+    </dl>
 
-      <AppBanner v-if="failures.length > 0" variant="warning" role="status">
-        <strong>{{ t('sync.failures.preservationTitle') }}</strong>
-        <p>{{ t('sync.failures.preservation') }}</p>
-      </AppBanner>
+    <AppBanner
+      v-if="isPaused"
+      variant="warning"
+      role="status"
+      icon="pause_circle"
+      :title="t('sync.pausedReason.title')"
+    >
+      <p v-if="pausedReasonText" class="font-semibold">{{ pausedReasonText }}</p>
+      <p>{{ t('sync.pausedSafe') }}</p>
+    </AppBanner>
 
-      <AppInlineError v-if="failureError">{{ failureError }}</AppInlineError>
+    <!--
+      The queue exposes counts only, never per-record rows, so this section states the real count
+      rather than listing records it cannot see.
+    -->
+    <AppPanel :padded="false" :title="t('sync.waiting.title')">
+      <p v-if="status && queuedCount > 0" class="flex items-center gap-2.5 px-4 py-4 text-sm">
+        <AppIcon name="cloud_upload" :size="22" class="text-info" />
+        <span class="numeric">{{ t('sync.waiting.summary', { count: queuedCount }) }}</span>
+      </p>
+      <p v-else-if="status" class="flex items-center gap-2.5 px-4 py-6 text-muted">
+        <AppIcon name="cloud_done" :size="22" class="text-ok" />
+        {{ t('sync.waiting.none') }}
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      class="sync-page__failures"
+      :padded="false"
+      :title="t('sync.failures.title')"
+      :description="failures.length > 0 ? t('sync.failures.reviewSafe') : undefined"
+      aria-live="polite"
+    >
+      <div v-if="failures.length > 0" class="px-4 pt-3.5 pb-1">
+        <AppBanner
+          variant="warning"
+          role="note"
+          icon="shield"
+          :title="t('sync.failures.preservationTitle')"
+        >
+          {{ t('sync.failures.preservation') }}
+        </AppBanner>
+      </div>
+
+      <div v-if="failureError" class="px-4 pt-3">
+        <AppInlineError>{{ failureError }}</AppInlineError>
+      </div>
 
       <AppEmptyState
         v-if="failures.length === 0 && !isLoadingFailures"
+        compact
         :title="t('sync.failures.empty')"
       />
 
+      <div v-else-if="failures.length === 0" class="px-4 py-3">
+        <AppLoadingSkeleton :label="t('sync.failures.loading')" :lines="2" />
+      </div>
+
       <ul v-else class="sync-page__failure-list">
-        <li v-for="failure in failures" :key="failure.localQueueUuid" class="sync-page__failure">
-          <div class="sync-page__failure-head">
-            <AppStatusChip variant="error">
+        <li
+          v-for="failure in failures"
+          :key="failure.localQueueUuid"
+          class="sync-page__failure flex flex-col gap-2 border-b border-line px-4 py-3 last:border-b-0"
+        >
+          <div class="sync-page__failure-head flex flex-wrap items-center gap-3 text-sm">
+            <span v-if="failure.offlineNumber" class="sync-page__failure-number code font-semibold">
+              {{ failure.offlineNumber }}
+            </span>
+            <span v-else class="sync-page__failure-number text-muted">
+              {{ t('sync.failures.unknownInvoice') }}
+            </span>
+            <span v-if="failureSoldAt(failure)" class="text-muted numeric">
+              {{ failureSoldAt(failure) }}
+            </span>
+            <span class="flex-1" />
+            <span v-if="failureTotal(failure)" class="font-bold numeric">
+              {{ failureTotal(failure) }}
+            </span>
+            <AppStatusChip
+              variant="error"
+              :icon="failure.state === 'conflict' ? 'sync_problem' : 'error'"
+            >
               {{ t(`sync.failures.state.${failure.state}`) }}
             </AppStatusChip>
-            <span class="sync-page__failure-number numeric">
-              {{ failure.offlineNumber ?? t('sync.failures.unknownInvoice') }}
-            </span>
-            <span v-if="failureTotal(failure)" class="numeric">{{ failureTotal(failure) }}</span>
           </div>
-          <p class="sync-page__failure-message">
+          <p class="sync-page__failure-message text-sm text-pretty">
             {{ failure.message ?? t('sync.failures.noMessage') }}
           </p>
-          <p v-if="failureReason(failure)" class="sync-page__failure-reason">
+          <p v-if="failureReason(failure)" class="sync-page__failure-reason text-sm text-muted">
             {{ failureReason(failure) }}
           </p>
-          <dl class="sync-page__failure-meta">
-            <div v-if="failure.backendCode">
-              <dt>{{ t('sync.failures.code') }}</dt>
-              <dd>{{ failure.backendCode }}</dd>
-            </div>
-            <div v-if="failure.traceId">
-              <dt>{{ t('sync.failures.traceId') }}</dt>
-              <dd class="numeric">{{ failure.traceId }}</dd>
-            </div>
-            <div v-if="failureSoldAt(failure)">
-              <dt>{{ t('sync.failures.soldAt') }}</dt>
-              <dd>{{ failureSoldAt(failure) }}</dd>
-            </div>
-            <div v-if="failure.cashierUuid">
-              <dt>{{ t('sync.failures.cashier') }}</dt>
-              <dd class="numeric">{{ failure.cashierUuid }}</dd>
-            </div>
-            <div v-if="failure.shiftUuid">
-              <dt>{{ t('sync.failures.shift') }}</dt>
-              <dd class="numeric">{{ failure.shiftUuid }}</dd>
-            </div>
-          </dl>
+          <details class="group">
+            <summary
+              class="inline-flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-md px-1 text-sm font-semibold text-pri-text [&::-webkit-details-marker]:hidden"
+            >
+              {{ t('sync.failures.detailsForSupport') }}
+              <AppIcon name="expand_more" class="transition-transform group-open:rotate-180" />
+            </summary>
+            <!-- Support values stay selectable text; this page offers no copy action. -->
+            <dl
+              class="sync-page__failure-meta mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-notice bg-subtle p-3 text-xs select-text"
+            >
+              <template v-if="failure.backendCode">
+                <dt class="text-muted">{{ t('sync.failures.code') }}</dt>
+                <dd class="code justify-self-start break-all">{{ failure.backendCode }}</dd>
+              </template>
+              <template v-if="failure.traceId">
+                <dt class="text-muted">{{ t('sync.failures.traceId') }}</dt>
+                <dd class="code justify-self-start break-all">{{ failure.traceId }}</dd>
+              </template>
+              <template v-if="failureSoldAt(failure)">
+                <dt class="text-muted">{{ t('sync.failures.soldAt') }}</dt>
+                <dd class="numeric">{{ failureSoldAt(failure) }}</dd>
+              </template>
+              <template v-if="failure.cashierUuid">
+                <dt class="text-muted">{{ t('sync.failures.cashier') }}</dt>
+                <dd class="code justify-self-start break-all">{{ failure.cashierUuid }}</dd>
+              </template>
+              <template v-if="failure.shiftUuid">
+                <dt class="text-muted">{{ t('sync.failures.shift') }}</dt>
+                <dd class="code justify-self-start break-all">{{ failure.shiftUuid }}</dd>
+              </template>
+            </dl>
+          </details>
         </li>
       </ul>
 
-      <AppButton
-        v-if="sync.hasMoreFailures"
-        variant="ghost"
-        :disabled="isLoadingFailures"
-        :loading="isLoadingFailures"
-        @click="sync.loadMoreFailures()"
-      >
-        {{ isLoadingFailures ? t('sync.failures.loading') : t('sync.failures.loadMore') }}
-      </AppButton>
-    </section>
-  </section>
+      <div v-if="sync.hasMoreFailures" class="border-t border-line px-4 py-3">
+        <AppButton
+          variant="secondary"
+          size="sm"
+          :disabled="isLoadingFailures"
+          :loading="isLoadingFailures"
+          @click="sync.loadMoreFailures()"
+        >
+          {{ isLoadingFailures ? t('sync.failures.loading') : t('sync.failures.loadMore') }}
+        </AppButton>
+      </div>
+    </AppPanel>
+  </PageContainer>
 </template>
-
-<style scoped>
-.sync-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.sync-page__status-row,
-.sync-page__failure-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.sync-page__actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  align-items: flex-start;
-}
-
-.sync-page__hint {
-  color: var(--color-on-surface-variant);
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.sync-page__failures {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.sync-page__failure-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sync-page__failure {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: var(--radius-2);
-  padding: var(--space-3);
-}
-
-.sync-page__failure-message {
-  margin: 0;
-}
-
-.sync-page__failure-reason {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.sync-page__failure-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: 0;
-}
-
-.sync-page__failure-meta dt {
-  color: var(--color-on-surface-variant);
-  font-size: 0.75rem;
-}
-
-.sync-page__failure-meta dd {
-  margin: 0;
-}
-</style>

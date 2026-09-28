@@ -53,23 +53,30 @@ function confirmAbandon(): void {
 <template>
   <div
     v-if="blockingAttemptKey || unacknowledgedResults.length > 0"
-    class="sale-recovery-banner"
+    class="sale-recovery-banner flex flex-none flex-col gap-2"
     data-testid="sale-recovery-banner"
   >
     <AppBanner v-if="blockingAttemptKey" variant="warning" role="alert">
       {{ confirmingAbandon ? abandonWarning : blockedMessage }}
       <template #action>
-        <div v-if="confirmingAbandon" class="sale-recovery-banner__actions">
-          <AppButton variant="ghost" @click="confirmingAbandon = false">
+        <div v-if="confirmingAbandon" class="sale-recovery-banner__actions flex flex-wrap gap-2">
+          <AppButton variant="secondary" size="sm" @click="confirmingAbandon = false">
             {{ cancelConfirmLabel }}
           </AppButton>
-          <AppButton variant="danger" @click="confirmAbandon">{{ confirmAbandonLabel }}</AppButton>
+          <AppButton variant="danger" size="sm" @click="confirmAbandon">{{
+            confirmAbandonLabel
+          }}</AppButton>
         </div>
-        <div v-else class="sale-recovery-banner__actions">
-          <AppButton variant="ghost" @click="confirmingAbandon = true">
+        <div v-else class="sale-recovery-banner__actions flex flex-wrap gap-2">
+          <AppButton variant="danger-outline" size="sm" @click="confirmingAbandon = true">
             {{ abandonLabel }}
           </AppButton>
-          <AppButton variant="secondary" @click="emit('retry', blockingAttemptKey)">
+          <AppButton
+            variant="primary"
+            size="sm"
+            icon="refresh"
+            @click="emit('retry', blockingAttemptKey)"
+          >
             {{ retryLabel }}
           </AppButton>
         </div>
@@ -83,30 +90,12 @@ function confirmAbandon(): void {
       role="status"
       class="sale-recovery-banner__result"
     >
-      {{ unacknowledgedMessage }} — {{ result.committedAtLabel }}
+      {{ unacknowledgedMessage }} — <span class="numeric">{{ result.committedAtLabel }}</span>
       <template #action>
-        <AppButton variant="secondary" @click="emit('acknowledge', result.attemptKey)">
+        <AppButton variant="secondary" size="sm" @click="emit('acknowledge', result.attemptKey)">
           {{ acknowledgeLabel }}
         </AppButton>
       </template>
     </AppBanner>
   </div>
 </template>
-
-<style scoped>
-.sale-recovery-banner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-block-end: var(--space-4);
-}
-
-.sale-recovery-banner__result + .sale-recovery-banner__result {
-  margin-block-start: var(--space-2);
-}
-
-.sale-recovery-banner__actions {
-  display: flex;
-  gap: var(--space-2);
-}
-</style>

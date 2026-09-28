@@ -1,6 +1,7 @@
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 export class DeviceService {
   constructor(private readonly gateway: Window['posApi']['device'] = window.posApi.device) {}
@@ -10,6 +11,6 @@ export class DeviceService {
   }
 
   async register(input: ActivationInput): Promise<ActivationResult> {
-    return unwrapIpcResult(await this.gateway.register(input))
+    return unwrapIpcResult(await this.gateway.register(toIpcPayload(input)))
   }
 }

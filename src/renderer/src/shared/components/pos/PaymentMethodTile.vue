@@ -1,59 +1,58 @@
 <script setup lang="ts">
-import type { DisplayPaymentMethod } from './types'
+/**
+ * V3 payment method tile. Eligible methods are 64px icon tiles (selected = indigo border + tint);
+ * ineligible ones stay visible as dashed tiles with their reason — never hidden.
+ */
+import { computed } from 'vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import type { IconName } from '@renderer/shared/components/common/icons.generated'
+import type { DisplayPaymentMethod, PaymentMethodKind } from './types'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     method: DisplayPaymentMethod
     selected?: boolean
     disabled?: boolean
+    /** Visible reason under the label for an ineligible (disabled) method. */
+    reason?: string
   }>(),
-  { selected: false, disabled: false }
+  { selected: false, disabled: false, reason: undefined }
 )
 
 const emit = defineEmits<{ select: [] }>()
+
+const ICONS: Record<PaymentMethodKind, IconName> = {
+  cash: 'payments',
+  card: 'credit_card',
+  other: 'more_horiz',
+  bank_transfer: 'account_balance',
+  wallet: 'account_balance_wallet',
+  loyalty: 'loyalty'
+}
+const icon = computed(() => ICONS[props.method.kind])
 </script>
 
 <template>
   <button
     type="button"
-    class="payment-method-tile"
+    class="payment-method-tile flex flex-col items-center justify-center rounded-notice text-center transition-colors disabled:cursor-not-allowed"
+    :class="
+      disabled
+        ? 'min-h-14 gap-0.5 border border-dashed border-line-strong bg-subtle p-2 text-muted'
+        : [
+            'h-16 gap-1 border-2 text-base font-bold',
+            selected
+              ? 'border-pri bg-pri-soft text-pri-text'
+              : 'border-control bg-surf text-ink hover:bg-subtle'
+          ]
+    "
     :aria-pressed="selected"
     :disabled="disabled"
     @click="emit('select')"
   >
-    {{ method.label }}
+    <span class="flex items-center gap-1" :class="disabled ? 'text-sm font-semibold' : 'flex-col'">
+      <AppIcon :name="icon" :size="disabled ? 17 : 22" />{{ method.label }}
+    </span>
+    <span v-if="disabled && reason" class="text-xs leading-tight">{{ reason }}</span>
   </button>
 </template>
-
-<style scoped>
-.payment-method-tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(var(--size-target-min) * 1.4);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface-container-lowest);
-  color: var(--color-on-surface);
-  font-family: var(--font-ui);
-  font-size: var(--text-body-lg-size);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.payment-method-tile:hover:not(:disabled) {
-  background: var(--color-surface-container);
-}
-
-.payment-method-tile[aria-pressed='true'] {
-  border-color: var(--color-transaction-accent);
-  background: var(--color-transaction-container);
-  color: var(--color-on-transaction-accent);
-}
-
-.payment-method-tile:disabled {
-  cursor: not-allowed;
-  color: var(--color-disabled-text);
-}
-</style>

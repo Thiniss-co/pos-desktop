@@ -1,184 +1,107 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
+/**
+ * V3 application shell: top bar, full-width notices, the routed page, and the shell-level
+ * overlays (compact nav drawer, shift dialogs, sign-out confirmation).
+ *
+ * The shell holds the sync-status subscription for its whole lifetime (the store is reference
+ * counted, so pages that also hold it never blank the pill when they unmount) and reads the
+ * current shift once if nothing has yet — the shift pill must be truthful on every page, not only
+ * after the POS page has mounted.
+ */
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
-import { useStartupStore } from '@renderer/app/startup/startup.store'
+import { useRoute } from 'vue-router'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import { PILL_TONE_TEXT } from '@renderer/shared/components/common/types'
 import { useAuthStore } from '@renderer/modules/auth/store'
-import { useCartStore } from '@renderer/modules/pos/cart.store'
-import { usePaymentStore } from '@renderer/modules/pos/payment.store'
 import { useCompanyUsersStore } from '@renderer/modules/companyUsers/store'
-import ConnectivityBanner from '@renderer/modules/connectivity/components/ConnectivityBanner.vue'
-import AppButton from '@renderer/shared/components/common/AppButton.vue'
-import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
-import ThemeSwitcher from '@renderer/shared/components/common/ThemeSwitcher.vue'
-import LocaleSwitcher from '@renderer/shared/components/LocaleSwitcher.vue'
-import { getStartupRouteName } from '../router/guards'
+import ShiftDialogs from '@renderer/modules/pos/components/ShiftDialogs.vue'
+import { useShiftStore } from '@renderer/modules/pos/shift.store'
+import { useSyncStore } from '@renderer/modules/sync/store'
+import AppTopBar from '../shell/AppTopBar.vue'
+import NavDrawer from '../shell/NavDrawer.vue'
+import ShellNotices from '../shell/ShellNotices.vue'
+import SignOutDialog from '../shell/SignOutDialog.vue'
+import { useShellNavigation } from '../shell/useShellNavigation'
+import { useShellStatus } from '../shell/useShellStatus'
 
+const route = useRoute()
 const companyUsers = useCompanyUsersStore()
-const { access } = storeToRefs(companyUsers)
 const auth = useAuthStore()
-const cart = useCartStore()
-const payment = usePaymentStore()
-const { session, isSubmitting } = storeToRefs(auth)
-const startup = useStartupStore()
-const router = useRouter()
+const shift = useShiftStore()
+const sync = useSyncStore()
+const { items } = useShellNavigation()
+const { network, syncPill } = useShellStatus()
+
+const navOpen = ref(false)
+const signOutOpen = ref(false)
+const mainRef = ref<HTMLElement | null>(null)
 const { t } = useI18n()
+
+function focusMain(): void {
+  mainRef.value?.focus()
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    navOpen.value = false
+  }
+)
 
 onMounted(() => {
   void companyUsers.loadAccess()
   void auth.load()
+  void sync.initialize()
+  if (
+    shift.freshness === 'loading' &&
+    shift.currentShift === null &&
+    shift.localAuthority === null
+  ) {
+    void shift.loadCurrent()
+  }
 })
 
-async function handleLogout(): Promise<void> {
-  await auth.logout()
-  cart.resetDraft('logout')
-  payment.resetPayment()
-  await startup.refresh()
-  await router.push({ name: getStartupRouteName(startup.state) })
-}
+onBeforeUnmount(() => sync.dispose())
 </script>
 
 <template>
-  <div class="app-layout">
-    <header class="app-layout__header">
-      <div class="app-layout__brand">
-        <p class="app-layout__eyebrow">{{ t('app.workstationShell') }}</p>
-        <h1 class="app-layout__title">{{ t('app.name') }}</h1>
-      </div>
-      <div class="app-layout__header-actions">
-        <AppStatusChip variant="success">{{ t('app.localFirstFoundation') }}</AppStatusChip>
-        <span v-if="session?.userName" class="app-layout__user">{{ session.userName }}</span>
-        <ThemeSwitcher />
-        <LocaleSwitcher />
-        <AppButton variant="ghost" :loading="isSubmitting" @click="handleLogout">
-          {{ t('common.signOut') }}
-        </AppButton>
-      </div>
-    </header>
-    <ConnectivityBanner class="app-layout__banner" />
-    <div class="app-layout__body">
-      <nav class="app-layout__nav" :aria-label="t('app.applicationNavigation')">
-        <RouterLink to="/pos">{{ t('navigation.pos') }}</RouterLink>
-        <RouterLink to="/sales">{{ t('navigation.sales') }}</RouterLink>
-        <RouterLink to="/sync">{{ t('navigation.sync') }}</RouterLink>
-        <RouterLink to="/offline-stock">{{ t('navigation.offlineStock') }}</RouterLink>
-        <RouterLink to="/settings">{{ t('navigation.settings') }}</RouterLink>
-        <RouterLink v-if="access?.canView || access?.canManage" to="/company-users">
-          {{ t('navigation.companyUsers') }}
-        </RouterLink>
-      </nav>
-      <main class="app-layout__content">
-        <slot />
-      </main>
-    </div>
+  <div class="app-layout flex h-screen min-w-0 flex-col bg-page text-ink">
+    <!-- Keyboard users reach the page without tabbing through the whole top bar. A button, not an
+         `#main` link: the router uses hash history, so a fragment link would navigate. -->
+    <button
+      type="button"
+      class="app-layout__skip sr-only focus:not-sr-only focus:absolute focus:inset-s-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surf focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-pri-text focus:shadow-md"
+      @click="focusMain"
+    >
+      {{ t('shell.skipToContent') }}
+    </button>
+    <AppTopBar :items="items" @open-nav="navOpen = true" @sign-out="signOutOpen = true" />
+    <ShellNotices />
+    <main
+      id="main"
+      ref="mainRef"
+      tabindex="-1"
+      class="app-layout__content relative flex min-h-0 flex-1 flex-col overflow-auto focus:outline-none"
+    >
+      <slot />
+    </main>
+
+    <NavDrawer :open="navOpen" :items="items" @close="navOpen = false">
+      <template #status>
+        <div class="flex items-center gap-2" :class="PILL_TONE_TEXT[network.tone]">
+          <AppIcon :name="network.icon" :size="18" /><span class="text-ink">{{
+            network.label
+          }}</span>
+        </div>
+        <div class="flex items-center gap-2" :class="PILL_TONE_TEXT[syncPill.tone]">
+          <AppIcon :name="syncPill.icon" :size="18" /><span class="text-ink">{{
+            syncPill.label
+          }}</span>
+        </div>
+      </template>
+    </NavDrawer>
+    <ShiftDialogs />
+    <SignOutDialog :open="signOutOpen" @close="signOutOpen = false" />
   </div>
 </template>
-
-<style scoped>
-.app-layout {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  min-height: 100vh;
-}
-
-.app-layout__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  padding: var(--space-4) var(--space-6);
-  border-block-end: 1px solid var(--color-outline-variant);
-  background: var(--color-surface-container-lowest);
-}
-
-.app-layout__eyebrow {
-  font-size: var(--text-label-caps-size);
-  line-height: var(--text-label-caps-line);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  font-weight: var(--text-label-caps-weight);
-  color: var(--color-text-muted);
-}
-
-html[dir='rtl'] .app-layout__eyebrow {
-  text-transform: none;
-}
-
-.app-layout__title {
-  font-size: var(--text-headline-sm-size);
-  line-height: var(--text-headline-sm-line);
-  font-weight: var(--text-headline-sm-weight);
-  color: var(--color-on-surface);
-}
-
-.app-layout__header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.app-layout__user {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-on-surface-variant);
-}
-
-.app-layout__banner {
-  margin: var(--space-4) var(--space-6) 0;
-}
-
-.app-layout__body {
-  display: grid;
-  grid-template-columns: 14rem 1fr;
-  min-height: 0;
-}
-
-.app-layout__nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4);
-  border-inline-end: 1px solid var(--color-outline-variant);
-}
-
-.app-layout__nav a {
-  display: flex;
-  align-items: center;
-  min-height: var(--size-target-min);
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-sm);
-  color: var(--color-on-surface-variant);
-  text-decoration: none;
-  font-size: var(--text-body-md-size);
-  font-weight: 600;
-}
-
-.app-layout__nav a:hover {
-  background: var(--color-surface-container);
-}
-
-.app-layout__nav a.router-link-active {
-  background: var(--color-secondary-container);
-  color: var(--color-on-secondary-container);
-}
-
-.app-layout__content {
-  padding: var(--space-6);
-  overflow: auto;
-}
-
-@media (max-width: 640px) {
-  .app-layout__body {
-    grid-template-columns: 1fr;
-  }
-
-  .app-layout__nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    border-inline-end: 0;
-    border-block-end: 1px solid var(--color-outline-variant);
-  }
-}
-</style>

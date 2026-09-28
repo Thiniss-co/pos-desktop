@@ -1,55 +1,39 @@
 <script setup lang="ts">
+import AppIcon from '../common/AppIcon.vue'
+import type { IconName } from '../common/icons.generated'
+
 withDefaults(
   defineProps<{
     title: string
     description?: string
+    icon?: IconName
+    compact?: boolean
   }>(),
-  { description: undefined }
+  { description: undefined, icon: undefined, compact: false }
 )
 </script>
 
 <template>
-  <div class="app-empty-state">
-    <div v-if="$slots.icon" class="app-empty-state__icon" aria-hidden="true">
+  <div
+    class="app-empty-state flex flex-col items-center gap-2 text-center"
+    :class="compact ? 'px-3 py-6' : 'px-4 py-12'"
+  >
+    <div v-if="$slots.icon" class="app-empty-state__icon text-muted" aria-hidden="true">
       <slot name="icon" />
     </div>
-    <p class="app-empty-state__title">{{ title }}</p>
-    <p v-if="description" class="app-empty-state__description">{{ description }}</p>
-    <div v-if="$slots.action" class="app-empty-state__action">
+    <AppIcon v-else-if="icon" :name="icon" :size="40" class="text-muted" />
+    <p class="app-empty-state__title text-md font-bold">{{ title }}</p>
+    <p
+      v-if="description"
+      class="app-empty-state__description max-w-[320px] text-pretty text-sm text-muted"
+    >
+      {{ description }}
+    </p>
+    <div
+      v-if="$slots.action"
+      class="app-empty-state__action mt-2 flex flex-wrap justify-center gap-2.5"
+    >
       <slot name="action" />
     </div>
   </div>
 </template>
-
-<style scoped>
-.app-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--space-2);
-  padding: var(--space-8) var(--space-4);
-  color: var(--color-text-muted);
-}
-
-.app-empty-state__icon {
-  width: 40px;
-  height: 40px;
-  color: var(--color-outline);
-}
-
-.app-empty-state__title {
-  font-size: var(--text-body-lg-size);
-  font-weight: 600;
-  color: var(--color-on-surface);
-}
-
-.app-empty-state__description {
-  font-size: var(--text-body-md-size);
-  max-width: 40ch;
-}
-
-.app-empty-state__action {
-  margin-block-start: var(--space-2);
-}
-</style>

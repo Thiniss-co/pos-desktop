@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import type { CatalogContract, CatalogProductPage } from '@shared/contracts/catalog.contract'
 import { CatalogRendererService } from './catalog.service'
@@ -41,6 +41,161 @@ describe('useCatalogStore', () => {
 
     expect(store.total).toBe(2)
     expect(store.isLoading).toBe(false)
+  })
+
+  describe('pagination', () => {
+    function recordingService(total: number): {
+      calls: Array<{ limit: number; offset: number; query: string }>
+      service: CatalogRendererService
+    } {
+      const calls: Array<{ limit: number; offset: number; query: string }> = []
+      const service = {
+        searchProducts: async (input: { limit: number; offset: number; query: string }) => {
+          calls.push({ limit: input.limit, offset: input.offset, query: input.query })
+          return { items: [], total, limit: input.limit, offset: input.offset, contract }
+        }
+      } as unknown as CatalogRendererService
+      return { calls, service }
+    }
+
+    it('pages through the current search with the existing limit/offset contract', async () => {
+      const { calls, service } = recordingService(60)
+      const store = useCatalogStore()
+
+      await store.search(service)
+      expect(calls.at(-1)).toMatchObject({ limit: 24, offset: 0 })
+      expect(store.pageCount).toBe(3)
+
+      await store.goToPage(2, service)
+      expect(store.page).toBe(2)
+      expect(calls.at(-1)).toMatchObject({ limit: 24, offset: 48 })
+
+      // Out-of-range requests clamp instead of reading past the result set.
+      await store.goToPage(9, service)
+      expect(store.page).toBe(2)
+      await store.goToPage(-1, service)
+      expect(store.page).toBe(0)
+    })
+
+    it('restarts at the first page for a new search or page size', async () => {
+      const { calls, service } = recordingService(60)
+      const store = useCatalogStore()
+
+      await store.search(service)
+      await store.goToPage(1, service)
+      await store.setPageSize(12, service)
+      expect(store.page).toBe(0)
+      expect(calls.at(-1)).toMatchObject({ limit: 12, offset: 0 })
+      expect(store.pageCount).toBe(5)
+
+      await store.goToPage(3, service)
+      store.query = 'cola'
+      await store.search(service)
+      expect(store.page).toBe(0)
+      expect(calls.at(-1)).toMatchObject({ limit: 12, offset: 0, query: 'cola' })
+    })
+
+    it('restarts at the first page when the category changes', async () => {
+      const { calls, service } = recordingService(60)
+      const store = useCatalogStore()
+
+      await store.search(service)
+      await store.goToPage(2, service)
+      await store.selectCategory('cat-1', service)
+
+      expect(store.page).toBe(0)
+      expect(store.selectedCategoryUuid).toBe('cat-1')
+      expect(calls.at(-1)).toMatchObject({ offset: 0 })
+    })
+
+    /** Resolves requests in whatever order the test chooses, and labels items by offset. */
+    function deferredService(): {
+      pending: Array<{ offset: number; query: string; resolve: (total: number) => void }>
+      service: CatalogRendererService
+    } {
+      const pending: Array<{ offset: number; query: string; resolve: (total: number) => void }> = []
+      const service = {
+        searchProducts: (input: { limit: number; offset: number; query: string }) =>
+          new Promise<CatalogProductPage>((resolve) => {
+            pending.push({
+              offset: input.offset,
+              query: input.query,
+              resolve: (total) =>
+                resolve({
+                  // Like the real repository: past the end of the result set, the page is empty.
+                  items: (input.offset < total
+                    ? [{ uuid: `${input.query}@${input.offset}` }]
+                    : []) as never,
+                  total,
+                  limit: input.limit,
+                  offset: input.offset,
+                  contract
+                })
+            })
+          })
+      } as unknown as CatalogRendererService
+      return { pending, service }
+    }
+
+    it('never shows an obsolete page when rapid page requests resolve out of order', async () => {
+      const { pending, service } = deferredService()
+      const store = useCatalogStore()
+      const initial = store.search(service)
+      pending[0].resolve(72)
+      await initial
+
+      const toPage1 = store.goToPage(1, service)
+      const toPage2 = store.goToPage(2, service)
+      pending[2].resolve(72)
+      await toPage2
+      pending[1].resolve(72)
+      await toPage1
+
+      expect(store.page).toBe(2)
+      expect(store.products.map((item) => item.uuid)).toEqual(['@48'])
+      expect(store.isLoading).toBe(false)
+    })
+
+    it('discards a page request that a newer search overtook', async () => {
+      const { pending, service } = deferredService()
+      const store = useCatalogStore()
+      const initial = store.search(service)
+      pending[0].resolve(72)
+      await initial
+
+      const toPage2 = store.goToPage(2, service)
+      store.query = 'cola'
+      const newSearch = store.search(service)
+      pending[2].resolve(5)
+      await newSearch
+      pending[1].resolve(72)
+      await toPage2
+
+      expect(store.page).toBe(0)
+      expect(store.total).toBe(5)
+      expect(store.products.map((item) => item.uuid)).toEqual(['cola@0'])
+    })
+
+    it('falls back to the last real page when the result set shrank under the current page', async () => {
+      const { pending, service } = deferredService()
+      const store = useCatalogStore()
+      const initial = store.search(service)
+      pending[0].resolve(72)
+      await initial
+
+      // Page 2 of 3 was valid for 72 items, but the catalog now holds 30 (two pages of 24).
+      const toPage2 = store.goToPage(2, service)
+      pending[1].resolve(30)
+      await vi.waitFor(() => expect(pending).toHaveLength(3))
+      expect(pending[2].offset).toBe(24)
+      pending[2].resolve(30)
+      await toPage2
+
+      expect(store.page).toBe(1)
+      expect(store.pageCount).toBe(2)
+      expect(store.products.map((item) => item.uuid)).toEqual(['@24'])
+      expect(store.isLoading).toBe(false)
+    })
   })
 
   describe('refresh', () => {

@@ -64,7 +64,13 @@
     "returnToStartup": "Return to startup",
     "accessBlockedLabel": "Access blocked",
     "accessBlockedTitle": "This workstation cannot continue yet.",
-    "reference": "Reference: {traceId}"
+    "reference": "Reference: {traceId}",
+    "steps": {
+      "label": "Workstation setup",
+      "activate": "Activate",
+      "signIn": "Sign in",
+      "prepare": "Prepare data"
+    }
   },
   "activation": {
     "label": "01 / device activation",
@@ -80,7 +86,9 @@
     "activating": "Activating…",
     "deviceInfoUnavailable": "Device information is unavailable",
     "activationFailed": "Device activation failed",
-    "deviceRecoveryRequired": "This device must be activated again before the workstation can continue."
+    "deviceRecoveryRequired": "This device must be activated again before the workstation can continue.",
+    "offlineHint": "Activation needs a connection.",
+    "help": "Need the codes? Ask your company administrator."
   },
   "auth": {
     "label": "02 / desktop login",
@@ -92,7 +100,15 @@
     "signIn": "Sign in",
     "signingIn": "Signing in…",
     "sessionUnavailable": "Session information is unavailable",
-    "signInFailed": "Sign in failed"
+    "signInFailed": "Sign in failed",
+    "workstation": "Workstation: {name} · activated",
+    "showPassword": "Show",
+    "hidePassword": "Hide",
+    "showPasswordLabel": "Show password",
+    "hidePasswordLabel": "Hide password",
+    "offlineHint": "This workstation is offline. Sign-in needs a connection.",
+    "note": "Sign-in needs a connection to the server. After signing in, selling works offline.",
+    "workstationActivated": "This workstation is activated."
   },
   "bootstrap": {
     "label": "03 / local bootstrap",
@@ -103,10 +119,18 @@
     "downloading": "Downloading and saving local data…",
     "complete": "Local data saved.",
     "statusUnavailable": "Bootstrap status is unavailable",
-    "failed": "Bootstrap could not be completed"
+    "failed": "Bootstrap could not be completed",
+    "subtitle": "This happens once after sign in, so the counter can keep working offline.",
+    "keepOpen": "Keep the app open. This usually takes under a minute.",
+    "opening": "Opening the counter…",
+    "failTitle": "Local data could not be prepared",
+    "stepDone": "Done",
+    "stepCurrent": "In progress",
+    "stepPending": "Not started"
   },
   "access": {
-    "defaultMessage": "Desktop access is not available for this workstation."
+    "defaultMessage": "Desktop access is not available for this workstation.",
+    "shareReference": "Share this reference with support if the problem continues."
   },
   "pos": {
     "label": "Counter / local catalog",
@@ -334,7 +358,119 @@
     },
     "syncIdle": "Sync: {count} queued",
     "syncPaused": "Sync paused: {count} queued",
-    "syncReview": "{count} need review"
+    "syncReview": "{count} need review",
+    "shiftDialog": {
+      "openHelp": "Count the cash in the till before you start.",
+      "closeHelp": "Count the cash in the till and enter the total.",
+      "pauseBody": "Selling stops until you resume. Your cart stays as it is.",
+      "pausePlaceholder": "Reason for pausing",
+      "expectedCash": "Expected cash: {amount}"
+    },
+    "catalogLabel": "Catalog",
+    "categoriesLabel": "Categories",
+    "search": {
+      "label": "Search products",
+      "placeholder": "Scan a barcode or search products",
+      "clear": "Clear search"
+    },
+    "catalogLine": {
+      "fresh": "Catalog up to date · updated {relative}",
+      "cached": "Saved catalog · updated {relative}",
+      "stale": "Catalog is stale · updated {relative}",
+      "unknown": "Saved catalog",
+      "refreshNote": "Refreshing updates the catalog and prices. It does not create or top up stock allocation."
+    },
+    "stock": {
+      "inStockCount": "In stock {count}",
+      "lowStockCount": "Low stock {count}"
+    },
+    "addToCart": "Add {name} to cart · {price}",
+    "pagination": {
+      "perPage": "Items per page",
+      "range": "{from}–{to} of {total}",
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    },
+    "notices": {
+      "browseOnly": "Browsing only — open a shift to sell.",
+      "paused": "Selling is paused. Your cart stays as it is.",
+      "reviewRebuild": "Review and rebuild",
+      "barcodeUnknownHint": "Check the code or search by name.",
+      "dismiss": "Dismiss"
+    },
+    "cart": {
+      "title": "Cart",
+      "items": "{count} items",
+      "item1": "1 item",
+      "clear": "Clear cart",
+      "customer": "Customer",
+      "walkIn": "Walk-in customer",
+      "choose": "Choose customer",
+      "change": "Change",
+      "selectedCustomer": "Selected customer",
+      "colItem": "Item",
+      "colQty": "Quantity",
+      "colAmount": "Amount",
+      "each": "{price} each",
+      "decreaseOf": "Decrease quantity of {name}",
+      "increaseOf": "Increase quantity of {name}",
+      "quantityOf": "Quantity of {name}",
+      "removeOf": "Remove {name}",
+      "emptyBody": "Scan a barcode or select a product to start a sale.",
+      "addDiscount": "Add discount",
+      "editDiscount": "Edit",
+      "discountPercent": "Discount {rate}%",
+      "totalDue": "Total due",
+      "pay": "Pay {amount}",
+      "payShort": "Pay",
+      "shortcutsHint": "F1 Shortcuts · F2 Search",
+      "viewCart": "View cart",
+      "closeCart": "Close cart"
+    },
+    "clearDialog": {
+      "title": "Clear the cart?",
+      "body": "{count} will be removed from this cart.",
+      "bodyWithDiscount": "{count} and the discount will be removed from this cart."
+    },
+    "customerDialog": {
+      "title": "Choose customer",
+      "matches": "Matching customers ({count})",
+      "noneBody": "Check the spelling or phone number.",
+      "selected": "Selected",
+      "useWalkIn": "Use walk-in customer"
+    },
+    "shortcuts": {
+      "esc": "Close the open dialog",
+      "scanner": "A barcode scanner works anytime — no need to click first."
+    },
+    "rebuildTable": {
+      "product": "Product",
+      "was": "Was",
+      "now": "Now",
+      "same": "Unchanged"
+    },
+    "tender": {
+      "statusChip": "This sale has not been saved yet",
+      "methodsLabel": "Payment method",
+      "fillDue": "Use amount due",
+      "enterHint": "Enter to add",
+      "addPayment": "Add payment",
+      "rowsTitle": "Payments added",
+      "rowsLimit": "Up to 20 payments.",
+      "noRows": "No payments yet. Choose a method, enter the amount and add it.",
+      "remove": "Remove",
+      "removeOf": "Remove {method} {amount}",
+      "completingBody": "Keep the app open while this sale is saved.",
+      "completedTitle": "Sale complete",
+      "savedLocal": "Saved on this workstation",
+      "paid": "Paid",
+      "newSale": "New sale",
+      "failedTitle": "The sale was not completed",
+      "retrySale": "Retry this sale",
+      "abandonSale": "Abandon sale"
+    }
   },
   "sync": {
     "label": "Sync",
@@ -345,7 +481,8 @@
     "failuresUnavailable": "The failure list could not be loaded",
     "state": {
       "idle": "Running",
-      "paused": "Paused"
+      "paused": "Paused",
+      "offline": "Waiting for connection"
     },
     "counts": {
       "pending": "Pending",
@@ -391,7 +528,17 @@
         "DESKTOP_HISTORICAL_STOCK_TRACKING_UNVERIFIABLE": "This sale was rung correctly. The server cannot confirm, from the price list this device was holding at the time, whether the product counted stock when it was sold — so it will not guess. Retrying will not change this. Show this invoice to your manager."
       },
       "preservationTitle": "The sale and its payment were not reversed",
-      "preservation": "Money already changed hands. This sale, its payments and its stock records are preserved on this device exactly as they were rung. Nothing was refunded or voided automatically — verify these sales manually with your manager."
+      "preservation": "Money already changed hands. This sale, its payments and its stock records are preserved on this device exactly as they were rung. Nothing was refunded or voided automatically — verify these sales manually with your manager.",
+      "reviewSafe": "These sales are safely stored locally. Verify them manually with your manager.",
+      "detailsForSupport": "Details for support"
+    },
+    "statusLabel": "Status",
+    "uploadAuto": "Uploads also run automatically.",
+    "pausedSafe": "Your sales are safe on this workstation and will upload once this is fixed.",
+    "waiting": {
+      "title": "Waiting to upload",
+      "summary": "{count} queued records are waiting to upload.",
+      "none": "Nothing is waiting to upload."
     }
   },
   "preparation": {
@@ -402,7 +549,8 @@
     "readinessUnavailable": "Readiness could not be loaded",
     "cycleUnavailable": "Preparation could not be requested",
     "actions": {
-      "prepare": "Prepare workstation"
+      "prepare": "Prepare workstation",
+      "preparing": "Preparing…"
     },
     "empty": {
       "title": "Not prepared yet",
@@ -427,7 +575,9 @@
         "expired": "Expired",
         "blocked": "Blocked",
         "not_prepared": "Not prepared"
-      }
+      },
+      "window": "{hours}h window",
+      "remainingShare": "Share of the prepared window remaining"
     },
     "quantity": {
       "title": "Stock coverage",
@@ -442,11 +592,15 @@
         "partial": "Partially covered",
         "zero": "No coverage",
         "reconciliation_required": "Needs reconciliation"
-      }
+      },
+      "status": "Status",
+      "empty": "No products have prepared stock yet."
     },
     "unresolved": "{count} preparation request(s) are still unresolved. They are not counted as prepared until they finish.",
     "blocked": {
-      "title": "Products not prepared"
+      "title": "Products not prepared",
+      "titleCount": "Products not prepared ({count})",
+      "description": "This preparation could not cover these products."
     },
     "reason": {
       "required_window": "the requested window",
@@ -473,7 +627,9 @@
       "policy_disabled": "preparation is not configured for this product",
       "blocked_by_unreleased_hold": "earlier stock is still held and has not been released",
       "unknown": "another reason"
-    }
+    },
+    "loading": "Loading readiness…",
+    "descriptionPhysicalPresence": "The server authorises offline selling on this workstation, so no stock preparation is needed. The status below shows how long it lasts and what is waiting to be sent."
   },
   "settings": {
     "label": "Workstation settings",
@@ -483,7 +639,20 @@
     "deviceState": "Device state",
     "registered": "registered",
     "notRegistered": "not registered",
-    "unavailable": "Workstation details are not available yet."
+    "unavailable": "Workstation details are not available yet.",
+    "pageTitle": "Settings",
+    "pageDescription": "Printer settings for this workstation and the receipt profile for your company.",
+    "tabsLabel": "Settings sections",
+    "tabWorkstation": "Workstation & printer",
+    "tabReceiptProfile": "Company receipt profile",
+    "workstationDetails": "Workstation details",
+    "serviceConnection": "Connection to the service",
+    "device": "Device",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "deviceRegistered": "Registered",
+    "deviceNotRegistered": "Not registered",
+    "themeNote": "Theme and language are in your user menu (top corner)."
   },
   "companyUsers": {
     "label": "Company users",
@@ -525,7 +694,17 @@
       "PERMISSION_DENIED": "Your permission to manage company users was removed. Controls are no longer available.",
       "FEATURE_NOT_ENABLED": "Company user management is not enabled for this subscription.",
       "transport": "You appear to be offline. No changes were saved."
-    }
+    },
+    "pageTitle": "Company users",
+    "pageDescription": "Access is managed online. Disable prevents sign-in. It does not delete a user, their device, or business data.",
+    "seatsUsed": "{used} of {limit} seats used",
+    "seatsNote": "Disabled users still count toward the limit.",
+    "seatsFull": "All seats are in use. Disabling a user does not free a seat.",
+    "statusFilterLabel": "Filter by status",
+    "noResultsHint": "Try a different term or clear the filter.",
+    "range": "{from}–{to} of {total}",
+    "fullName": "Full name",
+    "saveUser": "Save user"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -644,7 +823,20 @@
     "lastSyncNever": "No successful sync yet from this workstation",
     "inventoryWarningTitle": "Stock records are behind",
     "inventoryWarningBody": "{count} product(s) show zero or negative recorded stock. This does not stop you selling — the shelf is what counts, and the difference is recorded for review.",
-    "noPreparationNeeded": "No stock preparation is required in this mode."
+    "noPreparationNeeded": "No stock preparation is required in this mode.",
+    "readinessUnavailable": "Offline selling status could not be loaded.",
+    "loading": "Loading offline selling status…",
+    "categoricalBlock": {
+      "device-not-registered": "this workstation is not activated",
+      "device-revoked": "this workstation was revoked",
+      "device-blocked": "this workstation is blocked",
+      "session-invalid": "the sign-in is no longer valid",
+      "permission-denied": "your role cannot sell",
+      "feature-not-enabled": "offline selling is not enabled for this company",
+      "company-inactive": "the company account is inactive",
+      "shift-not-open": "no shift is open",
+      "unknown": "a restriction set by the server"
+    }
   },
   "sales": {
     "title": "Sales",
@@ -669,7 +861,41 @@
     "returnAction": "Return / Refund",
     "printAction": "Print receipt",
     "printRefundAction": "Print refund receipt",
-    "invoiceNumber": "Invoice"
+    "invoiceNumber": "Invoice",
+    "legendLabel": "Status key",
+    "legendSynced": "uploaded to the server",
+    "legendPending": "saved on this workstation, waiting to upload",
+    "legendFailed": "needs review in Sync",
+    "colStatus": "Status",
+    "colAction": "Action",
+    "noServerInvoice": "No server invoice yet",
+    "serverInvoice": "Server invoice",
+    "viewSaleLabel": "View sale {number}",
+    "emptyFilteredTitle": "No sale matches this invoice number.",
+    "emptyFilteredBody": "Check the number, or search with the offline invoice number.",
+    "clearSearch": "Clear search",
+    "loadErrorTitle": "Sales could not be loaded.",
+    "soldAtMeta": "Sold {when}",
+    "productsCount": "{n} product | {n} products",
+    "unitPrice": "Unit price",
+    "amount": "Amount",
+    "totals": "Totals",
+    "noPayments": "No payments are recorded on this sale.",
+    "paymentType": {
+      "cash": "Cash",
+      "card": "Card",
+      "other": "Other"
+    },
+    "refundItemsAction": "Refund items",
+    "refundState": {
+      "prepared": "Not sent yet",
+      "dispatched": "Submitting",
+      "unresolved": "Outcome unknown",
+      "accepted": "Accepted",
+      "rejected": "Not accepted",
+      "conflict": "Conflict",
+      "cancelled": "Discarded"
+    }
   },
   "refunds": {
     "dialogTitle": "Return / Refund",
@@ -745,7 +971,25 @@
       "refund_contract_version_unsupported": "This connection's refund contract version is not supported by this app.",
       "line_refund_infeasible_historically": "This line's refund history is inconsistent and cannot be refunded here.",
       "original_sale_stock_effect_indeterminate": "The original sale's stock effect could not be determined. This refund needs a manager or inventory check before it can proceed."
-    }
+    },
+    "supportReference": "Support reference",
+    "stepsLabel": "Refund steps",
+    "selectionCount": "Items selected: {n}",
+    "selectionNone": "Select at least one item to refund.",
+    "needsConnection": "Refunds need a connection.",
+    "whatRefunded": "What is being refunded",
+    "howRefunded": "How it is refunded",
+    "toStock": "Items return to stock",
+    "notToStock": "Items do not return to stock",
+    "referenceOptional": "Reference (optional)",
+    "reasonOptional": "Reason (optional)",
+    "reasonPlaceholder": "For example: customer returned an unopened item",
+    "notesOptional": "Notes (optional)",
+    "confirmActionAmount": "Confirm refund {amount}",
+    "submittingHint": "Keep this window open. Do not start another refund for this sale.",
+    "unknownTitle": "Outcome not confirmed yet",
+    "conflictTitle": "Refund record conflict",
+    "backToSale": "Back to sale"
   },
   "printing": {
     "previewTitle": "Print preview",
@@ -782,6 +1026,118 @@
     },
     "errors": {
       "previewStale": "The receipt changed since it was last previewed. Review it again before printing."
-    }
+    },
+    "printerReady": "Ready",
+    "printerBusy": "Busy",
+    "printerStopped": "Stopped",
+    "printerNotFound": "Not found on this computer",
+    "printersLoading": "Looking for printers…",
+    "paper58": "58 mm",
+    "paper58Sub": "Narrow roll",
+    "paper80": "80 mm",
+    "paper80Sub": "Standard roll",
+    "copiesHelp": "1–3 copies per receipt.",
+    "copiesDecrease": "Fewer copies",
+    "copiesIncrease": "More copies",
+    "dispatchModeDirectSub": "Sends straight to the printer",
+    "dispatchModeSystemDialogSub": "Lets you confirm each print",
+    "duplicateTitle": "Duplicate printing",
+    "submittedHint": "The app cannot see the paper; please look at the printer.",
+    "printerState": {
+      "idle": "Printer ready",
+      "busy": "Printer busy",
+      "stopped": "Printer stopped"
+    },
+    "paperOnly": "{paper} mm paper"
+  },
+  "shell": {
+    "brand": "Thinis POS",
+    "menu": "Menu",
+    "mainNavigation": "Main navigation",
+    "statusArea": "Workstation status",
+    "network": {
+      "online": "Online",
+      "offline": "Offline",
+      "unreachable": "Service unreachable",
+      "checking": "Checking connection…"
+    },
+    "sync": {
+      "queued": "{count} to sync",
+      "paused": "Sync paused · {count}",
+      "review": "{count} need review",
+      "ok": "All uploaded",
+      "loading": "Checking sync…",
+      "unavailable": "Sync status unavailable"
+    },
+    "shift": {
+      "none": "No open shift",
+      "open": "Shift open · since {time}",
+      "openNoTime": "Shift open",
+      "paused": "Shift paused",
+      "opening": "Opening shift…",
+      "pausing": "Pausing shift…",
+      "resuming": "Resuming shift…",
+      "closing": "Closing shift…",
+      "unavailable": "Shift status unavailable",
+      "unknown": "Shift state unknown",
+      "loading": "Checking shift…",
+      "needsConnection": "Shift changes need a connection.",
+      "refreshStatus": "Refresh status",
+      "menuLabel": "Shift actions"
+    },
+    "user": {
+      "menuLabel": "Account, language and theme",
+      "signedIn": "Signed in",
+      "fallbackName": "Cashier"
+    },
+    "signOut": {
+      "title": "Sign out of this workstation?",
+      "body": "You will need a connection to sign in again.",
+      "queue": "{count} sales are still waiting to upload. They stay saved on this workstation and upload after the next sign in.",
+      "failed": "Sign out did not complete. Try again."
+    },
+    "notices": {
+      "offlineBody": "You can keep selling — sales upload when the connection returns.",
+      "unreachableBody": "You can keep selling. We will keep trying in the background.",
+      "restoredBody": "Waiting sales will upload automatically.",
+      "pausedTitle": "Uploading is paused.",
+      "pausedBody": "Sales are saved on this workstation and will upload when syncing resumes.",
+      "reviewTitle": "{count} uploaded sales need review.",
+      "reviewBody": "Selling is not affected. Check them with your manager.",
+      "openSync": "Open Sync",
+      "dismiss": "Dismiss"
+    },
+    "skipToContent": "Skip to main content"
+  },
+  "receiptProfile": {
+    "title": "Company receipt profile",
+    "description": "The logo, address and footer printed on receipts at every workstation in your company.",
+    "onlineRequired": "Changes need a connection",
+    "offlineNotice": "You are offline. Changing the receipt profile needs a connection.",
+    "loading": "Loading the receipt profile…",
+    "logoLabel": "Logo",
+    "noLogo": "No logo",
+    "chooseLogo": "Choose logo",
+    "removeLogo": "Remove logo",
+    "undoLogoChange": "Undo logo change",
+    "logoPendingNew": "New logo not saved yet",
+    "logoPendingRemove": "Logo removal not saved yet",
+    "addressLinesLabel": "Address lines (up to {max})",
+    "addressLineNumberLabel": "Address line {number}",
+    "removeAddressLine": "Remove address line {number}",
+    "footerLinesLabel": "Footer lines (up to {max})",
+    "footerLineNumberLabel": "Footer line {number}",
+    "removeFooterLine": "Remove footer line {number}",
+    "addLine": "Add line",
+    "phoneLabel": "Phone",
+    "taxIdentifierLabelLabel": "Tax ID label",
+    "taxIdentifierValueLabel": "Tax ID number",
+    "conflictReloaded": "Someone else saved the receipt profile first. Their version is now loaded. Review it and make your changes again.",
+    "yourChanges": "Your changes that were not saved",
+    "saved": "Receipt profile saved.",
+    "save": "Save receipt profile",
+    "previewTitle": "Receipt header preview",
+    "previewEmpty": "No header or footer lines yet.",
+    "previewNote": "A preview of the header and footer only. Printed receipts stay white in both themes."
   }
 }

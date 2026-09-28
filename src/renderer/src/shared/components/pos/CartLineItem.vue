@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * V3 cart line: the name wraps (never truncated), remove at the inline end; beneath, the unit
+ * price, the stepper and the line amount. Amounts arrive pre-computed and pre-formatted.
+ */
 import AppIconButton from '@renderer/shared/components/common/AppIconButton.vue'
 import QuantityControl from './QuantityControl.vue'
 import type { DisplayCartLine } from './types'
@@ -9,81 +13,48 @@ withDefaults(
     decreaseLabel: string
     increaseLabel: string
     removeLabel: string
+    quantityLabel?: string
     disabled?: boolean
   }>(),
-  { disabled: false }
+  { quantityLabel: undefined, disabled: false }
 )
 
 const emit = defineEmits<{ decrease: []; increase: []; remove: [] }>()
 </script>
 
 <template>
-  <div class="cart-line-item">
-    <div class="cart-line-item__info">
-      <span class="cart-line-item__name">{{ line.name }}</span>
-      <span class="cart-line-item__sku numeric">{{ line.sku }}</span>
+  <div
+    class="cart-line-item grid grid-cols-[minmax(0,1fr)_auto_minmax(84px,auto)] items-center gap-x-2.5 gap-y-1 border-b border-line py-3"
+  >
+    <div class="cart-line-item__info col-span-2 min-w-0">
+      <span
+        class="cart-line-item__name block text-base leading-[1.35] font-medium [overflow-wrap:anywhere]"
+        >{{ line.name }}</span
+      >
+      <span class="cart-line-item__sku sr-only">{{ line.sku }}</span>
     </div>
+    <div class="justify-self-end">
+      <AppIconButton
+        :label="removeLabel"
+        icon="delete"
+        size="sm"
+        class="text-muted"
+        :disabled="disabled"
+        @click="emit('remove')"
+      />
+    </div>
+    <span class="numeric text-xs text-muted">{{ line.eachLabel ?? line.unitPrice }}</span>
     <QuantityControl
       :quantity="line.quantity"
       :decrease-label="decreaseLabel"
       :increase-label="increaseLabel"
+      :group-label="quantityLabel"
       :disabled="disabled"
       @decrease="emit('decrease')"
       @increase="emit('increase')"
     />
-    <span class="cart-line-item__total numeric">{{ line.lineTotal }}</span>
-    <AppIconButton
-      :label="removeLabel"
-      variant="danger"
-      :disabled="disabled"
-      @click="emit('remove')"
-    >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path
-          d="M4 4l8 8M12 4l-8 8"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-        />
-      </svg>
-    </AppIconButton>
+    <span class="cart-line-item__total numeric text-end text-base font-bold whitespace-nowrap">{{
+      line.lineTotal
+    }}</span>
   </div>
 </template>
-
-<style scoped>
-.cart-line-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--size-row);
-  padding-inline: var(--space-3);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-.cart-line-item__info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.cart-line-item__name {
-  font-weight: 600;
-  color: var(--color-on-surface);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cart-line-item__sku {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-muted);
-}
-
-.cart-line-item__total {
-  min-width: 6ch;
-  text-align: end;
-  font-size: var(--text-numeric-data-size);
-  font-weight: var(--text-numeric-data-weight);
-}
-</style>

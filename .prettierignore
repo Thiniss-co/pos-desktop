@@ -4,3 +4,6 @@ pnpm-lock.yaml
 LICENSE.md
 tsconfig.json
 tsconfig.*.json
+
+# Verbatim Claude Design prototype (reference only)
+docs/design/claude-v3/source

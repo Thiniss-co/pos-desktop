@@ -19,38 +19,15 @@ const emit = defineEmits<{ select: [] }>()
   <AppListRow
     interactive
     class="product-row"
-    :class="{ 'product-row--disabled': disabled || product.stock === 'out-of-stock' }"
+    :class="{
+      'product-row--disabled cursor-not-allowed opacity-60':
+        disabled || product.stock === 'out-of-stock'
+    }"
     @click="!(disabled || product.stock === 'out-of-stock') && emit('select')"
   >
-    <span class="product-row__name">{{ product.name }}</span>
-    <span class="product-row__sku numeric">{{ product.sku }}</span>
+    <span class="product-row__name min-w-0 flex-1 font-medium">{{ product.name }}</span>
+    <span class="product-row__sku code text-xs text-muted">{{ product.sku }}</span>
     <StockStatus :level="product.stock" :label="stockLabel" />
-    <span class="product-row__price numeric">{{ product.price }}</span>
+    <span class="product-row__price numeric font-bold">{{ product.price }}</span>
   </AppListRow>
 </template>
-
-<style scoped>
-.product-row {
-  justify-content: space-between;
-}
-
-.product-row--disabled {
-  pointer-events: none;
-  opacity: 0.6;
-}
-
-.product-row__name {
-  flex: 1;
-  font-weight: 600;
-}
-
-.product-row__sku {
-  color: var(--color-text-muted);
-  font-size: var(--text-body-sm-size);
-}
-
-.product-row__price {
-  font-size: var(--text-numeric-data-size);
-  font-weight: var(--text-numeric-data-weight);
-}
-</style>

@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import type { CreateCompanyUserInput } from '@shared/contracts/company-users.contract'
-import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
 import AppCheckbox from '@renderer/shared/components/forms/AppCheckbox.vue'
 import AppInput from '@renderer/shared/components/forms/AppInput.vue'
-import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
+import PageContainer from '@renderer/shared/components/layout/PageContainer.vue'
+import CompanyUserFormCard from '../components/CompanyUserFormCard.vue'
 import { useCompanyUsersStore } from '../store'
+
+const INLINE_FIELDS = ['name', 'email', 'password'] as const
 
 const router = useRouter()
 const companyUsers = useCompanyUsersStore()
@@ -23,6 +25,16 @@ const form = reactive<CreateCompanyUserInput>({
   companyRoleIds: []
 })
 const { t } = useI18n()
+
+/** Server field errors shown under their own input; any other field keeps the list below. */
+function fieldError(field: (typeof INLINE_FIELDS)[number]): string | undefined {
+  return fieldErrors.value?.[field]?.join(' ') || undefined
+}
+const otherFieldErrors = computed(() =>
+  Object.entries(fieldErrors.value ?? {}).filter(
+    ([field]) => !(INLINE_FIELDS as readonly string[]).includes(field)
+  )
+)
 
 onMounted(async () => {
   await companyUsers.loadAccess()
@@ -48,112 +60,103 @@ async function submit(): Promise<void> {
     await router.push({ name: 'company-users' })
   }
 }
+
+function cancel(): void {
+  void router.push({ name: 'company-users' })
+}
 </script>
 
 <template>
-  <section class="company-user-form-page">
-    <PageHeader :eyebrow="t('companyUsers.label')" :title="t('companyUsers.createTitle')" />
-    <p v-if="remainingUsers !== null" class="company-user-form-page__hint">
-      {{ t('companyUsers.remainingBeforeChange', { count: remainingUsers }) }}
-    </p>
-    <AppInlineError v-if="!access?.canManage">{{
-      t('companyUsers.noPermissionAdd')
-    }}</AppInlineError>
-
-    <form v-else class="company-user-form-page__form" @submit.prevent="submit">
-      <AppInput
-        v-model.trim="form.name"
-        :label="t('companyUsers.name')"
-        required
-        maxlength="255"
-        autocomplete="name"
-      />
-      <AppInput
-        v-model.trim="form.email"
-        type="email"
-        :label="t('auth.email')"
-        required
-        maxlength="255"
-        autocomplete="email"
-      />
-      <AppInput
-        v-model="form.password"
-        type="password"
-        :label="t('companyUsers.temporaryPassword')"
-        required
-        minlength="8"
-        maxlength="255"
-        autocomplete="new-password"
-      />
-
-      <fieldset class="company-user-form-page__roles">
-        <legend>{{ t('companyUsers.systemRoles') }}</legend>
-        <AppCheckbox
-          v-for="role in assignableRoles?.systemRoles"
-          :key="role.key"
-          :label="role.label"
-          :disabled="!role.assignable"
-          :model-value="form.roles.includes(role.key)"
-          @update:model-value="(checked) => toggleRole(form.roles as string[], role.key, checked)"
-        />
-      </fieldset>
-
-      <fieldset class="company-user-form-page__roles">
-        <legend>{{ t('companyUsers.customRoles') }}</legend>
-        <AppCheckbox
-          v-for="role in assignableRoles?.companyRoles"
-          :key="role.uuid"
-          :label="role.name"
-          :disabled="!role.isActive"
-          :model-value="form.companyRoleIds.includes(role.uuid)"
-          @update:model-value="(checked) => toggleRole(form.companyRoleIds, role.uuid, checked)"
-        />
-      </fieldset>
-
-      <AppInlineError v-if="fieldErrors">
-        <span v-for="(messages, field) in fieldErrors" :key="field">
-          {{ field }}: {{ messages.join(' ') }}
-        </span>
+  <PageContainer class="company-user-form-page">
+    <CompanyUserFormCard
+      :title="t('companyUsers.createTitle')"
+      :submit-label="t('companyUsers.saveUser')"
+      :cancel-label="t('common.cancel')"
+      :busy="isMutating"
+      :show-actions="Boolean(access?.canManage)"
+      @submit="submit"
+      @cancel="cancel"
+    >
+      <p v-if="remainingUsers !== null" class="numeric text-sm text-muted">
+        {{ t('companyUsers.remainingBeforeChange', { count: remainingUsers }) }}
+      </p>
+      <AppInlineError v-if="!access?.canManage">
+        {{ t('companyUsers.noPermissionAdd') }}
       </AppInlineError>
-      <AppInlineError v-if="error">{{ error }}</AppInlineError>
 
-      <AppButton type="submit" :loading="isMutating">{{ t('companyUsers.createUser') }}</AppButton>
-    </form>
-  </section>
+      <template v-else>
+        <AppInput
+          v-model.trim="form.name"
+          :label="t('companyUsers.fullName')"
+          required
+          autofocus
+          maxlength="255"
+          autocomplete="name"
+          :error="fieldError('name')"
+        />
+        <AppInput
+          v-model.trim="form.email"
+          type="email"
+          dir="ltr"
+          inputmode="email"
+          :label="t('auth.email')"
+          required
+          maxlength="255"
+          autocomplete="email"
+          :error="fieldError('email')"
+        />
+        <AppInput
+          v-model="form.password"
+          type="password"
+          dir="ltr"
+          :label="t('companyUsers.temporaryPassword')"
+          required
+          minlength="8"
+          maxlength="255"
+          autocomplete="new-password"
+          :error="fieldError('password')"
+        />
+
+        <fieldset class="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
+          <legend class="mb-1.5 p-0 text-sm font-semibold">
+            {{ t('companyUsers.systemRoles') }}
+          </legend>
+          <AppCheckbox
+            v-for="role in assignableRoles?.systemRoles"
+            :key="role.key"
+            tile
+            :label="role.label"
+            :disabled="!role.assignable"
+            :model-value="form.roles.includes(role.key)"
+            @update:model-value="(checked) => toggleRole(form.roles as string[], role.key, checked)"
+          />
+        </fieldset>
+
+        <fieldset
+          v-if="assignableRoles?.companyRoles.length"
+          class="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0"
+        >
+          <legend class="mb-1.5 p-0 text-sm font-semibold">
+            {{ t('companyUsers.customRoles') }}
+          </legend>
+          <AppCheckbox
+            v-for="role in assignableRoles?.companyRoles"
+            :key="role.uuid"
+            tile
+            :label="role.name"
+            :disabled="!role.isActive"
+            :model-value="form.companyRoleIds.includes(role.uuid)"
+            @update:model-value="(checked) => toggleRole(form.companyRoleIds, role.uuid, checked)"
+          />
+        </fieldset>
+
+        <AppInlineError v-if="otherFieldErrors.length > 0">
+          <span v-for="[field, messages] in otherFieldErrors" :key="field" class="block">
+            {{ field }}: {{ messages.join(' ') }}
+          </span>
+        </AppInlineError>
+        <AppInlineError v-if="error">{{ error }}</AppInlineError>
+      </template>
+    </CompanyUserFormCard>
+  </PageContainer>
 </template>
-
-<style scoped>
-.company-user-form-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: 32rem;
-}
-
-.company-user-form-page__hint {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-}
-
-.company-user-form-page__form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.company-user-form-page__roles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-md);
-}
-
-.company-user-form-page__roles legend {
-  padding-inline: var(--space-1);
-  font-size: var(--text-body-sm-size);
-  font-weight: 600;
-  color: var(--color-on-surface-variant);
-}
-</style>

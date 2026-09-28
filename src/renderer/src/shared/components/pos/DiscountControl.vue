@@ -16,7 +16,7 @@ const emit = defineEmits<{ 'update:modelValue': [string]; apply: [] }>()
 </script>
 
 <template>
-  <form class="discount-control" @submit.prevent="emit('apply')">
+  <form class="discount-control flex items-end gap-2" @submit.prevent="emit('apply')">
     <AppInput
       :model-value="modelValue"
       :label="label"
@@ -26,11 +26,3 @@ const emit = defineEmits<{ 'update:modelValue': [string]; apply: [] }>()
     <AppButton type="submit" variant="secondary" :disabled="disabled">{{ applyLabel }}</AppButton>
   </form>
 </template>
-
-<style scoped>
-.discount-control {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-</style>

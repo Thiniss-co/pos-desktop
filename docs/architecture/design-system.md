@@ -1,3 +1,8 @@
+> **Superseded (2026-09-28):** the renderer now uses the Thinis POS V3 design system, built from
+> the Claude Design prototype. See [docs/design/claude-v3/IMPLEMENTATION.md](../design/claude-v3/IMPLEMENTATION.md)
+> and [.ai/guidelines/design-system.md](../../.ai/guidelines/design-system.md). This document is kept
+> as the historical rationale for the Modern Ledger palette; its token names survive as aliases.
+
 # Design System — Modern Ledger
 
 Narrative and evidence behind [.ai/guidelines/design-system.md](../../.ai/guidelines/design-system.md).

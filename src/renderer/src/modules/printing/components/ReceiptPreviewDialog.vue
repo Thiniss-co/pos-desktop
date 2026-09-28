@@ -5,10 +5,18 @@ import { useI18n } from 'vue-i18n'
 import type { ReceiptDocumentRef } from '@shared/contracts/printing.contract'
 import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import AppSpinner from '@renderer/shared/components/common/AppSpinner.vue'
+import type { IconName } from '@renderer/shared/components/common/icons.generated'
 import AppSelect from '@renderer/shared/components/forms/AppSelect.vue'
 import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import { usePrintingStore } from '../store'
 
+/**
+ * V3 print dialog: the receipt pages on a subtle panel (main-process PNGs on white paper — never
+ * recoloured, identical in both themes), and a control column with paper, printer, duplicate and
+ * outcome notices. Every notice is driven by the real preview / job state.
+ */
 const props = defineProps<{
   open: boolean
   document: ReceiptDocumentRef | null
@@ -29,26 +37,57 @@ const printerOptions = computed(() =>
   printers.value.map((printer) => ({ value: printer.name, label: printer.displayName }))
 )
 
-const statusMessage = computed(() => {
-  if (isDispatching.value) {
-    return t('printing.status.dispatching')
-  }
-  const status = jobStatus.value?.status
-  if (!status) {
+/** The OS-reported state of the explicitly chosen printer, when the OS reports one. */
+const selectedPrinterState = computed(
+  () => printers.value.find((printer) => printer.name === selectedPrinter.value)?.state ?? null
+)
+
+const PRINTER_STATE_ICON_CLASS = {
+  idle: 'text-ok',
+  busy: 'text-warn',
+  stopped: 'text-err'
+} as const
+
+type OutcomeNotice = {
+  variant: 'info' | 'success' | 'warning' | 'error' | 'neutral'
+  icon: IconName
+  message: string
+  hint?: string
+}
+
+/** The job's outcome after (or while) dispatching — `isDispatching` has its own notice. */
+const outcomeNotice = computed<OutcomeNotice | null>(() => {
+  const job = jobStatus.value
+  if (isDispatching.value || !job) {
     return null
   }
-  if (status === 'in_progress') {
-    return t(`printing.status.${jobStatus.value!.phase ?? 'queued'}`)
+  switch (job.status) {
+    case 'in_progress':
+      return {
+        variant: 'info',
+        icon: 'hourglass_top',
+        message: t(`printing.status.${job.phase ?? 'queued'}`)
+      }
+    case 'submitted':
+      return {
+        variant: 'success',
+        icon: 'print',
+        message: t('printing.status.submitted'),
+        hint: t('printing.submittedHint')
+      }
+    case 'outcome_unknown':
+      return { variant: 'warning', icon: 'help', message: t('printing.status.outcome_unknown') }
+    case 'cancelled':
+      return { variant: 'neutral', icon: 'block', message: t('printing.status.cancelled') }
+    case 'failed_before_dispatch':
+      return {
+        variant: 'error',
+        icon: 'print_disabled',
+        message: t('printing.status.failed_before_dispatch')
+      }
+    default:
+      return null
   }
-  return t(`printing.status.${status}`)
-})
-
-const statusVariant = computed<'info' | 'success' | 'warning' | 'error'>(() => {
-  const status = jobStatus.value?.status
-  if (status === 'submitted') return 'success'
-  if (status === 'outcome_unknown') return 'warning'
-  if (status === 'failed_before_dispatch' || status === 'cancelled') return 'error'
-  return 'info'
 })
 
 async function loadPreview(): Promise<void> {
@@ -95,37 +134,75 @@ const isReprintFlow = computed(() => preview.value?.isReprint ?? false)
 </script>
 
 <template>
-  <AppDialog :open="open" size="lg" @close="onClose">
+  <AppDialog :open="open" size="lg" :close-label="t('common.close')" @close="onClose">
     <template #title>{{ t('printing.previewTitle') }}</template>
 
-    <div class="receipt-preview">
-      <div class="receipt-preview__paper" role="img" :aria-label="t('printing.previewAlt')">
-        <div v-if="isPreviewing" class="receipt-preview__loading">
+    <div class="flex flex-wrap gap-5">
+      <section
+        class="flex max-h-[60vh] min-w-0 flex-[1_1_320px] flex-col items-center gap-3 overflow-auto rounded-lg border border-line bg-subtle p-5"
+        :aria-label="t('printing.previewAlt')"
+      >
+        <p
+          v-if="isPreviewing"
+          class="flex items-center gap-2 py-6 text-sm text-muted"
+          role="status"
+        >
+          <AppSpinner :size="18" />
           {{ t('printing.status.preparing') }}
-        </div>
+        </p>
         <template v-else-if="preview">
-          <div class="receipt-preview__gauge">
-            {{
-              t('printing.paperGauge', {
-                paper: String(preview.pages[0]?.widthMm ?? ''),
-                printable: String(workstationSettings?.printableWidthMm ?? '')
-              })
-            }}
+          <div
+            v-for="(page, index) in preview.pages"
+            :key="index"
+            class="receipt-preview__page bg-paper shadow-panel"
+          >
+            <img
+              class="block h-auto max-w-full"
+              :src="page.pngDataUrl"
+              :alt="t('printing.previewAlt')"
+            />
           </div>
-          <div v-for="(page, index) in preview.pages" :key="index" class="receipt-preview__page">
-            <img :src="page.pngDataUrl" :alt="t('printing.previewAlt')" />
-          </div>
-          <div v-if="preview.pageCount > 1" class="receipt-preview__page-count">
+          <p v-if="preview.pageCount > 1" class="numeric text-xs text-muted">
             {{ t('printing.pageCount', { count: String(preview.pageCount) }) }}
-          </div>
-          <div v-if="preview.isReprint" class="receipt-preview__reprint-notice">
-            {{ t('printing.reprintNotice') }}
-          </div>
+          </p>
         </template>
-        <div v-else class="receipt-preview__loading">{{ t('printing.previewUnavailable') }}</div>
-      </div>
+        <p v-else class="flex items-center gap-2 py-6 text-sm text-muted">
+          <AppIcon name="print_disabled" :size="18" />
+          {{ t('printing.previewUnavailable') }}
+        </p>
+      </section>
 
-      <div class="receipt-preview__controls">
+      <div class="flex min-w-0 flex-[1_1_260px] flex-col gap-3">
+        <p v-if="preview" class="numeric text-sm font-bold">
+          {{
+            workstationSettings?.printableWidthMm
+              ? t('printing.paperGauge', {
+                  paper: String(preview.pages[0]?.widthMm ?? ''),
+                  printable: String(workstationSettings.printableWidthMm)
+                })
+              : t('printing.paperOnly', { paper: String(preview.pages[0]?.widthMm ?? '') })
+          }}
+        </p>
+
+        <p v-if="selectedPrinterState" class="flex items-center gap-2 text-sm">
+          <AppIcon
+            name="print"
+            :size="20"
+            :class="PRINTER_STATE_ICON_CLASS[selectedPrinterState]"
+          />
+          {{ t(`printing.printerState.${selectedPrinterState}`) }}
+        </p>
+
+        <AppBanner
+          v-if="preview?.isReprint"
+          variant="warning"
+          role="note"
+          icon="content_copy"
+          :title="t('printing.duplicateTitle')"
+        >
+          {{ t('printing.reprintNotice') }}
+        </AppBanner>
+
         <AppSelect
           v-model="selectedPrinter"
           :label="t('printing.printerLabel')"
@@ -144,16 +221,31 @@ const isReprintFlow = computed(() => preview.value?.isReprint ?? false)
         <AppBanner v-if="errorMessage" variant="error" role="alert">
           {{ errorMessage }}
         </AppBanner>
-        <AppBanner v-else-if="statusMessage" :variant="statusVariant" role="status">
-          {{ statusMessage }}
+        <p
+          v-else-if="isDispatching"
+          class="flex items-center gap-2.5 rounded-notice bg-info-bg px-3.5 py-3 text-sm font-semibold"
+          role="status"
+        >
+          <AppSpinner :size="20" class="text-info" />
+          {{ t('printing.status.dispatching') }}
+        </p>
+        <AppBanner
+          v-else-if="outcomeNotice"
+          :variant="outcomeNotice.variant"
+          :icon="outcomeNotice.icon"
+          role="status"
+        >
+          <p :class="{ 'font-bold': outcomeNotice.hint }">{{ outcomeNotice.message }}</p>
+          <p v-if="outcomeNotice.hint">{{ outcomeNotice.hint }}</p>
         </AppBanner>
       </div>
     </div>
 
     <template #actions>
-      <AppButton variant="ghost" @click="onClose">{{ t('common.close') }}</AppButton>
+      <AppButton variant="secondary" @click="onClose">{{ t('common.close') }}</AppButton>
       <AppButton
-        variant="transaction"
+        variant="primary"
+        icon="print"
         :loading="isDispatching"
         :disabled="!preview || isPreviewing"
         @click="isReprintFlow ? onReprint() : onPrint()"
@@ -163,71 +255,3 @@ const isReprintFlow = computed(() => preview.value?.isReprint ?? false)
     </template>
   </AppDialog>
 </template>
-
-<style scoped>
-.receipt-preview {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.receipt-preview__paper {
-  max-height: 60vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-container-low);
-}
-
-.receipt-preview__page {
-  background: #ffffff;
-  box-shadow: 0 2px 8px var(--color-scrim);
-}
-
-.receipt-preview__page img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
-
-.receipt-preview__gauge {
-  font-size: var(--text-label-caps-size);
-  color: var(--color-on-surface-variant);
-}
-
-.receipt-preview__page-count,
-.receipt-preview__reprint-notice {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-on-surface-variant);
-}
-
-.receipt-preview__loading {
-  padding: var(--space-6);
-  color: var(--color-on-surface-variant);
-}
-
-.receipt-preview__controls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-@media (min-width: 640px) {
-  .receipt-preview {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-
-  .receipt-preview__paper {
-    flex: 1 1 auto;
-  }
-
-  .receipt-preview__controls {
-    flex: 0 0 220px;
-  }
-}
-</style>

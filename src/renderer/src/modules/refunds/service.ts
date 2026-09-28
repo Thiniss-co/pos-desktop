@@ -5,6 +5,7 @@ import type {
   RefundPreview
 } from '@shared/contracts/refund.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 /**
  * Plan §5/§6 -- the refund renderer service. Every method sends a narrow SELECTION only; no
@@ -24,7 +25,7 @@ export class RefundsService {
     lines: RefundLineSelection[]
     stockReturned: boolean
   }): Promise<RefundPreview> {
-    return unwrapIpcResult(await this.gateway.preview(input))
+    return unwrapIpcResult(await this.gateway.preview(toIpcPayload(input)))
   }
 
   async submit(input: {
@@ -37,7 +38,7 @@ export class RefundsService {
     reason?: string | null
     notes?: string | null
   }): Promise<RefundOutcome> {
-    return unwrapIpcResult(await this.gateway.submit(input))
+    return unwrapIpcResult(await this.gateway.submit(toIpcPayload(input)))
   }
 
   async resume(localRefundUuid: string): Promise<RefundOutcome> {

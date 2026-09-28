@@ -1,6 +1,7 @@
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
@@ -26,7 +27,7 @@ export default defineConfig({
         '@shared': resolve('src/shared')
       }
     },
-    plugins: [vue()],
+    plugins: [vue(), tailwindcss()],
     define: {
       // The app only uses the Composition API (`useI18n()` in every `<script setup>`, no `$t`
       // global property, no `v-t` directive), so vue-i18n's legacy/full-install code paths are

@@ -1,73 +1,106 @@
-# Design System Rules — Modern Ledger
+# Design System Rules — Thinis POS V3
 
-Enforceable rules for the light/dark token system. Narrative, contrast tables, and rationale live
-in [docs/architecture/design-system.md](../../docs/architecture/design-system.md).
+These are the enforceable rules for the V3 renderer design system, which supersedes "Modern
+Ledger". The design source, the implementation guide and the page matrix live in
+[docs/design/claude-v3/](../../docs/design/claude-v3/IMPLEMENTATION.md). The Modern Ledger rationale
+is kept, for history, in [docs/architecture/design-system.md](../../docs/architecture/design-system.md).
+
+## Styling
+
+- **Tailwind CSS v4** is loaded through `@tailwindcss/vite`, with its entry in
+  `src/renderer/src/assets/main.css`.
+  - Only `tailwindcss/theme.css` and `tailwindcss/utilities.css` are imported. **Preflight is never
+    loaded.**
+  - The minimal reset lives in `assets/base.css`, inside `@layer base`.
+  - Class detection is limited to the renderer source.
+  - Never add the Tailwind CDN, and never add a second CSS framework.
+- Style with utility classes in templates.
+  - Use `<style scoped>` only where utilities cannot express something, and there reference
+    `var(--color-*)` tokens only.
+  - Do not put page-specific rules in `main.css`.
+- Use logical utilities only (`ms`/`me`/`ps`/`pe`/`start`/`end`/`text-start`/`border-s`, …).
+- Mirror only directional icons, via `AppIcon mirror-rtl`.
 
 ## Tokens
 
-- All color values live in `src/renderer/src/assets/themes/palette.css`, one definition per
-  semantic token via `light-dark(<light>, <dark>)`. **No other file may contain a raw hex color,
-  `rgb()`, or `hsl()` literal.** Components consume only `var(--color-*)`.
-- Non-color primitives (type scale, spacing, radius, motion, sizing, z-index) live in
-  `src/renderer/src/assets/tokens.css`.
-- Every new component gets its own `<style scoped>` block. Do not add page-specific rules back
-  into `main.css` — it holds only cross-page layout composition (currently: `.readiness-list`).
+- **Every colour literal lives in `src/renderer/src/assets/themes/palette.css`.** No other file may
+  contain a raw hex, `rgb()` or `hsl()` value.
+  - Each token is `light-dark(<light>, <dark>)` and is registered with Tailwind (`@theme static`), so
+    `bg-surf`, `text-muted` and the like just work.
+  - The old Modern Ledger token names remain as aliases of the V3 values, for un-migrated CSS.
+- Non-colour tokens live in `assets/tokens.css`: type scale, radii, elevation, breakpoints and motion.
+  - The root font size stays at the browser's 16px, because every rem token assumes it. Body copy is
+    15px (`--text-base`).
+- Breakpoints:
 
-## Contrast usage rules (do not violate — see design-system.md for the numbers)
+  | Variant     | Width        |
+  | ----------- | ------------ |
+  | `wide`      | 900          |
+  | `pills`     | 1100         |
+  | `cartlg`    | 1200         |
+  | `navlabels` | 1500         |
+  | `hd`        | 1600         |
+  | `short`     | height < 700 |
 
-1. `--color-outline-variant`, `--color-border-strong`, `--color-divider-subtle` are **decorative
-   separators only** (table rules, panel dividers). Every control boundary — input border,
-   focusable edge, selected state, button outline — uses `--color-outline`.
-2. The dark `secondary` button (`#0e573b`) always renders with its `--color-secondary-outline`
-   border. `#91d5b1` is never a background.
-3. The transaction-accent pressed state is a 2px inset ring using
-   `--color-transaction-accent-active`, never a label-bearing background.
-4. Bare semantic status text (`--color-success`, `--color-warning`, `--color-error`,
-   `--color-information` used as a foreground) is permitted only on `--color-surface`,
-   `--color-surface-container-lowest`, and `--color-surface-container-low`. On
-   `--color-surface-container` and above, use the paired container tokens
-   (`--color-success-container` + `--color-on-success-container`, etc.) — this is why
-   `AppStatusChip`/`AppBanner` are container-based components, not colored text.
-5. Disabled text/controls (3.60:1 light / 3.01:1 dark — WCAG 1.4.3-exempt) must never be the only
-   signal of disabled state: pair with `aria-disabled`, `cursor: not-allowed`, and removed
-   affordance.
+## Contrast usage rules
+
+1. Every control boundary (input, select, stepper, outline button, radio tile) uses `border-control`
+   (≥ 3:1). `line` and `line-strong` are decorative separators only.
+2. Exactly one filled primary (indigo) action per view. Everything else is `secondary`, `outline`,
+   `soft` or `ghost`.
+3. A solid destructive button uses `danger` (white text ≥ 4.5:1 in both themes), never `err`.
+4. Status is always colour **plus** icon **plus** text, through `AppStatusChip`, `AppBanner` or the
+   top-bar pills.
+5. Disabled is never colour alone. The fill drops out, the cursor changes, and `disabled` or
+   `aria-disabled` is set.
 
 ## Typography
 
-- `--font-ui` (Hanken Grotesk stack) swaps to `--font-ui-arabic` (Noto Sans Arabic stack)
-  automatically under `html[dir="rtl"]`. Never hardcode a font-family in a component.
-- Add class `numeric` (or use `--font-numeric` directly) on every money, quantity, total,
-  timestamp, SKU, and barcode value, in both locales. `label-caps` uppercase/tracking is
-  Latin-only — it resets under `[dir="rtl"]` automatically, do not override per-component.
-- No bundled font files exist; the stacks resolve to system fonts. Do not add a font file or a
-  remote font request without separate approval — the CSP blocks remote fonts anyway
-  (`font-src 'self' data:` in the header policy, no `font-src` in the `index.html` meta policy).
+- Fonts are **bundled** from `@fontsource` in `assets/fonts.css`, so there is never a remote font
+  request:
+  - Plus Jakarta Sans for Latin UI.
+  - IBM Plex Sans Arabic for Arabic UI, swapped automatically under `html[dir='rtl']`.
+  - JetBrains Mono for codes.
+- Add `numeric` to money, quantities, totals and timestamps: tabular figures in the UI face, Latin
+  digits in both languages.
+- Add `code` to SKUs, barcodes, invoice and reference numbers, and trace IDs: mono, LTR-isolated.
+- Sentence case everywhere. No all-caps labels.
+
+## Icons
+
+- Use `AppIcon` for Material Symbols Outlined as inline SVG paths, from `icons.generated.ts`.
+- No icon font and no icon CDN. `docs/design/claude-v3/README.md` explains how to add a glyph.
 
 ## Theme preference
 
-- Persisted via `preferences:get-theme` / `preferences:set-theme` IPC, mirroring the locale
-  preference exactly (`ui.theme` in `app_settings`, validated to `light | dark | system` in main).
-- Never use `localStorage`/`sessionStorage`/cookies for theme. Never expose `nativeTheme` or a
-  generic settings channel to the renderer.
-- `system` mode is resolved by CSS (`color-scheme: light dark` + `light-dark()`) with **zero
-  JavaScript on the visual path** — `theme.store.ts`'s `matchMedia` listener only keeps the
-  `resolvedTheme` ref accurate for JS consumers (e.g. `ThemeSwitcher`'s pressed state); it never
-  re-applies anything to the document. Do not add a second mechanism.
-- Resolve the theme in `main.ts` before `.mount('#app')`, exactly like locale.
+This is unchanged from the previous system.
+
+- The preference is persisted through `preferences:get-theme` / `preferences:set-theme`.
+- `system` resolves in CSS through `color-scheme` plus `light-dark()`.
+- Never use `localStorage`, `sessionStorage` or cookies for the theme.
+- Theme changes must never alter thermal receipts:
+  - Receipt previews are main-process PNGs.
+  - Receipt-like HTML previews use `bg-paper text-paper-ink`.
 
 ## Components
 
-- Reuse `shared/components/{common,forms,feedback,layout}/*` before writing new markup. Do not
-  restyle a raw `<button>`/`<input>`/`<select>` in a page — use `AppButton`/`AppInput`/`AppSelect`.
-- Phase 3 presentational components live in `shared/components/pos/`. They must never import the
-  preload bridge, HTTP, the local database, main-process code, a business Pinia store, or a
-  license/sync service — enforced by `importBoundary.test.ts`. They receive already-computed,
-  pre-formatted values as props; they never calculate a total or a permission.
+- Reuse `shared/components/{common,forms,feedback,layout}/*` before writing new markup. The catalog
+  is in the implementation guide, §3.
+- Do not restyle a raw `<button>`, `<input>` or `<select>` in a page.
+- `shared/components/pos/` stays pure presentation. It must never import the preload bridge, HTTP,
+  the local database, main-process code or a business Pinia store; `importBoundary.test.ts`
+  enforces this.
+
+## IPC payloads
+
+- Renderer services pass request payloads through `shared/utils/ipcPayload.ts` (`toIpcPayload`).
+- Stores keep inputs in Vue refs (Proxies), and Electron's preload bridge cannot clone a Proxy.
+- `toIpcPayload` copies plain data exactly, including `undefined` optionals. It **throws**
+  `IpcPayloadError` (naming the path) for anything else, rather than converting it: non-finite
+  numbers, `Date`, `Map`, class instances, functions, bigint, symbols, and cycles.
+  - Never replace it with a JSON round-trip, which silently changes those values.
 
 ## Dev-only preview
 
-- The design gallery (`modules/devGallery/`) is reachable only behind `import.meta.env.DEV`, is
-  wired with a **dynamic** `import()` (never a static one) so a production build tree-shakes it
-  entirely, and bypasses `startupGuard` via `meta.devOnly` rather than by weakening the guard for
-  every route. Verify any change to it with `npm run build` and grep the output for a gallery-only
-  string — see `devGallery.exclusion.test.ts` for the source-level half of this proof.
+This is unchanged. The design gallery (`modules/devGallery/`) is reachable only behind
+`import.meta.env.DEV`, is loaded with a dynamic `import()`, and is excluded from production builds.

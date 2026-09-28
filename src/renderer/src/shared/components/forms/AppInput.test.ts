@@ -58,3 +58,40 @@ describe('AppInput', () => {
     expect(input.attributes('required')).toBeDefined()
   })
 })
+
+/*
+ * `dir` and `maxlength` must land on the <input> itself. Before they were declared props, both
+ * fell through to the wrapper <div> (Vue's default attribute inheritance), so a phone number in an
+ * Arabic form was reordered and the receipt-profile / company-user length limits never applied.
+ */
+describe('AppInput direction and length', () => {
+  it('applies an explicit text direction to the input only, without changing the value', async () => {
+    const wrapper = mount(AppInput, {
+      props: { modelValue: '+20 2 2345 6789', label: 'Phone', dir: 'ltr' }
+    })
+
+    const input = wrapper.get('input')
+    expect(input.attributes('dir')).toBe('ltr')
+    expect(wrapper.get('.app-field').attributes('dir')).toBeUndefined()
+    expect((input.element as HTMLInputElement).value).toBe('+20 2 2345 6789')
+
+    await input.setValue('+20 100 000 0000')
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['+20 100 000 0000'])
+  })
+
+  it('follows the page direction when no direction is given', () => {
+    const wrapper = mount(AppInput, { props: { modelValue: 'Cairo', label: 'City' } })
+
+    expect(wrapper.get('input').attributes('dir')).toBeUndefined()
+  })
+
+  it('puts maxlength on the input element', () => {
+    const wrapper = mount(AppInput, {
+      props: { modelValue: '', label: 'Address line 1', dir: 'auto', maxlength: 80 }
+    })
+
+    expect(wrapper.get('input').attributes('maxlength')).toBe('80')
+    expect(wrapper.get('input').attributes('dir')).toBe('auto')
+    expect(wrapper.get('.app-field').attributes('maxlength')).toBeUndefined()
+  })
+})

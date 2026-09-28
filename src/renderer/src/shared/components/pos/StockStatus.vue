@@ -8,18 +8,18 @@ const props = defineProps<{
   label: string
 }>()
 
-const variant = computed(() => {
+const chip = computed(() => {
   switch (props.level) {
     case 'in-stock':
-      return 'success' as const
+      return { variant: 'success' as const, icon: 'check_circle' as const }
     case 'low-stock':
-      return 'warning' as const
+      return { variant: 'warning' as const, icon: 'warning' as const }
     default:
-      return 'error' as const
+      return { variant: 'error' as const, icon: 'block' as const }
   }
 })
 </script>
 
 <template>
-  <AppStatusChip :variant="variant">{{ label }}</AppStatusChip>
+  <AppStatusChip :variant="chip.variant" :icon="chip.icon" size="sm">{{ label }}</AppStatusChip>
 </template>

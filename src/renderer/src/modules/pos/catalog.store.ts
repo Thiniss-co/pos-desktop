@@ -15,6 +15,9 @@ import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
 import { CatalogRendererService } from './catalog.service'
 
 const PAGE_SIZE = 24
+/** Page sizes the POS catalog grid offers (V3 "Items per page"). */
+export const CATALOG_PAGE_SIZES = [12, 24] as const
+export type CatalogPageSize = (typeof CATALOG_PAGE_SIZES)[number]
 
 export const useCatalogStore = defineStore('catalog', () => {
   const status = ref<CatalogStatus | null>(null)
@@ -27,6 +30,10 @@ export const useCatalogStore = defineStore('catalog', () => {
   const query = ref('')
   const selectedCategoryUuid = ref<string | null>(null)
   const total = ref(0)
+  /** Zero-based page of the current search; any new search or filter starts again at 0. */
+  const page = ref(0)
+  const pageSize = ref<CatalogPageSize>(PAGE_SIZE)
+  const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
   const isLoading = ref(false)
   const errorState = createLocalizedErrorRef()
   const error = errorState.error
@@ -79,25 +86,62 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
+  /** A new search (query or category) always starts on the first page. */
   async function search(service = new CatalogRendererService()): Promise<void> {
+    page.value = 0
+    await fetchPage(service)
+  }
+
+  /** Moves within the current search; out-of-range pages clamp to the first/last page. */
+  async function goToPage(next: number, service = new CatalogRendererService()): Promise<void> {
+    page.value = Math.min(Math.max(0, Math.trunc(next)), pageCount.value - 1)
+    await fetchPage(service)
+  }
+
+  async function setPageSize(
+    size: CatalogPageSize,
+    service = new CatalogRendererService()
+  ): Promise<void> {
+    if (!CATALOG_PAGE_SIZES.includes(size)) {
+      return
+    }
+    pageSize.value = size
+    page.value = 0
+    await fetchPage(service)
+  }
+
+  async function fetchPage(service: CatalogRendererService): Promise<void> {
     const request = ++latestSearch
     isLoading.value = true
     errorState.clear()
 
     try {
-      const page = await service.searchProducts({
+      const result = await service.searchProducts({
         query: query.value,
         categoryUuid: selectedCategoryUuid.value,
-        limit: PAGE_SIZE,
-        offset: 0
+        limit: pageSize.value,
+        offset: page.value * pageSize.value
       })
 
       if (request !== latestSearch) {
         return
       }
 
-      products.value = page.items
-      total.value = page.total
+      const lastPage = Math.max(0, Math.ceil(result.total / pageSize.value) - 1)
+
+      if (result.items.length === 0 && page.value > lastPage) {
+        // The result set is smaller than the page asked for — the page index was clamped against
+        // an older total (a racing search, or a catalog refresh). Show the last real page instead
+        // of an empty grid past the end. Only ever moves to a page the new total supports, so it
+        // re-requests at most once.
+        total.value = result.total
+        page.value = lastPage
+        await fetchPage(service)
+        return
+      }
+
+      products.value = result.items
+      total.value = result.total
     } catch (cause) {
       if (request === latestSearch) {
         setError(cause, 'pos.catalogUnavailable')
@@ -268,6 +312,9 @@ export const useCatalogStore = defineStore('catalog', () => {
     query,
     selectedCategoryUuid,
     total,
+    page,
+    pageSize,
+    pageCount,
     isLoading,
     isAvailable,
     error,
@@ -279,6 +326,8 @@ export const useCatalogStore = defineStore('catalog', () => {
     resetCatalog,
     initialize,
     search,
+    goToPage,
+    setPageSize,
     selectCategory,
     getProduct,
     findProductByBarcode,

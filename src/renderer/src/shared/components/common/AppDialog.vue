@@ -1,12 +1,44 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
+/**
+ * Modal dialog: header / scrolling body / pinned footer (V3, 16px radius on the overlay scrim).
+ *
+ * Accessibility contract (covered by AppDialog.test.ts):
+ * - `role="dialog"` (or `alertdialog`) with `aria-modal` and `aria-labelledby` → the title slot.
+ * - Focus moves into the dialog on open — to the first `[data-autofocus]` element if one exists,
+ *   otherwise the first focusable control — is contained by Tab/Shift+Tab, and returns to the
+ *   element that was focused before it opened.
+ * - Escape and a scrim press close it unless `persistent` (e.g. while a request is in flight).
+ */
+import { nextTick, onBeforeUnmount, ref, useId, useSlots, watch } from 'vue'
+import AppIconButton from './AppIconButton.vue'
 
-const props = withDefaults(defineProps<{ open: boolean; size?: 'md' | 'lg' }>(), { size: 'md' })
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    size?: 'sm' | 'md' | 'lg' | 'xl'
+    role?: 'dialog' | 'alertdialog'
+    /** Accessible name for the header close button. Omit to render no close button. */
+    closeLabel?: string
+    /** Blocks Escape, scrim and close-button dismissal (a request is in flight). */
+    persistent?: boolean
+    /** `plain` drops the header rule and footer tint — for short confirmations. */
+    tone?: 'standard' | 'plain'
+  }>(),
+  { size: 'md', role: 'dialog', closeLabel: undefined, persistent: false, tone: 'standard' }
+)
 const emit = defineEmits<{ close: [] }>()
+const slots = useSlots()
 
 const headingId = useId()
 const dialogRef = ref<HTMLElement | null>(null)
 let previouslyFocused: HTMLElement | null = null
+
+const WIDTH = {
+  sm: 'max-w-[440px]',
+  md: 'max-w-[480px]',
+  lg: 'max-w-[820px]',
+  xl: 'max-w-[1040px]'
+}
 
 function getFocusable(): HTMLElement[] {
   if (!dialogRef.value) {
@@ -19,10 +51,16 @@ function getFocusable(): HTMLElement[] {
   )
 }
 
+function requestClose(): void {
+  if (!props.persistent) {
+    emit('close')
+  }
+}
+
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.preventDefault()
-    emit('close')
+    requestClose()
     return
   }
 
@@ -53,8 +91,9 @@ watch(
     if (isOpen) {
       previouslyFocused = document.activeElement as HTMLElement | null
       await nextTick()
-      const [first] = getFocusable()
-      first?.focus()
+      const preferred = dialogRef.value?.querySelector<HTMLElement>('[data-autofocus]')
+      const target = preferred ?? getFocusable()[0]
+      target?.focus()
       document.addEventListener('keydown', onKeydown)
     } else {
       document.removeEventListener('keydown', onKeydown)
@@ -72,72 +111,61 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="app-dialog__scrim" @mousedown.self="emit('close')">
+    <div
+      v-if="open"
+      class="app-dialog__scrim fixed inset-0 z-60 flex items-center justify-center bg-overlay p-4 wide:p-6"
+      @mousedown.self="requestClose"
+    >
       <div
         ref="dialogRef"
-        class="app-dialog"
-        :class="`app-dialog--${props.size}`"
-        role="dialog"
+        class="app-dialog flex max-h-[calc(100vh-32px)] w-full flex-col overflow-hidden rounded-xl bg-surf text-ink shadow-pop wide:max-h-[calc(100vh-48px)]"
+        :class="[`app-dialog--${props.size}`, WIDTH[props.size]]"
+        :role="role"
         aria-modal="true"
         :aria-labelledby="headingId"
       >
-        <h2 :id="headingId" class="app-dialog__title"><slot name="title" /></h2>
-        <div class="app-dialog__body"><slot /></div>
-        <div v-if="$slots.actions" class="app-dialog__actions"><slot name="actions" /></div>
+        <div
+          class="flex flex-none items-start gap-3"
+          :class="
+            tone === 'plain' ? 'px-5 pt-5.5 pb-2' : 'border-b border-line px-5 py-4 wide:py-4.5'
+          "
+        >
+          <slot name="leading" />
+          <h2
+            :id="headingId"
+            class="app-dialog__title min-w-0 text-xl font-bold text-pretty"
+            :class="{ 'self-center': tone !== 'plain' }"
+          >
+            <slot name="title" />
+          </h2>
+          <slot name="header-extra" />
+          <div class="flex-1" aria-hidden="true" />
+          <AppIconButton
+            v-if="closeLabel"
+            :label="closeLabel"
+            icon="close"
+            :disabled="persistent"
+            class="-my-1 -me-2"
+            @click="requestClose"
+          />
+        </div>
+        <div
+          class="app-dialog__body flex min-h-0 flex-1 flex-col gap-4 overflow-auto"
+          :class="[
+            tone === 'plain' ? 'px-5 pb-2 text-muted' : 'p-5',
+            { 'app-dialog__body--flush': !slots.default }
+          ]"
+        >
+          <slot />
+        </div>
+        <div
+          v-if="$slots.actions"
+          class="app-dialog__actions flex flex-none flex-wrap items-center justify-end gap-2.5 px-5 py-3.5"
+          :class="tone === 'plain' ? 'pt-4 pb-5' : 'border-t border-line bg-subtle'"
+        >
+          <slot name="actions" />
+        </div>
       </div>
     </div>
   </Teleport>
 </template>
-
-<style scoped>
-.app-dialog__scrim {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-  background: var(--color-scrim);
-}
-
-.app-dialog {
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-6);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-container-lowest);
-  border: 1px solid var(--color-outline-variant);
-  box-shadow: 0 24px 48px var(--color-scrim);
-}
-
-.app-dialog--md {
-  width: min(480px, 100%);
-}
-
-.app-dialog--lg {
-  width: min(720px, 100%);
-}
-
-.app-dialog__title {
-  font-size: var(--text-headline-sm-size);
-  line-height: var(--text-headline-sm-line);
-  font-weight: var(--text-headline-sm-weight);
-  color: var(--color-on-surface);
-}
-
-.app-dialog__body {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-md-size);
-  line-height: var(--text-body-md-line);
-}
-
-.app-dialog__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-</style>

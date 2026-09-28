@@ -1,103 +1,90 @@
 <script setup lang="ts">
+/**
+ * V3 inline notice: tinted 10px-radius block, coloured icon, bold title + body, optional action
+ * and dismiss. `bar` renders the full-width strip used under the top bar (connectivity/sync).
+ */
 import { computed } from 'vue'
+import AppIcon from '../common/AppIcon.vue'
+import AppIconButton from '../common/AppIconButton.vue'
+import type { IconName } from '../common/icons.generated'
+
+type Variant = 'info' | 'success' | 'warning' | 'error' | 'neutral'
 
 const props = withDefaults(
   defineProps<{
-    variant?: 'info' | 'success' | 'warning' | 'error'
-    role?: 'alert' | 'status'
+    variant?: Variant
+    role?: 'alert' | 'status' | 'note'
+    title?: string
+    icon?: IconName
+    bar?: boolean
+    dismissLabel?: string
   }>(),
-  { variant: 'info', role: 'status' }
+  {
+    variant: 'info',
+    role: 'status',
+    title: undefined,
+    icon: undefined,
+    bar: false,
+    dismissLabel: undefined
+  }
 )
 
-// Every variant pairs an icon with the color so status is never conveyed by color alone.
-const iconPath = computed(() => {
-  switch (props.variant) {
-    case 'success':
-      return 'M3 8.5 6.5 12 13 4.5'
-    case 'warning':
-      return 'M8 3v6M8 12.2v.3'
-    case 'error':
-      return 'M4.5 4.5l7 7M11.5 4.5l-7 7'
-    default:
-      return 'M8 7v4.5M8 4.3v.3'
-  }
-})
+const emit = defineEmits<{ dismiss: [] }>()
+
+const DEFAULT_ICON: Record<Variant, IconName> = {
+  info: 'info',
+  success: 'check_circle',
+  warning: 'warning',
+  error: 'error',
+  neutral: 'info'
+}
+const BG: Record<Variant, string> = {
+  info: 'bg-info-bg',
+  success: 'bg-ok-bg',
+  warning: 'bg-warn-bg',
+  error: 'bg-err-bg',
+  neutral: 'bg-subtle'
+}
+const FG: Record<Variant, string> = {
+  info: 'text-info',
+  success: 'text-ok',
+  warning: 'text-warn',
+  error: 'text-err',
+  neutral: 'text-muted'
+}
+
+const iconName = computed(() => props.icon ?? DEFAULT_ICON[props.variant])
 </script>
 
 <template>
-  <div class="app-banner" :class="`app-banner--${variant}`" :role="role">
-    <svg class="app-banner__icon" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.3" />
-      <path
-        :d="iconPath"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
-    <div class="app-banner__content">
-      <slot />
+  <div
+    class="app-banner flex flex-wrap items-start gap-2.5 text-sm text-ink"
+    :class="[
+      `app-banner--${variant}`,
+      BG[variant],
+      bar ? 'items-center gap-3 border-b border-line px-4 py-2.5' : 'rounded-notice px-3.5 py-3',
+      { 'border border-line': variant === 'neutral' && !bar }
+    ]"
+    :role="role"
+  >
+    <AppIcon :name="iconName" :size="20" class="app-banner__icon mt-px" :class="FG[variant]" />
+    <div class="app-banner__content min-w-[200px] flex-1 text-pretty">
+      <p v-if="title" class="font-bold" :class="bar ? 'inline' : 'text-base'">{{ title }}</p>
+      <template v-if="bar && title">&#32;</template>
+      <component :is="bar && title ? 'span' : 'div'" :class="{ 'mt-0.5': title && !bar }"
+        ><slot
+      /></component>
     </div>
-    <div v-if="$slots.action" class="app-banner__action">
+    <div v-if="$slots.action" class="app-banner__action flex flex-wrap items-center gap-2">
       <slot name="action" />
     </div>
+    <AppIconButton
+      v-if="dismissLabel"
+      :label="dismissLabel"
+      icon="close"
+      size="sm"
+      class="-my-1"
+      @click="emit('dismiss')"
+    />
   </div>
 </template>
-
-<style scoped>
-.app-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-outline-variant);
-  background: var(--color-surface-container-low);
-  color: var(--color-on-surface);
-  font-size: var(--text-body-md-size);
-  line-height: var(--text-body-md-line);
-}
-
-.app-banner--info {
-  border-color: var(--color-information);
-  background: var(--color-information-container);
-  color: var(--color-on-information-container);
-}
-.app-banner--success {
-  border-color: var(--color-success);
-  background: var(--color-success-container);
-  color: var(--color-on-success-container);
-}
-.app-banner--warning {
-  border-color: var(--color-warning);
-  background: var(--color-warning-container);
-  color: var(--color-on-warning-container);
-}
-.app-banner--error {
-  border-color: var(--color-error);
-  background: var(--color-error-container);
-  color: var(--color-on-error-container);
-}
-
-.app-banner__icon {
-  flex: none;
-  width: 20px;
-  height: 20px;
-}
-
-.app-banner__content {
-  flex: 1;
-}
-
-.app-banner__action {
-  flex: none;
-}
-
-@media (max-width: 640px) {
-  .app-banner {
-    flex-wrap: wrap;
-  }
-}
-</style>

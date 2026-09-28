@@ -51,9 +51,9 @@ const actionPhase = computed(() => {
 </script>
 
 <template>
-  <div class="shift-status-control">
+  <div class="shift-status-control flex flex-wrap items-center gap-2">
     <AppStatusChip :variant="chipVariant">{{ phaseLabel }}</AppStatusChip>
-    <div class="shift-status-control__actions">
+    <div class="shift-status-control__actions flex flex-wrap gap-2">
       <AppButton
         v-if="actionPhase === 'closed'"
         variant="primary"
@@ -105,17 +105,3 @@ const actionPhase = computed(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.shift-status-control {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.shift-status-control__actions {
-  display: flex;
-  gap: var(--space-2);
-}
-</style>

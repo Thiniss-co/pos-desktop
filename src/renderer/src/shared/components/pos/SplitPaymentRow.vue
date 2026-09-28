@@ -1,51 +1,47 @@
 <script setup lang="ts">
-import AppIconButton from '@renderer/shared/components/common/AppIconButton.vue'
+/** One added tender (V3): method glyph, label, reference (LTR code), amount, Remove. */
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
 import type { DisplaySplitPayment } from './types'
 
 withDefaults(
   defineProps<{
     payment: DisplaySplitPayment
     removeLabel: string
+    /** Visible text of the remove action; the accessible name is `removeLabel`. */
+    removeText?: string
   }>(),
-  {}
+  { removeText: undefined }
 )
 
 const emit = defineEmits<{ remove: [] }>()
 </script>
 
 <template>
-  <div class="split-payment-row">
-    <span class="split-payment-row__method">{{ payment.methodLabel }}</span>
-    <span class="split-payment-row__amount numeric">{{ payment.amount }}</span>
-    <AppIconButton :label="removeLabel" variant="danger" @click="emit('remove')">
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path
-          d="M4 4l8 8M12 4l-8 8"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-        />
-      </svg>
-    </AppIconButton>
+  <div
+    class="split-payment-row numeric flex items-center gap-3 rounded-notice border border-line px-3 py-2.5"
+  >
+    <span
+      aria-hidden="true"
+      class="flex size-9 flex-none items-center justify-center rounded-md bg-ok-bg text-ok"
+      ><AppIcon name="check" :size="20"
+    /></span>
+    <div class="min-w-0 flex-1">
+      <div class="split-payment-row__method font-semibold">{{ payment.methodLabel }}</div>
+      <div v-if="payment.reference" class="code text-start text-xs text-muted">
+        {{ payment.reference }}
+      </div>
+    </div>
+    <span class="split-payment-row__amount font-bold whitespace-nowrap">{{ payment.amount }}</span>
+    <AppButton
+      variant="ghost"
+      size="sm"
+      icon="close"
+      class="px-2 text-err"
+      :aria-label="removeLabel"
+      @click="emit('remove')"
+    >
+      {{ removeText ?? '' }}
+    </AppButton>
   </div>
 </template>
-
-<style scoped>
-.split-payment-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding-block: var(--space-2);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-.split-payment-row__method {
-  flex: 1;
-  font-weight: 600;
-}
-
-.split-payment-row__amount {
-  font-size: var(--text-numeric-data-size);
-  font-weight: var(--text-numeric-data-weight);
-}
-</style>

@@ -301,4 +301,78 @@ describe('useSyncStore', () => {
     expect(store.queuedCount).toBe(0)
     expect(store.hasMoreFailures).toBe(false)
   })
+
+  it('keeps the subscription and counts while another holder still needs them', async () => {
+    const unsubscribe = vi.fn()
+    const store = useSyncStore()
+    const pushService = service({
+      onChanged: () => unsubscribe,
+      getStatus: async () => ({
+        ok: true,
+        data: status({
+          counts: { pending: 3, uploading: 0, retryableError: 0, conflict: 0, rejected: 0 }
+        })
+      })
+    })
+
+    // The shell pill and a page each hold the store for their own lifetime.
+    await store.initialize(pushService)
+    await store.initialize(pushService)
+
+    store.dispose()
+
+    expect(unsubscribe).not.toHaveBeenCalled()
+    expect(store.queuedCount).toBe(3)
+
+    store.dispose()
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
+    expect(store.status).toBeNull()
+  })
+
+  it('neither leaks nor drops the subscription across navigation, logout and a new login', async () => {
+    const listeners: Array<(next: SyncStatus) => void> = []
+    const unsubscribes: Array<ReturnType<typeof vi.fn>> = []
+    const pushService = service({
+      onChanged: (listener) => {
+        listeners.push(listener)
+        const off = vi.fn()
+        unsubscribes.push(off)
+        return off
+      }
+    })
+    const pending = (n: number): SyncStatus =>
+      status({ counts: { pending: n, uploading: 0, retryableError: 0, conflict: 0, rejected: 0 } })
+    const store = useSyncStore()
+
+    // Session 1: the shell (AppLayout) mounts, then the POS page.
+    await store.initialize(pushService)
+    await store.initialize(pushService)
+    // POS -> Sync: POS unmounts, Sync mounts. The shell never let go.
+    store.dispose()
+    await store.initialize(pushService)
+    // Sync -> POS.
+    store.dispose()
+    await store.initialize(pushService)
+
+    expect(listeners).toHaveLength(1)
+    listeners[0](pending(4))
+    expect(store.queuedCount).toBe(4)
+
+    // Logout: the POS page and the shell both unmount.
+    store.dispose()
+    expect(unsubscribes[0]).not.toHaveBeenCalled()
+    store.dispose()
+    expect(unsubscribes[0]).toHaveBeenCalledTimes(1)
+    expect(store.status).toBeNull()
+
+    // Session 2: exactly one fresh subscription, and it is the one that drives the counts.
+    await store.initialize(pushService)
+    expect(listeners).toHaveLength(2)
+    listeners[1](pending(2))
+    expect(store.queuedCount).toBe(2)
+    store.dispose()
+    expect(unsubscribes[1]).toHaveBeenCalledTimes(1)
+    expect(unsubscribes[0]).toHaveBeenCalledTimes(1)
+  })
 })

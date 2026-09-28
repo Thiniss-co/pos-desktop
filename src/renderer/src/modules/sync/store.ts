@@ -19,6 +19,8 @@ export const useSyncStore = defineStore('sync', () => {
   const failureError = failureErrorState.error
 
   let unsubscribe: (() => void) | null = null
+  // How many live consumers currently hold the subscription (see `dispose`).
+  let holders = 0
   // Incremented on every applied status, pushed or fetched. A `getStatus()` reply is applied only
   // if no push landed while it was in flight — otherwise a slow initial read would overwrite the
   // newer pushed state and leave the operator looking at stale counts.
@@ -82,6 +84,8 @@ export const useSyncStore = defineStore('sync', () => {
    * sequence guard then decides which of the two wins.
    */
   async function initialize(service = new SyncService()): Promise<void> {
+    holders += 1
+
     if (!unsubscribe) {
       unsubscribe = service.onChanged(receive)
     }
@@ -141,7 +145,19 @@ export const useSyncStore = defineStore('sync', () => {
     await loadFailures(service, true)
   }
 
+  /**
+   * Releases one `initialize()` hold. The app shell's status pill and the POS / Sync pages each hold
+   * the subscription for their own lifetime, so the push subscription and the displayed counts are
+   * torn down only when the last holder releases — leaving a page must never blank the shell's
+   * queue indicator (an operator shown "all uploaded" because a page unmounted is not recoverable).
+   */
   function dispose(): void {
+    holders = Math.max(0, holders - 1)
+
+    if (holders > 0) {
+      return
+    }
+
     unsubscribe?.()
     unsubscribe = null
     status.value = null

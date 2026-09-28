@@ -3,8 +3,17 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type { ThemePreference } from '@shared/contracts/preferences.contract'
 import { useThemeStore } from '@renderer/modules/preferences/theme.store'
+import AppIcon from './AppIcon.vue'
+import type { IconName } from './icons.generated'
 
 const THEME_OPTIONS = ['light', 'dark', 'system'] as const
+const THEME_ICONS: Record<(typeof THEME_OPTIONS)[number], IconName> = {
+  light: 'light_mode',
+  dark: 'dark_mode',
+  system: 'contrast'
+}
+
+withDefaults(defineProps<{ showLabel?: boolean }>(), { showLabel: false })
 
 const { t } = useI18n()
 const themeStore = useThemeStore()
@@ -16,57 +25,27 @@ function selectTheme(next: ThemePreference): void {
 </script>
 
 <template>
-  <div class="theme-switcher" role="group" :aria-label="t('theme.switcherLabel')">
-    <button
-      v-for="option in THEME_OPTIONS"
-      :key="option"
-      type="button"
-      class="theme-switcher__option"
-      :aria-pressed="preference === option"
-      :disabled="isSaving"
-      @click="selectTheme(option)"
-    >
-      {{ t(`theme.${option}`) }}
-    </button>
+  <div
+    class="theme-switcher flex flex-col gap-1.5"
+    role="group"
+    :aria-label="t('theme.switcherLabel')"
+  >
+    <span v-if="showLabel" class="text-xs font-semibold text-muted" aria-hidden="true">
+      {{ t('theme.switcherLabel') }}
+    </span>
+    <div class="grid grid-cols-3 gap-1.5">
+      <button
+        v-for="option in THEME_OPTIONS"
+        :key="option"
+        type="button"
+        class="theme-switcher__option flex h-10 items-center justify-center gap-1 rounded-md border px-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 aria-pressed:border-pri aria-pressed:bg-pri-soft aria-pressed:text-pri-text"
+        :class="preference === option ? '' : 'border-line bg-surf text-ink hover:bg-subtle'"
+        :aria-pressed="preference === option"
+        :disabled="isSaving"
+        @click="selectTheme(option)"
+      >
+        <AppIcon :name="THEME_ICONS[option]" :size="17" />{{ t(`theme.${option}`) }}
+      </button>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.theme-switcher {
-  display: inline-flex;
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.theme-switcher__option {
-  min-height: var(--size-target-min);
-  padding-inline: var(--space-3);
-  border: none;
-  border-inline-end: 1px solid var(--color-outline);
-  background: var(--color-surface-container-lowest);
-  color: var(--color-on-surface);
-  cursor: pointer;
-  font-family: var(--font-ui);
-  font-size: var(--text-body-sm-size);
-  font-weight: 600;
-}
-
-.theme-switcher__option:last-child {
-  border-inline-end: none;
-}
-
-.theme-switcher__option:hover:not(:disabled) {
-  background: var(--color-surface-container);
-}
-
-.theme-switcher__option[aria-pressed='true'] {
-  background: var(--color-secondary-container);
-  color: var(--color-on-secondary-container);
-}
-
-.theme-switcher__option:disabled {
-  cursor: wait;
-  color: var(--color-disabled-text);
-}
-</style>

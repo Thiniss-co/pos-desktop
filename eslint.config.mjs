@@ -5,7 +5,10 @@ import eslintPluginVue from 'eslint-plugin-vue'
 import vueParser from 'vue-eslint-parser'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  {
+    // docs/design/claude-v3/source is the verbatim Claude Design prototype (reference only).
+    ignores: ['**/node_modules', '**/dist', '**/out', 'docs/design/claude-v3/source/**']
+  },
   tseslint.configs.recommended,
   eslintPluginVue.configs['flat/recommended'],
   {

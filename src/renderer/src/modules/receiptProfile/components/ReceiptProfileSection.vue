@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
 import AppIconButton from '@renderer/shared/components/common/AppIconButton.vue'
+import AppPanel from '@renderer/shared/components/common/AppPanel.vue'
 import AppInput from '@renderer/shared/components/forms/AppInput.vue'
 import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
+import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
+import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
 import { useConnectivityStore } from '@renderer/modules/connectivity/store'
-import { useReceiptProfileStore } from '../store'
+import { useReceiptProfileStore, type ReceiptProfileFieldsDraft } from '../store'
 
 const MAX_ADDRESS_LINES = 4
 const MAX_FOOTER_LINES = 3
@@ -26,6 +30,7 @@ const errorMessage = computed(() => store.error.error)
 const connectivity = useConnectivityStore()
 const { snapshot } = storeToRefs(connectivity)
 const isOnline = computed(() => snapshot.value?.status === 'online')
+const isFormDisabled = computed(() => !isOnline.value || isSaving.value)
 
 const form = reactive({
   addressLines: [] as string[],
@@ -33,6 +38,22 @@ const form = reactive({
   taxIdentifierLabel: '',
   taxIdentifierValue: '',
   footerLines: [] as string[]
+})
+
+/** The fields the operator last submitted, kept only to show them back after a revision
+ *  conflict (the store reloads the newer version into the form). Display-only. */
+const lastSubmitted = ref<ReceiptProfileFieldsDraft | null>(null)
+const unsavedLines = computed(() => {
+  const fields = lastSubmitted.value
+  if (!fields) {
+    return []
+  }
+  const tax = [fields.taxIdentifierLabel.trim(), fields.taxIdentifierValue.trim()]
+    .filter(Boolean)
+    .join(': ')
+  return [...fields.addressLines, fields.phone, tax, ...fields.footerLines]
+    .map((line) => line.trim())
+    .filter(Boolean)
 })
 
 function syncFormFromDraft(): void {
@@ -70,247 +91,305 @@ async function onChooseLogo(): Promise<void> {
 }
 
 async function onSave(): Promise<void> {
-  await store.save({
+  const fields: ReceiptProfileFieldsDraft = {
     addressLines: form.addressLines,
     phone: form.phone,
     taxIdentifierLabel: form.taxIdentifierLabel,
     taxIdentifierValue: form.taxIdentifierValue,
     footerLines: form.footerLines
-  })
+  }
+  lastSubmitted.value = {
+    ...fields,
+    addressLines: [...fields.addressLines],
+    footerLines: [...fields.footerLines]
+  }
+  await store.save(fields)
 }
+
+// ---- Live header/footer preview (display only; the printed receipt is rendered by main) -------
+const previewAddress = computed(() => form.addressLines.map((l) => l.trim()).filter(Boolean))
+const previewFooter = computed(() => form.footerLines.map((l) => l.trim()).filter(Boolean))
+const previewPhone = computed(() => form.phone.trim())
+const previewTax = computed(() =>
+  [form.taxIdentifierLabel.trim(), form.taxIdentifierValue.trim()].filter(Boolean).join(': ')
+)
+const previewLogoUrl = computed(() => displayedLogo.value?.thumbnailPngDataUrl ?? null)
+const previewIsEmpty = computed(
+  () =>
+    !displayedLogo.value &&
+    previewAddress.value.length === 0 &&
+    previewFooter.value.length === 0 &&
+    !previewPhone.value &&
+    !previewTax.value
+)
 </script>
 
 <template>
-  <section class="receipt-profile">
-    <h2>{{ t('receiptProfile.title') }}</h2>
-    <p class="receipt-profile__description">{{ t('receiptProfile.description') }}</p>
-
-    <AppBanner v-if="!isOnline" variant="warning" role="status">
+  <section class="receipt-profile flex flex-col gap-4" aria-labelledby="receipt-profile-title">
+    <AppBanner v-if="!isOnline" variant="neutral" icon="wifi_off" role="status">
       {{ t('receiptProfile.offlineNotice') }}
     </AppBanner>
 
-    <div v-if="isLoading" class="receipt-profile__loading">{{ t('receiptProfile.loading') }}</div>
+    <AppBanner v-if="conflictNotice" variant="warning" icon="sync_problem" role="alert">
+      <div class="flex flex-col gap-1.5">
+        <span class="font-semibold">{{ t('receiptProfile.conflictReloaded') }}</span>
+        <template v-if="unsavedLines.length > 0">
+          <span class="font-bold">{{ t('receiptProfile.yourChanges') }}</span>
+          <span
+            v-for="(line, index) in unsavedLines"
+            :key="index"
+            dir="auto"
+            class="border-s-2 border-warn ps-2.5"
+          >
+            {{ line }}
+          </span>
+        </template>
+      </div>
+    </AppBanner>
 
-    <template v-else>
-      <div class="receipt-profile__logo">
-        <span class="receipt-profile__logo-label">{{ t('receiptProfile.logoLabel') }}</span>
-        <div class="receipt-profile__logo-preview">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-start gap-4">
+      <AppPanel :padded="false">
+        <div class="flex flex-wrap items-start gap-2.5 px-4.5 pt-4.5">
+          <div class="min-w-50 flex-1">
+            <h2 id="receipt-profile-title" class="text-lg font-bold">
+              {{ t('receiptProfile.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-muted">{{ t('receiptProfile.description') }}</p>
+          </div>
+          <AppStatusChip variant="information" icon="wifi" size="sm">
+            {{ t('receiptProfile.onlineRequired') }}
+          </AppStatusChip>
+        </div>
+
+        <div v-if="isLoading" class="px-4.5 py-4">
+          <AppLoadingSkeleton :label="t('receiptProfile.loading')" />
+        </div>
+
+        <template v-else>
+          <fieldset
+            :disabled="isFormDisabled"
+            class="m-0 flex min-w-0 flex-col gap-4 border-0 px-4.5 py-4"
+          >
+            <div class="flex flex-col gap-1.5">
+              <span class="text-sm font-semibold">{{ t('receiptProfile.logoLabel') }}</span>
+              <div class="flex flex-wrap items-center gap-3">
+                <span
+                  class="flex size-14 flex-none items-center justify-center overflow-hidden rounded-md border border-dashed border-line-strong bg-paper text-paper-ink"
+                >
+                  <img
+                    v-if="previewLogoUrl"
+                    :src="previewLogoUrl"
+                    :alt="t('receiptProfile.logoLabel')"
+                    class="max-h-full max-w-full"
+                  />
+                  <AppIcon
+                    v-else-if="displayedLogo?.present"
+                    name="image"
+                    :size="24"
+                    :label="t('receiptProfile.logoLabel')"
+                  />
+                  <span v-else class="px-1 text-center text-xs font-medium">
+                    {{ t('receiptProfile.noLogo') }}
+                  </span>
+                </span>
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  :loading="isChoosingLogo"
+                  :disabled="!isOnline"
+                  @click="onChooseLogo"
+                >
+                  {{ t('receiptProfile.chooseLogo') }}
+                </AppButton>
+                <AppButton
+                  v-if="displayedLogo"
+                  variant="ghost"
+                  size="sm"
+                  class="text-err!"
+                  :disabled="!isOnline"
+                  @click="store.removeLogo()"
+                >
+                  {{ t('receiptProfile.removeLogo') }}
+                </AppButton>
+                <template v-if="store.hasPendingLogoChange">
+                  <span class="text-xs font-semibold text-warn" role="status">
+                    {{
+                      displayedLogo
+                        ? t('receiptProfile.logoPendingNew')
+                        : t('receiptProfile.logoPendingRemove')
+                    }}
+                  </span>
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    icon="undo"
+                    class="text-pri-text!"
+                    @click="store.undoLogoChange()"
+                  >
+                    {{ t('receiptProfile.undoLogoChange') }}
+                  </AppButton>
+                </template>
+              </div>
+            </div>
+
+            <fieldset class="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
+              <legend class="mb-1.5 p-0 text-sm font-semibold">
+                {{ t('receiptProfile.addressLinesLabel', { max: MAX_ADDRESS_LINES }) }}
+              </legend>
+              <div
+                v-for="(line, index) in form.addressLines"
+                :key="index"
+                class="flex items-start gap-1.5"
+              >
+                <AppInput
+                  v-model="form.addressLines[index]"
+                  class="flex-1"
+                  hide-label
+                  dir="auto"
+                  :label="t('receiptProfile.addressLineNumberLabel', { number: index + 1 })"
+                  :maxlength="ADDRESS_LINE_MAX_LENGTH"
+                  :hint="`${line.length}/${ADDRESS_LINE_MAX_LENGTH}`"
+                />
+                <AppIconButton
+                  icon="close"
+                  variant="outline"
+                  class="size-11!"
+                  :label="t('receiptProfile.removeAddressLine', { number: index + 1 })"
+                  @click="removeAddressLine(index)"
+                />
+              </div>
+              <AppButton
+                v-if="form.addressLines.length < MAX_ADDRESS_LINES"
+                variant="ghost"
+                size="sm"
+                icon="add"
+                class="self-start text-pri-text!"
+                @click="addAddressLine"
+              >
+                {{ t('receiptProfile.addLine') }}
+              </AppButton>
+            </fieldset>
+
+            <AppInput
+              v-model="form.phone"
+              dir="ltr"
+              inputmode="tel"
+              :label="t('receiptProfile.phoneLabel')"
+              :maxlength="PHONE_MAX_LENGTH"
+            />
+
+            <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2.5">
+              <AppInput
+                v-model="form.taxIdentifierLabel"
+                :label="t('receiptProfile.taxIdentifierLabelLabel')"
+                :maxlength="TAX_LABEL_MAX_LENGTH"
+              />
+              <AppInput
+                v-model="form.taxIdentifierValue"
+                code
+                :label="t('receiptProfile.taxIdentifierValueLabel')"
+                :maxlength="TAX_VALUE_MAX_LENGTH"
+              />
+            </div>
+
+            <fieldset class="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
+              <legend class="mb-1.5 p-0 text-sm font-semibold">
+                {{ t('receiptProfile.footerLinesLabel', { max: MAX_FOOTER_LINES }) }}
+              </legend>
+              <div
+                v-for="(line, index) in form.footerLines"
+                :key="index"
+                class="flex items-start gap-1.5"
+              >
+                <AppInput
+                  v-model="form.footerLines[index]"
+                  class="flex-1"
+                  hide-label
+                  dir="auto"
+                  :label="t('receiptProfile.footerLineNumberLabel', { number: index + 1 })"
+                  :maxlength="FOOTER_LINE_MAX_LENGTH"
+                  :hint="`${line.length}/${FOOTER_LINE_MAX_LENGTH}`"
+                />
+                <AppIconButton
+                  icon="close"
+                  variant="outline"
+                  class="size-11!"
+                  :label="t('receiptProfile.removeFooterLine', { number: index + 1 })"
+                  @click="removeFooterLine(index)"
+                />
+              </div>
+              <AppButton
+                v-if="form.footerLines.length < MAX_FOOTER_LINES"
+                variant="ghost"
+                size="sm"
+                icon="add"
+                class="self-start text-pri-text!"
+                @click="addFooterLine"
+              >
+                {{ t('receiptProfile.addLine') }}
+              </AppButton>
+            </fieldset>
+          </fieldset>
+
+          <div v-if="errorMessage" class="px-4.5 pb-4">
+            <AppBanner variant="error" role="alert">{{ errorMessage }}</AppBanner>
+          </div>
+
+          <div
+            class="flex flex-wrap items-center justify-end gap-2.5 border-t border-line px-4.5 py-3.5"
+          >
+            <span
+              v-if="savedNotice && !errorMessage && !conflictNotice"
+              role="status"
+              class="me-auto flex items-center gap-1.5 text-sm font-semibold text-ok"
+            >
+              <AppIcon name="check_circle" :size="18" />
+              {{ t('receiptProfile.saved') }}
+            </span>
+            <AppButton
+              variant="primary"
+              icon="save"
+              :loading="isSaving"
+              :disabled="!isOnline"
+              @click="onSave"
+            >
+              {{ t('receiptProfile.save') }}
+            </AppButton>
+          </div>
+        </template>
+      </AppPanel>
+
+      <AppPanel class="items-center" aria-labelledby="receipt-profile-preview-title">
+        <h2 id="receipt-profile-preview-title" class="self-stretch text-lg font-bold">
+          {{ t('receiptProfile.previewTitle') }}
+        </h2>
+        <div
+          class="receipt-profile__paper flex w-[302px] max-w-full flex-col items-center gap-0.5 bg-paper px-3.5 py-4 text-center font-[family-name:var(--font-code)] text-xs leading-[1.45] text-paper-ink shadow-panel"
+          data-testid="receipt-profile-preview"
+        >
           <img
-            v-if="displayedLogo?.thumbnailPngDataUrl"
-            :src="displayedLogo.thumbnailPngDataUrl"
+            v-if="previewLogoUrl"
+            :src="previewLogoUrl"
             :alt="t('receiptProfile.logoLabel')"
+            class="mb-1 max-h-16 max-w-[60%]"
           />
-          <span v-else class="receipt-profile__logo-empty">{{ t('receiptProfile.noLogo') }}</span>
-        </div>
-        <div class="receipt-profile__logo-actions">
-          <AppButton
-            variant="secondary"
-            :loading="isChoosingLogo"
-            :disabled="!isOnline"
-            @click="onChooseLogo"
-          >
-            {{ t('receiptProfile.chooseLogo') }}
-          </AppButton>
-          <AppButton
-            v-if="displayedLogo"
-            variant="ghost"
-            :disabled="!isOnline"
-            @click="store.removeLogo()"
-          >
-            {{ t('receiptProfile.removeLogo') }}
-          </AppButton>
-          <AppButton
-            v-if="store.hasPendingLogoChange"
-            variant="ghost"
-            @click="store.undoLogoChange()"
-          >
-            {{ t('receiptProfile.undoLogoChange') }}
-          </AppButton>
-        </div>
-      </div>
-
-      <fieldset class="receipt-profile__lines">
-        <legend>{{ t('receiptProfile.addressLinesLabel') }}</legend>
-        <div v-for="(line, index) in form.addressLines" :key="index" class="receipt-profile__line">
-          <AppInput
-            v-model="form.addressLines[index]"
-            :label="t('receiptProfile.addressLineNumberLabel', { number: index + 1 })"
-            :maxlength="ADDRESS_LINE_MAX_LENGTH"
+          <div v-for="(line, index) in previewAddress" :key="`a-${index}`" dir="auto">
+            {{ line }}
+          </div>
+          <div v-if="previewPhone" dir="ltr">{{ previewPhone }}</div>
+          <div v-if="previewTax" dir="auto">{{ previewTax }}</div>
+          <div
+            v-if="!previewIsEmpty"
+            aria-hidden="true"
+            class="my-2 self-stretch border-t border-dashed border-paper-ink"
           />
-          <span class="receipt-profile__counter"
-            >{{ line.length }}/{{ ADDRESS_LINE_MAX_LENGTH }}</span
-          >
-          <AppIconButton
-            :label="t('receiptProfile.removeLine')"
-            variant="danger"
-            @click="removeAddressLine(index)"
-          >
-            &minus;
-          </AppIconButton>
+          <div v-for="(line, index) in previewFooter" :key="`f-${index}`" dir="auto">
+            {{ line }}
+          </div>
+          <div v-if="previewIsEmpty">{{ t('receiptProfile.previewEmpty') }}</div>
         </div>
-        <AppButton
-          v-if="form.addressLines.length < MAX_ADDRESS_LINES"
-          variant="ghost"
-          @click="addAddressLine"
-        >
-          {{ t('receiptProfile.addLine') }}
-        </AppButton>
-      </fieldset>
-
-      <AppInput
-        v-model="form.phone"
-        :label="t('receiptProfile.phoneLabel')"
-        :maxlength="PHONE_MAX_LENGTH"
-      />
-      <AppInput
-        v-model="form.taxIdentifierLabel"
-        :label="t('receiptProfile.taxIdentifierLabelLabel')"
-        :maxlength="TAX_LABEL_MAX_LENGTH"
-      />
-      <AppInput
-        v-model="form.taxIdentifierValue"
-        :label="t('receiptProfile.taxIdentifierValueLabel')"
-        :maxlength="TAX_VALUE_MAX_LENGTH"
-      />
-
-      <fieldset class="receipt-profile__lines">
-        <legend>{{ t('receiptProfile.footerLinesLabel') }}</legend>
-        <div v-for="(line, index) in form.footerLines" :key="index" class="receipt-profile__line">
-          <AppInput
-            v-model="form.footerLines[index]"
-            :label="t('receiptProfile.footerLineNumberLabel', { number: index + 1 })"
-            :maxlength="FOOTER_LINE_MAX_LENGTH"
-          />
-          <span class="receipt-profile__counter"
-            >{{ line.length }}/{{ FOOTER_LINE_MAX_LENGTH }}</span
-          >
-          <AppIconButton
-            :label="t('receiptProfile.removeLine')"
-            variant="danger"
-            @click="removeFooterLine(index)"
-          >
-            &minus;
-          </AppIconButton>
-        </div>
-        <AppButton
-          v-if="form.footerLines.length < MAX_FOOTER_LINES"
-          variant="ghost"
-          @click="addFooterLine"
-        >
-          {{ t('receiptProfile.addLine') }}
-        </AppButton>
-      </fieldset>
-
-      <AppBanner v-if="errorMessage" variant="error" role="alert">{{ errorMessage }}</AppBanner>
-      <AppBanner v-else-if="conflictNotice" variant="warning" role="status">
-        {{ t('receiptProfile.conflictReloaded') }}
-      </AppBanner>
-      <AppBanner v-else-if="savedNotice" variant="success" role="status">
-        {{ t('receiptProfile.saved') }}
-      </AppBanner>
-
-      <div class="receipt-profile__actions">
-        <AppButton variant="primary" :loading="isSaving" :disabled="!isOnline" @click="onSave">
-          {{ t('receiptProfile.save') }}
-        </AppButton>
-      </div>
-    </template>
+        <p class="text-center text-xs text-muted">{{ t('receiptProfile.previewNote') }}</p>
+      </AppPanel>
+    </div>
   </section>
 </template>
-
-<style scoped>
-.receipt-profile {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-container-low);
-}
-
-.receipt-profile__description {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-}
-
-.receipt-profile__loading {
-  color: var(--color-on-surface-variant);
-}
-
-.receipt-profile__logo {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.receipt-profile__logo-label {
-  font-weight: 600;
-}
-
-.receipt-profile__logo-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 96px;
-  height: 96px;
-  border: 1px dashed var(--color-outline-variant);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.receipt-profile__logo-preview img {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.receipt-profile__logo-empty {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-  text-align: center;
-  padding: 0 var(--space-2);
-}
-
-.receipt-profile__logo-actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.receipt-profile__lines {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-
-.receipt-profile__lines legend {
-  font-weight: 600;
-  padding: 0;
-}
-
-.receipt-profile__line {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.receipt-profile__line > :first-child {
-  flex: 1;
-}
-
-.receipt-profile__counter {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-  white-space: nowrap;
-  padding-bottom: var(--space-2);
-}
-
-.receipt-profile__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-</style>

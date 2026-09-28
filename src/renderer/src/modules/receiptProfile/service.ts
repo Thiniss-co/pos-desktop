@@ -4,6 +4,7 @@ import type {
   ReceiptProfilePublishInput
 } from '@shared/contracts/printing.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 /**
  * Receipt-printing plan §D-11 -- the renderer-side receipt-profile editor service. Every call is
@@ -25,6 +26,6 @@ export class ReceiptProfileService {
   }
 
   async publish(input: ReceiptProfilePublishInput): Promise<ReceiptProfileGetOutput> {
-    return unwrapIpcResult(await this.gateway.publish(input))
+    return unwrapIpcResult(await this.gateway.publish(toIpcPayload(input)))
   }
 }

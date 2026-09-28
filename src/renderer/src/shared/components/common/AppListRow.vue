@@ -1,5 +1,8 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ interactive?: boolean }>(), { interactive: false })
+withDefaults(defineProps<{ interactive?: boolean; selected?: boolean }>(), {
+  interactive: false,
+  selected: false
+})
 
 const emit = defineEmits<{ click: [MouseEvent] }>()
 </script>
@@ -7,36 +10,14 @@ const emit = defineEmits<{ click: [MouseEvent] }>()
 <template>
   <component
     :is="interactive ? 'button' : 'div'"
-    class="app-list-row"
-    :class="{ 'app-list-row--interactive': interactive }"
+    class="app-list-row flex min-h-14 w-full items-center gap-3 rounded-notice border px-3 py-2.5 text-start text-ink"
+    :class="[
+      selected ? 'border-pri bg-pri-soft' : 'border-line bg-surf',
+      { 'app-list-row--interactive cursor-pointer hover:bg-subtle': interactive && !selected }
+    ]"
     :type="interactive ? 'button' : undefined"
     @click="(event: MouseEvent) => interactive && emit('click', event)"
   >
     <slot />
   </component>
 </template>
-
-<style scoped>
-.app-list-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  min-height: var(--size-row);
-  padding-inline: var(--space-4);
-  border: none;
-  border-block-end: 1px solid var(--color-divider-subtle);
-  background: transparent;
-  text-align: start;
-  font: inherit;
-  color: inherit;
-}
-
-.app-list-row--interactive {
-  cursor: pointer;
-}
-
-.app-list-row--interactive:hover {
-  background: var(--color-surface-container-low);
-}
-</style>

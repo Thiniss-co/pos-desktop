@@ -1,90 +1,125 @@
 /*
- * Modern Ledger — non-color design tokens.
+ * Thinis POS V3 — non-colour design tokens.
  *
- * Typography, spacing, radius, sizing, motion, and layering. Colors live in
- * `themes/palette.css` — this file never contains a color value.
+ * Typography, spacing, radius, sizing, elevation, motion, layering and breakpoints. Colours live
+ * in `themes/palette.css` — this file never contains a colour literal. Values come from the V3
+ * prototype (docs/design/claude-v3/source) and its DESIGN.md.
  */
 
-:root {
-  /* ---- Type families ------------------------------------------------- */
-  --font-ui-latin: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-ui-arabic: 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
-  --font-numeric: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', monospace;
-  /* The active UI face for the current document direction. RTL flips this to the Arabic stack
-     below — Latin display fonts and JetBrains Mono are never used to render Arabic glyphs. */
+@theme static {
+  /* ---- Type families ------------------------------------------------------
+     Plus Jakarta Sans for Latin UI, IBM Plex Sans Arabic for Arabic UI (swapped below under
+     `html[dir='rtl']`), JetBrains Mono only for codes (SKU, barcode, invoice/reference numbers).
+     Money and quantities stay in the UI face with tabular figures — see `.numeric`. */
+  --font-ui-latin: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-ui-arabic: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans', Tahoma, Arial, sans-serif;
   --font-ui: var(--font-ui-latin);
+  --font-code: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', monospace;
 
-  /* ---- Type scale: size / line-height / weight ------------------------ */
-  --text-display-lg-size: 2rem; /* 32px */
-  --text-display-lg-line: 2.5rem; /* 40px */
-  --text-display-lg-weight: 700;
+  /* ---- Type scale (px noted) — sizes only; line height inherits so Arabic keeps 1.6 ---- */
+  --text-*: initial;
+  --text-xs: 0.8125rem; /* 13 — minimum UI text */
+  --text-sm: 0.875rem; /* 14 — labels, secondary */
+  --text-base: 0.9375rem; /* 15 — body */
+  --text-md: 1rem; /* 16 */
+  --text-lg: 1.0625rem; /* 17 — section titles */
+  --text-xl: 1.1875rem; /* 19 — dialog titles */
+  --text-2xl: 1.25rem; /* 20 — cart / payment titles */
+  --text-3xl: 1.5rem; /* 24 — page titles */
+  --text-4xl: 1.75rem; /* 28 */
+  --text-5xl: 1.875rem; /* 30 — total due */
+  --text-6xl: 2rem; /* 32 */
 
-  --text-display-md-size: 1.5rem; /* 24px */
-  --text-display-md-line: 2rem; /* 32px */
-  --text-display-md-weight: 600;
+  /* ---- Radius ------------------------------------------------------------- */
+  --radius-sm: 6px; /* kbd */
+  --radius-md: 8px; /* buttons, inputs, steppers */
+  --radius-notice: 10px; /* inline notices, list tiles */
+  --radius-lg: 12px; /* panels, cards */
+  --radius-xl: 16px; /* dialogs, startup card */
 
-  --text-headline-sm-size: 1.125rem; /* 18px */
-  --text-headline-sm-line: 1.5rem; /* 24px */
-  --text-headline-sm-weight: 600;
+  /* ---- Elevation ---------------------------------------------------------- */
+  --shadow-panel: 0 1px 3px var(--color-shadow-soft);
+  --shadow-pop: 0 12px 32px var(--color-shadow-pop);
 
-  --text-body-lg-size: 1rem; /* 16px */
-  --text-body-lg-line: 1.5rem; /* 24px */
+  /* ---- Breakpoints (from the prototype's resize logic) --------------------
+     < 900 compact (menu button, chip categories, cart sheet); ≥ 1100 status pills show text;
+     ≥ 1200 cart 380px; ≥ 1500 nav labels; ≥ 1600 cart 420px. The prototype showed nav labels
+     from 1280px, where they overlap the status pills at 1366px (IMPLEMENTATION.md D-03). */
+  --breakpoint-wide: 56.25rem; /* 900 */
+  --breakpoint-pills: 68.75rem; /* 1100 */
+  --breakpoint-cartlg: 75rem; /* 1200 */
+  --breakpoint-navlabels: 93.75rem; /* 1500 */
+  --breakpoint-hd: 100rem; /* 1600 */
+
+  /* ---- Motion ------------------------------------------------------------- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@custom-variant short (@media (max-height: 699.98px));
+
+:root {
+  /* Legacy aliases still read by un-migrated scoped CSS. */
+  --font-numeric: var(--font-ui);
+
+  --text-display-lg-size: 2rem;
+  --text-display-lg-line: 2.5rem;
+  --text-display-lg-weight: 800;
+  --text-display-md-size: 1.5rem;
+  --text-display-md-line: 2rem;
+  --text-display-md-weight: 800;
+  --text-headline-sm-size: 1.0625rem;
+  --text-headline-sm-line: 1.5rem;
+  --text-headline-sm-weight: 700;
+  --text-body-lg-size: 1rem;
+  --text-body-lg-line: 1.5rem;
   --text-body-lg-weight: 400;
-
-  --text-body-md-size: 0.875rem; /* 14px */
-  --text-body-md-line: 1.25rem; /* 20px */
+  --text-body-md-size: 0.9375rem;
+  --text-body-md-line: 1.4rem;
   --text-body-md-weight: 400;
-
-  --text-body-sm-size: 0.8125rem; /* 13px */
-  --text-body-sm-line: 1.125rem; /* 18px */
+  --text-body-sm-size: 0.8125rem;
+  --text-body-sm-line: 1.2rem;
   --text-body-sm-weight: 400;
+  /* Sentence case everywhere in V3 — the old all-caps eyebrow style is retired. */
+  --text-label-caps-size: 0.8125rem;
+  --text-label-caps-line: 1.2rem;
+  --text-label-caps-weight: 600;
+  --text-label-caps-tracking: normal;
+  --text-numeric-data-size: 0.875rem;
+  --text-numeric-data-line: 1.25rem;
+  --text-numeric-data-weight: 600;
+  --text-numeric-lg-size: 1.75rem;
+  --text-numeric-lg-line: 2rem;
+  --text-numeric-lg-weight: 800;
 
-  --text-label-caps-size: 0.6875rem; /* 11px */
-  --text-label-caps-line: 1rem; /* 16px */
-  --text-label-caps-weight: 700;
-  --text-label-caps-tracking: 0.05em; /* Latin only — see [dir="rtl"] override below. */
+  /* ---- Spacing (4px base) ------------------------------------------------ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
 
-  --text-numeric-data-size: 0.875rem; /* 14px */
-  --text-numeric-data-line: 1.25rem; /* 20px */
-  --text-numeric-data-weight: 500;
+  --radius-xs: 4px;
+  --radius-full: 9999px;
 
-  --text-numeric-lg-size: 1.75rem; /* 28px */
-  --text-numeric-lg-line: 2rem; /* 32px */
-  --text-numeric-lg-weight: 600;
-
-  /* ---- Spacing (4px base) ---------------------------------------------- */
-  --space-1: 0.25rem; /* 4 */
-  --space-2: 0.5rem; /* 8 */
-  --space-3: 0.75rem; /* 12 */
-  --space-4: 1rem; /* 16 */
-  --space-5: 1.25rem; /* 20 */
-  --space-6: 1.5rem; /* 24 */
-  --space-8: 2rem; /* 32 */
-
-  /* ---- Radius ------------------------------------------------------------ */
-  --radius-xs: 2px; /* compact accents */
-  --radius-sm: 4px; /* buttons, fields, chips */
-  --radius-md: 6px; /* medium controls */
-  --radius-lg: 8px; /* panels, dialogs, cart, cards */
-  --radius-xl: 12px; /* one exceptional large container only */
-  --radius-full: 9999px; /* circular / avatar / status-dot only */
-
-  /* ---- Sizing --------------------------------------------------------- */
-  --size-target-min: 44px; /* minimum interactive target */
-  --size-row: 48px; /* ledger row */
-  --size-row-lg: 56px; /* long table row */
+  /* ---- Sizing ----------------------------------------------------------- */
+  --size-target-min: 44px;
+  --size-row: 48px;
+  --size-row-lg: 56px;
+  --size-topbar: 60px;
 
   /* ---- Motion ----------------------------------------------------------- */
   --duration-fast: 120ms;
   --duration-base: 180ms;
   --duration-slow: 240ms;
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
-  /* ---- Layering --------------------------------------------------------- */
-  --z-dropdown: 20;
+  /* ---- Layering ----------------------------------------------------------- */
+  --z-dropdown: 50;
   --z-banner: 30;
-  --z-dialog: 40;
-  --z-toast: 50;
+  --z-sheet: 40;
+  --z-dialog: 60;
+  --z-toast: 95;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -95,11 +130,8 @@
   }
 }
 
-/* Arabic UI swaps the Latin display/body stack for the Arabic-appropriate one. The numeric stack
-   is never swapped — money, quantities, SKU, and barcode values stay in JetBrains Mono regardless
-   of locale (see shared/utils/format.ts, which already forces Latin digits in Arabic). Latin
-   uppercase letter-spacing on label-caps text never applies to Arabic glyphs. */
+/* Arabic UI swaps the Latin face for IBM Plex Sans Arabic. Code values (JetBrains Mono) and
+   Latin digits are never swapped — see shared/utils/format.ts. */
 html[dir='rtl'] {
   --font-ui: var(--font-ui-arabic);
-  --text-label-caps-tracking: normal;
 }

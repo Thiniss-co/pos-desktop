@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import AppSpinner from '@renderer/shared/components/common/AppSpinner.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
 import NumericAmountInput from './NumericAmountInput.vue'
-import OrderTotals from './OrderTotals.vue'
 import PaymentMethodTile from './PaymentMethodTile.vue'
 import SplitPaymentRow from './SplitPaymentRow.vue'
 import type {
@@ -76,6 +77,22 @@ const props = withDefaults(
     confirmAbandonLabel: string
     cancelConfirmLabel: string
     printReceiptLabel?: string
+    /** V3 chrome (all optional; the panel degrades to the bare values without them). */
+    closeLabel?: string
+    methodsLabel?: string
+    currencyLabel?: string
+    fillDueLabel?: string
+    enterHint?: string
+    rowsTitle?: string
+    rowsLimitNote?: string
+    noRowsLabel?: string
+    removeRowText?: string
+    completingTitle?: string
+    completingBody?: string
+    completedTitle?: string
+    completedTotal?: string
+    completedNote?: string
+    failedTitle?: string
   }>(),
   {
     discountLabel: undefined,
@@ -88,7 +105,22 @@ const props = withDefaults(
     due: undefined,
     previewMessage: undefined,
     completionMessage: undefined,
-    printReceiptLabel: undefined
+    printReceiptLabel: undefined,
+    closeLabel: undefined,
+    methodsLabel: undefined,
+    currencyLabel: undefined,
+    fillDueLabel: undefined,
+    enterHint: undefined,
+    rowsTitle: undefined,
+    rowsLimitNote: undefined,
+    noRowsLabel: undefined,
+    removeRowText: undefined,
+    completingTitle: undefined,
+    completingBody: undefined,
+    completedTitle: undefined,
+    completedTotal: undefined,
+    completedNote: undefined,
+    failedTitle: undefined
   }
 )
 
@@ -107,7 +139,11 @@ const emit = defineEmits<{
   abandon: []
   acknowledge: []
   print: []
+  fillDue: []
 }>()
+
+const eligibleOptions = computed(() => props.methodOptions.filter((option) => option.eligible))
+const ineligibleOptions = computed(() => props.methodOptions.filter((option) => !option.eligible))
 
 /**
  * Plan §1.9: abandoning requires explicit confirmation and the tender warning — a bare click can
@@ -152,178 +188,363 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
 </script>
 
 <template>
-  <AppDialog :open="open" @close="emit('close')">
+  <AppDialog
+    :open="open"
+    size="xl"
+    :close-label="closeLabel"
+    :persistent="completionPending"
+    @close="emit('close')"
+  >
     <template #title>{{ title }}</template>
-
-    <AppStatusChip variant="information" class="payment-panel__status">
-      {{ statusChipLabel }}
-    </AppStatusChip>
-
-    <OrderTotals
-      :subtotal-label="subtotalLabel"
-      :subtotal="subtotal"
-      :discount-label="discountLabel"
-      :discount="discount"
-      :tax-label="taxLabel"
-      :tax="tax"
-      :total-label="totalLabel"
-      :total="total"
-    />
-
-    <AppEmptyState
-      v-if="methodOptions.length === 0"
-      :title="noMethodsTitle"
-      :description="noMethodsDescription"
-    />
-    <div v-else class="payment-panel__methods">
-      <PaymentMethodTile
-        v-for="option in methodOptions"
-        :key="option.method.id"
-        :method="option.method"
-        :disabled="!option.eligible"
-        :title="option.ineligibleReason"
-        @select="emit('selectMethod', option.method.id)"
-      />
-    </div>
-
-    <div v-if="isEditingDraft" class="payment-panel__draft">
-      <p v-if="draftMethodLabel" class="payment-panel__draft-heading">{{ draftMethodLabel }}</p>
-      <NumericAmountInput
-        :label="draftAmountLabel"
-        :model-value="draftAmount"
-        :error="draftAmountError"
-        @update:model-value="emit('update:draftAmount', $event)"
-        @keydown.enter.prevent="emit('commitDraft')"
-        @keydown.esc.prevent="emit('cancelDraft')"
-      />
-      <label v-if="requiresReference" class="payment-panel__reference">
-        <span class="payment-panel__reference-label">{{ draftReferenceLabel }}</span>
-        <input
-          type="text"
-          class="payment-panel__reference-input"
-          :value="draftReference"
-          @input="emit('update:draftReference', ($event.target as HTMLInputElement).value)"
-          @keydown.enter.prevent="emit('commitDraft')"
-          @keydown.esc.prevent="emit('cancelDraft')"
-        />
-      </label>
-      <div class="payment-panel__draft-actions">
-        <AppButton variant="ghost" @click="emit('cancelDraft')">{{ cancelDraftLabel }}</AppButton>
-        <AppButton variant="secondary" @click="emit('commitDraft')">
-          {{ commitDraftLabel }}
-        </AppButton>
-      </div>
-    </div>
-
-    <ul v-if="rows.length > 0" class="payment-panel__rows">
-      <li
-        v-for="row in rows"
-        :key="row.id"
-        class="payment-panel__row"
-        tabindex="0"
-        role="button"
-        @click="onRowActivate($event, row.id)"
-        @keydown.enter="emit('editRow', row.id)"
+    <template #header-extra>
+      <AppStatusChip
+        v-if="recoveryState.kind === 'clear'"
+        variant="information"
+        icon="info"
+        class="payment-panel__status self-center"
       >
-        <SplitPaymentRow
-          :payment="row"
-          :remove-label="removeRowLabel"
-          @remove="emit('removeRow', row.id)"
-        />
-      </li>
-    </ul>
+        {{ statusChipLabel }}
+      </AppStatusChip>
+    </template>
 
-    <dl class="payment-panel__summary">
-      <div class="payment-panel__summary-row">
-        <dt>{{ paidTotalLabel }}</dt>
-        <dd class="numeric">{{ paidTotal }}</dd>
+    <!-- Blocked: an earlier attempt must be retried or explicitly abandoned (V3 "payfail"). -->
+    <div v-if="recoveryState.kind === 'blocked'" class="flex flex-col gap-3 py-2" role="alert">
+      <div class="flex items-center gap-2.5">
+        <span
+          aria-hidden="true"
+          class="flex size-10 flex-none items-center justify-center rounded-full bg-err-bg text-err"
+          ><AppIcon name="error" :size="24"
+        /></span>
+        <h3 v-if="failedTitle" class="text-2xl font-bold">{{ failedTitle }}</h3>
       </div>
-      <div v-if="changeDueLabel && changeDue" class="payment-panel__summary-row">
-        <dt>{{ changeDueLabel }}</dt>
-        <dd class="numeric">{{ changeDue }}</dd>
-      </div>
-      <div v-if="dueLabel && due" class="payment-panel__summary-row">
-        <dt>{{ dueLabel }}</dt>
-        <dd class="numeric">{{ due }}</dd>
-      </div>
-    </dl>
-
-    <template v-if="recoveryState.kind === 'blocked'">
       <AppInlineError class="payment-panel__recovery-message">
         {{ recoveryState.message }}
       </AppInlineError>
-
       <template v-if="confirmingAbandon">
-        <AppInlineError class="payment-panel__recovery-message">
-          {{ abandonWarning }}
-        </AppInlineError>
-        <div class="payment-panel__recovery-actions">
-          <AppButton variant="ghost" @click="cancelAbandonConfirmation">
+        <div
+          class="payment-panel__recovery-message flex items-start gap-2.5 rounded-notice bg-warn-bg px-3.5 py-3 text-sm"
+          role="note"
+        >
+          <AppIcon name="warning" :size="20" class="mt-px text-warn" />
+          <span>{{ abandonWarning }}</span>
+        </div>
+        <div class="payment-panel__recovery-actions flex flex-wrap justify-end gap-2.5">
+          <AppButton variant="secondary" data-autofocus @click="cancelAbandonConfirmation">
             {{ cancelConfirmLabel }}
           </AppButton>
           <AppButton variant="danger" @click="confirmAbandon">{{ confirmAbandonLabel }}</AppButton>
         </div>
       </template>
-      <div v-else class="payment-panel__recovery-actions">
-        <AppButton variant="ghost" @click="requestAbandon">{{ abandonLabel }}</AppButton>
-        <AppButton variant="secondary" @click="emit('retry')">{{ retryLabel }}</AppButton>
+      <div v-else class="payment-panel__recovery-actions flex flex-wrap justify-end gap-2.5">
+        <AppButton variant="danger-outline" @click="requestAbandon">{{ abandonLabel }}</AppButton>
+        <AppButton variant="primary" icon="refresh" data-autofocus @click="emit('retry')">
+          {{ retryLabel }}
+        </AppButton>
       </div>
-    </template>
+    </div>
 
-    <template v-else-if="recoveryState.kind === 'awaiting-acknowledgment'">
-      <AppStatusChip variant="success" class="payment-panel__recovery-message">
-        {{ recoveryState.message }}
-      </AppStatusChip>
-      <AppButton
-        v-if="printReceiptLabel"
-        class="payment-panel__print"
-        variant="secondary"
-        full-width
-        @click="emit('print')"
+    <!-- Committed: the sale is saved on this workstation; the cashier acknowledges (V3 "done"). -->
+    <div
+      v-else-if="recoveryState.kind === 'awaiting-acknowledgment'"
+      class="mx-auto flex w-full max-w-[520px] flex-col gap-3 py-2"
+    >
+      <div class="flex flex-col items-center gap-2 text-center">
+        <span
+          aria-hidden="true"
+          class="flex size-14 items-center justify-center rounded-full bg-ok-bg text-ok"
+          ><AppIcon name="check" :size="32"
+        /></span>
+        <h3 v-if="completedTitle" class="text-2xl font-extrabold">{{ completedTitle }}</h3>
+        <div v-if="completedTotal" class="numeric text-6xl font-extrabold">
+          {{ completedTotal }}
+        </div>
+        <p
+          class="payment-panel__recovery-message max-w-[420px] text-sm text-pretty text-muted"
+          role="status"
+        >
+          {{ recoveryState.message }}
+        </p>
+      </div>
+      <p
+        v-if="completedNote"
+        class="flex items-center gap-2 rounded-notice border border-line px-3.5 py-3 text-sm"
       >
-        {{ printReceiptLabel }}
-      </AppButton>
-      <AppButton
-        class="payment-panel__complete"
-        variant="transaction"
-        full-width
-        @click="emit('acknowledge')"
-      >
-        {{ acknowledgeLabel }}
-      </AppButton>
-    </template>
-
-    <template v-else>
-      <p v-if="previewPending" class="payment-panel__pending" role="status">
-        {{ previewPendingLabel }}
+        <AppIcon name="save" :size="20" class="text-ok" /><span class="font-semibold">{{
+          completedNote
+        }}</span>
       </p>
-      <AppInlineError v-else-if="previewMessage && previewIsError">
-        {{ previewMessage }}
-      </AppInlineError>
-      <p v-else-if="previewMessage" class="payment-panel__hint">{{ previewMessage }}</p>
-
-      <p v-if="completionPending" class="payment-panel__pending" role="status">
-        {{ completionPendingLabel }}
-      </p>
-      <AppInlineError v-else-if="completionMessage && completionIsError">
-        {{ completionMessage }}
-      </AppInlineError>
-      <p v-else-if="completionMessage" class="payment-panel__hint">{{ completionMessage }}</p>
-
-      <AppButton
-        v-if="completionRefreshAvailable"
-        variant="secondary"
-        full-width
-        :loading="completionRefreshPending"
-        @click="emit('refreshWorkstation')"
+      <div
+        v-if="rows.length > 0"
+        class="numeric flex flex-col gap-1.5 rounded-notice border border-line px-3.5 py-3 text-sm"
       >
-        {{ refreshWorkstationLabel }}
-      </AppButton>
+        <span v-if="paidTotalLabel" class="font-bold">{{ paidTotalLabel }}</span>
+        <div v-for="row in rows" :key="row.id" class="flex justify-between gap-2">
+          <span>{{ row.methodLabel }}</span
+          ><span class="font-semibold">{{ row.amount }}</span>
+        </div>
+      </div>
+      <div
+        v-if="changeDueLabel && changeDue"
+        class="numeric flex items-center gap-2.5 rounded-notice bg-ok-bg p-3.5 text-md font-bold"
+        role="status"
+      >
+        <AppIcon name="payments" :size="22" class="text-ok" />{{ changeDueLabel }} · {{ changeDue }}
+      </div>
+    </div>
 
+    <!-- Completing: the durable local write is in flight. -->
+    <div
+      v-else-if="completionPending"
+      class="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+      role="status"
+    >
+      <span class="text-pri-text"><AppSpinner :size="32" /></span>
+      <p class="payment-panel__pending text-xl font-bold">{{ completionPendingLabel }}</p>
+      <p v-if="completingBody" class="text-muted">{{ completingBody }}</p>
+    </div>
+
+    <!-- Tendering (V3 "payment_tender_split"). -->
+    <div v-else class="grid grid-cols-1 gap-5 wide:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div class="flex min-w-0 flex-col gap-4">
+        <div
+          class="numeric flex flex-wrap items-center gap-4 rounded-lg border border-line px-4 py-3.5"
+        >
+          <dl class="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-sm">
+            <dt class="text-muted">{{ subtotalLabel }}</dt>
+            <dd>{{ subtotal }}</dd>
+            <template v-if="discountLabel && discount">
+              <dt class="text-muted">{{ discountLabel }}</dt>
+              <dd class="font-semibold text-ok">−{{ discount }}</dd>
+            </template>
+            <dt class="text-muted">{{ taxLabel }}</dt>
+            <dd>{{ tax }}</dd>
+          </dl>
+          <div class="flex-1" />
+          <div class="text-end">
+            <div class="text-sm text-muted">{{ totalLabel }}</div>
+            <div class="text-5xl font-extrabold whitespace-nowrap">{{ total }}</div>
+          </div>
+        </div>
+
+        <AppEmptyState
+          v-if="methodOptions.length === 0"
+          compact
+          icon="credit_card"
+          :title="noMethodsTitle"
+          :description="noMethodsDescription"
+        />
+        <div
+          v-else
+          class="payment-panel__methods flex flex-col gap-2"
+          role="group"
+          :aria-label="methodsLabel"
+        >
+          <span v-if="methodsLabel" class="text-sm font-semibold" aria-hidden="true">{{
+            methodsLabel
+          }}</span>
+          <div v-if="eligibleOptions.length" class="grid grid-cols-3 gap-2">
+            <PaymentMethodTile
+              v-for="option in eligibleOptions"
+              :key="option.method.id"
+              :method="option.method"
+              :selected="isEditingDraft && draftMethodLabel === option.method.label"
+              @select="emit('selectMethod', option.method.id)"
+            />
+          </div>
+          <div v-if="ineligibleOptions.length" class="grid grid-cols-3 gap-2">
+            <PaymentMethodTile
+              v-for="option in ineligibleOptions"
+              :key="option.method.id"
+              :method="option.method"
+              disabled
+              :reason="option.ineligibleReason"
+              :title="option.ineligibleReason"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="isEditingDraft"
+          class="payment-panel__draft flex flex-col gap-3 rounded-lg border border-line bg-pri-soft p-4"
+        >
+          <p
+            v-if="draftMethodLabel"
+            class="payment-panel__draft-heading flex items-center gap-2 font-bold"
+          >
+            <AppIcon name="payments" :size="20" class="text-pri-text" />{{ draftMethodLabel }}
+          </p>
+          <NumericAmountInput
+            :label="draftAmountLabel"
+            :model-value="draftAmount"
+            :error="draftAmountError"
+            :prefix="currencyLabel"
+            autofocus
+            @update:model-value="emit('update:draftAmount', $event)"
+            @keydown.enter.prevent="emit('commitDraft')"
+            @keydown.esc.prevent="emit('cancelDraft')"
+          >
+            <template v-if="fillDueLabel" #label-action>
+              <button
+                type="button"
+                class="text-xs font-semibold text-pri-text hover:underline"
+                @click="emit('fillDue')"
+              >
+                {{ fillDueLabel }}
+              </button>
+            </template>
+          </NumericAmountInput>
+          <label v-if="requiresReference" class="payment-panel__reference flex flex-col gap-1.5">
+            <span class="payment-panel__reference-label text-sm font-semibold">{{
+              draftReferenceLabel
+            }}</span>
+            <input
+              type="text"
+              dir="ltr"
+              class="payment-panel__reference-input code h-11 w-full rounded-md border border-control bg-surf px-3 text-base text-ink"
+              :value="draftReference"
+              @input="emit('update:draftReference', ($event.target as HTMLInputElement).value)"
+              @keydown.enter.prevent="emit('commitDraft')"
+              @keydown.esc.prevent="emit('cancelDraft')"
+            />
+          </label>
+          <div class="payment-panel__draft-actions flex flex-wrap items-center justify-end gap-2.5">
+            <span v-if="enterHint" class="me-auto text-xs text-muted">{{ enterHint }}</span>
+            <AppButton variant="ghost" @click="emit('cancelDraft')">{{
+              cancelDraftLabel
+            }}</AppButton>
+            <AppButton variant="outline" icon="add" @click="emit('commitDraft')">
+              {{ commitDraftLabel }}
+            </AppButton>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex min-w-0 flex-col gap-3.5">
+        <div class="flex items-center gap-2 border-b border-line pb-2">
+          <h3 v-if="rowsTitle" class="text-md font-bold">{{ rowsTitle }}</h3>
+          <span
+            class="numeric flex min-h-6 min-w-6 items-center justify-center rounded-full border border-line bg-subtle px-2 text-xs font-bold"
+            >{{ rows.length }}</span
+          >
+          <span v-if="rowsLimitNote" class="ms-auto text-xs text-muted">{{ rowsLimitNote }}</span>
+        </div>
+        <p
+          v-if="rows.length === 0 && noRowsLabel"
+          class="rounded-notice border border-dashed border-line-strong p-4 text-center text-sm text-muted"
+        >
+          {{ noRowsLabel }}
+        </p>
+        <ul v-if="rows.length > 0" class="payment-panel__rows flex flex-col gap-2">
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="payment-panel__row cursor-pointer rounded-notice"
+            tabindex="0"
+            role="button"
+            :aria-label="`${editRowLabel}: ${row.methodLabel} ${row.amount}`"
+            @click="onRowActivate($event, row.id)"
+            @keydown.enter="emit('editRow', row.id)"
+          >
+            <SplitPaymentRow
+              :payment="row"
+              :remove-label="removeRowLabel"
+              :remove-text="removeRowText"
+              @remove="emit('removeRow', row.id)"
+            />
+          </li>
+        </ul>
+
+        <dl
+          class="payment-panel__summary numeric flex flex-col gap-2 rounded-lg border border-line p-4"
+        >
+          <div class="payment-panel__summary-row flex justify-between">
+            <dt class="text-muted">{{ paidTotalLabel }}</dt>
+            <dd class="font-semibold">{{ paidTotal }}</dd>
+          </div>
+          <div
+            v-if="changeDueLabel && changeDue"
+            class="payment-panel__summary-row flex items-baseline justify-between gap-2 text-ok"
+          >
+            <dt class="font-bold">{{ changeDueLabel }}</dt>
+            <dd class="text-4xl font-extrabold whitespace-nowrap">{{ changeDue }}</dd>
+          </div>
+          <div
+            v-if="dueLabel && due"
+            class="payment-panel__summary-row flex items-baseline justify-between gap-2 text-warn"
+          >
+            <dt class="font-bold">{{ dueLabel }}</dt>
+            <dd class="text-4xl font-extrabold whitespace-nowrap">{{ due }}</dd>
+          </div>
+        </dl>
+
+        <p
+          v-if="previewPending"
+          class="payment-panel__pending flex items-center gap-2 rounded-notice bg-info-bg px-3.5 py-3 text-sm font-semibold"
+          role="status"
+        >
+          <AppSpinner :size="18" class="text-info" />{{ previewPendingLabel }}
+        </p>
+        <AppInlineError v-else-if="previewMessage && previewIsError">
+          {{ previewMessage }}
+        </AppInlineError>
+        <p
+          v-else-if="previewMessage"
+          class="payment-panel__hint flex items-start gap-2.5 rounded-notice bg-info-bg px-3.5 py-3 text-sm"
+          role="status"
+        >
+          <AppIcon name="info" :size="20" class="mt-px text-info" />{{ previewMessage }}
+        </p>
+
+        <AppInlineError v-if="completionMessage && completionIsError">
+          {{ completionMessage }}
+        </AppInlineError>
+        <p v-else-if="completionMessage" class="payment-panel__hint text-sm">
+          {{ completionMessage }}
+        </p>
+
+        <AppButton
+          v-if="completionRefreshAvailable"
+          variant="secondary"
+          icon="refresh"
+          full-width
+          :loading="completionRefreshPending"
+          @click="emit('refreshWorkstation')"
+        >
+          {{ refreshWorkstationLabel }}
+        </AppButton>
+      </div>
+    </div>
+
+    <template #actions>
+      <slot name="actions" />
+      <div class="flex-1" />
+      <template v-if="recoveryState.kind === 'awaiting-acknowledgment'">
+        <AppButton
+          v-if="printReceiptLabel"
+          class="payment-panel__print"
+          variant="secondary"
+          size="lg"
+          icon="print"
+          @click="emit('print')"
+        >
+          {{ printReceiptLabel }}
+        </AppButton>
+        <AppButton
+          class="payment-panel__complete"
+          variant="primary"
+          size="lg"
+          data-autofocus
+          @click="emit('acknowledge')"
+        >
+          {{ acknowledgeLabel }}
+        </AppButton>
+      </template>
       <AppButton
+        v-else-if="recoveryState.kind === 'clear'"
         class="payment-panel__complete"
-        variant="transaction"
-        full-width
+        variant="primary"
+        size="xl"
+        icon="task_alt"
         :disabled="!completionEnabled || completionPending"
         :aria-disabled="!completionEnabled || completionPending ? 'true' : undefined"
         @click="emit('complete')"
@@ -331,121 +552,5 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
         {{ completionLabel }}
       </AppButton>
     </template>
-
-    <template #actions>
-      <slot name="actions" />
-    </template>
   </AppDialog>
 </template>
-
-<style scoped>
-.payment-panel__status {
-  margin-block-end: var(--space-3);
-}
-
-.payment-panel__methods {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-  gap: var(--space-3);
-  margin-block: var(--space-4);
-}
-
-.payment-panel__draft {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-block-end: var(--space-4);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-container);
-}
-
-.payment-panel__draft-heading {
-  font-weight: 600;
-  color: var(--color-on-surface);
-}
-
-.payment-panel__reference {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.payment-panel__reference-label {
-  font-size: var(--text-body-sm-size);
-  font-weight: 600;
-  color: var(--color-on-surface-variant);
-}
-
-.payment-panel__reference-input {
-  min-height: calc(var(--size-target-min) * 1.2);
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface-container-lowest);
-  color: var(--color-on-surface);
-}
-
-.payment-panel__draft-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-
-.payment-panel__rows {
-  list-style: none;
-  margin: 0 0 var(--space-4);
-  padding: 0;
-}
-
-.payment-panel__row {
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-}
-
-.payment-panel__row:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.payment-panel__summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-block-end: var(--space-4);
-}
-
-.payment-panel__summary-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--text-numeric-lg-size);
-  font-weight: var(--text-numeric-lg-weight);
-  color: var(--color-on-surface);
-}
-
-.payment-panel__pending,
-.payment-panel__hint {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-on-surface-variant);
-  margin-block-end: var(--space-3);
-}
-
-.payment-panel__complete {
-  margin-block-start: var(--space-2);
-}
-
-.payment-panel__print {
-  margin-block-start: var(--space-2);
-}
-
-.payment-panel__recovery-message {
-  margin-block-end: var(--space-3);
-}
-
-.payment-panel__recovery-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-</style>

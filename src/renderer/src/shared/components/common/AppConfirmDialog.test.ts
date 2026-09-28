@@ -18,7 +18,7 @@ describe('AppConfirmDialog', () => {
     })
     await wrapper.vm.$nextTick()
 
-    const buttons = document.querySelectorAll('[role="dialog"] button')
+    const buttons = document.querySelectorAll('[role="alertdialog"] button')
     const cancelButton = Array.from(buttons).find((el) => el.textContent?.trim() === 'Cancel')
     const confirmButton = Array.from(buttons).find((el) => el.textContent?.trim() === 'Disable')
 
@@ -45,7 +45,7 @@ describe('AppConfirmDialog', () => {
     })
     await wrapper.vm.$nextTick()
 
-    const buttons = document.querySelectorAll('[role="dialog"] button')
+    const buttons = document.querySelectorAll('[role="alertdialog"] button')
     for (const button of buttons) {
       expect(button.hasAttribute('disabled')).toBe(true)
     }

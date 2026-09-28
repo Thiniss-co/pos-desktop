@@ -1,56 +1,130 @@
-@import './tokens.css';
-@import './themes/palette.css';
+/*
+ * Minimal document reset for the V3 renderer.
+ *
+ * Tailwind's global Preflight is deliberately NOT imported (see main.css): it would restyle every
+ * element in the renderer at once. This layer carries only the resets the utilities rely on, in
+ * `@layer base` so any utility class wins over it. Thermal receipt previews are main-process PNG
+ * renders (`ReceiptPreviewDialog`) or explicitly fixed white/black blocks (`.thermal-paper`), so
+ * nothing here — and no theme change — can alter printed output.
+ */
+@layer base {
+  :root {
+    color: var(--color-ink);
+    background: var(--color-page);
+    font-family: var(--font-ui);
+    /* The root stays at the browser's 16px: every rem token (Tailwind spacing, the type scale in
+       tokens.css) is authored against it. Body copy is 15px via `body` below. */
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-:root {
-  color: var(--color-on-background);
-  background: var(--color-background);
-  font-family: var(--font-ui);
-  font-synthesis: none;
-}
+  html[lang='ar'] body,
+  html[dir='rtl'] body {
+    line-height: 1.6;
+  }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  color: var(--color-on-background);
-  background: var(--color-background);
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
-/* Visible keyboard focus everywhere, in both themes — never removed without a replacement. */
-:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-/* Money, quantities, totals, timestamps, SKU, and barcode values — always tabular, always the
-   numeric face, regardless of locale. See shared/utils/format.ts for the matching Latin-digit
-   enforcement in Arabic. */
-.numeric {
-  font-family: var(--font-numeric);
-  font-variant-numeric: tabular-nums lining-nums;
-}
-
-@media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    box-sizing: border-box;
+    margin: 0;
+    /* Lets Tailwind's `border` / `border-s` utilities draw with only a width + colour. */
+    border: 0 solid;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    color: var(--color-ink);
+    background: var(--color-page);
+    font-size: var(--text-base);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+  }
+
+  button {
+    background: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  ol,
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  ::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
+  }
+
+  a {
+    color: var(--color-pri-text);
+  }
+
+  a:hover {
+    color: var(--color-pri-hover);
+  }
+
+  /* Visible keyboard focus everywhere, in both themes — never removed without a replacement. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* Money, quantities, totals and timestamps: tabular figures in the UI face, Latin digits in both
+     languages (enforced by shared/utils/format.ts). */
+  .numeric {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* SKU, barcode, invoice and reference numbers: JetBrains Mono, always LTR-isolated. */
+  .code {
+    font-family: var(--font-code);
+    unicode-bidi: isolate;
+    direction: ltr;
+  }
+
+  /* Visually hidden but announced. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

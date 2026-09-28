@@ -7,6 +7,7 @@ import type { CheckoutIntent } from '@shared/contracts/checkout.contract'
 import type { LocaleCode } from '@shared/contracts/preferences.contract'
 import type {
   DisplayPaymentMethodOption,
+  DisplayProduct,
   DisplayRecoveryResult,
   DisplaySplitPayment,
   PaymentPanelRecoveryState,
@@ -15,19 +16,24 @@ import type {
 import { useBootstrapStore } from '@renderer/modules/bootstrap/store'
 import { useSyncStore } from '@renderer/modules/sync/store'
 import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
-import { formatDateTime, formatRelativeDateTime } from '@renderer/shared/utils/format'
+import { formatDateTime, formatNumber, formatRelativeDateTime } from '@renderer/shared/utils/format'
 import {
   formatMinorCurrency,
   parseMinorCurrencyInput,
   parsePercentageBasisPointsInput
 } from '@shared/money/minorUnits'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppConfirmDialog from '@renderer/shared/components/common/AppConfirmDialog.vue'
 import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import AppIconButton from '@renderer/shared/components/common/AppIconButton.vue'
+import AppKbd from '@renderer/shared/components/common/AppKbd.vue'
+import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
 import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
-import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
 import AppInput from '@renderer/shared/components/forms/AppInput.vue'
+import AppSegmented from '@renderer/shared/components/forms/AppSegmented.vue'
 import AppSelect from '@renderer/shared/components/forms/AppSelect.vue'
 import BarcodeFeedback from '@renderer/shared/components/pos/BarcodeFeedback.vue'
 import CartLineItem from '@renderer/shared/components/pos/CartLineItem.vue'
@@ -38,30 +44,20 @@ import OrderTotals from '@renderer/shared/components/pos/OrderTotals.vue'
 import PosWorkspaceShell from '@renderer/shared/components/pos/PosWorkspaceShell.vue'
 import ProductCard from '@renderer/shared/components/pos/ProductCard.vue'
 import ProductSearchBar from '@renderer/shared/components/pos/ProductSearchBar.vue'
-import ShiftStatusControl from '@renderer/shared/components/pos/ShiftStatusControl.vue'
 import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.vue'
-import PaymentMethodTile from '@renderer/shared/components/pos/PaymentMethodTile.vue'
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
 import SaleRecoveryBanner from '@renderer/shared/components/pos/SaleRecoveryBanner.vue'
 import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
 import type { ReceiptDocumentRef } from '@shared/contracts/printing.contract'
 import { useCartStore } from '../cart.store'
-import { useCatalogStore } from '../catalog.store'
+import { CATALOG_PAGE_SIZES, type CatalogPageSize, useCatalogStore } from '../catalog.store'
 import { usePaymentStore } from '../payment.store'
 import { useShiftStore } from '../shift.store'
+import { useShiftDialogStore } from '../shiftDialog.store'
 import { useBarcodeScanner } from '../useBarcodeScanner'
 import { usePosShortcuts } from '../usePosShortcuts'
 
-type DialogMode =
-  | 'open'
-  | 'pause'
-  | 'close'
-  | 'help'
-  | 'customers'
-  | 'payment-methods'
-  | 'rebuild'
-  | 'discount'
-  | null
+type DialogMode = 'help' | 'customers' | 'rebuild' | 'discount' | null
 
 type InvoiceDiscountSelection = 'none' | 'fixed' | 'percentage'
 
@@ -73,24 +69,7 @@ const cart = useCartStore()
 const shift = useShiftStore()
 const payment = usePaymentStore()
 const sync = useSyncStore()
-// Live queue visibility in the till shell. Deliberately independent of connectivity: an offline
-// cashier must still see what is waiting, and POS rendering never depends on the network.
-const syncChipVariant = computed(() => {
-  if (sync.failedCount > 0) {
-    return 'error' as const
-  }
-
-  return sync.isPaused ? ('warning' as const) : ('information' as const)
-})
-const syncChipLabel = computed(() => {
-  if (sync.failedCount > 0) {
-    return t('pos.syncReview', { count: sync.failedCount })
-  }
-
-  return sync.isPaused
-    ? t('pos.syncPaused', { count: sync.queuedCount })
-    : t('pos.syncIdle', { count: sync.queuedCount })
-})
+const shiftDialog = useShiftDialogStore()
 const {
   categories,
   products,
@@ -107,7 +86,11 @@ const {
   isRefreshing: catalogRefreshing,
   lastRefreshedAt: catalogLastRefreshedAt,
   lastRefreshRevisionChanged: catalogRevisionChanged,
-  refreshError: catalogRefreshError
+  refreshError: catalogRefreshError,
+  total: catalogTotal,
+  page: catalogPage,
+  pageSize: catalogPageSize,
+  pageCount: catalogPageCount
 } = storeToRefs(catalog)
 const {
   lines,
@@ -121,7 +104,6 @@ const {
   draftRevision: cartDraftRevision
 } = storeToRefs(cart)
 const {
-  currentShift,
   activeShiftUuid,
   observedStatus,
   freshness,
@@ -150,9 +132,8 @@ const {
 const { isRunning: isRefreshingCatalog, error: bootstrapError } = storeToRefs(bootstrap)
 const searchRef = ref<InstanceType<typeof ProductSearchBar> | null>(null)
 const dialogMode = ref<DialogMode>(null)
-const cashAmount = ref('0.00')
-const cashError = ref<string | null>(null)
-const note = ref('')
+const clearConfirmOpen = ref(false)
+const cartSheetOpen = ref(false)
 const invoiceDiscountSelection = ref<InvoiceDiscountSelection>('none')
 const invoiceDiscountDraft = ref('')
 const invoiceDiscountError = ref<string | null>(null)
@@ -166,6 +147,10 @@ const lastBarcode = ref<{
   code: string
   outcome: 'found' | 'not-found' | 'ambiguous' | 'stale-catalog' | 'unavailable-catalog'
 } | null>(null)
+const pageSizeOptions = CATALOG_PAGE_SIZES.map((size) => ({
+  value: String(size),
+  label: String(size)
+}))
 const paymentPanelOpen = ref(false)
 let searchTimer: number | undefined
 let customerSearchTimer: number | undefined
@@ -176,21 +161,7 @@ const synchronizationReferenceTime = ref(Date.now())
 const activeCurrency = computed(() => cartContract.value?.currency ?? 'EGP')
 const currencyExponent = computed(() => cartContract.value?.currencyExponent ?? 2)
 const shiftPhase = computed<ShiftPhase>(() => mutation.value ?? observedStatus.value ?? 'closed')
-const shiftPhaseLabel = computed(() =>
-  freshness.value === 'unknown' ? t('pos.shiftUnknown') : t(`pos.shift.${shiftPhase.value}`)
-)
 const catalogStatus = computed(() => catalogState.value?.status ?? 'unavailable')
-const catalogStatusVariant = computed(() => {
-  if (catalogStatus.value === 'fresh') {
-    return 'success'
-  }
-
-  if (catalogStatus.value === 'cached') {
-    return 'information'
-  }
-
-  return catalogStatus.value === 'stale' ? 'warning' : 'error'
-})
 const catalogUsableForDraft = computed(() => catalogState.value?.catalogValid === true)
 const catalogLastRefreshedLabel = computed(() => {
   const value = catalogLastRefreshedAt.value
@@ -214,15 +185,6 @@ const catalogRevisionChangedMessage = computed(() =>
     ? t('pos.catalogRefresh.revisionChanged')
     : null
 )
-const lastSyncedAt = computed(() => {
-  const value = catalogState.value?.lastSyncedAt
-  return value
-    ? formatDateTime(value, localeStore.locale as LocaleCode, {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      })
-    : null
-})
 const lastSyncedRelative = computed(() => {
   const value = catalogState.value?.lastSyncedAt
   return value
@@ -233,6 +195,126 @@ const lastSyncedRelative = computed(() => {
       )
     : null
 })
+/** V3 catalog status line: freshness + when this workstation last synchronized its catalog. */
+const catalogLine = computed<{ label: string; tone: 'ok' | 'muted' | 'warn' } | null>(() => {
+  if (catalogStatus.value === 'unavailable') {
+    return null
+  }
+  const tone =
+    catalogStatus.value === 'fresh' ? 'ok' : catalogStatus.value === 'stale' ? 'warn' : 'muted'
+  const relative = lastSyncedRelative.value
+  return {
+    tone,
+    label: relative
+      ? t(`pos.catalogLine.${catalogStatus.value}`, { relative })
+      : t('pos.catalogLine.unknown')
+  }
+})
+const cartItemCount = computed(() =>
+  lines.value.reduce((sum, line) => sum + Number.parseFloat(line.quantity), 0)
+)
+const cartItemsLabel = computed(() =>
+  cartItemCount.value === 1
+    ? t('pos.cart.item1')
+    : t('pos.cart.items', {
+        count: formatNumber(cartItemCount.value, localeStore.locale as LocaleCode, {
+          maximumFractionDigits: 3
+        })
+      })
+)
+const selectedCustomerName = computed(() => {
+  if (!selectedCustomerUuid.value) {
+    return t('pos.cart.walkIn')
+  }
+  return (
+    customers.value.find((customer) => customer.uuid === selectedCustomerUuid.value)?.name ??
+    t('pos.cart.selectedCustomer')
+  )
+})
+/** Category position → pastel tone (All is 0; categories cycle 1…5, 0). Never a status. */
+const categoryTone = computed(
+  () => new Map(categories.value.map((category, index) => [category.uuid, (index + 1) % 6]))
+)
+const displayCategories = computed(() =>
+  categories.value.map((category) => ({
+    id: category.uuid,
+    label: category.name,
+    tone: categoryTone.value.get(category.uuid)
+  }))
+)
+const inCartQuantity = computed(() => {
+  const totals = new Map<string, number>()
+  for (const line of lines.value) {
+    totals.set(
+      line.product.uuid,
+      (totals.get(line.product.uuid) ?? 0) + Number.parseFloat(line.quantity)
+    )
+  }
+  return totals
+})
+const paginationRange = computed(() => {
+  if (catalogTotal.value === 0) {
+    return ''
+  }
+  const from = catalogPage.value * catalogPageSize.value + 1
+  const to = Math.min(catalogTotal.value, from + products.value.length - 1)
+  const locale = localeStore.locale as LocaleCode
+  return t('pos.pagination.range', {
+    from: formatNumber(from, locale),
+    to: formatNumber(to, locale),
+    total: formatNumber(catalogTotal.value, locale)
+  })
+})
+
+function monogram(name: string): string {
+  const words = name.split(/[\s\-—–·/]+/u).filter(Boolean)
+  const letters =
+    words.length >= 2 ? [words[0][0], words[1][0]] : Array.from(words[0] ?? '').slice(0, 2)
+  return letters.join('').toLocaleUpperCase()
+}
+
+function displayProduct(product: CatalogProduct): DisplayProduct {
+  const price = money(product.price.amount, product.price.currency)
+  const quantity = inCartQuantity.value.get(product.uuid)
+  return {
+    id: product.uuid,
+    name: product.name,
+    sku: product.sku ?? '—',
+    price,
+    stock: stock(product).level,
+    categoryId: product.categoryUuid,
+    unit: product.unit ?? undefined,
+    monogram: monogram(product.name),
+    tone: product.categoryUuid ? (categoryTone.value.get(product.categoryUuid) ?? 0) : 0,
+    inCartQuantity: quantity
+      ? formatNumber(quantity, localeStore.locale as LocaleCode, { maximumFractionDigits: 3 })
+      : undefined,
+    ariaLabel: t('pos.addToCart', { name: product.name, price })
+  }
+}
+
+function changePageSize(value: string): void {
+  void catalog.setPageSize(Number(value) as CatalogPageSize)
+}
+
+function clearSearch(): void {
+  query.value = ''
+}
+
+function openCustomerDialog(): void {
+  dialogMode.value = 'customers'
+}
+
+function useWalkInCustomer(): void {
+  catalog.selectCustomer(null)
+  dialogMode.value = null
+}
+
+function confirmClearCart(): void {
+  cart.clear()
+  clearConfirmOpen.value = false
+}
+
 const cartDisplayLines = computed(() =>
   lines.value.map((line, index) => ({
     id: line.id,
@@ -240,6 +322,9 @@ const cartDisplayLines = computed(() =>
     sku: line.product.sku ?? '—',
     quantity: Number.parseFloat(line.quantity),
     unitPrice: money(line.product.price.amount, line.product.price.currency),
+    eachLabel: t('pos.cart.each', {
+      price: money(line.product.price.amount, line.product.price.currency)
+    }),
     lineTotal: money(calculation.value?.lines[index]?.totalAmount ?? 0, line.product.price.currency)
   }))
 )
@@ -283,7 +368,7 @@ const checkoutActionLabel = computed(() => {
     return t('pos.checkoutRequiresValidCart')
   }
 
-  return t('pos.payment.proceedToPayment')
+  return t('pos.cart.pay', { amount: money(calculation.value?.grandTotalAmount ?? 0) })
 })
 
 const paymentMethodOptions = computed<DisplayPaymentMethodOption[]>(() =>
@@ -355,6 +440,34 @@ const dueDisplay = computed(() => {
   const outcome = previewOutcome.value
   return outcome?.outcome === 'valid' && outcome.dueAmount > 0
     ? money(outcome.dueAmount)
+    : undefined
+})
+
+/**
+ * The amount the tender field can be pre-filled with: the validated preview's amount due, or — before
+ * any tender is added — the cart's own grand total. Both are values the page already holds; no new
+ * money arithmetic happens here.
+ */
+const fillDueAmount = computed<number | null>(() => {
+  const outcome = previewOutcome.value
+  if (outcome?.outcome === 'valid' && outcome.dueAmount > 0) {
+    return outcome.dueAmount
+  }
+  return paymentRows.value.length === 0 ? (calculation.value?.grandTotalAmount ?? null) : null
+})
+
+function fillDue(): void {
+  if (fillDueAmount.value !== null) {
+    payment.setDraftAmountText(
+      (fillDueAmount.value / 10 ** currencyExponent.value).toFixed(currencyExponent.value)
+    )
+  }
+}
+
+const completedTotal = computed(() => {
+  const outcome = completionOutcome.value
+  return outcome && (outcome.outcome === 'committed' || outcome.outcome === 'acknowledged')
+    ? money(outcome.invoice.grandTotalAmount)
     : undefined
 })
 
@@ -522,9 +635,22 @@ function handleAcknowledgeAttempt(
     ? completionOutcome.value.attemptKey
     : null
 ): void {
-  if (key) {
-    void payment.acknowledgeAttempt(key)
+  if (!key) {
+    return
   }
+  // "New sale" (V3): acknowledging the payment panel's own committed sale ends that sale, so the
+  // panel closes and the cashier is back on the catalog. Acknowledging an unrelated recovery-banner
+  // result leaves whatever the cashier is doing untouched.
+  const outcome = completionOutcome.value
+  const panelOwnsAttempt =
+    paymentPanelOpen.value &&
+    (outcome?.outcome === 'committed' || outcome?.outcome === 'acknowledged') &&
+    outcome.attemptKey === key
+  void payment.acknowledgeAttempt(key).then((result) => {
+    if (panelOwnsAttempt && result.outcome === 'acknowledged') {
+      paymentPanelOpen.value = false
+    }
+  })
 }
 
 function schedulePaymentPreview(): void {
@@ -659,11 +785,15 @@ function stock(product: CatalogProduct): {
     return { level: 'out-of-stock', label: t('pos.outOfStock') }
   }
 
+  const count = formatNumber(quantity, localeStore.locale as LocaleCode, {
+    maximumFractionDigits: 3
+  })
+
   if (quantity <= 5) {
-    return { level: 'low-stock', label: t('pos.lowStock') }
+    return { level: 'low-stock', label: t('pos.stock.lowStockCount', { count }) }
   }
 
-  return { level: 'in-stock', label: t('pos.inStock') }
+  return { level: 'in-stock', label: t('pos.stock.inStockCount', { count }) }
 }
 
 async function addSelectedProduct(uuid: string): Promise<void> {
@@ -677,12 +807,6 @@ async function addSelectedProduct(uuid: string): Promise<void> {
 }
 
 function openDialog(mode: Exclude<DialogMode, null>): void {
-  cashAmount.value =
-    mode === 'close' && currentShift.value?.expectedCashAmount !== null
-      ? String((currentShift.value?.expectedCashAmount ?? 0) / 100)
-      : '0.00'
-  note.value = ''
-  cashError.value = null
   dialogMode.value = mode
 }
 
@@ -761,50 +885,7 @@ function handleInvoiceDiscountKeydown(event: KeyboardEvent): void {
   }
 }
 
-function parseMinorUnits(value: string): number | null {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim())
-
-  if (!match) {
-    return null
-  }
-
-  const amount = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'))
-  return Number.isSafeInteger(amount) && amount <= 2_147_483_647 ? amount : null
-}
-
-async function submitDialog(): Promise<void> {
-  const amount = parseMinorUnits(cashAmount.value)
-  let succeeded = false
-
-  if (dialogMode.value !== 'pause' && amount === null) {
-    cashError.value = t('pos.invalidCash')
-    return
-  }
-
-  if (dialogMode.value === 'open' && amount !== null) {
-    succeeded = await shift.open({ openingCashAmount: amount, notes: note.value || null })
-  } else if (dialogMode.value === 'pause' && activeShiftUuid.value) {
-    // `activeShiftUuid` may come from local authority while the backend is unreachable. The store's
-    // `mutate` still refuses to send any lifecycle change until an authoritative refresh succeeds,
-    // so this surfaces the real transport denial instead of silently doing nothing.
-    succeeded = await shift.pause({
-      uuid: activeShiftUuid.value,
-      reason: note.value || null,
-      notes: null
-    })
-  } else if (dialogMode.value === 'close' && activeShiftUuid.value && amount !== null) {
-    succeeded = await shift.close({
-      uuid: activeShiftUuid.value,
-      actualCashAmount: amount,
-      closeNotes: note.value || null
-    })
-  }
-
-  if (succeeded) {
-    dialogMode.value = null
-  }
-}
-
+/** The paused-shift notice resumes directly, exactly as the shell's shift menu does. */
 async function resumeShift(): Promise<void> {
   if (activeShiftUuid.value) {
     await shift.resume({ uuid: activeShiftUuid.value, resumeNotes: null })
@@ -911,6 +992,7 @@ watch(
       cart.resetDraft('shift-changed')
       payment.resetPayment()
       paymentPanelOpen.value = false
+      cartSheetOpen.value = false
     }
   }
 )
@@ -958,9 +1040,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="pos-page">
+  <section class="pos-page flex min-h-0 flex-1 flex-col">
+    <h1 class="sr-only">{{ t('navigation.pos') }}</h1>
     <SaleRecoveryBanner
-      class="pos-page__recovery-banner"
+      class="pos-page__recovery-banner mx-3 mt-3 wide:mx-4 wide:mt-4"
       :blocking-attempt-key="blockingAttemptKey"
       :blocked-message="t('pos.payment.completion.blocked')"
       :retry-label="t('pos.payment.completion.retry')"
@@ -976,58 +1059,38 @@ onMounted(async () => {
       @acknowledge="handleAcknowledgeAttempt"
     />
 
-    <PosWorkspaceShell>
-      <template #toolbar>
-        <div class="pos-page__heading">
-          <div>
-            <p class="pos-page__eyebrow">{{ t('pos.label') }}</p>
-            <h2>{{ t('pos.title') }}</h2>
-          </div>
-          <div class="pos-page__status-row">
-            <AppStatusChip :variant="catalogStatusVariant">
-              {{ t(`pos.catalogStatus.${catalogStatus}`) }}
-            </AppStatusChip>
-            <span v-if="lastSyncedAt && lastSyncedRelative" class="pos-page__last-synced numeric">
-              {{ t('pos.lastSyncedAt', { relative: lastSyncedRelative, absolute: lastSyncedAt }) }}
-            </span>
-            <AppStatusChip :variant="syncChipVariant">{{ syncChipLabel }}</AppStatusChip>
-            <template v-if="freshness !== 'loading'">
-              <template v-if="freshness === 'error'">
-                <AppStatusChip variant="error">{{ t('pos.shiftUnavailable') }}</AppStatusChip>
-                <AppButton variant="ghost" @click="shift.loadCurrent()">
-                  {{ t('common.retry') }}
-                </AppButton>
-              </template>
-              <ShiftStatusControl
-                v-else
-                :phase="shiftPhase"
-                :phase-label="shiftPhaseLabel"
-                :open-label="t('pos.openShift')"
-                :pause-label="t('pos.pauseShift')"
-                :resume-label="t('pos.resumeShift')"
-                :close-label="t('pos.closeShift')"
-                @open="openDialog('open')"
-                @pause="openDialog('pause')"
-                @resume="resumeShift"
-                @close="openDialog('close')"
-              />
-            </template>
-            <p
-              v-if="currentShift?.status === 'closed' && currentShift.cashDifferenceAmount !== null"
-              class="pos-page__variance numeric"
-            >
-              {{ t('pos.cashVariance') }}:
-              {{ money(currentShift.cashDifferenceAmount) }}
-            </p>
-          </div>
-        </div>
-        <AppInlineError v-if="shiftError">{{ shiftError }}</AppInlineError>
-        <p v-if="freshness === 'cached'" class="pos-page__cart-guard">
-          {{ t('pos.shiftRefreshUnavailable') }}
-        </p>
-        <AppInlineError v-if="freshness === 'unknown'">{{
-          t('pos.shiftUnknownHelp')
-        }}</AppInlineError>
+    <PosWorkspaceShell
+      :sheet-open="cartSheetOpen"
+      :catalog-label="t('pos.catalogLabel')"
+      :cart-label="t('pos.cart.title')"
+    >
+      <template #catalog>
+        <CategorySelector
+          class="wide:hidden"
+          compact
+          :categories="displayCategories"
+          :selected-id="selectedCategoryUuid"
+          :all-label="t('pos.allCategories')"
+          :group-label="t('pos.categoriesLabel')"
+          @select="catalog.selectCategory"
+        />
+        <CategorySelector
+          class="hidden wide:flex"
+          :categories="displayCategories"
+          :selected-id="selectedCategoryUuid"
+          :all-label="t('pos.allCategories')"
+          :group-label="t('pos.categoriesLabel')"
+          @select="catalog.selectCategory"
+        />
+        <ProductSearchBar
+          ref="searchRef"
+          v-model="query"
+          :label="t('pos.search.label')"
+          :placeholder="t('pos.search.placeholder')"
+          :clear-label="t('pos.search.clear')"
+          :disabled="!catalogAvailable"
+          @submit="catalog.search()"
+        />
         <CatalogRefreshPanel
           :pending="catalogRefreshing"
           :stale="catalogStatus === 'stale'"
@@ -1037,149 +1100,389 @@ onMounted(async () => {
           :last-refreshed-label="catalogLastRefreshedLabel"
           :error-message="catalogRefreshError"
           :revision-changed-message="catalogRevisionChangedMessage"
+          :status-label="catalogLine?.label ?? null"
+          :status-tone="catalogLine?.tone ?? 'muted'"
+          :refresh-note="t('pos.catalogLine.refreshNote')"
           @refresh="handleRefreshCatalog"
-        />
-        <ProductSearchBar
-          ref="searchRef"
-          v-model="query"
-          :label="t('pos.searchLabel')"
-          :placeholder="t('pos.searchPlaceholder')"
-          :disabled="!catalogAvailable"
-          @submit="catalog.search()"
-        />
-        <CategorySelector
-          :categories="categories.map((category) => ({ id: category.uuid, label: category.name }))"
-          :selected-id="selectedCategoryUuid"
-          :all-label="t('pos.allCategories')"
-          @select="catalog.selectCategory"
-        />
-        <div class="pos-page__catalog-actions">
-          <AppButton variant="ghost" :disabled="!catalogAvailable" @click="openDialog('customers')">
-            {{ t('pos.browseCustomers') }}
-          </AppButton>
-          <AppButton
-            variant="ghost"
-            :disabled="!catalogAvailable"
-            @click="openDialog('payment-methods')"
-          >
-            {{ t('pos.viewPaymentMethods') }}
-          </AppButton>
-        </div>
-      </template>
+        >
+          <template v-if="cartState.kind === 'invalid' && catalogUsableForDraft" #revision-action>
+            <AppButton variant="secondary" size="sm" @click="prepareCartRebuild">
+              {{ t('pos.notices.reviewRebuild') }}
+            </AppButton>
+          </template>
+        </CatalogRefreshPanel>
 
-      <template #catalog>
-        <BarcodeFeedback v-if="lastBarcode" :outcome="lastBarcode.outcome" :code="lastBarcode.code">
+        <!-- Shift state that limits selling (the lifecycle actions live in the top-bar menu). -->
+        <template v-if="freshness !== 'loading'">
+          <AppBanner
+            v-if="freshness === 'error'"
+            variant="warning"
+            icon="lock_clock"
+            role="alert"
+            :title="t('pos.shiftUnavailable')"
+          >
+            <template #action>
+              <AppButton variant="secondary" size="sm" icon="refresh" @click="shift.loadCurrent()">
+                {{ t('common.retry') }}
+              </AppButton>
+            </template>
+          </AppBanner>
+          <AppBanner
+            v-else-if="freshness === 'unknown'"
+            variant="warning"
+            icon="help"
+            role="alert"
+            :title="t('pos.shiftUnknownHelp')"
+          >
+            <template #action>
+              <AppButton variant="secondary" size="sm" icon="refresh" @click="shift.loadCurrent()">
+                {{ t('shell.shift.refreshStatus') }}
+              </AppButton>
+            </template>
+          </AppBanner>
+          <AppBanner
+            v-else-if="freshness === 'cached'"
+            variant="info"
+            icon="history"
+            :title="t('pos.shiftRefreshUnavailable')"
+          />
+          <AppBanner
+            v-else-if="shiftPhase === 'paused' || shiftPhase === 'resuming'"
+            variant="warning"
+            icon="pause_circle"
+            :title="t('pos.notices.paused')"
+          >
+            <template #action>
+              <AppButton
+                variant="secondary"
+                size="sm"
+                :loading="shiftPhase === 'resuming'"
+                @click="resumeShift"
+              >
+                {{ t('pos.resumeShift') }}
+              </AppButton>
+            </template>
+          </AppBanner>
+          <AppBanner
+            v-else-if="!canSell"
+            variant="info"
+            icon="lock_clock"
+            :title="t('pos.notices.browseOnly')"
+          >
+            <template v-if="shiftPhase === 'closed' || shiftPhase === 'cancelled'" #action>
+              <AppButton variant="secondary" size="sm" @click="shiftDialog.request('open')">
+                {{ t('pos.openShift') }}
+              </AppButton>
+            </template>
+          </AppBanner>
+        </template>
+        <AppInlineError v-if="shiftError">{{ shiftError }}</AppInlineError>
+
+        <BarcodeFeedback
+          v-if="lastBarcode"
+          :outcome="lastBarcode.outcome"
+          :code="lastBarcode.code"
+          :hint="
+            lastBarcode.outcome === 'not-found' ? t('pos.notices.barcodeUnknownHint') : undefined
+          "
+          :dismiss-label="t('pos.notices.dismiss')"
+          @dismiss="lastBarcode = null"
+        >
           {{ t(`pos.barcode.${lastBarcode.outcome}`) }}
         </BarcodeFeedback>
         <AppInlineError v-if="catalogError">{{ catalogError }}</AppInlineError>
         <AppInlineError v-if="bootstrapError">{{ bootstrapError }}</AppInlineError>
-        <AppLoadingSkeleton v-if="catalogLoading" :label="t('pos.loadingCatalog')" :lines="6" />
-        <AppEmptyState
-          v-else-if="!catalogAvailable"
-          :title="t('pos.catalogUnavailableTitle')"
-          :description="t('pos.catalogUnavailableDescription')"
+
+        <div class="min-h-0 flex-1 overflow-auto p-0.5">
+          <AppLoadingSkeleton v-if="catalogLoading" :label="t('pos.loadingCatalog')" :lines="6" />
+          <AppEmptyState
+            v-else-if="!catalogAvailable"
+            icon="gpp_bad"
+            :title="t('pos.catalogUnavailableTitle')"
+            :description="t('pos.catalogUnavailableDescription')"
+          >
+            <template #action>
+              <AppButton
+                variant="secondary"
+                icon="refresh"
+                :loading="isRefreshingCatalog"
+                @click="refreshCatalog"
+              >
+                {{ t('pos.refreshCatalog') }}
+              </AppButton>
+            </template>
+          </AppEmptyState>
+          <AppEmptyState
+            v-else-if="products.length === 0"
+            icon="search_off"
+            :title="t('pos.noProducts')"
+            :description="t('pos.noProductsDescription')"
+          >
+            <template v-if="query" #action>
+              <AppButton variant="secondary" @click="clearSearch">{{
+                t('pos.search.clear')
+              }}</AppButton>
+            </template>
+          </AppEmptyState>
+          <div
+            v-else
+            class="pos-page__product-grid grid grid-cols-2 gap-3 wide:grid-cols-[repeat(auto-fill,minmax(176px,1fr))]"
+          >
+            <ProductCard
+              v-for="product in products"
+              :key="product.uuid"
+              :product="displayProduct(product)"
+              :stock-label="stock(product).label"
+              :disabled="!canSell || !catalogUsableForDraft"
+              @select="addSelectedProduct(product.uuid)"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="catalogAvailable && catalogTotal > 0"
+          class="pos-page__pagination flex flex-none flex-wrap items-center gap-2.5 border-t border-line pt-3"
         >
-          <template #action>
-            <AppButton variant="secondary" :loading="isRefreshingCatalog" @click="refreshCatalog">
-              {{ t('pos.refreshCatalog') }}
-            </AppButton>
-          </template>
-        </AppEmptyState>
-        <AppEmptyState
-          v-else-if="products.length === 0"
-          :title="t('pos.noProducts')"
-          :description="t('pos.noProductsDescription')"
-        />
-        <div v-else class="pos-page__product-grid">
-          <ProductCard
-            v-for="product in products"
-            :key="product.uuid"
-            :product="{
-              id: product.uuid,
-              name: product.name,
-              sku: product.sku ?? '—',
-              price: money(product.price.amount, product.price.currency),
-              stock: stock(product).level,
-              categoryId: product.categoryUuid
-            }"
-            :stock-label="stock(product).label"
-            :disabled="!canSell || !catalogUsableForDraft"
-            @select="addSelectedProduct(product.uuid)"
+          <AppSelect
+            :model-value="String(catalogPageSize)"
+            :label="t('pos.pagination.perPage')"
+            :options="pageSizeOptions"
+            size="sm"
+            inline
+            @update:model-value="changePageSize"
           />
+          <div class="flex-1" />
+          <span class="numeric text-sm">{{ paginationRange }}</span>
+          <div class="flex gap-1">
+            <AppIconButton
+              variant="outline"
+              icon="first_page"
+              mirror-icon
+              :label="t('pos.pagination.first')"
+              :disabled="catalogPage === 0 || catalogLoading"
+              @click="catalog.goToPage(0)"
+            />
+            <AppIconButton
+              variant="outline"
+              icon="chevron_left"
+              mirror-icon
+              :label="t('pos.pagination.previous')"
+              :disabled="catalogPage === 0 || catalogLoading"
+              @click="catalog.goToPage(catalogPage - 1)"
+            />
+            <AppIconButton
+              variant="outline"
+              icon="chevron_right"
+              mirror-icon
+              :label="t('pos.pagination.next')"
+              :disabled="catalogPage >= catalogPageCount - 1 || catalogLoading"
+              @click="catalog.goToPage(catalogPage + 1)"
+            />
+            <AppIconButton
+              variant="outline"
+              icon="last_page"
+              mirror-icon
+              :label="t('pos.pagination.last')"
+              :disabled="catalogPage >= catalogPageCount - 1 || catalogLoading"
+              @click="catalog.goToPage(catalogPageCount - 1)"
+            />
+          </div>
         </div>
       </template>
 
       <template #cart>
-        <div class="pos-page__cart-spine">
-          <div class="pos-page__cart-heading">
-            <div>
-              <p class="pos-page__eyebrow">{{ t('pos.currentSale') }}</p>
-              <h3>{{ t('pos.cartTitle') }}</h3>
-            </div>
-            <AppButton variant="ghost" :disabled="lines.length === 0" @click="cart.clear">
-              {{ t('pos.clearCart') }}
+        <div class="pos-page__cart-spine flex min-h-0 flex-1 flex-col">
+          <div class="flex flex-none items-center gap-2.5 px-4 pt-4 pb-3">
+            <AppIconButton
+              v-if="cartSheetOpen"
+              variant="outline"
+              icon="close"
+              :label="t('pos.cart.closeCart')"
+              @click="cartSheetOpen = false"
+            />
+            <h2 class="text-2xl font-bold">{{ t('pos.cart.title') }}</h2>
+            <span
+              class="numeric flex min-h-6.5 items-center rounded-full bg-pri-soft px-2.5 py-0.5 text-xs font-semibold text-pri-text"
+              >{{ cartItemsLabel }}</span
+            >
+            <div class="flex-1" />
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="lines.length === 0"
+              @click="clearConfirmOpen = true"
+            >
+              {{ t('pos.cart.clear') }}
             </AppButton>
           </div>
-          <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
-          <p v-if="!canSell" class="pos-page__cart-guard">{{ t('pos.openShiftToSell') }}</p>
-          <p v-if="cartState.kind === 'invalid'" class="pos-page__cart-guard">
-            {{ t('pos.cartRequiresResolution') }}
-          </p>
+
           <div
-            v-if="cartState.kind === 'invalid' && catalogUsableForDraft"
-            class="pos-page__rebuild-action"
+            class="mx-4 flex flex-none flex-wrap items-center gap-2.5 rounded-notice border border-line px-3 py-2.5"
           >
-            <AppButton variant="secondary" @click="prepareCartRebuild">
-              {{ t('pos.rebuildCart') }}
+            <AppIcon name="person" :size="20" class="text-muted" />
+            <p class="min-w-0 flex-1 text-sm leading-[1.35]">
+              <span class="whitespace-nowrap text-muted">{{ t('pos.cart.customer') }}: </span>
+              <span class="font-semibold">{{ selectedCustomerName }}</span>
+            </p>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              class="px-1.5 text-pri-text"
+              :disabled="!catalogAvailable"
+              @click="openCustomerDialog"
+            >
+              {{ selectedCustomerUuid ? t('pos.cart.change') : t('pos.cart.choose') }}
             </AppButton>
           </div>
+
+          <div class="flex flex-none flex-col gap-2 px-4 pt-2 empty:hidden">
+            <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
+            <p v-if="!canSell && lines.length > 0" class="pos-page__cart-guard text-sm text-muted">
+              {{ t('pos.openShiftToSell') }}
+            </p>
+            <AppBanner
+              v-if="cartState.kind === 'invalid'"
+              variant="warning"
+              icon="published_with_changes"
+            >
+              {{ t('pos.cartRequiresResolution') }}
+              <template v-if="catalogUsableForDraft" #action>
+                <AppButton variant="secondary" size="sm" @click="prepareCartRebuild">
+                  {{ t('pos.rebuildCart') }}
+                </AppButton>
+              </template>
+            </AppBanner>
+            <AppInlineError v-if="rebuildError && dialogMode !== 'rebuild'">{{
+              rebuildError
+            }}</AppInlineError>
+          </div>
+
+          <div
+            class="mx-4 grid flex-none grid-cols-[minmax(0,1fr)_7rem_minmax(84px,auto)] gap-2.5 border-b border-line pt-3 pb-1.5 text-xs font-semibold text-muted"
+            aria-hidden="true"
+          >
+            <span>{{ t('pos.cart.colItem') }}</span>
+            <span class="text-center">{{ t('pos.cart.colQty') }}</span>
+            <span class="text-end">{{ t('pos.cart.colAmount') }}</span>
+          </div>
+
           <CartPanel
             :lines="cartDisplayLines"
             :empty-title="t('pos.emptyCart')"
-            :empty-description="t('pos.emptyCartDescription')"
+            :empty-description="
+              shiftPhase === 'paused'
+                ? t('pos.notices.paused')
+                : !canSell
+                  ? t('pos.openShiftToSell')
+                  : t('pos.cart.emptyBody')
+            "
+            :empty-icon="
+              shiftPhase === 'paused' ? 'pause_circle' : !canSell ? 'lock_clock' : 'shopping_cart'
+            "
           >
             <CartLineItem
               v-for="line in cartDisplayLines"
               :key="line.id"
               :line="line"
-              :decrease-label="t('pos.decreaseQuantity')"
-              :increase-label="t('pos.increaseQuantity')"
-              :remove-label="t('pos.removeLine')"
+              :decrease-label="t('pos.cart.decreaseOf', { name: line.name })"
+              :increase-label="t('pos.cart.increaseOf', { name: line.name })"
+              :remove-label="t('pos.cart.removeOf', { name: line.name })"
+              :quantity-label="t('pos.cart.quantityOf', { name: line.name })"
               :disabled="!canEdit"
               @decrease="cart.decrementQuantity(line.id)"
               @increase="cart.incrementQuantity(line.id)"
               @remove="cart.remove(line.id)"
             />
             <template #footer>
-              <AppButton
-                variant="ghost"
-                :disabled="lines.length === 0 || !canEdit"
-                @click="openInvoiceDiscountDialog"
-              >
-                {{ t('pos.discount') }}
-              </AppButton>
               <OrderTotals
+                class="mx-4 mt-3"
+                framed
                 :subtotal-label="t('pos.subtotal')"
                 :subtotal="money(calculation?.subtotalAmount ?? 0)"
-                :discount-label="t('pos.discount')"
-                :discount="money(calculation?.discountTotalAmount ?? 0)"
+                :discount-label="
+                  invoiceDiscountType === 'percentage'
+                    ? t('pos.cart.discountPercent', {
+                        rate: formatNumber(
+                          invoiceDiscountValue / 100,
+                          localeStore.locale as LocaleCode,
+                          {
+                            maximumFractionDigits: 2
+                          }
+                        )
+                      })
+                    : t('pos.discount')
+                "
+                :discount="
+                  (calculation?.discountTotalAmount ?? 0) > 0
+                    ? money(calculation?.discountTotalAmount ?? 0)
+                    : undefined
+                "
                 :tax-label="t('pos.tax')"
                 :tax="money(calculation?.taxTotalAmount ?? 0)"
-                :total-label="t('pos.total')"
+                :total-label="t('pos.cart.totalDue')"
                 :total="money(calculation?.grandTotalAmount ?? 0)"
-              />
-              <AppButton
-                class="pos-page__future-action"
-                variant="transaction"
-                full-width
-                :disabled="!canOpenPaymentPanel"
-                :aria-disabled="!canOpenPaymentPanel ? 'true' : undefined"
-                @click="openPaymentPanel"
               >
-                {{ checkoutActionLabel }}
-              </AppButton>
+                <template #discount-action>
+                  <button
+                    type="button"
+                    class="flex items-center gap-1 py-1 text-sm font-semibold text-pri-text disabled:cursor-not-allowed disabled:text-muted"
+                    :disabled="lines.length === 0 || !canEdit"
+                    @click="openInvoiceDiscountDialog"
+                  >
+                    <AppIcon
+                      v-if="(calculation?.discountTotalAmount ?? 0) === 0"
+                      name="sell"
+                      :size="18"
+                    />
+                    {{
+                      (calculation?.discountTotalAmount ?? 0) > 0
+                        ? t('pos.cart.editDiscount')
+                        : t('pos.cart.addDiscount')
+                    }}
+                  </button>
+                </template>
+              </OrderTotals>
+              <div class="flex-none px-4 pt-3 pb-3.5">
+                <AppButton
+                  class="pos-page__future-action"
+                  variant="transaction"
+                  full-width
+                  :disabled="!canOpenPaymentPanel"
+                  :aria-disabled="!canOpenPaymentPanel ? 'true' : undefined"
+                  :icon-end="canOpenPaymentPanel ? 'arrow_forward' : undefined"
+                  mirror-icon
+                  @click="openPaymentPanel"
+                >
+                  {{ checkoutActionLabel }}
+                </AppButton>
+                <p class="mt-2 text-center text-xs text-muted">{{ t('pos.cart.shortcutsHint') }}</p>
+              </div>
             </template>
           </CartPanel>
+        </div>
+      </template>
+
+      <template #compact-bar>
+        <div class="flex items-center gap-2.5 border-t border-line bg-surf px-3 py-2.5">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-semibold">
+              {{ t('pos.cart.title') }} · {{ cartItemsLabel }}
+            </div>
+            <div class="numeric text-[1.125rem] font-extrabold">
+              {{ money(calculation?.grandTotalAmount ?? 0) }}
+            </div>
+          </div>
+          <AppButton variant="secondary" size="lg" @click="cartSheetOpen = true">
+            {{ t('pos.cart.viewCart') }}
+          </AppButton>
+          <AppButton
+            variant="primary"
+            size="lg"
+            :disabled="!canOpenPaymentPanel"
+            @click="openPaymentPanel"
+          >
+            {{ t('pos.cart.payShort') }}
+          </AppButton>
         </div>
       </template>
     </PosWorkspaceShell>
@@ -1187,21 +1490,31 @@ onMounted(async () => {
     <PaymentPanel
       :open="paymentPanelOpen"
       :title="t('pos.payment.title')"
-      :status-chip-label="t('pos.payment.statusChip')"
+      :status-chip-label="t('pos.tender.statusChip')"
+      :close-label="t('common.close')"
       :subtotal-label="t('pos.subtotal')"
       :subtotal="money(calculation?.subtotalAmount ?? 0)"
       :discount-label="t('pos.discount')"
-      :discount="money(calculation?.discountTotalAmount ?? 0)"
+      :discount="
+        (calculation?.discountTotalAmount ?? 0) > 0
+          ? money(calculation?.discountTotalAmount ?? 0)
+          : undefined
+      "
       :tax-label="t('pos.tax')"
       :tax="money(calculation?.taxTotalAmount ?? 0)"
-      :total-label="t('pos.total')"
+      :total-label="t('pos.cart.totalDue')"
       :total="money(calculation?.grandTotalAmount ?? 0)"
       :method-options="paymentMethodOptions"
+      :methods-label="t('pos.tender.methodsLabel')"
       :no-methods-title="t('pos.payment.noMethodsTitle')"
       :no-methods-description="t('pos.payment.noMethodsDescription')"
       :rows="paymentDisplayRows"
+      :rows-title="t('pos.tender.rowsTitle')"
+      :rows-limit-note="t('pos.tender.rowsLimit')"
+      :no-rows-label="t('pos.tender.noRows')"
       :edit-row-label="t('pos.payment.editRow')"
       :remove-row-label="t('pos.payment.removeRow')"
+      :remove-row-text="t('pos.tender.remove')"
       :is-editing-draft="isEditingDraft"
       :draft-method-label="activeMethod?.name"
       :draft-amount-label="t('pos.payment.amount')"
@@ -1210,8 +1523,11 @@ onMounted(async () => {
       :draft-reference-label="t('pos.payment.reference')"
       :draft-reference="draftReferenceText"
       :requires-reference="activeMethod?.requiresReference ?? false"
+      :currency-label="activeCurrency"
+      :fill-due-label="fillDueAmount !== null ? t('pos.tender.fillDue') : undefined"
+      :enter-hint="t('pos.tender.enterHint')"
       :cancel-draft-label="t('common.cancel')"
-      :commit-draft-label="t('pos.payment.addTender')"
+      :commit-draft-label="t('pos.tender.addPayment')"
       :paid-total-label="t('pos.payment.tendered')"
       :paid-total="paidTotalDisplay"
       :change-due-label="changeDueDisplay ? t('pos.payment.changeDue') : undefined"
@@ -1226,15 +1542,20 @@ onMounted(async () => {
       :completion-enabled="completionEnabled"
       :completion-pending="completionPending"
       :completion-pending-label="t('pos.payment.completion.pending')"
+      :completing-body="t('pos.tender.completingBody')"
       :completion-message="completionMessage"
       :completion-is-error="completionIsError"
       :completion-refresh-available="completionRefreshAvailable"
       :completion-refresh-pending="catalogRefreshing"
       :refresh-workstation-label="t('pos.catalogRefresh.action')"
       :recovery-state="paymentPanelRecoveryState"
-      :retry-label="t('pos.payment.completion.retry')"
-      :abandon-label="t('pos.payment.completion.abandon')"
-      :acknowledge-label="t('pos.payment.completion.acknowledge')"
+      :completed-title="t('pos.tender.completedTitle')"
+      :completed-total="completedTotal"
+      :completed-note="t('pos.tender.savedLocal')"
+      :failed-title="t('pos.tender.failedTitle')"
+      :retry-label="t('pos.tender.retrySale')"
+      :abandon-label="t('pos.tender.abandonSale')"
+      :acknowledge-label="t('pos.tender.newSale')"
       :abandon-warning="t('pos.payment.completion.abandonWarning')"
       :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
       :cancel-confirm-label="t('common.cancel')"
@@ -1247,6 +1568,7 @@ onMounted(async () => {
       @update:draft-reference="payment.setDraftReferenceText"
       @commit-draft="commitPaymentDraft"
       @cancel-draft="payment.cancelDraftRow"
+      @fill-due="fillDue"
       @complete="handleComplete"
       @refresh-workstation="handleRefreshCatalog"
       @retry="handleRetryAttempt"
@@ -1255,7 +1577,14 @@ onMounted(async () => {
       @print="handlePrintReceipt"
     >
       <template #actions>
-        <AppButton variant="ghost" @click="closePaymentPanel">{{ t('common.close') }}</AppButton>
+        <AppButton
+          variant="ghost"
+          size="lg"
+          :disabled="completionPending"
+          @click="closePaymentPanel"
+        >
+          {{ t('common.close') }}
+        </AppButton>
       </template>
     </PaymentPanel>
 
@@ -1265,31 +1594,55 @@ onMounted(async () => {
       @close="closeReceiptDialog"
     />
 
-    <AppDialog :open="dialogMode !== null" @close="dialogMode = null">
+    <AppConfirmDialog
+      :open="clearConfirmOpen"
+      :title="t('pos.clearDialog.title')"
+      :message="
+        invoiceDiscountType
+          ? t('pos.clearDialog.bodyWithDiscount', { count: cartItemsLabel })
+          : t('pos.clearDialog.body', { count: cartItemsLabel })
+      "
+      :confirm-label="t('pos.cart.clear')"
+      :cancel-label="t('common.cancel')"
+      @confirm="confirmClearCart"
+      @cancel="clearConfirmOpen = false"
+    />
+
+    <AppDialog
+      :open="dialogMode !== null"
+      :size="dialogMode === 'rebuild' ? 'lg' : dialogMode === 'customers' ? 'md' : 'sm'"
+      :close-label="t('common.close')"
+      @close="dialogMode = null"
+    >
       <template #title>
         {{
-          dialogMode === null
-            ? ''
-            : dialogMode === 'help'
-              ? t('pos.shortcutsTitle')
-              : dialogMode === 'customers'
-                ? t('pos.customersTitle')
-                : dialogMode === 'payment-methods'
-                  ? t('pos.paymentMethodsTitle')
-                  : t(`pos.dialog.${dialogMode}`)
+          dialogMode === 'help'
+            ? t('pos.shortcutsTitle')
+            : dialogMode === 'customers'
+              ? t('pos.customerDialog.title')
+              : dialogMode
+                ? t(`pos.dialog.${dialogMode}`)
+                : ''
         }}
       </template>
       <template v-if="dialogMode === 'help'">
-        <dl class="pos-page__shortcuts">
-          <div>
-            <dt class="numeric">F1</dt>
+        <dl class="pos-page__shortcuts flex flex-col">
+          <div class="flex items-center gap-3.5 border-b border-line py-2.5">
+            <dt><AppKbd class="min-w-14">F1</AppKbd></dt>
             <dd>{{ t('pos.shortcutHelp') }}</dd>
           </div>
-          <div>
-            <dt class="numeric">F2</dt>
+          <div class="flex items-center gap-3.5 border-b border-line py-2.5">
+            <dt><AppKbd class="min-w-14">F2</AppKbd></dt>
             <dd>{{ t('pos.shortcutSearch') }}</dd>
           </div>
+          <div class="flex items-center gap-3.5 border-b border-line py-2.5">
+            <dt><AppKbd class="min-w-14">Esc</AppKbd></dt>
+            <dd>{{ t('pos.shortcuts.esc') }}</dd>
+          </div>
         </dl>
+        <AppBanner variant="info" icon="barcode_scanner" role="note">
+          {{ t('pos.shortcuts.scanner') }}
+        </AppBanner>
       </template>
       <template v-else-if="dialogMode === 'customers'">
         <CustomerSelector
@@ -1304,6 +1657,9 @@ onMounted(async () => {
           :selected-id="selectedCustomerUuid"
           :search-label="t('pos.customerSearchLabel')"
           :empty-title="t('pos.noCustomers')"
+          :empty-description="t('pos.customerDialog.noneBody')"
+          :count-label="t('pos.customerDialog.matches', { count: customers.length })"
+          :selected-label="t('pos.customerDialog.selected')"
           @select="
             (uuid) => {
               catalog.selectCustomer(uuid)
@@ -1312,46 +1668,66 @@ onMounted(async () => {
           "
         />
       </template>
-      <template v-else-if="dialogMode === 'payment-methods'">
-        <p class="pos-page__read-only-note">{{ t('pos.paymentMethodsReadOnly') }}</p>
-        <div class="pos-page__payment-methods">
-          <PaymentMethodTile
-            v-for="method in paymentMethods"
-            :key="method.uuid"
-            :method="{ id: method.uuid, kind: paymentMethodKind(method.type), label: method.name }"
-            disabled
-          />
-        </div>
-        <AppEmptyState
-          v-if="paymentMethods.length === 0"
-          :title="t('pos.noPaymentMethods')"
-          :description="t('pos.paymentMethodsReadOnly')"
-        />
-      </template>
       <template v-else-if="dialogMode === 'rebuild'">
-        <p class="pos-page__read-only-note">{{ t('pos.rebuildDescription') }}</p>
+        <p class="text-muted">{{ t('pos.rebuildDescription') }}</p>
         <AppInlineError v-if="rebuildError">{{ rebuildError }}</AppInlineError>
-        <dl v-if="rebuildPreviewRows.length > 0" class="pos-page__rebuild-preview">
-          <div v-for="row in rebuildPreviewRows" :key="row.id">
-            <dt>{{ row.name }}</dt>
-            <dd class="numeric">
-              {{ row.oldPrice }} → {{ row.newPrice }}
-              <span v-if="row.taxChanged"> · {{ t('pos.rebuildTaxChanged') }}</span>
-            </dd>
+        <div
+          v-if="rebuildPreviewRows.length > 0"
+          class="pos-page__rebuild-preview overflow-hidden rounded-notice border border-line"
+          role="table"
+        >
+          <div
+            role="row"
+            class="grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.2fr)] gap-2.5 bg-subtle px-3.5 py-2.5 text-xs font-semibold text-muted"
+          >
+            <span role="columnheader">{{ t('pos.rebuildTable.product') }}</span>
+            <span role="columnheader">{{ t('pos.rebuildTable.was') }}</span>
+            <span role="columnheader">{{ t('pos.rebuildTable.now') }}</span>
           </div>
-        </dl>
-        <p v-else class="pos-page__read-only-note">{{ t('pos.rebuildNoChanges') }}</p>
+          <div
+            v-for="row in rebuildPreviewRows"
+            :key="row.id"
+            role="row"
+            class="numeric grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.2fr)] items-center gap-2.5 border-t border-line px-3.5 py-3 text-sm"
+          >
+            <span role="cell" class="font-medium">{{ row.name }}</span>
+            <span role="cell">{{ row.oldPrice }}</span>
+            <span
+              role="cell"
+              class="flex flex-wrap items-center gap-1.5 font-semibold"
+              :class="row.oldPrice === row.newPrice && !row.taxChanged ? 'text-ok' : 'text-warn'"
+            >
+              <AppIcon
+                :name="
+                  row.oldPrice === row.newPrice && !row.taxChanged
+                    ? 'check'
+                    : 'published_with_changes'
+                "
+                :size="18"
+              />
+              {{ row.oldPrice === row.newPrice ? t('pos.rebuildTable.same') : row.newPrice }}
+              <span v-if="row.taxChanged">· {{ t('pos.rebuildTaxChanged') }}</span>
+            </span>
+          </div>
+        </div>
+        <p v-else class="text-muted">{{ t('pos.rebuildNoChanges') }}</p>
       </template>
       <template v-else-if="dialogMode === 'discount'">
-        <AppSelect
-          v-model="invoiceDiscountSelection"
+        <AppSegmented
+          :model-value="invoiceDiscountSelection"
           :label="t('pos.discountType')"
+          :columns="3"
           :options="[
             { value: 'none', label: t('pos.discountNone') },
             { value: 'fixed', label: t('pos.discountFixed') },
             { value: 'percentage', label: t('pos.discountPercentage') }
           ]"
-          @update:model-value="invoiceDiscountError = null"
+          @update:model-value="
+            (value) => {
+              invoiceDiscountSelection = value
+              invoiceDiscountError = null
+            }
+          "
         />
         <AppInput
           v-if="invoiceDiscountSelection !== 'none'"
@@ -1361,190 +1737,32 @@ onMounted(async () => {
               ? t('pos.discountAmount')
               : t('pos.discountPercent')
           "
+          :prefix="invoiceDiscountSelection === 'fixed' ? activeCurrency : '%'"
+          inputmode="decimal"
+          size="lg"
+          autofocus
           :error="invoiceDiscountError ?? undefined"
           @blur="applyInvoiceDiscount"
           @keydown="handleInvoiceDiscountKeydown"
         />
       </template>
-      <template v-else>
-        <AppInput
-          v-if="dialogMode !== 'pause'"
-          v-model="cashAmount"
-          :label="dialogMode === 'open' ? t('pos.openingCash') : t('pos.actualCash')"
-          :error="cashError ?? undefined"
-        />
-        <AppInput v-model="note" :label="t('pos.notes')" />
-      </template>
-      <template #actions>
+      <template v-if="dialogMode === 'customers'" #actions>
+        <AppButton variant="secondary" class="me-auto" @click="useWalkInCustomer">
+          {{ t('pos.customerDialog.useWalkIn') }}
+        </AppButton>
         <AppButton variant="ghost" @click="dialogMode = null">{{ t('common.cancel') }}</AppButton>
+      </template>
+      <template v-else-if="dialogMode === 'rebuild' || dialogMode === 'discount'" #actions>
+        <AppButton variant="secondary" @click="dialogMode = null">{{
+          t('common.cancel')
+        }}</AppButton>
         <AppButton
-          v-if="
-            dialogMode !== 'help' && dialogMode !== 'customers' && dialogMode !== 'payment-methods'
-          "
-          variant="secondary"
-          :loading="dialogMode === 'rebuild' ? false : mutation !== null"
-          @click="
-            dialogMode === 'rebuild'
-              ? confirmCartRebuild()
-              : dialogMode === 'discount'
-                ? commitInvoiceDiscount()
-                : submitDialog()
-          "
+          variant="primary"
+          @click="dialogMode === 'rebuild' ? confirmCartRebuild() : commitInvoiceDiscount()"
         >
-          {{
-            dialogMode === 'rebuild'
-              ? t('pos.rebuildCart')
-              : dialogMode === 'discount'
-                ? t('pos.applyDiscount')
-                : t('common.confirm')
-          }}
+          {{ dialogMode === 'rebuild' ? t('pos.rebuildCart') : t('pos.applyDiscount') }}
         </AppButton>
       </template>
     </AppDialog>
   </section>
 </template>
-
-<style scoped>
-.pos-page {
-  block-size: calc(100vh - 11rem);
-  min-block-size: 34rem;
-}
-
-.pos-page__recovery-banner {
-  margin-block-end: var(--space-3);
-}
-
-.pos-page__heading,
-.pos-page__status-row,
-.pos-page__cart-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.pos-page__catalog-actions,
-.pos-page__payment-methods {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.pos-page__payment-methods {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-}
-
-.pos-page__last-synced,
-.pos-page__read-only-note {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-}
-
-.pos-page__heading h2 {
-  font-size: var(--text-display-md-size);
-  line-height: var(--text-display-md-line);
-}
-
-.pos-page__eyebrow {
-  color: var(--color-text-muted);
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--text-label-caps-weight);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-}
-
-html[dir='rtl'] .pos-page__eyebrow {
-  text-transform: none;
-}
-
-.pos-page__product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: var(--space-3);
-  padding-block-end: var(--space-4);
-}
-
-.pos-page__cart-spine {
-  display: flex;
-  flex-direction: column;
-  block-size: 100%;
-  min-block-size: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-outline-variant);
-  border-inline-start: 4px solid var(--color-transaction-accent);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-container-lowest);
-}
-
-.pos-page__cart-heading {
-  padding: var(--space-4);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-.pos-page__cart-heading h3 {
-  font-size: var(--text-headline-sm-size);
-}
-
-.pos-page__cart-guard {
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-warning-container);
-  color: var(--color-on-warning-container);
-  font-size: var(--text-body-sm-size);
-  font-weight: 600;
-}
-
-.pos-page__variance {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-  font-weight: 600;
-}
-
-.pos-page__future-action {
-  margin-block-start: var(--space-4);
-}
-
-.pos-page__rebuild-action {
-  padding: var(--space-3) var(--space-4);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-.pos-page__rebuild-preview {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.pos-page__rebuild-preview div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding-block: var(--space-2);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-.pos-page__rebuild-preview dt {
-  color: var(--color-on-surface);
-  font-weight: 600;
-}
-
-.pos-page__shortcuts {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.pos-page__shortcuts div {
-  display: grid;
-  grid-template-columns: 3rem 1fr;
-  gap: var(--space-3);
-  padding-block: var(--space-2);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-@media (max-width: 1200px) {
-  .pos-page {
-    block-size: auto;
-    min-block-size: 38rem;
-  }
-}
-</style>

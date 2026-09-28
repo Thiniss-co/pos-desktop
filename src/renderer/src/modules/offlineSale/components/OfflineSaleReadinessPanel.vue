@@ -5,7 +5,11 @@ import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '@renderer/shared/utils/format'
 import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
 import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
+import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
+import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingSkeleton.vue'
+import AppPanel from '@renderer/shared/components/common/AppPanel.vue'
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
 import { useOfflineSaleStore } from '../store'
 
@@ -30,8 +34,22 @@ import { useOfflineSaleStore } from '../store'
 
 const offlineSale = useOfflineSaleStore()
 const locale = useLocaleStore()
-const { error, readiness } = storeToRefs(offlineSale)
-const { t } = useI18n()
+const { error, isLoading, readiness } = storeToRefs(offlineSale)
+const { t, te } = useI18n()
+
+/**
+ * Categorical blocks arrive as stable main-process tokens. An unrecognized one falls back to a
+ * generic message rather than being printed raw — internal vocabulary is not operator-facing copy.
+ */
+const blockLabels = computed<string>(() =>
+  (readiness.value?.categoricalBlocks ?? [])
+    .map((token) => {
+      const key = `offlineSale.categoricalBlock.${token}`
+
+      return te(key) ? t(key) : t('offlineSale.categoricalBlock.unknown')
+    })
+    .join(t('common.listSeparator'))
+)
 
 onMounted(() => {
   void offlineSale.refresh()
@@ -84,128 +102,111 @@ const pendingLabel = computed<string>(() => {
 </script>
 
 <template>
-  <section v-if="readiness" class="offline-sale-readiness" :aria-label="t('offlineSale.title')">
-    <header class="offline-sale-readiness__header">
-      <h2 class="offline-sale-readiness__title">{{ t('offlineSale.title') }}</h2>
-      <AppStatusChip :tone="readiness.canSellWithoutQuota ? 'success' : 'neutral'">
-        {{
-          readiness.mode === 'physical_presence'
-            ? t('offlineSale.modePhysicalPresence')
-            : t('offlineSale.modeLegacy')
-        }}
-      </AppStatusChip>
-    </header>
+  <AppPanel v-if="readiness" class="offline-sale-readiness" :aria-label="t('offlineSale.title')">
+    <template #header>
+      <div class="flex flex-1 flex-wrap items-center gap-2">
+        <AppIcon name="cloud_off" :size="22" class="text-pri-text" />
+        <h2 class="offline-sale-readiness__title flex-1 text-lg font-bold">
+          {{ t('offlineSale.title') }}
+        </h2>
+        <AppStatusChip
+          :variant="readiness.canSellWithoutQuota ? 'success' : 'neutral'"
+          :icon="readiness.canSellWithoutQuota ? 'check_circle' : 'inventory_2'"
+        >
+          {{
+            readiness.mode === 'physical_presence'
+              ? t('offlineSale.modePhysicalPresence')
+              : t('offlineSale.modeLegacy')
+          }}
+        </AppStatusChip>
+      </div>
+    </template>
 
-    <p class="offline-sale-readiness__mode">
+    <p class="offline-sale-readiness__mode text-sm">
       {{ readiness.canSellWithoutQuota ? t('offlineSale.canSell') : t('offlineSale.cannotSell') }}
     </p>
 
     <!-- No stock preparation is required in this mode, stated rather than merely implied by the
          absence of a "prepare" button. -->
-    <p v-if="readiness.mode === 'physical_presence'" class="offline-sale-readiness__note">
+    <p
+      v-if="readiness.mode === 'physical_presence'"
+      class="offline-sale-readiness__note text-sm text-muted"
+    >
       {{ t('offlineSale.noPreparationNeeded') }}
     </p>
 
     <!-- Time. A countdown is shown only when trusted time is available: inventing one from the wall
          clock would let a rolled-back clock display a window that does not exist. -->
-    <AppBanner v-if="readiness.clockUntrusted" tone="warning">
+    <AppBanner v-if="readiness.clockUntrusted" variant="warning" role="note">
       {{ t('offlineSale.clockUntrusted') }}
     </AppBanner>
-    <template v-else-if="remainingLabel">
-      <p class="offline-sale-readiness__remaining">{{ remainingLabel }}</p>
-      <p v-if="limitingReasonLabel" class="offline-sale-readiness__limit">
+    <div v-else-if="remainingLabel" class="flex flex-col gap-1">
+      <p class="offline-sale-readiness__remaining text-2xl font-extrabold numeric">
+        {{ remainingLabel }}
+      </p>
+      <p v-if="limitingReasonLabel" class="offline-sale-readiness__limit text-sm text-muted">
         {{ limitingReasonLabel }}
       </p>
-    </template>
+    </div>
 
     <!-- Categorical blocks: no countdown, their own reason. -->
-    <AppBanner v-if="readiness.categoricalBlocks.length > 0" tone="danger">
-      {{ t('offlineSale.blockedBy', { reasons: readiness.categoricalBlocks.join(', ') }) }}
+    <AppBanner
+      v-if="readiness.categoricalBlocks.length > 0"
+      variant="error"
+      role="status"
+      icon="block"
+    >
+      {{ t('offlineSale.blockedBy', { reasons: blockLabels }) }}
     </AppBanner>
 
-    <dl class="offline-sale-readiness__sync">
-      <div>
-        <dt>{{ t('offlineSale.pendingUploads', { count: 0 }) }}</dt>
-        <dd>{{ pendingLabel }}</dd>
-      </div>
-      <div>
-        <dd>{{ lastSyncLabel }}</dd>
-      </div>
-    </dl>
+    <ul class="offline-sale-readiness__sync flex flex-col gap-1.5 text-sm text-muted">
+      <li class="flex items-center gap-2">
+        <AppIcon
+          :name="readiness.pendingUploadCount === 0 ? 'cloud_done' : 'cloud_upload'"
+          :size="18"
+          :class="readiness.pendingUploadCount === 0 ? 'text-ok' : 'text-info'"
+        />
+        <span class="numeric">{{ pendingLabel }}</span>
+      </li>
+      <li class="flex items-center gap-2">
+        <AppIcon name="history" :size="18" />
+        <span class="numeric">{{ lastSyncLabel }}</span>
+      </li>
+    </ul>
 
     <!-- Advisory only. Tone is deliberately `info`, not `warning`: this does not stop a sale, and a
          danger-coloured banner would train cashiers to treat it as a refusal. -->
-    <AppBanner v-if="readiness.inventoryWarnings.length > 0" tone="info">
-      <strong>{{ t('offlineSale.inventoryWarningTitle') }}</strong>
+    <AppBanner
+      v-if="readiness.inventoryWarnings.length > 0"
+      variant="info"
+      role="note"
+      :title="t('offlineSale.inventoryWarningTitle')"
+    >
       {{ t('offlineSale.inventoryWarningBody', { count: readiness.inventoryWarnings.length }) }}
     </AppBanner>
 
-    <AppInlineError v-if="error" :message="error" />
-  </section>
+    <AppInlineError v-if="error">{{ error }}</AppInlineError>
+  </AppPanel>
+
+  <!-- Before the first answer from main. A first-load failure is shown with a retry rather than
+       rendering nothing: an absent panel reads as "nothing to know", which is never true here. -->
+  <AppPanel v-else class="offline-sale-readiness" :aria-label="t('offlineSale.title')">
+    <template #header>
+      <div class="flex flex-1 items-center gap-2">
+        <AppIcon name="cloud_off" :size="22" class="text-pri-text" />
+        <h2 class="offline-sale-readiness__title flex-1 text-lg font-bold">
+          {{ t('offlineSale.title') }}
+        </h2>
+      </div>
+    </template>
+    <template v-if="error && !isLoading">
+      <AppInlineError data-testid="offline-sale-readiness-error">{{ error }}</AppInlineError>
+      <div>
+        <AppButton variant="secondary" size="sm" icon="refresh" @click="offlineSale.refresh()">
+          {{ t('common.retry') }}
+        </AppButton>
+      </div>
+    </template>
+    <AppLoadingSkeleton v-else :label="t('offlineSale.loading')" :lines="2" />
+  </AppPanel>
 </template>
-
-<style scoped>
-.offline-sale-readiness {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 0.75rem);
-  padding: var(--space-4, 1rem);
-  border: 1px solid var(--color-border, #d8dee6);
-  border-radius: var(--radius-md, 0.5rem);
-  background: var(--color-surface, #fff);
-}
-
-.offline-sale-readiness__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2, 0.5rem);
-  flex-wrap: wrap;
-}
-
-.offline-sale-readiness__title {
-  margin: 0;
-  font-size: var(--font-size-md, 1rem);
-  font-weight: 600;
-}
-
-.offline-sale-readiness__mode,
-.offline-sale-readiness__note,
-.offline-sale-readiness__remaining,
-.offline-sale-readiness__limit {
-  margin: 0;
-}
-
-.offline-sale-readiness__remaining {
-  font-size: var(--font-size-lg, 1.125rem);
-  font-weight: 600;
-}
-
-.offline-sale-readiness__limit,
-.offline-sale-readiness__note {
-  color: var(--color-text-muted, #5b6774);
-  font-size: var(--font-size-sm, 0.875rem);
-}
-
-.offline-sale-readiness__sync {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1, 0.25rem);
-  font-size: var(--font-size-sm, 0.875rem);
-  color: var(--color-text-muted, #5b6774);
-}
-
-.offline-sale-readiness__sync dt {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.offline-sale-readiness__sync dd {
-  margin: 0;
-}
-</style>

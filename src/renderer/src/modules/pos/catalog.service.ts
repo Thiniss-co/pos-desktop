@@ -12,6 +12,7 @@ import type {
   CatalogStatus
 } from '@shared/contracts/catalog.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 export class CatalogRendererService {
   constructor(private readonly gateway: Window['posApi']['catalog'] = window.posApi.catalog) {}
@@ -34,7 +35,7 @@ export class CatalogRendererService {
   }
 
   async searchProducts(input: CatalogSearchInput): Promise<CatalogProductPage> {
-    return unwrapIpcResult(await this.gateway.searchProducts(input))
+    return unwrapIpcResult(await this.gateway.searchProducts(toIpcPayload(input)))
   }
 
   async getProduct(uuid: string): Promise<CatalogProduct> {
@@ -50,7 +51,7 @@ export class CatalogRendererService {
   }
 
   async searchCustomers(input: CatalogCustomerSearchInput): Promise<CatalogCustomerPage> {
-    return unwrapIpcResult(await this.gateway.searchCustomers(input))
+    return unwrapIpcResult(await this.gateway.searchCustomers(toIpcPayload(input)))
   }
 
   async getCustomer(uuid: string): Promise<CatalogCustomer> {

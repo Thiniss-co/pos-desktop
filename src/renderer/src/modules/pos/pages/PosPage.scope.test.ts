@@ -18,9 +18,14 @@ describe('PosPage Phase 3B–3E boundary', () => {
   })
 
   it('uses logical layout properties so the receipt spine mirrors in RTL', () => {
-    expect(source).toContain('border-inline-start')
-    expect(source).toContain('padding-block')
+    // V3 styles the page with Tailwind utilities instead of a scoped stylesheet: logical spacing /
+    // alignment utilities must be present, and neither physical CSS properties nor physical
+    // utilities (ml-/mr-/pl-/pr-/left-/right-/text-left/text-right/border-l/border-r) may appear.
+    expect(source).toMatch(/\b(?:ms|me|ps|pe)-\d|\btext-(?:start|end)\b/)
     expect(source).not.toMatch(/margin-left|margin-right|border-left|border-right/)
+    expect(source).not.toMatch(
+      /\b(?:ml|mr|pl|pr|left|right)-\d|\btext-(?:left|right)\b|\bborder-[lr]\b|\brounded-[lr]\b/
+    )
   })
 
   it('shows an explicit retry state when reading the current shift fails', () => {
@@ -38,12 +43,22 @@ describe('PosPage Phase 3B–3E boundary', () => {
   })
 
   it('shows a live sync indicator instead of the CP-3G-4 placeholder', () => {
+    // V3 moved the live queue indicator from the POS toolbar into the shell's top-bar sync pill,
+    // which is visible on every page (the POS page included). The same live fields must drive it.
+    const shellStatus = readFileSync(
+      new URL('../../../app/shell/useShellStatus.ts', import.meta.url),
+      'utf8'
+    )
+    const topBar = readFileSync(
+      new URL('../../../app/shell/AppTopBar.vue', import.meta.url),
+      'utf8'
+    )
     expect(source).not.toContain('pos.syncPlaceholder')
-    expect(source).toContain('syncChipLabel')
-    expect(source).toContain('syncChipVariant')
-    expect(source).toContain('sync.queuedCount')
-    expect(source).toContain('sync.failedCount')
-    expect(source).toContain('sync.isPaused')
+    expect(shellStatus).toContain('syncPill')
+    expect(shellStatus).toContain('sync.queuedCount')
+    expect(shellStatus).toContain('sync.failedCount')
+    expect(shellStatus).toContain('sync.isPaused')
+    expect(topBar).toContain('syncPill.label')
   })
 
   it('subscribes and disposes the sync store with the page lifecycle', () => {

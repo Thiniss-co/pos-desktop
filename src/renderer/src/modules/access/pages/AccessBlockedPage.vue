@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useI18n } from 'vue-i18n'
+import { Translation, useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useStartupStore } from '@renderer/app/startup/startup.store'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
 import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useAccessStore } from '../store'
 
@@ -12,6 +14,17 @@ const { state, isRefreshing } = storeToRefs(access)
 const startup = useStartupStore()
 const router = useRouter()
 const { t } = useI18n()
+
+/**
+ * Presentation only: the localized access message already ends with "Reference: <trace id>"; the
+ * reference has its own box below, so the message shows without that exact suffix.
+ */
+const message = computed(() => {
+  const { message: text, traceId } = state.value
+  const suffix = traceId ? ` ${t('startup.reference', { traceId })}` : ''
+
+  return suffix && text.endsWith(suffix) ? text.slice(0, -suffix.length) : text
+})
 
 async function retry(): Promise<void> {
   await startup.refresh()
@@ -38,47 +51,44 @@ async function refreshWorkstationData(): Promise<void> {
 </script>
 
 <template>
-  <div class="access-blocked-page" role="alert">
+  <div class="access-blocked-page flex flex-col items-start gap-3.5" role="alert">
+    <span
+      class="flex size-12 items-center justify-center rounded-full bg-err-bg text-err"
+      aria-hidden="true"
+    >
+      <AppIcon name="block" :size="26" />
+    </span>
     <PageHeader
-      :eyebrow="t('startup.accessBlockedLabel')"
-      :title="t('startup.accessBlockedTitle')"
+      class="self-stretch"
+      :title="t('startup.accessBlockedLabel')"
+      :description="t('startup.accessBlockedTitle')"
     />
-    <p>{{ state.message }}</p>
-    <p v-if="state.traceId" class="access-blocked-page__reference numeric">
-      {{ t('startup.reference', { traceId: state.traceId }) }}
-    </p>
-    <div class="access-blocked-page__actions">
+    <p class="text-base text-pretty">{{ message }}</p>
+    <div
+      v-if="state.traceId"
+      class="flex flex-col gap-1 self-stretch rounded-notice bg-subtle px-3.5 py-3 text-sm"
+    >
+      <Translation keypath="startup.reference" tag="span" class="font-semibold">
+        <template #traceId>
+          <span class="code">{{ state.traceId }}</span>
+        </template>
+      </Translation>
+      <span class="text-muted">{{ t('access.shareReference') }}</span>
+    </div>
+    <div class="flex flex-col gap-2.5 self-stretch">
       <AppButton
         variant="primary"
-        :disabled="isRefreshing"
+        size="lg"
+        full-width
+        :loading="isRefreshing"
         data-testid="access-refresh-workstation"
         @click="refreshWorkstationData"
       >
         {{ isRefreshing ? t('pos.catalogRefresh.pending') : t('pos.catalogRefresh.action') }}
       </AppButton>
-      <AppButton variant="secondary" :disabled="isRefreshing" @click="retry">
+      <AppButton variant="secondary" size="lg" full-width :disabled="isRefreshing" @click="retry">
         {{ t('common.retry') }}
       </AppButton>
     </div>
   </div>
 </template>
-
-<style scoped>
-.access-blocked-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  align-items: flex-start;
-}
-
-.access-blocked-page__actions {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.access-blocked-page__reference {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-muted);
-}
-</style>

@@ -1,5 +1,6 @@
 import type { SaleDetail, SalesInvoiceList } from '@shared/contracts/refund.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 /**
  * Plan §6 -- the local-first sales-history service. `listInvoices`/`getInvoice` read what already
@@ -13,7 +14,7 @@ export class SalesService {
     limit?: number
     cursor?: string | null
   }): Promise<SalesInvoiceList> {
-    return unwrapIpcResult(await this.gateway.listInvoices(input))
+    return unwrapIpcResult(await this.gateway.listInvoices(toIpcPayload(input)))
   }
 
   async getInvoice(invoiceLocalUuid: string): Promise<SaleDetail> {

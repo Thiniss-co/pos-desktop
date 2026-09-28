@@ -1,0 +1,31 @@
+/*
+ * Bundled UI faces for the Thinis POS V3 design (see docs/design/claude-v3/README.md).
+ *
+ * Every face ships inside the renderer bundle from @fontsource, so the cashier UI renders the
+ * same way offline as online and the CSP never has to allow a remote font origin. Only the
+ * subsets and weights the design uses are imported:
+ *   - Plus Jakarta Sans 400–800, Latin + Latin Extended (Latin UI)
+ *   - IBM Plex Sans Arabic 400–700, Arabic + Latin (Arabic UI, including Latin runs inside it)
+ *   - JetBrains Mono 400–600, Latin (SKU, barcode, invoice and reference codes)
+ */
+@import '@fontsource/plus-jakarta-sans/latin-400.css';
+@import '@fontsource/plus-jakarta-sans/latin-500.css';
+@import '@fontsource/plus-jakarta-sans/latin-600.css';
+@import '@fontsource/plus-jakarta-sans/latin-700.css';
+@import '@fontsource/plus-jakarta-sans/latin-800.css';
+@import '@fontsource/plus-jakarta-sans/latin-ext-400.css';
+@import '@fontsource/plus-jakarta-sans/latin-ext-600.css';
+@import '@fontsource/plus-jakarta-sans/latin-ext-700.css';
+
+@import '@fontsource/ibm-plex-sans-arabic/arabic-400.css';
+@import '@fontsource/ibm-plex-sans-arabic/arabic-500.css';
+@import '@fontsource/ibm-plex-sans-arabic/arabic-600.css';
+@import '@fontsource/ibm-plex-sans-arabic/arabic-700.css';
+@import '@fontsource/ibm-plex-sans-arabic/latin-400.css';
+@import '@fontsource/ibm-plex-sans-arabic/latin-500.css';
+@import '@fontsource/ibm-plex-sans-arabic/latin-600.css';
+@import '@fontsource/ibm-plex-sans-arabic/latin-700.css';
+
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-500.css';
+@import '@fontsource/jetbrains-mono/latin-600.css';

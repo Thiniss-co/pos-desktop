@@ -7,6 +7,7 @@ import type {
 } from '@shared/contracts/shift.contract'
 import type { ShiftLocalAuthority } from '@shared/contracts/shiftAuthority.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 export class ShiftRendererService {
   constructor(private readonly gateway: Window['posApi']['shifts'] = window.posApi.shifts) {}
@@ -24,18 +25,18 @@ export class ShiftRendererService {
   }
 
   async open(input: OpenShiftInput): Promise<Shift> {
-    return unwrapIpcResult(await this.gateway.open(input))
+    return unwrapIpcResult(await this.gateway.open(toIpcPayload(input)))
   }
 
   async pause(input: PauseShiftInput): Promise<Shift> {
-    return unwrapIpcResult(await this.gateway.pause(input))
+    return unwrapIpcResult(await this.gateway.pause(toIpcPayload(input)))
   }
 
   async resume(input: ResumeShiftInput): Promise<Shift> {
-    return unwrapIpcResult(await this.gateway.resume(input))
+    return unwrapIpcResult(await this.gateway.resume(toIpcPayload(input)))
   }
 
   async close(input: CloseShiftInput): Promise<Shift> {
-    return unwrapIpcResult(await this.gateway.close(input))
+    return unwrapIpcResult(await this.gateway.close(toIpcPayload(input)))
   }
 }

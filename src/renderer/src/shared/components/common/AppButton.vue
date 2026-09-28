@@ -2,166 +2,110 @@
 /**
  * The single button primitive for the app. Every other button in the codebase (submit, link,
  * icon-only, danger confirm) is built on this — no page should style a bare `<button>` itself.
+ *
+ * V3 variants (docs/design/claude-v3): exactly ONE filled indigo action per view.
+ * - `primary`     filled indigo — Pay / Complete sale / Confirm refund / the final confirm.
+ * - `transaction` the full-width 56px Pay button (filled indigo, large).
+ * - `secondary`   outline on the surface — every other action.
+ * - `outline`     indigo outline + indigo text (e.g. "Add payment" inside the tender card).
+ * - `soft`        indigo-tinted fill for toggles and selected chips.
+ * - `ghost`       no border (Cancel in dialog footers, text links, row actions).
+ * - `danger`      filled red — destructive final confirm (clear cart, abandon sale).
+ * - `danger-outline` outline with red text — destructive entry points (Abandon, Disable).
+ *
+ * `app-button--<variant>` stays on the element as a stable hook for tests and diagnostics.
  */
-withDefaults(
+import { computed } from 'vue'
+import AppIcon from './AppIcon.vue'
+import AppSpinner from './AppSpinner.vue'
+import type { IconName } from './icons.generated'
+
+type Variant =
+  | 'primary'
+  | 'secondary'
+  | 'transaction'
+  | 'outline'
+  | 'soft'
+  | 'ghost'
+  | 'danger'
+  | 'danger-outline'
+
+const props = withDefaults(
   defineProps<{
-    variant?: 'primary' | 'secondary' | 'transaction' | 'ghost' | 'danger'
+    variant?: Variant
+    size?: 'sm' | 'md' | 'lg' | 'xl'
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
     loading?: boolean
     fullWidth?: boolean
+    icon?: IconName
+    iconEnd?: IconName
+    /** Mirror the icons in RTL — only for directional glyphs (arrows, chevrons). */
+    mirrorIcon?: boolean
   }>(),
   {
     variant: 'primary',
+    size: 'md',
     type: 'button',
     disabled: false,
     loading: false,
-    fullWidth: false
+    fullWidth: false,
+    icon: undefined,
+    iconEnd: undefined,
+    mirrorIcon: false
   }
 )
 
 const emit = defineEmits<{ click: [MouseEvent] }>()
+
+const VARIANT: Record<Variant, string> = {
+  primary:
+    'border-pri bg-pri text-on-pri font-bold enabled:hover:border-pri-hover enabled:hover:bg-pri-hover enabled:active:bg-pri-press',
+  transaction:
+    'border-pri bg-pri text-on-pri font-bold enabled:hover:border-pri-hover enabled:hover:bg-pri-hover enabled:active:bg-pri-press',
+  secondary: 'border-control bg-surf text-ink enabled:hover:bg-subtle',
+  outline: 'border-pri bg-surf text-pri-text font-bold enabled:hover:bg-pri-soft',
+  soft: 'border-transparent bg-pri-soft text-pri-text',
+  ghost: 'border-transparent bg-transparent text-ink enabled:hover:bg-subtle',
+  danger:
+    'border-danger bg-danger text-on-pri font-bold enabled:hover:border-danger-hover enabled:hover:bg-danger-hover',
+  'danger-outline': 'border-control bg-surf text-err enabled:hover:bg-err-bg'
+}
+
+const SIZE = {
+  sm: 'min-h-9 px-3 text-sm rounded-md',
+  md: 'min-h-11 px-4 text-base rounded-md',
+  lg: 'min-h-12 px-4.5 text-base rounded-md',
+  xl: 'min-h-[52px] px-5.5 text-md font-bold rounded-notice'
+} as const
+
+const classes = computed(() => [
+  `app-button--${props.variant}`,
+  VARIANT[props.variant],
+  props.variant === 'transaction'
+    ? 'min-h-14 w-full px-4 text-[1.125rem] rounded-notice'
+    : SIZE[props.size],
+  { 'app-button--full w-full': props.fullWidth },
+  // Disabled is never colour alone: the fill drops out and the cursor changes. A loading button
+  // keeps its face so the pending action stays recognisable.
+  props.variant === 'ghost'
+    ? 'not-aria-busy:disabled:text-muted'
+    : 'not-aria-busy:disabled:border-line-strong not-aria-busy:disabled:bg-subtle not-aria-busy:disabled:text-muted'
+])
 </script>
 
 <template>
   <button
     :type="type"
-    class="app-button"
-    :class="[
-      `app-button--${variant}`,
-      { 'app-button--full': fullWidth, 'app-button--loading': loading }
-    ]"
+    class="app-button numeric inline-flex shrink-0 items-center justify-center gap-2 border font-semibold whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed aria-busy:opacity-85"
+    :class="classes"
     :disabled="disabled || loading"
     :aria-busy="loading || undefined"
     @click="(event) => emit('click', event)"
   >
-    <span v-if="loading" class="app-button__spinner" aria-hidden="true" />
+    <AppSpinner v-if="loading" class="app-button__spinner" :size="18" />
+    <AppIcon v-else-if="icon" :name="icon" :size="20" :mirror-rtl="mirrorIcon" />
     <span class="app-button__label"><slot /></span>
+    <AppIcon v-if="iconEnd && !loading" :name="iconEnd" :size="20" :mirror-rtl="mirrorIcon" />
   </button>
 </template>
-
-<style scoped>
-.app-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--size-target-min);
-  padding-inline: var(--space-5);
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  font-family: var(--font-ui);
-  font-size: var(--text-body-md-size);
-  line-height: var(--text-body-md-line);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
-}
-
-.app-button--full {
-  width: 100%;
-}
-
-.app-button:disabled {
-  cursor: not-allowed;
-}
-
-/* Primary */
-.app-button--primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-.app-button--primary:not(:disabled):hover {
-  opacity: 0.92;
-}
-.app-button--primary:disabled {
-  background: var(--color-disabled-surface);
-  color: var(--color-disabled-text);
-}
-
-/* Secondary — dark mode carries a mandatory outline; see palette.css "Conflict 2". */
-.app-button--secondary {
-  background: var(--color-secondary);
-  color: var(--color-on-secondary);
-  border-color: var(--color-secondary-outline);
-}
-.app-button--secondary:not(:disabled):hover {
-  background: var(--color-secondary-hover);
-}
-.app-button--secondary:not(:disabled):active {
-  background: var(--color-secondary-active);
-}
-.app-button--secondary:disabled {
-  background: var(--color-disabled-surface);
-  color: var(--color-disabled-text);
-  border-color: transparent;
-}
-
-/* Transaction (amber) — pressed state is a ring, not a face swap; see palette.css "Conflict 3". */
-.app-button--transaction {
-  background: var(--color-transaction-accent);
-  color: var(--color-on-transaction-accent);
-}
-.app-button--transaction:not(:disabled):hover {
-  background: var(--color-transaction-accent-hover);
-}
-.app-button--transaction:not(:disabled):active {
-  background: var(--color-transaction-accent-hover);
-  box-shadow: inset 0 0 0 2px var(--color-transaction-accent-active);
-}
-.app-button--transaction:disabled {
-  background: var(--color-disabled-surface);
-  color: var(--color-disabled-text);
-}
-
-/* Ghost */
-.app-button--ghost {
-  background: transparent;
-  color: var(--color-on-surface);
-  border-color: var(--color-outline);
-}
-.app-button--ghost:not(:disabled):hover {
-  background: var(--color-surface-container);
-}
-.app-button--ghost:disabled {
-  color: var(--color-disabled-text);
-  border-color: var(--color-outline-variant);
-}
-
-/* Danger */
-.app-button--danger {
-  background: var(--color-error);
-  color: var(--color-on-error);
-}
-.app-button--danger:not(:disabled):hover {
-  opacity: 0.9;
-}
-.app-button--danger:disabled {
-  background: var(--color-disabled-surface);
-  color: var(--color-disabled-text);
-}
-
-.app-button__spinner {
-  width: 1em;
-  height: 1em;
-  border-radius: var(--radius-full);
-  border: 2px solid currentcolor;
-  border-inline-end-color: transparent;
-  animation: app-button-spin var(--duration-slow) linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app-button__spinner {
-    animation: none;
-  }
-}
-
-@keyframes app-button-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-</style>

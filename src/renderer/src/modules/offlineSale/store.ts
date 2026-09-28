@@ -48,7 +48,7 @@ export const useOfflineSaleStore = defineStore('offlineSale', () => {
       readiness.value = await service.getReadiness()
       errorState.clear()
     } catch (caught) {
-      captureError(caught, 'offlineSale.title')
+      captureError(caught, 'offlineSale.readinessUnavailable')
     } finally {
       isLoading.value = false
     }

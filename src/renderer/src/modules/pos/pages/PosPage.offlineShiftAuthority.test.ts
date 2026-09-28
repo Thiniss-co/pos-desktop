@@ -304,7 +304,8 @@ describe('POS page after the backend becomes unreachable', () => {
     await wrapper.vm.$nextTick()
     const state = tillState(wrapper)
     expect(state.checkoutDisabled).toBe(false)
-    expect(state.checkoutLabel).toBe('Proceed to payment')
+    // V3: the ready checkout control names the amount it will take ("Pay …"), not a generic verb.
+    expect(state.checkoutLabel).toBe('Pay EGP\u00a0100.00')
   })
 
   it('denies the till when local authority reports no open shift', async () => {

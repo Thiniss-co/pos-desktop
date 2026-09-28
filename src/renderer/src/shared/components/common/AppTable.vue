@@ -1,53 +1,40 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+/** Native table in a V3 panel: tinted header row, 1px row rules, 12px/16px cell rhythm. */
+withDefaults(defineProps<{ label?: string; framed?: boolean }>(), {
+  label: undefined,
+  framed: true
+})
+</script>
 
 <template>
-  <div class="app-table-wrap">
-    <table class="app-table">
+  <div
+    class="app-table-wrap min-w-0 overflow-x-auto"
+    :class="{ 'rounded-lg border border-line bg-surf shadow-panel': framed }"
+  >
+    <table class="app-table w-full border-collapse text-sm" :aria-label="label">
       <slot />
     </table>
   </div>
 </template>
 
 <style scoped>
-.app-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--color-outline-variant);
-  border-radius: var(--radius-lg);
-}
-
-.app-table {
-  width: 100%;
-  min-width: 32rem;
-  border-collapse: collapse;
-}
-
-.app-table :deep(th),
-.app-table :deep(td) {
+.app-table :deep(th) {
+  padding: 10px 16px;
+  background: var(--color-subtle);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
   text-align: start;
-  padding: var(--space-3) var(--space-4);
-  border-block-end: 1px solid var(--color-divider-subtle);
-  font-size: var(--text-body-md-size);
-  line-height: var(--text-body-md-line);
+  white-space: nowrap;
 }
 
-.app-table :deep(thead th) {
-  font-size: var(--text-label-caps-size);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  font-weight: var(--text-label-caps-weight);
-  color: var(--color-text-muted);
-  background: var(--color-surface-container-low);
+.app-table :deep(td) {
+  padding: 12px 16px;
+  border-block-start: 1px solid var(--color-line);
+  vertical-align: middle;
 }
 
-html[dir='rtl'] .app-table :deep(thead th) {
-  text-transform: none;
-}
-
-.app-table :deep(tbody tr:last-child td) {
-  border-block-end: none;
-}
-
-.app-table :deep(tbody tr:hover) {
-  background: var(--color-surface-container-low);
+.app-table :deep(tbody tr:hover td) {
+  background: color-mix(in srgb, var(--color-subtle) 60%, transparent);
 }
 </style>

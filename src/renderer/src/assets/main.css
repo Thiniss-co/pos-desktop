@@ -1,32 +1,21 @@
+/*
+ * Renderer stylesheet entry (processed by @tailwindcss/vite).
+ *
+ * Tailwind v4 is imported in parts so its global Preflight reset is never loaded: `theme` +
+ * `utilities` only, with our own minimal reset in base.css. Class detection is limited to the
+ * renderer source (`source(none)` + `@source`) so design references and receipts are never scanned.
+ */
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import './fonts.css';
+@import './tokens.css';
+@import './themes/palette.css';
 @import './base.css';
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+
+@source '../';
 
 #app {
-  min-height: 100vh;
-}
-
-/* Shared definition-list pattern used by ActivationPage's device summary and SettingsPage's
-   workstation readiness details. Everything else in this file's old page-specific rulebook has
-   moved into each page's own `<style scoped>` block or into a shared component. */
-.readiness-list {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.readiness-list div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding-block: var(--space-2);
-  border-block-end: 1px solid var(--color-divider-subtle);
-}
-
-.readiness-list dt {
-  color: var(--color-on-surface-variant);
-  font-size: var(--text-body-sm-size);
-}
-
-.readiness-list dd {
-  color: var(--color-on-surface);
-  font-size: var(--text-body-md-size);
-  text-align: end;
+  height: 100vh;
 }

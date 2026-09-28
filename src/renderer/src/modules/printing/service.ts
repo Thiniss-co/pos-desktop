@@ -7,6 +7,7 @@ import type {
   PrintPreviewOutput,
   ReceiptDocumentRef
 } from '@shared/contracts/printing.contract'
+import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
 /**
@@ -23,7 +24,7 @@ export class PrintingService {
   }
 
   async saveWorkstationSettings(settings: PrinterSettings): Promise<PrinterSettings> {
-    return unwrapIpcResult(await this.gateway.saveWorkstationSettings(settings))
+    return unwrapIpcResult(await this.gateway.saveWorkstationSettings(toIpcPayload(settings)))
   }
 
   async listPrinters(): Promise<PrinterInfo[]> {
@@ -31,11 +32,11 @@ export class PrintingService {
   }
 
   async preview(input: PrintingPreviewInput): Promise<PrintPreviewOutput> {
-    return unwrapIpcResult(await this.gateway.preview(input))
+    return unwrapIpcResult(await this.gateway.preview(toIpcPayload(input)))
   }
 
   async dispatch(input: PrintingDispatchInput): Promise<PrintJobView> {
-    return unwrapIpcResult(await this.gateway.dispatch(input))
+    return unwrapIpcResult(await this.gateway.dispatch(toIpcPayload(input)))
   }
 
   async getJob(requestId: string): Promise<PrintJobView> {
@@ -47,6 +48,6 @@ export class PrintingService {
   }
 
   async latestForDocument(document: ReceiptDocumentRef): Promise<PrintJobView | null> {
-    return unwrapIpcResult(await this.gateway.latestForDocument({ document }))
+    return unwrapIpcResult(await this.gateway.latestForDocument(toIpcPayload({ document })))
   }
 }
