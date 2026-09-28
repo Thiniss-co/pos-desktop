@@ -615,7 +615,9 @@
     "RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN": "لا يملك هذا الحساب صلاحية تعديل ملف إيصال الشركة.",
     "RECEIPT_PROFILE_REVISION_CONFLICT": "قام شخص آخر بتعديل ملف الإيصال. راجع أحدث نسخة ثم طبّق تغييراتك مرة أخرى.",
     "RECEIPT_PROFILE_ASSET_INVALID": "تعذّر استخدام ملف الشعار. اختر صورة أخرى.",
-    "RECEIPT_PROFILE_ASSET_NOT_FOUND": "تعذّر العثور على الشعار على الخادم. اختره مرة أخرى."
+    "RECEIPT_PROFILE_ASSET_NOT_FOUND": "تعذّر العثور على الشعار على الخادم. اختره مرة أخرى.",
+    "POLICY_REVISION_STALE": "تغيّرت سياسة المخزون دون اتصال. سيستخدم التجهيز التالي السياسة الحالية.",
+    "DESKTOP_PREPARATION_UNAVAILABLE": "تجهيز المخزون دون اتصال غير متاح لهذه المحطة حاليًا."
   },
   "offlineSale": {
     "title": "البيع دون اتصال",

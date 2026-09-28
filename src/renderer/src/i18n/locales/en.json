@@ -615,7 +615,9 @@
     "RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN": "This account cannot change the company receipt profile.",
     "RECEIPT_PROFILE_REVISION_CONFLICT": "Someone else changed the receipt profile. Review the latest version and apply your changes again.",
     "RECEIPT_PROFILE_ASSET_INVALID": "The logo file could not be used. Choose a different image.",
-    "RECEIPT_PROFILE_ASSET_NOT_FOUND": "The logo could not be found on the server. Choose it again."
+    "RECEIPT_PROFILE_ASSET_NOT_FOUND": "The logo could not be found on the server. Choose it again.",
+    "POLICY_REVISION_STALE": "The offline stock policy changed. Preparing again will use the current policy.",
+    "DESKTOP_PREPARATION_UNAVAILABLE": "Offline stock preparation is not available for this workstation right now."
   },
   "offlineSale": {
     "title": "Offline selling",

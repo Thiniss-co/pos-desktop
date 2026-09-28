@@ -3,7 +3,7 @@ import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contra
 import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
 import type { SqliteDatabase } from '../database/connection'
 import { runSerializedWrite } from '../database/serializedWrite'
-import { redactSensitiveText } from '../http/apiError'
+import { isPublicAppError, redactSensitiveText } from '../http/apiError'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import {
   prepareOperationResourceSchema,
@@ -585,8 +585,11 @@ export class PreparationService {
   }
 
   private classifyDispatchFailure(operationUuid: string, error: unknown): PrepareCycleOutcome {
-    const code = (error as { readonly code?: unknown } | null)?.code
-    const status = (error as { readonly status?: unknown } | null)?.status
+    // The API client throws `PublicAppError` (`backendCode`, `httpStatus`, `fieldErrors`). Reading
+    // any other shape silently made every definitive answer below unreachable in production.
+    const failure = isPublicAppError(error) ? error : null
+    const code = failure?.backendCode
+    const status = failure?.httpStatus
 
     if (code === 'POLICY_REVISION_STALE') {
       runSerializedWrite(this.dependencies.database, () => {
@@ -618,7 +621,13 @@ export class PreparationService {
       return { kind: 'conflicted', operationUuid, reason: 'idempotency_conflict' }
     }
 
-    if (status === 404 || code === 'DESKTOP_PREPARATION_UNAVAILABLE') {
+    // With the capability switched off the backend does not register the route at all, so the
+    // answer is its generic `ROUTE_NOT_FOUND` 404 — nothing ran, exactly like the explicit code.
+    if (
+      status === 404 ||
+      code === 'DESKTOP_PREPARATION_UNAVAILABLE' ||
+      code === 'ROUTE_NOT_FOUND'
+    ) {
       // The backend ships the capability disabled and answers 404. Nothing was created, so the
       // operation stays replayable rather than being burned — but it is not marked terminal either,
       // because "the feature is off right now" is not proof about a future attempt.

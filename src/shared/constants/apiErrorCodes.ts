@@ -68,7 +68,11 @@ export const API_ERROR_CODES = [
   'RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN',
   'RECEIPT_PROFILE_REVISION_CONFLICT',
   'RECEIPT_PROFILE_ASSET_INVALID',
-  'RECEIPT_PROFILE_ASSET_NOT_FOUND'
+  'RECEIPT_PROFILE_ASSET_NOT_FOUND',
+  // CP4 offline stock preparation. Both are definitive answers `PreparationService` classifies on;
+  // unlisted, they were stripped from `backendCode` and every such answer degraded to "ambiguous".
+  'POLICY_REVISION_STALE',
+  'DESKTOP_PREPARATION_UNAVAILABLE'
 ] as const
 
 export const UNKNOWN_API_ERROR_CODE = 'UNKNOWN' as const

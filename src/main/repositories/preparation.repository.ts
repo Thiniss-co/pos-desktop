@@ -361,6 +361,12 @@ export class PreparationRepository {
    * §5.6: the server proved no operation and no grant were created — a `409 POLICY_REVISION_STALE`
    * before anything committed. Terminal, and honest: there is genuinely nothing on the server to
    * reconcile, so a new cycle may follow immediately.
+   *
+   * Also reachable from `ambiguous`, because the answer arrives for an **identical replay** of the
+   * frozen bytes: the backend looks the operation uuid up (under lock) and replays any stored
+   * decision *before* it evaluates policy, so a stale answer proves it holds no operation with this
+   * identity. Policy revisions only increase, so the frozen request can never become current later.
+   * The frozen bytes themselves are untouched (see `trg_prepare_operations_frozen_bytes`).
    */
   markSupersededUncommitted(operationUuid: string): void {
     const timestamp = this.now()
@@ -368,7 +374,7 @@ export class PreparationRepository {
     this.database
       .prepare(
         `UPDATE prepare_operations SET state = 'superseded_uncommitted', updated_at = ?
-         WHERE operation_uuid = ? AND state IN ('captured','dispatching')`
+         WHERE operation_uuid = ? AND state IN ('captured','dispatching','ambiguous')`
       )
       .run(timestamp, operationUuid)
   }

@@ -1,5 +1,6 @@
 import { deepEqual, equal, ok } from 'node:assert/strict'
 import { closeDatabase } from '../../../src/main/database/connection'
+import { normalizeHttpError } from '../../../src/main/http/apiError'
 import type { PreparationRepository } from '../../../src/main/repositories/preparation.repository'
 import { PreparationService } from '../../../src/main/services/preparation.service'
 import { buildPrepareRequest } from '../../../src/main/services/preparationRequest'
@@ -43,6 +44,25 @@ const WIRE_NOW = '2026-09-09T10:00:00Z'
 
 const COLA_ALLOCATION = '00000000-0000-4000-8000-0000000000f1'
 const WATER_ALLOCATION = '00000000-0000-4000-8000-0000000000f2'
+
+/**
+ * A failure exactly as the real `DesktopApiClient` throws it: an HTTP status plus, when the backend
+ * sent one, its error envelope, normalized by the same `normalizeHttpError` the client uses. Tests
+ * that hand-build an error object instead (e.g. `{ code, status }`) can pass while production never
+ * produces that shape — which is how every definitive preparation answer once went unrecognized.
+ */
+function httpFailure(
+  status: number,
+  code?: string,
+  errors: Record<string, string[]> = {}
+): unknown {
+  return normalizeHttpError(
+    status,
+    code === undefined
+      ? undefined
+      : { success: false, message: 'scripted', code, errors, meta: { trace_id: 'trace-scripted' } }
+  )
+}
 
 interface ScriptedCall {
   readonly body: Record<string, unknown>
@@ -190,6 +210,8 @@ function buildService(
   overrides: Partial<{
     capturedRows: never[]
     ownedProducts: ReadonlySet<string>
+    requestedPolicyRevision: () => number
+    onPolicyRevisionObserved: (revision: number) => void
   }> = {}
 ): { readonly service: PreparationService; readonly preparation: PreparationRepository } {
   const { preparation, stockAllocations } = realRepositories(database, () => NOW)
@@ -208,11 +230,12 @@ function buildService(
       authorityReferences: () => ({
         licenseValidationUuid: null,
         catalogRevision: null,
-        requestedPolicyRevision: 1
+        requestedPolicyRevision: overrides.requestedPolicyRevision?.() ?? 1
       }),
       sessionEpoch: () => 1
     },
     now: () => NOW,
+    onPolicyRevisionObserved: overrides.onPolicyRevisionObserved,
     log: () => {}
   })
 
@@ -478,7 +501,7 @@ databaseTest(
     // First run: the transport fails after dispatch began. Ambiguity is the default classification.
     const failing = scriptedClient([
       async () => {
-        throw Object.assign(new Error('connection reset'), { status: 503 })
+        throw httpFailure(503)
       }
     ])
     const first = buildService(database, failing.client, [COLA])
@@ -548,7 +571,7 @@ databaseTest(
 
     const scripted = scriptedClient([
       async () => {
-        throw Object.assign(new Error('stale'), { code: 'POLICY_REVISION_STALE', status: 409 })
+        throw httpFailure(409, 'POLICY_REVISION_STALE', { current_policy_revision: ['7'] })
       }
     ])
     const { service, preparation } = buildService(database, scripted.client, [COLA])
@@ -584,7 +607,7 @@ databaseTest(
 
     const scripted = scriptedClient([
       async () => {
-        throw Object.assign(new Error('timeout'), { status: 504 })
+        throw httpFailure(504)
       }
     ])
     const { service, preparation } = buildService(database, scripted.client, [COLA])
@@ -676,6 +699,151 @@ databaseTest(
       ).total,
       1
     )
+    closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'CP4 regression: the real 409 POLICY_REVISION_STALE is terminal and teaches the revision',
+  async (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    markReconciledCapability(database, 5)
+
+    const learned: number[] = []
+    const scripted = scriptedClient([
+      async () => {
+        throw httpFailure(409, 'POLICY_REVISION_STALE', { current_policy_revision: ['7'] })
+      }
+    ])
+    const { service, preparation } = buildService(database, scripted.client, [COLA], {
+      requestedPolicyRevision: () => 0,
+      onPolicyRevisionObserved: (revision) => learned.push(revision)
+    })
+
+    const outcome = await service.runCycle(OWNER)
+
+    equal(outcome.kind, 'superseded_uncommitted')
+    deepEqual(learned, [7])
+    const operationUuid = (scripted.calls[0]?.body as { operation_uuid: string }).operation_uuid
+    equal(preparation.findOperation(operationUuid)?.state, 'superseded_uncommitted')
+    closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'CP4 regression: an operation left ambiguous resolves on its identical replay, bytes untouched',
+  async (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    markReconciledCapability(database, 5)
+
+    // The shape a workstation was left in by the old classifier (or by a genuine transport loss):
+    // an operation dispatched with revision 0 whose answer was never recognised.
+    let revision = 0
+    const learned: number[] = []
+    const scripted = scriptedClient([
+      async () => {
+        throw httpFailure(503)
+      },
+      async () => {
+        throw httpFailure(409, 'POLICY_REVISION_STALE', { current_policy_revision: ['7'] })
+      },
+      async () => {
+        throw httpFailure(504)
+      }
+    ])
+    const { service, preparation } = buildService(database, scripted.client, [COLA], {
+      requestedPolicyRevision: () => revision,
+      onPolicyRevisionObserved: (observed) => {
+        learned.push(observed)
+        revision = observed
+      }
+    })
+
+    equal((await service.runCycle(OWNER)).kind, 'ambiguous')
+    const operationUuid = (scripted.calls[0]?.body as { operation_uuid: string }).operation_uuid
+    const frozen = database
+      .prepare(
+        'SELECT canonical_request_json AS json, request_hash AS hash FROM prepare_operations WHERE operation_uuid = ?'
+      )
+      .get(operationUuid) as { json: string; hash: string }
+
+    // The replay sends the identical frozen request under the identical identity, and the server's
+    // definitive stale answer (it looked the uuid up first and holds nothing) ends it honestly.
+    equal((await service.runCycle(OWNER)).kind, 'superseded_uncommitted')
+    deepEqual(scripted.calls[1]?.body, scripted.calls[0]?.body)
+    equal(preparation.findOperation(operationUuid)?.state, 'superseded_uncommitted')
+    deepEqual(
+      database
+        .prepare(
+          'SELECT canonical_request_json AS json, request_hash AS hash FROM prepare_operations WHERE operation_uuid = ?'
+        )
+        .get(operationUuid),
+      frozen
+    )
+    deepEqual(learned, [7])
+
+    // Nothing is deleted or recreated in place: the next cycle is a NEW operation that declares the
+    // revision the server named.
+    await service.runCycle(OWNER)
+    const next = scripted.calls[2]?.body as {
+      operation_uuid: string
+      requested_policy_revision: number
+    }
+    ok(next.operation_uuid !== operationUuid)
+    equal(next.requested_policy_revision, 7)
+    equal(
+      (
+        database.prepare('SELECT COUNT(*) AS total FROM prepare_operations').get() as {
+          total: number
+        }
+      ).total,
+      2
+    )
+    closeDatabase(database)
+  }
+)
+
+for (const code of ['ROUTE_NOT_FOUND', 'DESKTOP_PREPARATION_UNAVAILABLE']) {
+  databaseTest(`CP4 regression: a 404 ${code} is unavailable, never ambiguous`, async (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    markReconciledCapability(database, 5)
+    const scripted = scriptedClient([
+      async () => {
+        throw httpFailure(404, code)
+      }
+    ])
+    const { service } = buildService(database, scripted.client, [COLA])
+
+    equal((await service.runCycle(OWNER)).kind, 'unavailable')
+    equal(
+      (
+        database
+          .prepare("SELECT COUNT(*) AS total FROM prepare_operations WHERE state = 'ambiguous'")
+          .get() as { total: number }
+      ).total,
+      0
+    )
+    closeDatabase(database)
+  })
+}
+
+databaseTest(
+  'CP4 regression: the real 409 IDEMPOTENCY_CONFLICT is terminal conflicted',
+  async (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    markReconciledCapability(database, 5)
+    const scripted = scriptedClient([
+      async () => {
+        throw httpFailure(409, 'IDEMPOTENCY_CONFLICT')
+      }
+    ])
+    const { service, preparation } = buildService(database, scripted.client, [COLA])
+
+    const outcome = await service.runCycle(OWNER)
+
+    equal(outcome.kind, 'conflicted')
+    const operationUuid = (scripted.calls[0]?.body as { operation_uuid: string }).operation_uuid
+    equal(preparation.findOperation(operationUuid)?.state, 'conflicted')
     closeDatabase(database)
   }
 )
