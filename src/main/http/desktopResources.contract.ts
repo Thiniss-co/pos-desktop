@@ -404,6 +404,71 @@ export const desktopStockAllocationTopUpMetaSchema = z.object({
 
 export type DesktopStockAllocationTopUpData = z.infer<typeof desktopStockAllocationTopUpDataSchema>
 
+/**
+ * Receipt-printing plan §D-10/§D-11 — company receipt branding, exactly as the backend publishes it
+ * (`CompanyReceiptProfileVersionResource`, the logo-upload and asset-read endpoints of
+ * `DesktopReceiptProfileController`). `.strict()` like every other cross-runtime shape here: a
+ * server field this desktop does not understand must fail deliberately, never be discarded.
+ *
+ * The logo bounds mirror both sides at once: the backend re-encodes every upload to PNG within
+ * 384×192 px and 256 KiB (`UploadCompanyReceiptLogoAction`), and `0015_receipt_printing` enforces
+ * the same limits as CHECK constraints on `receipt_profile_assets`.
+ */
+const receiptProfileSha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
+
+const receiptProfileLogoMetadataShape = {
+  sha256: receiptProfileSha256Schema,
+  media_type: z.literal('image/png'),
+  width_px: z.number().int().min(1).max(384),
+  height_px: z.number().int().min(1).max(192),
+  byte_length: z.number().int().min(1).max(262_144)
+}
+
+export const receiptProfileLogoUploadResponseSchema = z
+  .object(receiptProfileLogoMetadataShape)
+  .strict()
+
+export type ReceiptProfileLogoUploadResponse = z.infer<
+  typeof receiptProfileLogoUploadResponseSchema
+>
+
+/** `GET receipt-profile/assets/{sha256}`. The bytes stay untrusted until
+ *  `verifyReceiptProfileAssetBytes` has checked hash, signature, length and decoded size. */
+export const receiptProfileAssetResponseSchema = z
+  .object({
+    ...receiptProfileLogoMetadataShape,
+    content_base64: z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/)
+  })
+  .strict()
+
+export type ReceiptProfileAssetResponse = z.infer<typeof receiptProfileAssetResponseSchema>
+
+/**
+ * The `{can_manage, profile}` wrapper shared by `PUT receipt-profile` and the negotiated bootstrap
+ * `receipt_profile` block. `profile: null` means the company has never published a profile — the
+ * server still says whether this user may create one.
+ */
+export const companyReceiptProfileResourceSchema = z
+  .object({
+    can_manage: z.boolean(),
+    profile: z
+      .object({
+        uuid: z.uuid(),
+        revision: z.number().int().min(1),
+        address_lines: z.array(z.string().max(80)).max(4),
+        phone: z.string().max(40).nullable(),
+        tax_identifier_label: z.string().max(24).nullable(),
+        tax_identifier_value: z.string().max(40).nullable(),
+        footer_lines: z.array(z.string().max(80)).max(3),
+        logo: z.object(receiptProfileLogoMetadataShape).strict().nullable()
+      })
+      .strict()
+      .nullable()
+  })
+  .strict()
+
+export type CompanyReceiptProfileResource = z.infer<typeof companyReceiptProfileResourceSchema>
+
 export const desktopBootstrapResourceSchema = z
   .object({
     server_time: isoSecondTimestampSchema,
@@ -481,6 +546,11 @@ export const desktopBootstrapResourceSchema = z
       })
       .passthrough()
       .optional(),
+    // Receipt-printing plan §D-11: present only when this request negotiated
+    // `receipt_profile_version=1`. ABSENT means this response says nothing about branding (an older
+    // backend) and is never read as "no profile"; `ReceiptProfileSyncService.ingestFromBootstrap`
+    // treats `undefined` as a no-op for exactly that reason.
+    receipt_profile: companyReceiptProfileResourceSchema.optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),

@@ -30,7 +30,10 @@ import type {
   PrintingPreviewInput,
   PrintJobView,
   PrintPreviewOutput,
-  ReceiptDocumentRef
+  ReceiptDocumentRef,
+  ReceiptProfileChooseLogoOutput,
+  ReceiptProfileGetOutput,
+  ReceiptProfilePublishInput
 } from '@shared/contracts/printing.contract'
 import type {
   CatalogCategory,
@@ -218,6 +221,13 @@ export interface PosApi {
     latestForDocument(input: {
       document: ReceiptDocumentRef
     }): Promise<IpcResult<PrintJobView | null>>
+  }
+  /** Receipt-printing plan §D-11: the CompanyAdmin receipt-profile editor. No method accepts a
+   *  file path; the logo file is chosen in main through the native dialog. */
+  readonly receiptProfile: {
+    get(): Promise<IpcResult<ReceiptProfileGetOutput>>
+    chooseLogo(): Promise<IpcResult<ReceiptProfileChooseLogoOutput>>
+    publish(input: ReceiptProfilePublishInput): Promise<IpcResult<ReceiptProfileGetOutput>>
   }
 }
 
@@ -438,5 +448,11 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.printingCancelJob, input),
     latestForDocument: (input: { document: ReceiptDocumentRef }) =>
       ipcRenderer.invoke(IPC_CHANNELS.printingLatestForDocument, input)
+  }),
+  receiptProfile: Object.freeze({
+    get: () => ipcRenderer.invoke(IPC_CHANNELS.receiptProfileGet),
+    chooseLogo: () => ipcRenderer.invoke(IPC_CHANNELS.receiptProfileChooseLogo),
+    publish: (input: ReceiptProfilePublishInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.receiptProfilePublish, input)
   })
 })

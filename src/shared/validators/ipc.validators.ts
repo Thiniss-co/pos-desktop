@@ -23,7 +23,8 @@ import {
   printingDispatchInputSchema as printingDispatchContractSchema,
   printingGetJobInputSchema as printingGetJobContractSchema,
   printingCancelJobInputSchema as printingCancelJobContractSchema,
-  printingLatestForDocumentInputSchema as printingLatestForDocumentContractSchema
+  printingLatestForDocumentInputSchema as printingLatestForDocumentContractSchema,
+  receiptProfilePublishInputSchema as receiptProfilePublishContractSchema
 } from '@shared/contracts/printing.contract'
 import {
   refundsCancelPreparedInputSchema as refundsCancelPreparedContractSchema,
@@ -136,3 +137,9 @@ export const printingDispatchInputSchema = printingDispatchContractSchema
 export const printingGetJobInputSchema = printingGetJobContractSchema
 export const printingCancelJobInputSchema = printingCancelJobContractSchema
 export const printingLatestForDocumentInputSchema = printingLatestForDocumentContractSchema
+
+// Receipt-printing plan §D-11: get and choose-logo take no argument at all -- the renderer can never
+// name a file path, an owner or a company. Publish is the strict editor contract.
+export const receiptProfileGetInputSchema = z.undefined()
+export const receiptProfileChooseLogoInputSchema = z.undefined()
+export const receiptProfilePublishInputSchema = receiptProfilePublishContractSchema

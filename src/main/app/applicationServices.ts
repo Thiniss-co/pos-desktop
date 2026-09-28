@@ -1,4 +1,5 @@
-import { app, net, powerMonitor, safeStorage } from 'electron'
+import { app, dialog, net, powerMonitor, safeStorage } from 'electron'
+import { readFile } from 'node:fs/promises'
 import { hostname, platform, release } from 'os'
 import { runtimeInfoSchema, type RuntimeInfo } from '@shared/contracts/system.contract'
 import { loadRuntimeConfig, type RuntimeConfig } from '../config/runtimeConfig'
@@ -62,6 +63,8 @@ import { PrinterSettingsService } from '../receipt/printerSettings.service'
 import { ReceiptPrintJobRepository } from '../repositories/receiptPrintJob.repository'
 import { ReceiptPrintingService } from '../receipt/receiptPrinting.service'
 import { ReceiptProfileRepository } from '../repositories/receiptProfile.repository'
+import { ReceiptProfileSyncService } from '../receipt/receiptProfileSync.service'
+import { ReceiptProfileAdminService } from '../receipt/receiptProfileAdmin.service'
 import {
   destroySharedReceiptRenderWindow,
   getSharedReceiptRenderWindow
@@ -133,6 +136,7 @@ export interface ApplicationServices {
   readonly receiptAccess: ReceiptAccessService
   readonly printerSettings: PrinterSettingsService
   readonly receiptPrinting: ReceiptPrintingService
+  readonly receiptProfileAdmin: ReceiptProfileAdminService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   readonly invoiceUploads: InvoiceUploadWorker
@@ -291,6 +295,10 @@ export function createApplicationServices(): ApplicationServices {
   // rendering reads the mirror the sync service will later populate; wired here so the mirror
   // always exists once printing needs it.
   const receiptProfileRepository = new ReceiptProfileRepository(database)
+  const receiptProfileSync = new ReceiptProfileSyncService({
+    repository: receiptProfileRepository,
+    apiClient
+  })
   const bootstrap = new BootstrapService(
     apiClient,
     deviceIdentityRepository,
@@ -301,8 +309,24 @@ export function createApplicationServices(): ApplicationServices {
         catalog.markPublished(result.catalogRevision)
       }
       commercialAccessPublisher?.publishCurrent()
-    }
+    },
+    undefined,
+    // Mirrors the negotiated `receipt_profile` block for the responding company and the current
+    // session user only; never fails or delays bootstrap (see BootstrapReceiptProfileSync).
+    sessionMetadata,
+    receiptProfileSync
   )
+  // Receipt-printing plan §D-11: the CompanyAdmin editor. Session is resolved at the IPC layer;
+  // this service re-checks the mirrored `canManage` verdict and the online requirement itself.
+  const receiptProfileAdmin = new ReceiptProfileAdminService({
+    repository: receiptProfileRepository,
+    sync: receiptProfileSync,
+    apiClient,
+    connectivity,
+    dialog,
+    readFile: (filePath) => readFile(filePath),
+    refreshBootstrap: () => bootstrap.refresh()
+  })
   const shiftPermissions = new ShiftPermissions(bootstrapSnapshot)
   const shiftAuthority = new ShiftAuthorityService({
     observations: shiftObservations,
@@ -784,6 +808,7 @@ export function createApplicationServices(): ApplicationServices {
     receiptAccess,
     printerSettings,
     receiptPrinting,
+    receiptProfileAdmin,
     companyUsers,
     connectivity,
     invoiceUploads,

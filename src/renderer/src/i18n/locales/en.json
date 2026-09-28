@@ -611,7 +611,11 @@
     "refund_not_resumable": "This refund is not in a state that can be resumed.",
     "refund_dispatch_failed": "This refund could not be dispatched.",
     "refund_payment_method_unavailable": "The selected refund method is not available.",
-    "refund_payment_method_unsupported": "This payment method cannot be used for a refund."
+    "refund_payment_method_unsupported": "This payment method cannot be used for a refund.",
+    "RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN": "This account cannot change the company receipt profile.",
+    "RECEIPT_PROFILE_REVISION_CONFLICT": "Someone else changed the receipt profile. Review the latest version and apply your changes again.",
+    "RECEIPT_PROFILE_ASSET_INVALID": "The logo file could not be used. Choose a different image.",
+    "RECEIPT_PROFILE_ASSET_NOT_FOUND": "The logo could not be found on the server. Choose it again."
   },
   "offlineSale": {
     "title": "Offline selling",

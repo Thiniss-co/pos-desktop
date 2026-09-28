@@ -157,6 +157,15 @@ describe('posApi surface', () => {
     expect(source).toContain('IPC_CHANNELS.printingListPrinters')
   })
 
+  it('exposes the receipt-profile editor channels without any file-path argument', () => {
+    expect(source).toContain('receiptProfile:')
+    expect(source).toContain('IPC_CHANNELS.receiptProfileGet)')
+    expect(source).toContain('IPC_CHANNELS.receiptProfileChooseLogo)')
+    expect(source).toContain('IPC_CHANNELS.receiptProfilePublish, input)')
+    // The logo is chosen through main's native dialog; the renderer can never name a file.
+    expect(source).not.toMatch(/chooseLogo:\s*\([^)]+\)/)
+  })
+
   it('the printing preload never sends raw HTML, a URL, a filesystem path, or a printer command', () => {
     // The renderer sends only a document reference (kind + local uuid), locale and narrow output
     // overrides -- never the receipt markup, an asset path, or a device-level print command. Main

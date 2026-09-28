@@ -226,7 +226,7 @@ export type ReceiptProfileChooseLogoOutput = z.infer<typeof receiptProfileChoose
 export const receiptProfileLogoActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('keep') }).strict(),
   z.object({ action: z.literal('remove') }).strict(),
-  z.object({ action: z.literal('set'), sha256: z.string().length(64) }).strict()
+  z.object({ action: z.literal('set'), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 ])
 
 export const receiptProfilePublishInputSchema = z

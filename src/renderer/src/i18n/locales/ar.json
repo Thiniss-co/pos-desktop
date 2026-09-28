@@ -611,7 +611,11 @@
     "refund_not_resumable": "هذا الاسترداد ليس في حالة يمكن استئنافها.",
     "refund_dispatch_failed": "تعذر إرسال هذا الاسترداد.",
     "refund_payment_method_unavailable": "طريقة الاسترداد المحددة غير متاحة.",
-    "refund_payment_method_unsupported": "لا يمكن استخدام طريقة الدفع هذه للاسترداد."
+    "refund_payment_method_unsupported": "لا يمكن استخدام طريقة الدفع هذه للاسترداد.",
+    "RECEIPT_PROFILE_ADMINISTRATION_FORBIDDEN": "لا يملك هذا الحساب صلاحية تعديل ملف إيصال الشركة.",
+    "RECEIPT_PROFILE_REVISION_CONFLICT": "قام شخص آخر بتعديل ملف الإيصال. راجع أحدث نسخة ثم طبّق تغييراتك مرة أخرى.",
+    "RECEIPT_PROFILE_ASSET_INVALID": "تعذّر استخدام ملف الشعار. اختر صورة أخرى.",
+    "RECEIPT_PROFILE_ASSET_NOT_FOUND": "تعذّر العثور على الشعار على الخادم. اختره مرة أخرى."
   },
   "offlineSale": {
     "title": "البيع دون اتصال",

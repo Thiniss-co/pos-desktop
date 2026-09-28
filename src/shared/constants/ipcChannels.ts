@@ -86,5 +86,11 @@ export const IPC_CHANNELS = Object.freeze({
   printingDispatch: 'printing:dispatch',
   printingGetJob: 'printing:get-job',
   printingCancelJob: 'printing:cancel-job',
-  printingLatestForDocument: 'printing:latest-for-document'
+  printingLatestForDocument: 'printing:latest-for-document',
+  // Receipt-printing plan §D-11 -- the CompanyAdmin receipt-profile editor. Same discipline as
+  // printing: assertTrustedSender, a strict Zod input schema, then the caller's session and the
+  // mirrored `canManage` verdict inside `ReceiptProfileAdminService`.
+  receiptProfileGet: 'receipt-profile:get',
+  receiptProfileChooseLogo: 'receipt-profile:choose-logo',
+  receiptProfilePublish: 'receipt-profile:publish'
 })
