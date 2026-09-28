@@ -21,7 +21,7 @@
  *  - the temporary directory is removed in a `finally`, and its absence is verified.
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -30,6 +30,14 @@ import { fileURLToPath } from 'node:url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP_ROOT = resolve(HERE, '..')
 const BACKEND_ROOT = resolve(DESKTOP_ROOT, '..', 'pos-backend')
+const GUARDED_ARTISAN = join(
+  DESKTOP_ROOT,
+  'tests',
+  'electron',
+  'support',
+  'sandbox',
+  'guardedArtisan.php'
+)
 const READY_TIMEOUT_MS = 60_000
 
 function log(message) {
@@ -80,7 +88,7 @@ async function waitForServer(origin) {
   throw new Error('the live backend never became ready')
 }
 
-const sandbox = mkdtempSync(join(tmpdir(), 'pos-ps7-live-'))
+const sandbox = mkdtempSync(join(realpathSync(tmpdir()), 'pos-ps7-live-'))
 const databasePath = join(sandbox, 'ps7-backend.sqlite')
 const fixturePath = join(sandbox, 'ps7-fixture.json')
 
@@ -90,17 +98,27 @@ try {
   writeFileSync(databasePath, '')
   log(`created a disposable backend database inside ${sandbox}`)
 
+  const inherited = { ...process.env }
+  // A URL or a cached config would silently win over DB_DATABASE; neither may reach a child.
+  delete inherited.DB_URL
+  delete inherited.APP_CONFIG_CACHE
+
   const backendEnv = {
-    ...process.env,
+    ...inherited,
     APP_ENV: 'testing',
     DB_CONNECTION: 'sqlite',
     DB_DATABASE: databasePath,
+    // An isolated, never-written config cache path: `bootstrap/cache/config.php` can't apply.
+    APP_CONFIG_CACHE: join(sandbox, 'laravel-config-cache.php'),
+    // Read by tests/electron/support/sandbox/laravelSandboxGuard.php in the writing process.
+    POS_SANDBOX_EXPECTED_DB: databasePath,
     // The capability is enabled ONLY for this disposable run, through the environment. No real
     // configuration file is written or changed.
     POS_OFFLINE_PHYSICAL_PRESENCE_ENABLED: 'true'
   }
 
-  const migrate = spawnSync('php', ['artisan', 'migrate', '--force', '--no-interaction'], {
+  // Migrate and seed in the same PHP process that verifies the resolved connection.
+  const migrate = spawnSync('php', [GUARDED_ARTISAN, BACKEND_ROOT, 'migrate'], {
     cwd: BACKEND_ROOT,
     env: backendEnv,
     encoding: 'utf8'
@@ -114,7 +132,7 @@ try {
 
   const seed = spawnSync(
     'php',
-    ['artisan', 'ps7:seed-physical-presence-fixture', fixturePath, '--no-interaction'],
+    [GUARDED_ARTISAN, BACKEND_ROOT, 'ps7:seed-physical-presence-fixture', fixturePath],
     { cwd: BACKEND_ROOT, env: backendEnv, encoding: 'utf8' }
   )
 

@@ -132,7 +132,13 @@ function decodePngIhdr(buffer: Buffer): { widthPx: number; heightPx: number } | 
  * PDF/PNG artifacts (a real GUI/window process is required for that step, which this harness's own
  * `ELECTRON_RUN_AS_NODE` execution mode does not provide -- see its own module comment).
  */
-const ARTIFACT_DIR = resolve(process.cwd(), 'docs/audits/artifacts/receipt-profile')
+const ARTIFACT_DIR = resolve(
+  process.cwd(),
+  // A verification run names its own directory, so it never rewrites the committed evidence set
+  // with a half-regenerated one (the PNG/PDF come from `runReceiptRenderCheck.mjs` afterwards,
+  // pointed at the same directory).
+  process.env.RECEIPT_PROFILE_ARTIFACT_DIR ?? 'docs/audits/artifacts/receipt-profile'
+)
 
 function persistArtifact(name: string, document: ReceiptDocument, html: string): void {
   mkdirSync(ARTIFACT_DIR, { recursive: true })

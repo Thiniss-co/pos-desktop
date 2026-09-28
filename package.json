@@ -12,7 +12,7 @@
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
-    "test:cp3g5-harness": "node --test --test-concurrency=1 tests/cp3g5HarnessSafety.test.mjs tests/cp3g5HarnessLifecycle.test.mjs",
+    "test:cp3g5-harness": "node --test --test-concurrency=1 tests/cp3g5HarnessSafety.test.mjs tests/cp3g5HarnessLifecycle.test.mjs tests/sandboxGuard.test.mjs",
     "test:cp3g5-reliability": "node tests/electron/support/cp3g5/seedReliability.mjs",
     "test:watch": "vitest",
     "smoke:database": "node scripts/runElectronNode.mjs scripts/databaseSmoke.ts",

@@ -41,6 +41,14 @@ const BACKEND_ROOT = resolve(
   process.env.CP3G5_BACKEND_ROOT ?? resolve(DESKTOP_ROOT, '..', 'pos-backend')
 )
 const SEEDER = join(DESKTOP_ROOT, 'tests', 'electron', 'support', 'cp3g5', 'seedLiveBackend.php')
+const GUARDED_ARTISAN = join(
+  DESKTOP_ROOT,
+  'tests',
+  'electron',
+  'support',
+  'sandbox',
+  'guardedArtisan.php'
+)
 const SANDBOX_PREFIX = 'pos-desktop-cp3g5-'
 const DATABASE_FILENAME = 'cp3g5-backend.sqlite'
 const MARKER_FILENAME = '.cp3g5-harness'
@@ -513,6 +521,11 @@ async function main() {
     DB_DATABASE: databasePath,
     DB_FOREIGN_KEYS: 'true',
     LOG_CHANNEL: 'errorlog',
+    // An isolated, never-written config cache path inside this run's sandbox. Laravel otherwise
+    // falls back to `bootstrap/cache/config.php`, which would override DB_DATABASE.
+    APP_CONFIG_CACHE: join(exactGeneratedSandbox, 'laravel-config-cache.php'),
+    // Read by tests/electron/support/sandbox/laravelSandboxGuard.php in the migrating process.
+    POS_SANDBOX_EXPECTED_DB: databasePath,
     CP3G5_LIVE_HARNESS: '1',
     // Switches on the seeder's own whitelisted lifecycle diagnostics (CP-3G-7 F2). Unauthorized
     // direct invocations never set this, so their rejection output stays exactly as CP-3G-5 froze it.
@@ -681,7 +694,9 @@ async function main() {
 
     console.log('[cp3g5] resolved database identity verified before the first write')
 
-    const migrate = spawnSync('php', ['artisan', 'migrate', '--force', '--no-interaction'], {
+    // The probe above ran in its own process. The migration re-verifies the resolved connection
+    // in the SAME process that writes, and refuses (exit 3) before any write on a mismatch.
+    const migrate = spawnSync('php', [GUARDED_ARTISAN, BACKEND_ROOT, 'migrate'], {
       cwd: BACKEND_ROOT,
       env: backendEnvironment,
       encoding: 'utf8'

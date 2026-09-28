@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { buildReceiptHtml } from '../src/main/receipt/receiptHtml'
 import {
   getSharedReceiptRenderWindow,
@@ -344,7 +344,12 @@ async function main(): Promise<void> {
     // (`tests/electron/suites/receiptProfileLiveUpload.suite.ts`), rather than a synthetic fixture.
     // Each `*.html` file there is already-built output (real captured branding); this step only
     // proves it paginates and rasterizes correctly under real Chromium.
-    const gateArtifactsDir = join(process.cwd(), 'docs', 'audits', 'artifacts', 'receipt-profile')
+    // Same override as the gate itself, so one run's HTML/JSON and PNG/PDF land in one directory.
+    const gateArtifactsDir = resolve(
+      process.cwd(),
+      process.env.RECEIPT_PROFILE_ARTIFACT_DIR ??
+        join('docs', 'audits', 'artifacts', 'receipt-profile')
+    )
     if (existsSync(gateArtifactsDir)) {
       for (const entry of readdirSync(gateArtifactsDir)) {
         if (!entry.endsWith('.html')) {
