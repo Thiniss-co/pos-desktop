@@ -416,6 +416,7 @@ export const usePaymentStore = defineStore('payment', () => {
     cancelDraftRow,
     commitDraftRow,
     removeRow,
+    clearDraft,
     resetPayment,
     refreshPreview,
     attemptKey,

@@ -344,4 +344,32 @@ describe('PaymentPanel', () => {
     const error = document.querySelector('.app-inline-error')
     expect(error?.textContent).toContain('Reduce the cash amount to avoid a rejection')
   })
+
+  it('renders in place, without a modal, when inline', async () => {
+    mountPanel({ inline: true })
+    await Promise.resolve()
+
+    expect(document.querySelector('[aria-modal="true"]')).toBeNull()
+    expect(document.querySelector('.inline-panel-frame')).not.toBeNull()
+    expect(document.querySelector('.payment-panel__complete')).not.toBeNull()
+  })
+
+  it('emits the chosen quick tender and hides quick tenders while recovery is pending', async () => {
+    const wrapper = mountPanel({
+      inline: true,
+      quickTenders: [
+        { id: '3740', label: 'Exact 37.40', exact: true },
+        { id: '5000', label: '50.00' }
+      ]
+    })
+    await Promise.resolve()
+
+    const tenders = document.querySelectorAll<HTMLButtonElement>('.payment-panel__quick-tender')
+    expect(tenders).toHaveLength(2)
+    tenders[1].click()
+    expect(wrapper.emitted('quickTender')).toEqual([['5000']])
+
+    await wrapper.setProps({ recoveryState: { kind: 'blocked', message: 'Blocked' } })
+    expect(document.querySelectorAll('.payment-panel__quick-tender')).toHaveLength(0)
+  })
 })

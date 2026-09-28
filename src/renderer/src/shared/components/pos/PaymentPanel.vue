@@ -7,11 +7,13 @@ import AppSpinner from '@renderer/shared/components/common/AppSpinner.vue'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
 import AppStatusChip from '@renderer/shared/components/feedback/AppStatusChip.vue'
+import InlinePanelFrame from './InlinePanelFrame.vue'
 import NumericAmountInput from './NumericAmountInput.vue'
 import PaymentMethodTile from './PaymentMethodTile.vue'
 import SplitPaymentRow from './SplitPaymentRow.vue'
 import type {
   DisplayPaymentMethodOption,
+  DisplayQuickTender,
   DisplaySplitPayment,
   PaymentPanelRecoveryState
 } from './types'
@@ -93,6 +95,10 @@ const props = withDefaults(
     completedTotal?: string
     completedNote?: string
     failedTitle?: string
+    /** `inline` renders the same flow in place (the cart column) instead of as a modal. */
+    inline?: boolean
+    quickTenders?: readonly DisplayQuickTender[]
+    quickTendersLabel?: string
   }>(),
   {
     discountLabel: undefined,
@@ -120,7 +126,10 @@ const props = withDefaults(
     completedTitle: undefined,
     completedTotal: undefined,
     completedNote: undefined,
-    failedTitle: undefined
+    failedTitle: undefined,
+    inline: false,
+    quickTenders: () => [],
+    quickTendersLabel: undefined
   }
 )
 
@@ -140,6 +149,7 @@ const emit = defineEmits<{
   acknowledge: []
   print: []
   fillDue: []
+  quickTender: [string]
 }>()
 
 const eligibleOptions = computed(() => props.methodOptions.filter((option) => option.eligible))
@@ -188,7 +198,8 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
 </script>
 
 <template>
-  <AppDialog
+  <component
+    :is="inline ? InlinePanelFrame : AppDialog"
     :open="open"
     size="xl"
     :close-label="closeLabel"
@@ -304,7 +315,11 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
     </div>
 
     <!-- Tendering (V3 "payment_tender_split"). -->
-    <div v-else class="grid grid-cols-1 gap-5 wide:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <div
+      v-else
+      class="grid grid-cols-1"
+      :class="inline ? 'gap-4' : 'gap-5 wide:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]'"
+    >
       <div class="flex min-w-0 flex-col gap-4">
         <div
           class="numeric flex flex-wrap items-center gap-4 rounded-lg border border-line px-4 py-3.5"
@@ -360,6 +375,34 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
               :reason="option.ineligibleReason"
               :title="option.ineligibleReason"
             />
+          </div>
+        </div>
+
+        <div
+          v-if="quickTenders.length > 0"
+          class="payment-panel__quick flex flex-col gap-2"
+          role="group"
+          :aria-label="quickTendersLabel"
+        >
+          <span v-if="quickTendersLabel" class="text-sm font-semibold" aria-hidden="true">{{
+            quickTendersLabel
+          }}</span>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              v-for="tender in quickTenders"
+              :key="tender.id"
+              type="button"
+              class="payment-panel__quick-tender numeric min-h-12 rounded-notice border px-2 text-md font-bold disabled:cursor-not-allowed disabled:opacity-50"
+              :class="
+                tender.exact
+                  ? 'payment-panel__quick-tender--exact col-span-3 border-pri bg-pri-soft text-pri-text hover:bg-pri hover:text-on-pri'
+                  : 'border-control bg-surf text-ink hover:bg-subtle'
+              "
+              :disabled="tender.disabled"
+              @click="emit('quickTender', tender.id)"
+            >
+              {{ tender.label }}
+            </button>
           </div>
         </div>
 
@@ -552,5 +595,5 @@ function onRowActivate(event: MouseEvent, rowId: string): void {
         {{ completionLabel }}
       </AppButton>
     </template>
-  </AppDialog>
+  </component>
 </template>

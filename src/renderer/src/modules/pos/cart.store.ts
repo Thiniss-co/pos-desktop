@@ -4,6 +4,7 @@ import type { CatalogContract, CatalogProduct } from '@shared/contracts/catalog.
 import {
   addQuantity,
   calculateCart,
+  formatQuantity,
   type CartCalculation,
   type CartCalculationErrorCode,
   type DiscountType
@@ -19,6 +20,28 @@ export interface CartLineSnapshot {
   readonly discountType: DiscountType
   readonly discountValue: number
 }
+
+/**
+ * A parked (held) draft. In-memory only, like the live draft itself: it is never a sale, never
+ * persisted, and is discarded by `resetDraft` (logout, session end, device recovery, shift change)
+ * exactly as the live draft is. Line snapshots stay frozen; recalling a draft held under an older
+ * catalog revision surfaces the existing rebuild-or-clear resolution instead of repricing it.
+ */
+export interface HeldDraft {
+  readonly id: string
+  readonly heldAt: string
+  readonly lines: readonly CartLineSnapshot[]
+  readonly invoiceDiscountType: DiscountType
+  readonly invoiceDiscountValue: number
+  readonly customerUuid: string | null
+  readonly customerName: string | null
+  readonly itemCount: number
+  readonly grandTotalAmount: number | null
+}
+
+export const MAX_HELD_DRAFTS = 20
+
+export type CartErrorCode = CartCalculationErrorCode | 'CART_HOLD_LIMIT'
 
 export type CartState =
   | { readonly kind: 'empty' }
@@ -63,7 +86,8 @@ export const useCartStore = defineStore('cart', () => {
   const draftRevision = ref(0)
   const catalogGeneration = ref(0)
   const lastValid = ref<CartCalculation | null>(null)
-  const rejectionCode = ref<CartCalculationErrorCode | null>(null)
+  const rejectionCode = ref<CartErrorCode | null>(null)
+  const heldDrafts = ref<HeldDraft[]>([])
 
   const error = computed(() =>
     rejectionCode.value ? String(i18n.global.t(`pos.errors.${rejectionCode.value}`)) : null
@@ -79,7 +103,7 @@ export const useCartStore = defineStore('cart', () => {
     () => contract.value !== null && catalogValid.value && catalogChanged.value === false
   )
 
-  function reject(code: CartCalculationErrorCode): false {
+  function reject(code: CartErrorCode): false {
     rejectionCode.value = code
     return false
   }
@@ -194,7 +218,7 @@ export const useCartStore = defineStore('cart', () => {
     catalogValid.value = isValid
   }
 
-  function addProduct(product: CatalogProduct): boolean {
+  function addProduct(product: CatalogProduct, quantityMilli = 1000): boolean {
     if (!contract.value || !catalogValid.value) {
       return reject('CART_CATALOG_REQUIRED')
     }
@@ -205,11 +229,15 @@ export const useCartStore = defineStore('cart', () => {
       return reject('CART_MIXED_CURRENCY')
     }
 
+    if (!Number.isSafeInteger(quantityMilli) || quantityMilli <= 0) {
+      return reject('CART_QUANTITY_INVALID')
+    }
+
     const key = mergeKey(product, contract.value.revision)
     const existing = lines.value.find((line) => line.mergeKey === key)
 
     if (existing) {
-      const nextQuantity = addQuantity(existing.quantity, 1000, contract.value)
+      const nextQuantity = addQuantity(existing.quantity, quantityMilli, contract.value)
       if (!nextQuantity.ok) {
         return reject(nextQuantity.code)
       }
@@ -221,6 +249,11 @@ export const useCartStore = defineStore('cart', () => {
       )
     }
 
+    const initialQuantity = formatQuantity(quantityMilli)
+    if (!initialQuantity.ok) {
+      return reject(initialQuantity.code)
+    }
+
     return commit([
       ...lines.value,
       {
@@ -228,7 +261,7 @@ export const useCartStore = defineStore('cart', () => {
         mergeKey: key,
         catalogRevision: contract.value.revision,
         product: immutableProductSnapshot(product),
-        quantity: '1.000',
+        quantity: initialQuantity.value,
         discountType: null,
         discountValue: 0
       }
@@ -352,7 +385,84 @@ export const useCartStore = defineStore('cart', () => {
   function resetDraft(reason?: string): void {
     void reason
     contextGeneration.value += 1
+    heldDrafts.value = []
     clear()
+  }
+
+  /**
+   * Parks the live draft so the cashier can serve the next customer. The draft is moved, never
+   * copied: the live cart is cleared afterwards. Returns the held draft, or `null` when there is
+   * nothing to hold or the held list is full.
+   */
+  function holdDraft(
+    customer: { readonly uuid: string; readonly name: string | null } | null = null
+  ): HeldDraft | null {
+    if (lines.value.length === 0) {
+      return null
+    }
+    if (heldDrafts.value.length >= MAX_HELD_DRAFTS) {
+      reject('CART_HOLD_LIMIT')
+      return null
+    }
+
+    const held: HeldDraft = Object.freeze({
+      id: crypto.randomUUID(),
+      heldAt: new Date().toISOString(),
+      lines: Object.freeze([...lines.value]),
+      invoiceDiscountType: invoiceDiscountType.value,
+      invoiceDiscountValue: invoiceDiscountValue.value,
+      customerUuid: customer?.uuid ?? null,
+      customerName: customer?.name ?? null,
+      itemCount: lines.value.length,
+      grandTotalAmount: calculation.value?.grandTotalAmount ?? null
+    })
+
+    heldDrafts.value = [...heldDrafts.value, held]
+    clear()
+    return held
+  }
+
+  /**
+   * Restores a held draft into the (empty) live cart and removes it from the held list. The caller
+   * must hold or clear a non-empty live draft first — recall never merges two drafts. A draft held
+   * under another catalog revision comes back blocked with `CART_CATALOG_CHANGED`, so the cashier
+   * gets the usual explicit rebuild-or-clear choice instead of a silent reprice.
+   */
+  function recallDraft(id: string): HeldDraft | null {
+    const held = heldDrafts.value.find((candidate) => candidate.id === id)
+    if (!held || lines.value.length > 0) {
+      return null
+    }
+
+    const restoredLines = [...held.lines]
+    const revision = contract.value?.revision
+    const outdated =
+      revision === undefined || restoredLines.some((line) => line.catalogRevision !== revision)
+
+    if (outdated) {
+      lines.value = restoredLines
+      invoiceDiscountType.value = held.invoiceDiscountType
+      invoiceDiscountValue.value = held.invoiceDiscountValue
+      lastValid.value = null
+      catalogChanged.value = true
+      markInvalid('CART_CATALOG_CHANGED')
+      draftRevision.value += 1
+    } else if (!commit(restoredLines, held.invoiceDiscountType, held.invoiceDiscountValue)) {
+      return null
+    }
+
+    heldDrafts.value = heldDrafts.value.filter((candidate) => candidate.id !== id)
+    return held
+  }
+
+  function discardHeldDraft(id: string): boolean {
+    const next = heldDrafts.value.filter((candidate) => candidate.id !== id)
+    if (next.length === heldDrafts.value.length) {
+      return false
+    }
+
+    heldDrafts.value = next
+    return true
   }
 
   function captureContext(): string {
@@ -402,6 +512,7 @@ export const useCartStore = defineStore('cart', () => {
 
   return {
     lines,
+    heldDrafts,
     contract,
     cartState,
     calculation,
@@ -426,6 +537,9 @@ export const useCartStore = defineStore('cart', () => {
     remove,
     clear,
     resetDraft,
+    holdDraft,
+    recallDraft,
+    discardHeldDraft,
     captureContext,
     isCurrentContext,
     rebuildFromCatalog
