@@ -107,6 +107,7 @@ import { broadcastSyncChanged } from '../ipc/sync.ipc'
 import { broadcastCatalogChanged } from '../ipc/catalog.ipc'
 import { AllocationDispatchReconciler } from '../services/allocationDispatchReconciler.service'
 import { StockViewService } from '../services/stockView.service'
+import { SupportIssuesService } from '../services/supportIssues.service'
 import { createDeviceHeartbeat, type DeviceHeartbeatHandle } from './deviceHeartbeatWiring'
 
 export interface ApplicationServices {
@@ -167,6 +168,8 @@ export interface ApplicationServices {
   readPreparationReadiness(): PreparationReadiness
   runPreparationCycle(): Promise<PreparationCycleResult>
   readonly invoiceUploadFailures: InvoiceUploadFailureReader
+  /** Read-only "needs attention" projection for the Sync page (dispatch/legacy/recovery evidence). */
+  readonly supportIssues: SupportIssuesService
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -516,6 +519,14 @@ export function createApplicationServices(): ApplicationServices {
     onRequestsResolved: () => broadcastSyncChanged(invoiceUploads.getStatus())
   })
   allocationDispatchTrigger = () => allocationDispatchReconciler.requestRun()
+  const supportIssues = new SupportIssuesService({
+    session: sessionMetadata,
+    allocationDispatches,
+    saleAttempts,
+    recoverySummary: (attempt) => localSale.recoverySummary(attempt),
+    productName: (productUuid) =>
+      catalogRepository.getProduct(productUuid)?.name.slice(0, 300) ?? null
+  })
   const stockView = new StockViewService({
     database,
     catalog,
@@ -899,6 +910,7 @@ export function createApplicationServices(): ApplicationServices {
     readPreparationReadiness,
     runPreparationCycle,
     invoiceUploadFailures,
+    supportIssues,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),

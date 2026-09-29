@@ -242,7 +242,12 @@
     "shortcutHelp": "Show this shortcut guide",
     "shortcutSearch": "Focus catalog search",
     "recovery": {
-      "unacknowledgedPrefix": "Sale complete"
+      "unacknowledgedPrefix": "Sale complete",
+      "needsSupport": "A stock reservation request for this payment is in a state that cannot be retried. Contact support.",
+      "needsSupportReference": "A stock reservation request for this payment cannot be retried. Contact support with reference {reference}.",
+      "legacyUnknown": "This payment was started by an earlier version of the app, which did not record its stock reservation requests.",
+      "outstandingRequest": "A stock reservation request is still unconfirmed; it will be confirmed automatically when the server answers.",
+      "legacyCancelWarning": "An earlier version of the app may have requested a stock reservation for this payment. It can't be verified. No sale will be recorded. A reservation that appears later is handled by normal stock reconciliation and stays flagged for review. Verify the till independently before confirming."
     },
     "payment": {
       "title": "Payment",
@@ -299,7 +304,8 @@
         "rejected": {
           "invalid-request": "This sale could not be validated. Review the cart and payment, then try again under a new attempt.",
           "stock-allocation-unavailable": "One or more tracked products do not have enough stock allocated to this workstation. Adjust the quantity, or refresh workstation data after an allocation is issued. Refreshing does not create or top up an allocation.",
-          "invariant": "An unexpected error stopped this sale. Nothing was charged or saved. Try again."
+          "invariant": "An unexpected error stopped this sale. No sale was recorded. Try again.",
+          "catalog-superseded": "This payment used catalog data that has since changed. No sale was recorded. Refresh workstation data, review the cart, then pay again. If a card terminal was used, check it before retrying."
         },
         "failed": {
           "permission-denied": "This workstation session cannot take payment right now.",
@@ -311,7 +317,7 @@
           "shift-observation-unknown": "The shift status has not been confirmed. Refresh workstation data before completing this sale.",
           "workstation-unassigned": "This workstation has no branch or warehouse assignment. Assign it and refresh workstation data before completing this sale.",
           "allocation-data-unavailable": "Tracked stock allocation data is unavailable. Update the backend and refresh workstation data before completing this sale.",
-          "allocation-acquisition-unresolved": "This sale could not confirm its stock allocation with the server. Nothing was charged or saved. Retry this same sale — retrying is safe and cannot allocate stock twice — or abandon it and verify the till.",
+          "allocation-acquisition-unresolved": "This sale could not confirm its stock reservation with the server. No sale was recorded. Retry this same sale — retrying is safe and cannot reserve stock twice — or cancel it; the reservation request is still tracked and confirmed automatically.",
           "context-changed": "The shift or workstation assignment changed. Refresh before completing this sale.",
           "refresh-required": "The catalog changed. Refresh workstation data — this sale is never repriced automatically.",
           "attempt-conflict": "The cart changed since this sale was started. Review it and try again.",
@@ -320,9 +326,13 @@
           "already-committed": "This sale was already completed.",
           "attempt-unresolved": "This sale is still being resolved.",
           "integrity-inconsistency": "This sale's recorded state could not be verified. Contact support before retrying.",
-          "policy-blocked": "This action is not currently authorized on this device or session."
+          "policy-blocked": "This action is not currently authorized on this device or session.",
+          "allocation-refused": "The server refused to reserve stock for an item in this sale (for example, it is no longer stock-tracked for this company). No sale was recorded. Retry, or cancel this payment and review the cart.",
+          "allocation-integrity-blocked": "A stock reservation request for this sale is in a state that retrying cannot fix. No sale was recorded. Cancel this payment and contact support with the reference shown.",
+          "legacy-uncertainty-acknowledgement-required": "Cancelling this payment needs your explicit confirmation of the warning."
         }
-      }
+      },
+      "largeChange": "The change due is unusually large. Check the amount received."
     },
     "errors": {
       "CART_QUANTITY_INVALID": "Use a quantity with no more than three decimal places.",
@@ -349,7 +359,8 @@
       "PAYMENT_INSUFFICIENT_TENDER": "The tendered amount does not cover the total.",
       "PAYMENT_NON_CASH_OVERPAYMENT": "Only cash payments may exceed the total. Reduce the non-cash amount.",
       "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit.",
-      "CART_HOLD_LIMIT": "Too many held sales. Recall or discard one first."
+      "CART_HOLD_LIMIT": "Too many held sales. Recall or discard one first.",
+      "CART_ATTEMPT_LOCKED": "This cart belongs to a payment that is still in progress. Resolve the payment first."
     },
     "catalogRefresh": {
       "action": "Refresh workstation data",
@@ -368,6 +379,11 @@
       "pausePlaceholder": "Reason for pausing",
       "expectedCash": "Expected cash: {amount}"
     },
+    "layout": {
+      "resizeCart": "Resize cart",
+      "resetCartWidth": "Reset cart width",
+      "cartWidthValue": "{value} pixels"
+    },
     "catalogLabel": "Catalog",
     "categoriesLabel": "Categories",
     "search": {
@@ -380,11 +396,20 @@
       "cached": "Saved catalog · updated {relative}",
       "stale": "Catalog is stale · updated {relative}",
       "unknown": "Saved catalog",
-      "refreshNote": "Refreshing updates the catalog and prices. It does not create or top up stock allocation."
+      "refreshNote": "Refreshing updates the catalog and prices. It does not create or top up stock allocation.",
+      "refreshFailed": "Refresh failed · last successful update {relative}"
     },
     "stock": {
       "inStockCount": "In stock {count}",
-      "lowStockCount": "Low stock {count}"
+      "lowStockCount": "Low stock {count}",
+      "notTracked": "Not stock-tracked",
+      "noWarehouseRecord": "No stock record for this warehouse",
+      "warehouseSnapshot": "Warehouse {count}",
+      "asOf": "Warehouse figure as of {time}",
+      "soldHere": "Sold here {count}",
+      "reservedHere": "Reserved here {count}",
+      "notReservedOffline": "Not reserved on this till for offline sale",
+      "onlyReservedOffline": "Only {count} reserved on this till for offline sale"
     },
     "addToCart": "Add {name} to cart · {price}",
     "pagination": {
@@ -451,7 +476,10 @@
       "product": "Product",
       "was": "Was",
       "now": "Now",
-      "same": "Unchanged"
+      "same": "Unchanged",
+      "removed": "No longer in the catalog — will be removed",
+      "nameChanged": "name changed",
+      "trackingChanged": "stock tracking changed"
     },
     "tender": {
       "statusChip": "This sale has not been saved yet",
@@ -501,6 +529,30 @@
       "shortcutScan": "Focus the scan field",
       "shortcutPay": "Pay, then complete the sale",
       "shortcutMultiplier": "Type a quantity before the code"
+    },
+    "exactCash": {
+      "complete": "Complete · Exact cash · {method} · {amount}",
+      "addRemaining": "Add remaining {amount} in {method}",
+      "rowDropped": "The total changed, so the exact-cash payment was removed. Add the payment again.",
+      "shortcut": "Complete with exact cash"
+    },
+    "scanner": {
+      "ignoredWhilePaying": "Scanner input ignored while paying — close payment to scan items.",
+      "fieldReverted": "Scanner input isn't accepted in payment fields; the field was restored. Type the value.",
+      "collecting": "Scanning… (Esc to cancel)",
+      "heldScans": "{count} scans held — press New sale to add them"
+    },
+    "keys": {
+      "complete": "Press F9 to complete the sale",
+      "exactCash": "Press Shift+F9 to complete with exact cash",
+      "retry": "Press F9 to retry",
+      "confirmAbandon": "Press F9 to confirm cancelling this payment",
+      "print": "Print receipt (Ctrl+P)",
+      "acknowledge": "Press F9 to start a new sale"
+    },
+    "lastSale": {
+      "total": "Last sale {total}",
+      "change": "change {change}"
     }
   },
   "sync": {
@@ -570,6 +622,62 @@
       "title": "Waiting to upload",
       "summary": "{count} queued records are waiting to upload.",
       "none": "Nothing is waiting to upload."
+    },
+    "attention": {
+      "title": "Needs attention",
+      "description": "Records this workstation keeps about stock reservation requests and payments. Nothing here can be deleted, and nothing here changes a recorded sale.",
+      "unavailable": "The attention list could not be loaded. Nothing was changed; try again from this page.",
+      "loading": "Loading…",
+      "none": "Nothing needs attention on this workstation.",
+      "reference": "Support reference",
+      "traceId": "Server trace ID",
+      "copy": "Copy reference",
+      "copied": "Reference copied",
+      "copyFailed": "Could not copy. Select the reference and copy it manually.",
+      "occurredAt": "Started",
+      "updatedAt": "Last recorded",
+      "otherCashier": "Recorded by another cashier on this workstation. Details are shown only to that cashier.",
+      "productUnavailable": "Product no longer in the catalog",
+      "quantity": "×{quantity}",
+      "support": {
+        "title": "Needs support",
+        "description": "These cannot be fixed from the workstation. Give support the reference shown on each item.",
+        "empty": "No records need support."
+      },
+      "automatic": {
+        "title": "Being confirmed automatically",
+        "description": "The workstation is waiting for the server's answer to these stock reservation requests and re-sends the exact same request by itself. No action is needed; they have not been confirmed yet.",
+        "empty": "No requests are waiting for confirmation.",
+        "sendCount": "Sent once | Sent {count} times",
+        "nextAttemptAfter": "Next try after {time}"
+      },
+      "payment": {
+        "title": "Payment waiting on the POS screen",
+        "description": "A payment on this workstation is not finished. Resolve it on the POS screen — this page only shows its status.",
+        "none": "No payment is waiting.",
+        "openPos": "Open POS screen",
+        "retryUnavailable": "Retry is not available for this payment. Cancel it on the POS screen and contact support with the reference.",
+        "legacy": "Started by an earlier version of the app. If you cancel it, the uncertainty is kept here for review.",
+        "outstanding": "{count} stock reservation request still waiting for the server's answer | {count} stock reservation requests still waiting for the server's answer"
+      },
+      "kind": {
+        "allocation-identity-conflict": {
+          "title": "Stock reservation request conflicts with the server",
+          "body": "The server already holds a request with this reference but different contents. It will never be sent again and no replacement is created. No sale was recorded from it."
+        },
+        "allocation-request-invalid": {
+          "title": "Stock reservation request was refused as invalid",
+          "body": "The server can never accept this request as recorded. It is kept unchanged for support and will not be sent again."
+        },
+        "legacy-dispatch-uncertainty": {
+          "title": "Earlier payment: stock reservation cannot be verified",
+          "body": "A payment started by an earlier version of the app was cancelled. It may have requested a stock reservation; that cannot be verified. No sale was recorded. This stays open for review and cannot be closed from the workstation."
+        },
+        "allocation-request-pending": {
+          "title": "Stock reservation request awaiting the server's answer",
+          "body": "The answer to this request was not received. It will be confirmed automatically; until then it is not treated as granted or refused."
+        }
+      }
     }
   },
   "preparation": {

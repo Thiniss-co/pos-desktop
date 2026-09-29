@@ -21,9 +21,9 @@ const emit = defineEmits<{ select: [] }>()
     class="product-row"
     :class="{
       'product-row--disabled cursor-not-allowed opacity-60':
-        disabled || product.stock === 'out-of-stock'
+        disabled || product.stockBlocked === true
     }"
-    @click="!(disabled || product.stock === 'out-of-stock') && emit('select')"
+    @click="!(disabled || product.stockBlocked === true) && emit('select')"
   >
     <span class="product-row__name min-w-0 flex-1 font-medium">{{ product.name }}</span>
     <span class="product-row__sku code text-xs text-muted">{{ product.sku }}</span>

@@ -11,9 +11,11 @@ import { useAuthStore } from './modules/auth/store'
 import { useDeviceStore } from './modules/activation/store'
 import { useCartStore } from './modules/pos/cart.store'
 import { usePaymentStore } from './modules/pos/payment.store'
+import { useCatalogStore } from './modules/pos/catalog.store'
 import { i18n } from './i18n'
 import { applyLocaleToDocument, useLocaleStore } from './modules/preferences/locale.store'
 import { applyThemeToDocument, useThemeStore } from './modules/preferences/theme.store'
+import { useCartLayoutStore } from './modules/preferences/cartLayout.store'
 
 const pinia = createPinia()
 
@@ -23,6 +25,7 @@ configureSessionTransition({
   setAuthMessage: (message) => {
     useCartStore(pinia).resetDraft('session-ended')
     usePaymentStore(pinia).resetPayment()
+    useCatalogStore(pinia).resetCatalog()
     useAuthStore(pinia).setSessionEndedMessage(message)
   }
 })
@@ -33,6 +36,7 @@ configureDeviceTransition({
   setDeviceRecoveryMessage: () => {
     useCartStore(pinia).resetDraft('device-recovery')
     usePaymentStore(pinia).resetPayment()
+    useCatalogStore(pinia).resetCatalog()
     useDeviceStore(pinia).setDeviceRecoveryMessage()
   }
 })
@@ -49,6 +53,8 @@ async function bootstrapRenderer(): Promise<void> {
   } catch {
     applyThemeToDocument('system')
   }
+
+  void useCartLayoutStore(pinia).initialize() // layout-only; never rejects, never blocks mount
 
   createApp(App).use(pinia).use(i18n).use(router).mount('#app')
 }

@@ -40,6 +40,23 @@ const CURSOR = {
   localQueueUuid: '00000000-0000-4000-8000-000000000001'
 }
 
+const EMPTY_SUPPORT = {
+  needsSupport: [],
+  automaticReconciliation: [],
+  paymentAwaitingDecision: null
+}
+const CONFLICT_ISSUE = {
+  kind: 'allocation-identity-conflict' as const,
+  reference: 'AD-0123456789AB',
+  traceId: 'trace-1',
+  occurredAt: '2026-09-29T12:00:00.000Z',
+  updatedAt: '2026-09-29T12:01:00.000Z',
+  ownedByCurrentUser: false,
+  lines: null,
+  sendCount: null,
+  nextAttemptAfter: null
+}
+
 /** A frame the allow-list accepts: no dev renderer URL is set, so `file:` is the trusted origin. */
 const trustedEvent = { senderFrame: { parent: null, url: 'file:///app/index.html' } }
 const untrustedEvent = { senderFrame: { parent: null, url: 'https://evil.example/index.html' } }
@@ -55,6 +72,9 @@ function buildServices(overrides: Record<string, unknown> = {}): never {
     },
     invoiceUploadFailures: {
       list: vi.fn(() => ({ items: [], nextCursor: null }))
+    },
+    supportIssues: {
+      list: vi.fn(() => EMPTY_SUPPORT)
     },
     ...overrides
   } as never
@@ -157,11 +177,16 @@ describe('sync IPC validation', () => {
 })
 
 describe('sync IPC handlers', () => {
-  it('registers exactly the three invoke channels and no inbound push handler', () => {
+  it('registers exactly the four invoke channels and no inbound push handler', () => {
     registerSyncIpcHandlers(buildServices())
 
     expect([...handlers.keys()].sort()).toEqual(
-      [IPC_CHANNELS.syncGetStatus, IPC_CHANNELS.syncListFailures, IPC_CHANNELS.syncUploadNow].sort()
+      [
+        IPC_CHANNELS.syncGetStatus,
+        IPC_CHANNELS.syncListFailures,
+        IPC_CHANNELS.syncSupportIssues,
+        IPC_CHANNELS.syncUploadNow
+      ].sort()
     )
     // `sync:changed` is main-to-renderer only: a renderer cannot publish or forge a status.
     expect(handlers.has(IPC_CHANNELS.syncChanged)).toBe(false)
@@ -171,7 +196,8 @@ describe('sync IPC handlers', () => {
   it.each([
     ['status', IPC_CHANNELS.syncGetStatus],
     ['upload trigger', IPC_CHANNELS.syncUploadNow],
-    ['failure list', IPC_CHANNELS.syncListFailures]
+    ['failure list', IPC_CHANNELS.syncListFailures],
+    ['support issues', IPC_CHANNELS.syncSupportIssues]
   ])('rejects an untrusted sender on the %s channel', async (_label, channel) => {
     const services = buildServices()
     registerSyncIpcHandlers(services)
@@ -267,6 +293,48 @@ describe('sync IPC handlers', () => {
     expect(result).toMatchObject({ ok: false, error: { category: 'unexpected' } })
     expect(JSON.stringify(result)).not.toContain('SQLITE_ERROR')
     expect(JSON.stringify(result)).not.toContain('secret_token')
+  })
+})
+
+describe('sync support-issues IPC', () => {
+  it('takes no argument: any payload is refused before the projection is read', async () => {
+    const services = buildServices() as unknown as {
+      supportIssues: { list: ReturnType<typeof vi.fn> }
+    }
+    registerSyncIpcHandlers(services as never)
+
+    const result = await invoke(IPC_CHANNELS.syncSupportIssues, trustedEvent, {
+      companyUuid: '11111111-1111-4111-8111-111111111111'
+    })
+
+    expect(result).toMatchObject({ ok: false, error: { category: 'validation' } })
+    expect(services.supportIssues.list).not.toHaveBeenCalled()
+  })
+
+  it('returns the validated read-only projection to a trusted sender', async () => {
+    const payload = { ...EMPTY_SUPPORT, needsSupport: [CONFLICT_ISSUE] }
+    registerSyncIpcHandlers(buildServices({ supportIssues: { list: () => payload } }))
+
+    await expect(invoke(IPC_CHANNELS.syncSupportIssues, trustedEvent, undefined)).resolves.toEqual({
+      ok: true,
+      data: payload
+    })
+  })
+
+  it('refuses a projection that would leak details outside the contract', async () => {
+    registerSyncIpcHandlers(
+      buildServices({
+        supportIssues: {
+          list: () => ({
+            ...EMPTY_SUPPORT,
+            needsSupport: [{ ...CONFLICT_ISSUE, requestBody: { items: [] } }]
+          })
+        }
+      })
+    )
+
+    const result = await invoke(IPC_CHANNELS.syncSupportIssues, trustedEvent, undefined)
+    expect(result).toMatchObject({ ok: false })
   })
 })
 

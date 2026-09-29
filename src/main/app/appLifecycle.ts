@@ -29,6 +29,8 @@ export function bootstrapApp(): void {
       services.connectivity.start()
       // Presence-only heartbeat. Sends nothing unless a cashier session is valid.
       services.deviceHeartbeat.start()
+      // Rev 3: a restart discovers and re-sends every outstanding recorded allocation request.
+      services.allocationDispatchReconciler.requestRun()
 
       // Drain anything left queued by a previous run. Deliberately after registerIpcHandlers, so a
       // reclaim or a pause is already observable by the time the renderer can ask for status. The

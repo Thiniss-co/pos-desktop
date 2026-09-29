@@ -102,6 +102,14 @@ license re-check succeeds. Existing queue records retain their persisted state.
 
 ## Renderer Visibility
 
+The Sync page's "Needs attention" section reads the same durable records through one owner-scoped
+channel, `sync:support-issues` (company + device from the session; another cashier's rows carry no
+transaction details). It separates integrity issues that need support (`conflict`/`invalid`
+dispatch rows, open legacy uncertainties), requests still being confirmed automatically
+(`dispatched` rows), and a payment still waiting on the POS screen. It offers no retry,
+acknowledge or delete action, and it re-reads when the reconciler resolves a request
+(`onRequestsResolved` → the sanitized sync status push).
+
 The renderer never talks to the backend directly for sync — it only observes state via
 `window.posApi.sync.getStatus()` / `onStatusChange`, per
 [.ai/guidelines/ipc-contracts.md](../../.ai/guidelines/ipc-contracts.md), and renders the

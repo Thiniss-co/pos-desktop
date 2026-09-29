@@ -232,3 +232,64 @@ describe('useCartStore', () => {
     expect(store.lines).toHaveLength(0)
   })
 })
+
+describe('useCartStore — POS reliability rev 3 (sale identity, attempt lock, revisions)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('re-mints the sale identity whenever the draft is replaced, including removing the last line', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    const initial = store.saleId
+    store.addProduct(product())
+    expect(store.saleId).toBe(initial)
+    store.remove(store.lines[0].id)
+    expect(store.saleId).not.toBe(initial)
+    const afterRemove = store.saleId
+    store.addProduct(product())
+    store.clear()
+    expect(store.saleId).not.toBe(afterRemove)
+  })
+
+  it('refuses every draft mutation while a protected payment attempt is bound', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    store.addProduct(product())
+    store.setLocked(true)
+    const line = store.lines[0].id
+
+    expect(store.addProduct(product())).toBe(false)
+    expect(store.incrementQuantity(line)).toBe(false)
+    expect(store.remove(line)).toBe(false)
+    expect(store.setInvoiceDiscount('fixed', 100)).toBe(false)
+    expect(store.holdDraft()).toBeNull()
+    expect(store.lines).toHaveLength(1)
+    expect(store.error).toContain('payment')
+
+    store.setLocked(false)
+    expect(store.incrementQuantity(line)).toBe(true)
+  })
+
+  it('never stamps a product read under another catalog install onto this draft', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    expect(store.addProduct(product(), 1000, 'f'.repeat(64))).toBe(false)
+    expect(store.lines).toHaveLength(0)
+    expect(store.addProduct(product(), 1000, contract.revision)).toBe(true)
+  })
+
+  it('drops removed products on rebuild only when the cashier confirmed them', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    store.addProduct(product())
+    store.addProduct(product({ uuid: '33333333-3333-4333-8333-333333333333', name: 'Gone' }))
+    const gone = store.lines[1].id
+    store.setContract({ ...contract, revision: 'd'.repeat(64) })
+    expect(store.catalogChanged).toBe(true)
+
+    // Without the explicit drop, a missing product keeps the draft blocked.
+    expect(store.rebuildFromCatalog([product()])).toBe(false)
+    expect(store.rebuildFromCatalog([product()], { dropLineIds: [gone] })).toBe(true)
+    expect(store.lines.map((line) => line.product.name)).toEqual(['Water'])
+    expect(store.lines[0].catalogRevision).toBe('d'.repeat(64))
+  })
+})

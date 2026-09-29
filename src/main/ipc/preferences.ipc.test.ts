@@ -1,11 +1,42 @@
-import { describe, expect, it } from 'vitest'
+import type { IpcMainInvokeEvent } from 'electron'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import {
   preferencesGetLocaleInputSchema,
   preferencesSetLocaleInputSchema,
   preferencesGetThemeInputSchema,
   preferencesSetThemeInputSchema
 } from '@shared/validators/ipc.validators'
+import type { ApplicationServices } from '../app/applicationServices'
+import type { AppSettingsRepository } from '../repositories/appSettings.repository'
 import { handleIpcRequest } from './handleIpcRequest'
+
+// The cart-width block at the bottom registers the real handlers against a captured `ipcMain`
+// (the checkout.ipc.test.ts pattern). The mocks are inert for the validator-level tests above it.
+const { handlers } = vi.hoisted(() => ({
+  handlers: new Map<
+    string,
+    (event: IpcMainInvokeEvent, input: unknown) => Promise<unknown> | unknown
+  >()
+}))
+
+vi.mock('electron', () => ({
+  ipcMain: {
+    handle: vi.fn(
+      (
+        channel: string,
+        handler: (event: IpcMainInvokeEvent, input: unknown) => Promise<unknown> | unknown
+      ) => {
+        handlers.set(channel, handler)
+      }
+    )
+  }
+}))
+
+const { assertTrustedSender } = vi.hoisted(() => ({ assertTrustedSender: vi.fn() }))
+vi.mock('./assertTrustedSender', () => ({ assertTrustedSender }))
+
+import { registerPreferencesIpcHandlers } from './preferences.ipc'
 
 // See connectivity.ipc.test.ts for why this stays at the validator/handleIpcRequest layer instead
 // of importing preferences.ipc.ts directly (it imports `electron`, which is not a real API outside
@@ -73,5 +104,201 @@ describe('preferences IPC validation', () => {
       () => 'not called'
     )
     expect(rejectedInjection).toMatchObject({ ok: false, error: { category: 'validation' } })
+  })
+})
+
+describe('preferences IPC — POS cart width (layout-only preference)', () => {
+  const SETTING_KEY = 'ui.posCartWidth'
+  let stored: Map<string, string>
+  let settings: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> }
+
+  function fakeEvent(): IpcMainInvokeEvent {
+    return {} as IpcMainInvokeEvent
+  }
+
+  function handler(
+    channel: string
+  ): (event: IpcMainInvokeEvent, input?: unknown) => Promise<unknown> | unknown {
+    const registered = handlers.get(channel)
+    expect(registered, `${channel} is registered`).toBeDefined()
+    return registered as (event: IpcMainInvokeEvent, input?: unknown) => Promise<unknown> | unknown
+  }
+
+  beforeEach(() => {
+    stored = new Map()
+    settings = {
+      get: vi.fn((key: string) => stored.get(key) ?? null),
+      set: vi.fn((key: string, value: string) => {
+        stored.set(key, value)
+      })
+    }
+    assertTrustedSender.mockReset()
+    assertTrustedSender.mockImplementation(() => undefined)
+    handlers.clear()
+    registerPreferencesIpcHandlers({
+      appSettings: settings as unknown as AppSettingsRepository
+    } as ApplicationServices)
+  })
+
+  it('persists an in-range integer width as a decimal string and echoes it back', async () => {
+    const result = await handler(IPC_CHANNELS.preferencesSetPosCartWidth)(fakeEvent(), 448)
+
+    expect(result).toEqual({ ok: true, data: 448 })
+    expect(settings.set).toHaveBeenCalledWith(SETTING_KEY, '448')
+    await expect(
+      handler(IPC_CHANNELS.preferencesGetPosCartWidth)(fakeEvent(), undefined)
+    ).resolves.toEqual({ ok: true, data: 448 })
+  })
+
+  it('stores null (the design default) as an empty string and reads it back as null', async () => {
+    stored.set(SETTING_KEY, '512')
+
+    const result = await handler(IPC_CHANNELS.preferencesSetPosCartWidth)(fakeEvent(), null)
+
+    expect(result).toEqual({ ok: true, data: null })
+    expect(settings.set).toHaveBeenCalledWith(SETTING_KEY, '')
+    await expect(
+      handler(IPC_CHANNELS.preferencesGetPosCartWidth)(fakeEvent(), undefined)
+    ).resolves.toEqual({ ok: true, data: null })
+  })
+
+  it('accepts both boundaries of the stored range', async () => {
+    for (const width of [320, 960]) {
+      await expect(
+        handler(IPC_CHANNELS.preferencesSetPosCartWidth)(fakeEvent(), width)
+      ).resolves.toEqual({ ok: true, data: width })
+    }
+  })
+
+  it('rejects an invalid set payload before it reaches the settings repository', async () => {
+    const invalidPayloads: unknown[] = [
+      319,
+      961,
+      400.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      -400,
+      '400',
+      '',
+      undefined,
+      true,
+      { width: 400 },
+      [400],
+      "400'; DROP TABLE app_settings; --"
+    ]
+
+    for (const payload of invalidPayloads) {
+      const result = await handler(IPC_CHANNELS.preferencesSetPosCartWidth)(fakeEvent(), payload)
+      expect(result, `payload ${String(payload)}`).toMatchObject({
+        ok: false,
+        error: { category: 'validation' }
+      })
+    }
+
+    expect(settings.set).not.toHaveBeenCalled()
+  })
+
+  it('rejects any input on the get channel without reading the repository', async () => {
+    for (const payload of [{}, null, 400, 'ui.posCartWidth']) {
+      const result = await handler(IPC_CHANNELS.preferencesGetPosCartWidth)(fakeEvent(), payload)
+      expect(result).toMatchObject({ ok: false, error: { category: 'validation' } })
+    }
+
+    expect(settings.get).not.toHaveBeenCalled()
+  })
+
+  it('returns null when nothing has been stored', async () => {
+    await expect(
+      handler(IPC_CHANNELS.preferencesGetPosCartWidth)(fakeEvent(), undefined)
+    ).resolves.toEqual({ ok: true, data: null })
+    expect(settings.get).toHaveBeenCalledWith(SETTING_KEY)
+  })
+
+  it('degrades any stored garbage or out-of-range value to null instead of reaching the renderer', async () => {
+    const garbage = [
+      '',
+      'abc',
+      '100',
+      '319',
+      '961',
+      '5000',
+      '400.5',
+      '0400',
+      ' 400',
+      '400 ',
+      '4e2',
+      '0x190',
+      '-400',
+      'null',
+      '{"width":400}'
+    ]
+
+    for (const value of garbage) {
+      stored.set(SETTING_KEY, value)
+      await expect(
+        handler(IPC_CHANNELS.preferencesGetPosCartWidth)(fakeEvent(), undefined),
+        `stored ${JSON.stringify(value)}`
+      ).resolves.toEqual({ ok: true, data: null })
+    }
+
+    stored.set(SETTING_KEY, '480')
+    await expect(
+      handler(IPC_CHANNELS.preferencesGetPosCartWidth)(fakeEvent(), undefined)
+    ).resolves.toEqual({ ok: true, data: 480 })
+  })
+
+  it('checks the sender before parsing the payload or touching the repository', async () => {
+    assertTrustedSender.mockImplementation(() => {
+      throw { category: 'authorization', message: 'untrusted', retryable: false }
+    })
+
+    // A valid payload and an invalid one are both refused for the sender first, proving the order.
+    for (const payload of [448, 'not a width']) {
+      const result = await handler(IPC_CHANNELS.preferencesSetPosCartWidth)(fakeEvent(), payload)
+      expect(result).toMatchObject({ ok: false, error: { category: 'authorization' } })
+    }
+    const readResult = await handler(IPC_CHANNELS.preferencesGetPosCartWidth)(
+      fakeEvent(),
+      undefined
+    )
+    expect(readResult).toMatchObject({ ok: false, error: { category: 'authorization' } })
+
+    expect(assertTrustedSender).toHaveBeenCalledTimes(3)
+    expect(settings.set).not.toHaveBeenCalled()
+    expect(settings.get).not.toHaveBeenCalled()
+  })
+
+  it('maps a non-public guard failure to a sanitized unexpected error', async () => {
+    assertTrustedSender.mockImplementation(() => {
+      throw new Error('/internal/path leaked')
+    })
+
+    const result = await handler(IPC_CHANNELS.preferencesSetPosCartWidth)(fakeEvent(), 448)
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        category: 'unexpected',
+        message: 'The request could not be completed',
+        retryable: false
+      }
+    })
+    expect(settings.set).not.toHaveBeenCalled()
+  })
+
+  it('leaves the existing locale/theme handlers unguarded, exactly as before', async () => {
+    assertTrustedSender.mockImplementation(() => {
+      throw { category: 'authorization', message: 'untrusted', retryable: false }
+    })
+    stored.set('ui.theme', 'dark')
+    stored.set('ui.locale', 'ar')
+
+    await expect(
+      handler(IPC_CHANNELS.preferencesGetTheme)(fakeEvent(), undefined)
+    ).resolves.toEqual({ ok: true, data: 'dark' })
+    await expect(
+      handler(IPC_CHANNELS.preferencesGetLocale)(fakeEvent(), undefined)
+    ).resolves.toEqual({ ok: true, data: 'ar' })
+    expect(assertTrustedSender).not.toHaveBeenCalled()
   })
 })

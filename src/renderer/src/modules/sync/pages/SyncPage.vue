@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { SyncFailure } from '@shared/contracts/sync.contract'
 import { formatMinorCurrency } from '@shared/money/minorUnits'
@@ -19,11 +20,23 @@ import type { IconName } from '@renderer/shared/components/common/icons.generate
 import PageContainer from '@renderer/shared/components/layout/PageContainer.vue'
 import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useSyncStore } from '../store'
+import SyncAttentionPanel from '../components/SyncAttentionPanel.vue'
 
 const sync = useSyncStore()
 const connectivity = useConnectivityStore()
 const locale = useLocaleStore()
-const { error, failureError, failures, isLoadingFailures, isUploading, status } = storeToRefs(sync)
+const router = useRouter()
+const {
+  error,
+  failureError,
+  failures,
+  isLoadingFailures,
+  isLoadingSupportIssues,
+  isUploading,
+  status,
+  supportError,
+  supportIssues
+} = storeToRefs(sync)
 const { t, te } = useI18n()
 
 const queuedCount = computed(() => sync.queuedCount)
@@ -160,9 +173,23 @@ function failureReason(failure: SyncFailure): string | null {
   return te(key) ? t(key) : null
 }
 
+/**
+ * The "needs attention" list is re-read whenever main pushes a new queue status (an upload, a
+ * reconciliation or a recovery can change it). Returning from the POS screen remounts this page,
+ * which reads it again on mount.
+ */
+watch(status, () => {
+  void sync.loadSupportIssues()
+})
+
+function openPos(): void {
+  // Resolution of a waiting payment stays on the POS screen (its recovery banner).
+  void router?.push({ name: 'pos' })
+}
+
 onMounted(async () => {
   await sync.initialize()
-  await sync.loadFailures()
+  await Promise.all([sync.loadFailures(), sync.loadSupportIssues()])
 })
 
 onBeforeUnmount(() => sync.dispose())
@@ -229,6 +256,13 @@ onBeforeUnmount(() => sync.dispose())
       <p v-if="pausedReasonText" class="font-semibold">{{ pausedReasonText }}</p>
       <p>{{ t('sync.pausedSafe') }}</p>
     </AppBanner>
+
+    <SyncAttentionPanel
+      :issues="supportIssues"
+      :loading="isLoadingSupportIssues"
+      :error="supportError"
+      @open-pos="openPos"
+    />
 
     <!--
       The queue exposes counts only, never per-record rows, so this section states the real count

@@ -1,7 +1,8 @@
 import type {
   SyncFailureCursor,
   SyncFailurePage,
-  SyncStatus
+  SyncStatus,
+  SyncSupportIssues
 } from '@shared/contracts/sync.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
@@ -11,6 +12,7 @@ export interface SyncGateway {
   listFailures(
     cursor?: SyncFailureCursor | null
   ): ReturnType<Window['posApi']['sync']['listFailures']>
+  supportIssues(): ReturnType<Window['posApi']['sync']['supportIssues']>
   onChanged(listener: (status: SyncStatus) => void): () => void
 }
 
@@ -32,6 +34,11 @@ export class SyncService {
 
   async listFailures(cursor: SyncFailureCursor | null = null): Promise<SyncFailurePage> {
     return unwrapIpcResult(await this.gateway.listFailures(cursor))
+  }
+
+  /** Read-only: the owner is resolved by main, and nothing returned here can be acted on. */
+  async supportIssues(): Promise<SyncSupportIssues> {
+    return unwrapIpcResult(await this.gateway.supportIssues())
   }
 
   onChanged(listener: (status: SyncStatus) => void): () => void {

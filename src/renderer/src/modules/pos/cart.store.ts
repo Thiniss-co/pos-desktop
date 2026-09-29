@@ -41,7 +41,7 @@ export interface HeldDraft {
 
 export const MAX_HELD_DRAFTS = 20
 
-export type CartErrorCode = CartCalculationErrorCode | 'CART_HOLD_LIMIT'
+export type CartErrorCode = CartCalculationErrorCode | 'CART_HOLD_LIMIT' | 'CART_ATTEMPT_LOCKED'
 
 export type CartState =
   | { readonly kind: 'empty' }
@@ -88,6 +88,18 @@ export const useCartStore = defineStore('cart', () => {
   const lastValid = ref<CartCalculation | null>(null)
   const rejectionCode = ref<CartErrorCode | null>(null)
   const heldDrafts = ref<HeldDraft[]>([])
+  /**
+   * POS reliability rev 3: the identity of the current sale draft. Re-minted whenever the draft is
+   * replaced (clear — including removing the last line and the post-commit clear —, recall, reset),
+   * so editable tender state can be bound to exactly one draft.
+   */
+  const saleId = ref<string>(crypto.randomUUID())
+  /**
+   * True while a protected payment attempt (in flight, claimed, uncertain, or committed but not yet
+   * acknowledged) is bound to this draft. Every draft mutation is refused meanwhile, so the cart on
+   * screen can never diverge from the frozen intent main holds for that attempt.
+   */
+  const locked = ref(false)
 
   const error = computed(() =>
     rejectionCode.value ? String(i18n.global.t(`pos.errors.${rejectionCode.value}`)) : null
@@ -102,6 +114,18 @@ export const useCartStore = defineStore('cart', () => {
   const canEdit = computed(
     () => contract.value !== null && catalogValid.value && catalogChanged.value === false
   )
+
+  function setLocked(value: boolean): void {
+    locked.value = value
+  }
+
+  function lockedRejection(): boolean {
+    if (locked.value) {
+      reject('CART_ATTEMPT_LOCKED')
+      return true
+    }
+    return false
+  }
 
   function reject(code: CartErrorCode): false {
     rejectionCode.value = code
@@ -218,11 +242,23 @@ export const useCartStore = defineStore('cart', () => {
     catalogValid.value = isValid
   }
 
-  function addProduct(product: CatalogProduct, quantityMilli = 1000): boolean {
+  function addProduct(
+    product: CatalogProduct,
+    quantityMilli = 1000,
+    readUnderRevision?: string
+  ): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     if (!contract.value || !catalogValid.value) {
       return reject('CART_CATALOG_REQUIRED')
     }
     if (catalogChanged.value) {
+      return reject('CART_CATALOG_CHANGED')
+    }
+    // Rev 3: a product read under a different catalog install than this draft's contract is never
+    // stamped with this contract's revision (no mixed snapshots).
+    if (readUnderRevision !== undefined && readUnderRevision !== contract.value.revision) {
       return reject('CART_CATALOG_CHANGED')
     }
     if (product.price.currency !== contract.value.currency) {
@@ -269,6 +305,9 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function changeQuantity(id: string, deltaMilli: number): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     if (!contract.value || !catalogValid.value) {
       return reject('CART_CATALOG_REQUIRED')
     }
@@ -300,6 +339,9 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function setQuantity(id: string, quantity: string): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     if (!contract.value || !catalogValid.value) {
       return reject('CART_CATALOG_REQUIRED')
     }
@@ -314,6 +356,9 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function setLineDiscount(id: string, type: DiscountType, value: number): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     if (!canEdit.value) {
       return reject(catalogChanged.value ? 'CART_CATALOG_CHANGED' : 'CART_CATALOG_REQUIRED')
     }
@@ -330,6 +375,9 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function setInvoiceDiscount(type: DiscountType, value: number): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     if (!canEdit.value) {
       return reject(catalogChanged.value ? 'CART_CATALOG_CHANGED' : 'CART_CATALOG_REQUIRED')
     }
@@ -342,6 +390,9 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function remove(id: string): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     const nextLines = lines.value.filter((line) => line.id !== id)
     if (nextLines.length === lines.value.length) {
       return false
@@ -379,6 +430,7 @@ export const useCartStore = defineStore('cart', () => {
     cartState.value = { kind: 'empty' }
     rejectionCode.value = null
     draftRevision.value += 1
+    saleId.value = crypto.randomUUID()
   }
 
   /** Reset transient draft state on logout, session revocation, device recovery, or shift/company change. */
@@ -386,6 +438,7 @@ export const useCartStore = defineStore('cart', () => {
     void reason
     contextGeneration.value += 1
     heldDrafts.value = []
+    locked.value = false
     clear()
   }
 
@@ -397,7 +450,7 @@ export const useCartStore = defineStore('cart', () => {
   function holdDraft(
     customer: { readonly uuid: string; readonly name: string | null } | null = null
   ): HeldDraft | null {
-    if (lines.value.length === 0) {
+    if (lines.value.length === 0 || lockedRejection()) {
       return null
     }
     if (heldDrafts.value.length >= MAX_HELD_DRAFTS) {
@@ -430,9 +483,11 @@ export const useCartStore = defineStore('cart', () => {
    */
   function recallDraft(id: string): HeldDraft | null {
     const held = heldDrafts.value.find((candidate) => candidate.id === id)
-    if (!held || lines.value.length > 0) {
+    if (!held || lines.value.length > 0 || lockedRejection()) {
       return null
     }
+    // A recalled draft is a different sale: it never inherits the previous draft's tender state.
+    saleId.value = crypto.randomUUID()
 
     const restoredLines = [...held.lines]
     const revision = contract.value?.revision
@@ -477,7 +532,13 @@ export const useCartStore = defineStore('cart', () => {
    * Explicit cashier action only. The caller resolves every frozen product against the newly
    * installed catalog; a missing or invalid replacement leaves the old snapshot untouched.
    */
-  function rebuildFromCatalog(products: readonly CatalogProduct[]): boolean {
+  function rebuildFromCatalog(
+    products: readonly CatalogProduct[],
+    options: { readonly dropLineIds?: readonly string[] } = {}
+  ): boolean {
+    if (lockedRejection()) {
+      return false
+    }
     if (!contract.value || !catalogValid.value) {
       return reject('CART_CATALOG_REQUIRED')
     }
@@ -488,7 +549,13 @@ export const useCartStore = defineStore('cart', () => {
     const byUuid = new Map(products.map((product) => [product.uuid, product]))
     const replacements: CartLineSnapshot[] = []
 
+    const dropped = new Set(options.dropLineIds ?? [])
     for (const line of lines.value) {
+      if (dropped.has(line.id)) {
+        // Explicitly confirmed by the cashier in the review: a product the new catalog no longer
+        // offers is removed, never silently kept at its old price.
+        continue
+      }
       const product = byUuid.get(line.product.uuid)
       if (!product || product.price.currency !== contract.value.currency) {
         return reject('CART_CATALOG_CHANGED')
@@ -503,6 +570,10 @@ export const useCartStore = defineStore('cart', () => {
     }
 
     catalogChanged.value = false
+    if (replacements.length === 0) {
+      clear()
+      return true
+    }
     const committed = commit(replacements)
     if (!committed) {
       catalogChanged.value = true
@@ -513,6 +584,9 @@ export const useCartStore = defineStore('cart', () => {
   return {
     lines,
     heldDrafts,
+    saleId,
+    locked,
+    setLocked,
     contract,
     cartState,
     calculation,

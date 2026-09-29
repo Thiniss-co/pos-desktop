@@ -33,6 +33,22 @@ describe('posApi surface', () => {
     expect(source).toContain('setTheme')
   })
 
+  it('exposes the layout-only POS cart width preference as two narrow named methods', () => {
+    expect(source).toContain('getPosCartWidth(): Promise<IpcResult<PosCartWidthPreference>>')
+    expect(source).toContain(
+      'setPosCartWidth(width: number | null): Promise<IpcResult<PosCartWidthPreference>>'
+    )
+    expect(source).toContain(
+      'getPosCartWidth: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetPosCartWidth)'
+    )
+    expect(source).toMatch(
+      /setPosCartWidth: \(width: number \| null\) =>\s*ipcRenderer\.invoke\(IPC_CHANNELS\.preferencesSetPosCartWidth, width\)/
+    )
+    // The width is the only thing that crosses: no layout blob, no cart/sale state.
+    expect(source).not.toMatch(/setPosCartWidth\([^)]*(cart|sale|layout)\w*:/i)
+    expect(source).not.toContain('posCartWidthSchema')
+  })
+
   it('contains only named company-user management methods', () => {
     expect(source).toContain('companyUsers')
     expect(source).toContain('listAssignableRoles')
@@ -91,6 +107,7 @@ describe('posApi surface', () => {
     expect(source).not.toContain('connectivitySnapshotSchema')
     expect(source).not.toContain('syncStatusSchema')
     expect(source).not.toContain('syncFailurePageSchema')
+    expect(source).not.toContain('syncSupportIssuesSchema')
   })
 
   it('exposes exactly the four named sync capabilities (CP-3G-4)', () => {
@@ -100,6 +117,17 @@ describe('posApi surface', () => {
     expect(source).toContain('syncUploadNow')
     expect(source).toContain('syncListFailures')
     expect(source).toContain('syncChanged')
+  })
+
+  it('exposes the needs-attention projection as one argument-free, read-only method', () => {
+    expect(source).toContain('supportIssues(): Promise<IpcResult<SyncSupportIssues>>')
+    expect(source).toContain(
+      'supportIssues: () => ipcRenderer.invoke(IPC_CHANNELS.syncSupportIssues)'
+    )
+    // Nothing can act on an issue from the renderer: no retry, acknowledge, close or delete.
+    expect(source).not.toMatch(
+      /(retry|acknowledge|resolve|close|delete|dismiss)(Support|Issue|Dispatch|Uncertaint)/i
+    )
   })
 
   it('validates a pushed sync status structurally before calling a renderer listener', () => {

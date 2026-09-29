@@ -2,7 +2,12 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import type { SyncFailure, SyncFailurePage, SyncStatus } from '@shared/contracts/sync.contract'
+import type {
+  SyncFailure,
+  SyncFailurePage,
+  SyncStatus,
+  SyncSupportIssues
+} from '@shared/contracts/sync.contract'
 import { SyncService, type SyncGateway } from './service'
 import { useSyncStore } from './store'
 
@@ -374,5 +379,85 @@ describe('useSyncStore', () => {
     store.dispose()
     expect(unsubscribes[1]).toHaveBeenCalledTimes(1)
     expect(unsubscribes[0]).toHaveBeenCalledTimes(1)
+  })
+
+  describe('loadSupportIssues', () => {
+    const ISSUES: SyncSupportIssues = {
+      needsSupport: [
+        {
+          kind: 'legacy-dispatch-uncertainty',
+          reference: 'SA-ABCDEF012345',
+          traceId: null,
+          occurredAt: '2026-09-28T09:00:00.000Z',
+          updatedAt: '2026-09-29T11:00:00.000Z',
+          ownedByCurrentUser: true,
+          lines: [{ productName: 'Cola Can', quantity: '1' }],
+          sendCount: null,
+          nextAttemptAfter: null
+        }
+      ],
+      automaticReconciliation: [],
+      paymentAwaitingDecision: null
+    }
+
+    it('keeps the last good list when a later read fails — an issue never silently disappears', async () => {
+      const store = useSyncStore()
+      await store.loadSupportIssues(
+        service({ supportIssues: async () => ({ ok: true, data: ISSUES }) })
+      )
+      expect(store.supportIssues).toEqual(ISSUES)
+
+      await store.loadSupportIssues(
+        service({
+          supportIssues: async () => ({
+            ok: false,
+            error: {
+              category: 'unexpected',
+              code: 'UNEXPECTED',
+              message: 'The request could not be completed',
+              retryable: false
+            }
+          })
+        })
+      )
+
+      expect(store.supportIssues).toEqual(ISSUES)
+      expect(store.supportError).not.toBeNull()
+      expect(store.isLoadingSupportIssues).toBe(false)
+    })
+
+    it('applies only the newest read when two overlap', async () => {
+      const store = useSyncStore()
+      let releaseSlow: (value: unknown) => void = () => undefined
+      const slow = store.loadSupportIssues(
+        service({
+          supportIssues: () =>
+            new Promise((resolve) => {
+              releaseSlow = resolve as (value: unknown) => void
+            })
+        })
+      )
+      await store.loadSupportIssues(
+        service({ supportIssues: async () => ({ ok: true, data: ISSUES }) })
+      )
+      releaseSlow({
+        ok: true,
+        data: { needsSupport: [], automaticReconciliation: [], paymentAwaitingDecision: null }
+      })
+      await slow
+
+      expect(store.supportIssues).toEqual(ISSUES)
+    })
+
+    it('forgets the list when the last holder disposes (logout / session end)', async () => {
+      const store = useSyncStore()
+      await store.initialize(service())
+      await store.loadSupportIssues(
+        service({ supportIssues: async () => ({ ok: true, data: ISSUES }) })
+      )
+      store.dispose()
+
+      expect(store.supportIssues).toBeNull()
+    })
   })
 })

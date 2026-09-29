@@ -30,6 +30,13 @@ export interface DisplayProduct {
   inCartQuantity?: string
   /** Full accessible name for the add action, e.g. "Add Cola Can to cart · EGP 15.00". */
   ariaLabel?: string
+  /**
+   * POS reliability rev 3: the only stock-based sale gate — set solely when the proven local
+   * spendable allocation cannot cover another unit while offline. The stock level is a tone only.
+   */
+  stockBlocked?: boolean
+  /** Secondary, honestly labelled stock facts ("as of 14:05 · Sold here 2 · Reserved here 3"). */
+  stockDetail?: string
 }
 
 export interface DisplayCategory {
@@ -99,7 +106,14 @@ export type SyncQueueDisplayState =
  */
 export type PaymentPanelRecoveryState =
   | { readonly kind: 'clear' }
-  | { readonly kind: 'blocked'; readonly message: string }
+  | {
+      readonly kind: 'blocked'
+      readonly message: string
+      /** Rev 3: false for an integrity-blocked attempt — retrying cannot succeed, so it is hidden. */
+      readonly retryAvailable?: boolean
+      /** Rev 3: extra honest context (support reference, legacy uncertainty). */
+      readonly detail?: string
+    }
   | { readonly kind: 'awaiting-acknowledgment'; readonly message: string }
 
 /** One committed-but-unacknowledged sale as `SaleRecoveryBanner` renders it. */
@@ -146,3 +160,27 @@ export interface DisplayQuickTender {
   exact?: boolean
   disabled?: boolean
 }
+
+/**
+ * `PaymentPanel`'s "Complete · Exact cash" action. `label` is the full, already-formatted text
+ * (e.g. "Complete · Exact cash · Cash · EGP 37.40"); `keyHint` is the visible shortcut ("Shift+F9").
+ */
+export interface DisplayExactCashAction {
+  readonly label: string
+  readonly keyHint: string
+}
+
+/** `PaymentPanel`'s "Add remaining" action: adds a tender row only, never completes. */
+export interface DisplayAddRemainingAction {
+  readonly label: string
+}
+
+/** The commit-class controls of `PaymentPanel` — each is also its `data-commit-action` value. */
+export type PaymentCommitAction =
+  'complete' | 'exact-cash' | 'retry' | 'confirm-abandon' | 'print' | 'acknowledge'
+
+/**
+ * Screen-reader descriptions (`aria-describedby`) for the commit-class controls, already localized,
+ * e.g. `{ complete: 'Press F9 to complete the sale' }`. A missing entry renders no description.
+ */
+export type PaymentCommitKeyDescriptions = Partial<Record<PaymentCommitAction, string>>

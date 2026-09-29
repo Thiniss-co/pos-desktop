@@ -6,12 +6,18 @@ import type {
   CatalogCustomerSearchInput,
   CatalogPaymentMethod,
   CatalogProduct,
+  CatalogProductForSale,
   CatalogProductPage,
   CatalogRefreshResult,
   CatalogSearchInput,
   CatalogStatus
 } from '@shared/contracts/catalog.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
+
+export interface CatalogChange {
+  readonly reason: 'stock' | 'snapshot'
+  readonly revision: string | null
+}
 import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 
 export class CatalogRendererService {
@@ -40,6 +46,16 @@ export class CatalogRendererService {
 
   async getProduct(uuid: string): Promise<CatalogProduct> {
     return unwrapIpcResult(await this.gateway.getProduct({ uuid }))
+  }
+
+  /** Rev 3: the product with the catalog revision it was read under and its stock view. */
+  async getProductForSale(uuid: string): Promise<CatalogProductForSale> {
+    return unwrapIpcResult(await this.gateway.getProductForSale({ uuid }))
+  }
+
+  /** Rev 3: main → renderer change hints. Returns the unsubscribe function. */
+  onChanged(listener: (change: CatalogChange) => void): () => void {
+    return this.gateway.onChanged(listener)
   }
 
   async findProductByBarcode(barcode: string): Promise<CatalogBarcodeLookup> {

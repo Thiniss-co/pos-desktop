@@ -163,6 +163,14 @@ function installPosApi(harness: Harness): void {
     getProduct: vi.fn(async (input: { uuid: string }) =>
       ok(input.uuid === SERVICE_PRODUCT_UUID ? SERVICE_ITEM : TRACKED_ITEM)
     ),
+    getProductForSale: vi.fn(async (input: { uuid: string }) =>
+      ok({
+        product: input.uuid === SERVICE_PRODUCT_UUID ? SERVICE_ITEM : TRACKED_ITEM,
+        revision: CONTRACT.revision,
+        stock: { kind: 'untracked' }
+      })
+    ),
+    onChanged: vi.fn(() => () => undefined),
     findProductByBarcode: vi.fn(async () => ok({ outcome: 'not-found' as const })),
     searchCustomers: vi.fn(async () => ok({ items: [], total: 0, page: 1, pageSize: 24 })),
     getCustomer: vi.fn(async () => ok(null))
@@ -187,6 +195,9 @@ function installPosApi(harness: Harness): void {
       acknowledgeAttempt: vi.fn(),
       pendingAttempts: vi.fn(async () =>
         ok({ blockingAttempt: null, unacknowledgedResults: [], nextCursor: null })
+      ),
+      attemptStatus: vi.fn(async (input: { attemptKey: string }) =>
+        ok({ attemptKey: input.attemptKey, state: 'unknown', failureCode: null })
       )
     },
     sync: {
@@ -470,21 +481,26 @@ describe('POS quick-sale column', () => {
     expect(cart.lines.map((line) => line.product.uuid)).toEqual([SERVICE_PRODUCT_UUID])
   })
 
-  it('opens payment inside the checkout column with quick cash tenders, not a modal', async () => {
+  it('opens payment as a focused modal dialog (rev 3), with quick cash and exact-cash actions', async () => {
     const wrapper = await renderWithBarcode()
     await scan(wrapper, 'SVC-1')
 
     await wrapper.find('.pos-page__future-action').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.pos-page__cart-spine .inline-panel-frame').exists()).toBe(true)
-    expect(wrapper.find('[aria-modal="true"]').exists()).toBe(false)
-    const tenders = wrapper.findAll('.payment-panel__quick-tender')
+    // The dialog is teleported to <body>: the cart column holds no tender form any more.
+    expect(wrapper.find('.pos-page__cart-spine .payment-panel').exists()).toBe(false)
+    const dialog = document.querySelector('[aria-modal="true"]')
+    expect(dialog).not.toBeNull()
+    const tenders = document.querySelectorAll<HTMLButtonElement>('.payment-panel__quick-tender')
     expect(tenders.length).toBeGreaterThan(0)
-    expect(tenders[0].text()).toContain('Exact')
+    // One eligible cash method with no reference: the explicit "Complete · Exact cash" action.
+    expect(document.querySelector('[data-commit-action="exact-cash"]')).not.toBeNull()
+    expect(dialog?.querySelector('form')).toBeNull()
 
-    await tenders[0].trigger('click')
+    tenders[0].click()
     await flushPromises()
-    expect(wrapper.findAll('.payment-panel__row')).toHaveLength(1)
+    expect(document.querySelectorAll('.payment-panel__row')).toHaveLength(1)
+    wrapper.unmount()
   })
 })

@@ -1,6 +1,8 @@
 import {
+  checkoutAttemptStatusSchema,
   checkoutCompletionOutcomeSchema,
   checkoutRecoveryStateSchema,
+  type CheckoutAttemptStatus,
   type CheckoutCompletionOutcome,
   type CheckoutIntent,
   type CheckoutPendingAttemptsInput,
@@ -32,9 +34,25 @@ export class CheckoutRendererService {
   }
 
   /** `checkout:abandon-attempt` (T5, D1-A) — no `pos.sell` required. */
-  async abandonAttempt(attemptKey: string): Promise<CheckoutCompletionOutcome> {
+  async abandonAttempt(
+    attemptKey: string,
+    options: { readonly acknowledgeLegacyUncertainty?: boolean } = {}
+  ): Promise<CheckoutCompletionOutcome> {
     return checkoutCompletionOutcomeSchema.parse(
-      unwrapIpcResult(await this.gateway.abandonAttempt({ attemptKey }))
+      unwrapIpcResult(
+        await this.gateway.abandonAttempt(
+          options.acknowledgeLegacyUncertainty
+            ? { attemptKey, acknowledgeLegacyUncertainty: true }
+            : { attemptKey }
+        )
+      )
+    )
+  }
+
+  /** `checkout:attempt-status` — owner-scoped, read-only reconciliation. */
+  async attemptStatus(attemptKey: string): Promise<CheckoutAttemptStatus> {
+    return checkoutAttemptStatusSchema.parse(
+      unwrapIpcResult(await this.gateway.attemptStatus({ attemptKey }))
     )
   }
 

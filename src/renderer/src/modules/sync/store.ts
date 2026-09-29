@@ -3,7 +3,12 @@ import { defineStore } from 'pinia'
 import { handleSessionTransition } from '@renderer/app/session/sessionTransition'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import { createLocalizedErrorRef } from '@renderer/shared/utils/localizedErrorRef'
-import type { SyncFailure, SyncFailureCursor, SyncStatus } from '@shared/contracts/sync.contract'
+import type {
+  SyncFailure,
+  SyncFailureCursor,
+  SyncStatus,
+  SyncSupportIssues
+} from '@shared/contracts/sync.contract'
 import type { SyncDisplayState } from './types'
 import { SyncService } from './service'
 
@@ -13,10 +18,14 @@ export const useSyncStore = defineStore('sync', () => {
   const nextCursor = ref<SyncFailureCursor | null>(null)
   const isUploading = ref(false)
   const isLoadingFailures = ref(false)
+  const supportIssues = ref<SyncSupportIssues | null>(null)
+  const isLoadingSupportIssues = ref(false)
   const errorState = createLocalizedErrorRef()
   const failureErrorState = createLocalizedErrorRef()
+  const supportErrorState = createLocalizedErrorRef()
   const error = errorState.error
   const failureError = failureErrorState.error
+  const supportError = supportErrorState.error
 
   let unsubscribe: (() => void) | null = null
   // How many live consumers currently hold the subscription (see `dispose`).
@@ -27,6 +36,8 @@ export const useSyncStore = defineStore('sync', () => {
   let sequence = 0
   // Guards the failure list against interleaved page loads resolving out of order.
   let failureSequence = 0
+  // Same guard for the "needs attention" projection: only the newest read may apply.
+  let supportSequence = 0
 
   const queuedCount = computed(() => {
     const counts = status.value?.counts
@@ -137,6 +148,34 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  /**
+   * Re-reads the read-only "needs attention" projection. A failed read keeps the last good list —
+   * an issue must never disappear from view because one read failed.
+   */
+  async function loadSupportIssues(service = new SyncService()): Promise<void> {
+    const requestedAt = ++supportSequence
+    isLoadingSupportIssues.value = true
+
+    try {
+      const next = await service.supportIssues()
+
+      if (supportSequence !== requestedAt) {
+        return
+      }
+
+      supportIssues.value = next
+      supportErrorState.clear()
+    } catch (cause) {
+      if (supportSequence === requestedAt) {
+        captureError(cause, supportErrorState, 'sync.attention.unavailable')
+      }
+    } finally {
+      if (supportSequence === requestedAt) {
+        isLoadingSupportIssues.value = false
+      }
+    }
+  }
+
   async function loadMoreFailures(service = new SyncService()): Promise<void> {
     if (nextCursor.value === null) {
       return
@@ -165,10 +204,14 @@ export const useSyncStore = defineStore('sync', () => {
     nextCursor.value = null
     isUploading.value = false
     isLoadingFailures.value = false
+    supportIssues.value = null
+    isLoadingSupportIssues.value = false
     sequence = 0
     failureSequence = 0
+    supportSequence += 1
     errorState.clear()
     failureErrorState.clear()
+    supportErrorState.clear()
   }
 
   return {
@@ -176,6 +219,9 @@ export const useSyncStore = defineStore('sync', () => {
     failures,
     error,
     failureError,
+    supportIssues,
+    supportError,
+    isLoadingSupportIssues,
     isUploading,
     isLoadingFailures,
     queuedCount,
@@ -188,6 +234,7 @@ export const useSyncStore = defineStore('sync', () => {
     uploadNow,
     loadFailures,
     loadMoreFailures,
+    loadSupportIssues,
     dispose
   }
 })

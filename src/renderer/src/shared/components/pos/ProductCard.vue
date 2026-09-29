@@ -2,7 +2,9 @@
 /**
  * V3 product card: pastel band with the monogram (and an in-cart quantity badge), then name
  * (2 lines), unit · SKU, price and the stock pill. There are no product photos — the catalog
- * contract has no image (IMPLEMENTATION.md D-05). Out-of-stock cards stay visible but disabled.
+ * contract has no image (IMPLEMENTATION.md D-05). The stock level is a tone only; the card is
+ * disabled solely by `product.stockBlocked` (proven offline allocation shortfall), never by a dated
+ * warehouse snapshot.
  */
 import { computed } from 'vue'
 import StockStatus from './StockStatus.vue'
@@ -52,7 +54,7 @@ const tone = computed(() => (props.product.tone ?? 0) % 6)
       type="button"
       class="product-card flex flex-1 flex-col text-start disabled:cursor-not-allowed"
       :class="outOfStock ? 'text-muted' : 'text-ink'"
-      :disabled="disabled || outOfStock"
+      :disabled="disabled || product.stockBlocked === true"
       :aria-label="product.ariaLabel"
       @click="emit('select')"
     >
@@ -75,6 +77,11 @@ const tone = computed(() => (props.product.tone ?? 0) % 6)
           }}</span>
           <StockStatus :level="product.stock" :label="stockLabel" />
         </span>
+        <span
+          v-if="product.stockDetail"
+          class="product-card__stock-detail text-xs text-muted [overflow-wrap:anywhere]"
+          >{{ product.stockDetail }}</span
+        >
       </span>
     </button>
     <span

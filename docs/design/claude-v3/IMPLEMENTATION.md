@@ -148,9 +148,11 @@ All paths are relative to `src/renderer/src/shared/components/`.
   `size` (`sm` 32 | `md` 40), `pressed`.
 - **`AppDialog`**
   - `open`, `size` (`sm` 440 | `md` 480 | `lg` 820 | `xl` 1040), `role` (`dialog` | `alertdialog`),
-    `closeLabel` (renders the ✕), `persistent`, `tone` (`standard` | `plain`).
-  - Slots: `title`, `leading`, `header-extra`, default (the scrolling body) and `actions` (the
-    pinned footer).
+    `closeLabel` (renders the ✕), `persistent`, `tone` (`standard` | `plain`), and
+    `sheet="compact"`: below the `wide` breakpoint or on a `short` viewport, the dialog becomes a
+    full-screen sheet with the header and footer pinned (used by the payment dialog).
+  - Slots: `title`, `leading`, `header-extra`, `header-end` (before the ✕; the payment dialog's
+    Total due), default (the scrolling body) and `actions` (the pinned footer).
   - Initial focus goes to `[data-autofocus]`, else the first control. Focus is trapped, and
     restored on close.
 - **`AppConfirmDialog`**: an alert dialog with Cancel focused first.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type { CatalogProduct, PaymentMethodType } from '@shared/contracts/catalog.contract'
@@ -60,8 +60,10 @@ import { CATALOG_PAGE_SIZES, type CatalogPageSize, useCatalogStore } from '../ca
 import { usePaymentStore } from '../payment.store'
 import { useShiftStore } from '../shift.store'
 import { useShiftDialogStore } from '../shiftDialog.store'
-import { useBarcodeScanner } from '../useBarcodeScanner'
+import { useScanInputRouter, type ScanInputMode } from '../scanInputRouter'
 import { usePosShortcuts } from '../usePosShortcuts'
+import { describeStock } from '../stockDisplay'
+import { useConnectivityStore } from '@renderer/modules/connectivity/store'
 import { minorToDecimalText, parseScanEntry, quickCashAmounts } from '../quickSale'
 
 type DialogMode = 'help' | 'customers' | 'rebuild' | 'discount' | 'held' | null
@@ -77,6 +79,7 @@ const shift = useShiftStore()
 const payment = usePaymentStore()
 const sync = useSyncStore()
 const shiftDialog = useShiftDialogStore()
+const connectivity = useConnectivityStore()
 const {
   categories,
   products,
@@ -97,7 +100,8 @@ const {
   total: catalogTotal,
   page: catalogPage,
   pageSize: catalogPageSize,
-  pageCount: catalogPageCount
+  pageCount: catalogPageCount,
+  stock: stockViews
 } = storeToRefs(catalog)
 const {
   lines,
@@ -109,7 +113,8 @@ const {
   invoiceDiscountType,
   invoiceDiscountValue,
   draftRevision: cartDraftRevision,
-  heldDrafts
+  heldDrafts,
+  catalogChanged: cartCatalogStale
 } = storeToRefs(cart)
 const {
   activeShiftUuid,
@@ -135,7 +140,12 @@ const {
   completionError,
   blockingAttemptKey,
   pendingResults,
-  isBlocked
+  isBlocked,
+  attemptKey,
+  attemptState,
+  attemptRecovery,
+  blockingRecovery,
+  attemptProtected
 } = storeToRefs(payment)
 const { isRunning: isRefreshingCatalog, error: bootstrapError } = storeToRefs(bootstrap)
 const searchRef = ref<InstanceType<typeof ProductSearchBar> | null>(null)
@@ -150,7 +160,18 @@ const rebuildPreview = ref<{
   readonly token: string
   readonly revision: string
   readonly products: readonly CatalogProduct[]
+  /** Lines whose product the installed catalog no longer offers; dropped only on confirmation. */
+  readonly removedLineIds: readonly string[]
 } | null>(null)
+const paymentPanelRef = ref<InstanceType<typeof PaymentPanel> | null>(null)
+/** Rev 3: scanner-safety notices inside the payment dialog. */
+const scannerNotice = ref<string | null>(null)
+const collectingScan = ref(false)
+/** Codes scanned on the completed-sale screen, delivered in order after acknowledgement. */
+const heldScans = ref<string[]>([])
+const heldScansAckFailed = ref(false)
+/** A compact "last sale" strip that survives acknowledgement (change due, reprint). */
+const lastSale = ref<{ readonly total: string; readonly change: string | null } | null>(null)
 const scanRef = ref<InstanceType<typeof ScanEntry> | null>(null)
 const scanText = ref('')
 const pendingMultiplier = ref<number | null>(null)
@@ -185,13 +206,15 @@ const catalogLastRefreshedLabel = computed(() => {
     : null
 })
 /**
- * Only surfaced while a draft actually exists: a revision change with an empty cart needs no
- * cashier action, and telling them to rebuild nothing would be noise. With lines present the cart
- * store has already invalidated the draft (`CART_CATALOG_CHANGED`), so this message names the
- * resolution the page already offers — rebuild or clear — and never a silent reprice.
+ * Only surfaced while the open draft is actually frozen on an older catalog: a revision change with
+ * an empty cart needs no cashier action, and a cart started after the refresh has already adopted
+ * the installed contract (rev 3 — the refresh flag alone stayed set and wrongly asked the cashier
+ * to rebuild a current cart). With a stale draft the cart store has invalidated it
+ * (`CART_CATALOG_CHANGED`), so this names the resolution the page offers — rebuild or clear — and
+ * never a silent reprice.
  */
 const catalogRevisionChangedMessage = computed(() =>
-  catalogRevisionChanged.value && lines.value.length > 0
+  catalogRevisionChanged.value && cartCatalogStale.value && lines.value.length > 0
     ? t('pos.catalogRefresh.revisionChanged')
     : null
 )
@@ -210,9 +233,18 @@ const catalogLine = computed<{ label: string; tone: 'ok' | 'muted' | 'warn' } | 
   if (catalogStatus.value === 'unavailable') {
     return null
   }
+  const relative = lastSyncedRelative.value
+  if (catalogRefreshError.value) {
+    // A failed refresh never claims "up to date": it states when data was last installed.
+    return {
+      tone: 'warn',
+      label: relative
+        ? t('pos.catalogLine.refreshFailed', { relative })
+        : t('pos.catalogLine.unknown')
+    }
+  }
   const tone =
     catalogStatus.value === 'fresh' ? 'ok' : catalogStatus.value === 'stale' ? 'warn' : 'muted'
-  const relative = lastSyncedRelative.value
   return {
     tone,
     label: relative
@@ -286,7 +318,10 @@ function monogram(name: string): string {
 function displayProduct(product: CatalogProduct): DisplayProduct {
   const price = money(product.price.amount, product.price.currency)
   const quantity = inCartQuantity.value.get(product.uuid)
+  const stockInfo = stock(product)
   return {
+    stockBlocked: stockInfo.blocked,
+    stockDetail: stockInfo.blockedReason ?? stockInfo.detail ?? undefined,
     id: product.uuid,
     name: product.name,
     sku: product.sku ?? '—',
@@ -321,12 +356,22 @@ function useWalkInCustomer(): void {
 }
 
 function confirmClearCart(): void {
+  if (attemptProtected.value) {
+    // A protected attempt can only be resolved through recovery (retry / cancel payment).
+    clearConfirmOpen.value = false
+    return
+  }
   cart.clear()
-  payment.clearDraft()
+  // New draft: every editable tender field, preview and finished-attempt message is reset.
+  payment.resetEditableState()
+  scannerNotice.value = null
+  // The last scan's "Added to sale" line described the cart that was just cleared.
+  scanResult.value = null
   paymentPanelOpen.value = false
   pendingMultiplier.value = null
   lastAddedProductUuid.value = null
   clearConfirmOpen.value = false
+  void nextTick(focusScanEntry)
 }
 
 const cartDisplayLines = computed(() =>
@@ -350,7 +395,22 @@ const rebuildPreviewRows = computed(() => {
   const replacements = new Map(
     rebuildPreview.value.products.map((product) => [product.uuid, product])
   )
+  const removed = new Set(rebuildPreview.value.removedLineIds)
   return lines.value.flatMap((line) => {
+    if (removed.has(line.id)) {
+      return [
+        {
+          id: line.id,
+          name: line.product.name,
+          oldPrice: money(line.product.price.amount, line.product.price.currency),
+          newPrice: '',
+          taxChanged: false,
+          nameChanged: false,
+          trackingChanged: false,
+          removed: true
+        }
+      ]
+    }
     const replacement = replacements.get(line.product.uuid)
     return replacement
       ? [
@@ -361,7 +421,10 @@ const rebuildPreviewRows = computed(() => {
             newPrice: money(replacement.price.amount, replacement.price.currency),
             taxChanged:
               line.product.tax.mode !== replacement.tax.mode ||
-              line.product.tax.rateBasisPoints !== replacement.tax.rateBasisPoints
+              line.product.tax.rateBasisPoints !== replacement.tax.rateBasisPoints,
+            nameChanged: line.product.name !== replacement.name,
+            trackingChanged: line.product.trackStock !== replacement.trackStock,
+            removed: false
           }
         ]
       : []
@@ -520,7 +583,8 @@ const completionEnabled = computed(
 const completionRefreshAvailable = computed(
   () =>
     completionOutcome.value?.outcome === 'rejected' &&
-    completionOutcome.value.failureCode === 'stock-allocation-unavailable'
+    (completionOutcome.value.failureCode === 'stock-allocation-unavailable' ||
+      completionOutcome.value.failureCode === 'catalog-superseded')
 )
 
 function localizedCompletionCode(namespace: 'rejected' | 'failed', code: string): string {
@@ -579,9 +643,58 @@ const completionMessage = computed<string | undefined>(() => {
   return undefined
 })
 
+function recoveryDetail(
+  summary: {
+    legacyDispatchUnknown: boolean
+    outstandingRequests: number
+    needsSupport: boolean
+    supportReference: string | null
+  } | null
+): string | undefined {
+  if (!summary) {
+    return undefined
+  }
+  const parts: string[] = []
+  if (summary.needsSupport) {
+    parts.push(
+      String(
+        summary.supportReference
+          ? t('pos.recovery.needsSupportReference', { reference: summary.supportReference })
+          : t('pos.recovery.needsSupport')
+      )
+    )
+  }
+  if (summary.legacyDispatchUnknown) {
+    parts.push(String(t('pos.recovery.legacyUnknown')))
+  }
+  if (summary.outstandingRequests > 0) {
+    parts.push(String(t('pos.recovery.outstandingRequest')))
+  }
+  return parts.length > 0 ? parts.join(' ') : undefined
+}
+
+/** This draft's own attempt is durably claimed by main (retryable or uncertain) and idle. */
+const currentAttemptClaimed = computed(
+  () => !completionPending.value && attemptKey.value !== null && attemptState.value === 'claimed'
+)
+
 const paymentPanelRecoveryState = computed<PaymentPanelRecoveryState>(() => {
-  if (isBlocked.value) {
-    return { kind: 'blocked', message: String(t('pos.payment.completion.blocked')) }
+  if (isBlocked.value && blockingAttemptKey.value !== attemptKey.value) {
+    return {
+      kind: 'blocked',
+      message: String(t('pos.payment.completion.blocked')),
+      retryAvailable: blockingRecovery.value?.needsSupport !== true,
+      detail: recoveryDetail(blockingRecovery.value)
+    }
+  }
+
+  if (currentAttemptClaimed.value) {
+    return {
+      kind: 'blocked',
+      message: completionMessage.value ?? String(t('pos.payment.completion.blocked')),
+      retryAvailable: attemptRecovery.value?.needsSupport !== true,
+      detail: recoveryDetail(attemptRecovery.value)
+    }
   }
 
   const outcome = completionOutcome.value
@@ -614,7 +727,10 @@ const displayUnacknowledgedResults = computed<DisplayRecoveryResult[]>(() =>
  * scan entry and quick actions stay locked until that attempt is resolved.
  */
 const attemptSettled = computed(
-  () => !completionPending.value && paymentPanelRecoveryState.value.kind === 'clear'
+  () =>
+    !completionPending.value &&
+    !attemptProtected.value &&
+    paymentPanelRecoveryState.value.kind === 'clear'
 )
 const canAddToCart = computed(
   () => canSell.value && catalogUsableForDraft.value && attemptSettled.value
@@ -700,6 +816,90 @@ const quickTenders = computed<DisplayQuickTender[]>(() => {
   }))
 })
 
+/**
+ * Rev 3 "Complete · Exact cash": the cashier-selected cash method, else the ONLY active cash method
+ * that needs no reference. Several candidates and no selection → no default (hidden).
+ */
+const exactCashMethod = computed(() => {
+  const selected = activeMethod.value
+  if (selected && selected.type === 'cash' && !selected.requiresReference) {
+    return selected
+  }
+  const candidates = paymentMethods.value.filter(
+    (method) => method.type === 'cash' && !method.requiresReference
+  )
+  return candidates.length === 1 ? candidates[0] : null
+})
+const grandTotalAmount = computed(() => calculation.value?.grandTotalAmount ?? 0)
+const exactCashEligible = computed(
+  () =>
+    exactCashMethod.value !== null &&
+    canSell.value &&
+    cartState.value.kind === 'valid' &&
+    paymentRows.value.length === 0 &&
+    grandTotalAmount.value > 0 &&
+    !attemptProtected.value &&
+    !isBlocked.value &&
+    paymentPanelRecoveryState.value.kind === 'clear'
+)
+const exactCashAction = computed(() =>
+  exactCashEligible.value && exactCashMethod.value
+    ? {
+        label: String(
+          t('pos.exactCash.complete', {
+            method: exactCashMethod.value.name,
+            amount: money(grandTotalAmount.value)
+          })
+        ),
+        keyHint: 'Shift+F9'
+      }
+    : null
+)
+const addRemainingAction = computed(() =>
+  exactCashMethod.value &&
+  paymentRows.value.length > 0 &&
+  outstandingAmount.value > 0 &&
+  !isEditingDraft.value &&
+  paymentPanelRecoveryState.value.kind === 'clear'
+    ? {
+        label: String(
+          t('pos.exactCash.addRemaining', {
+            method: exactCashMethod.value.name,
+            amount: money(outstandingAmount.value)
+          })
+        )
+      }
+    : null
+)
+const largeChangeWarning = computed(() => {
+  const outcome = previewOutcome.value
+  return outcome?.outcome === 'valid' &&
+    outcome.changeDueAmount > 0 &&
+    outcome.changeDueAmount > grandTotalAmount.value * 20
+    ? String(t('pos.payment.largeChange'))
+    : null
+})
+
+/** Explicit cashier confirmation of exact cash received; main validates and commits durably. */
+function handleExactCash(): void {
+  const method = exactCashMethod.value
+  if (!exactCashEligible.value || !method) {
+    return
+  }
+  if (!paymentPanelOpen.value) {
+    paymentPanelOpen.value = true
+  }
+  payment.addExactRow(method.uuid, grandTotalAmount.value)
+  handleComplete()
+}
+
+function handleAddRemaining(): void {
+  const method = exactCashMethod.value
+  if (method && addRemainingAction.value) {
+    payment.addRemainingRow(method.uuid, outstandingAmount.value)
+  }
+}
+
 function reportScan(
   code: string,
   tone: DisplayScanResult['tone'],
@@ -739,7 +939,17 @@ async function addByCode(code: string, explicitMilli: number | null): Promise<vo
     return
   }
 
-  if (!cart.addProduct(result.product, quantityMilli)) {
+  adoptInstalledContractForEmptyCart(result.revision)
+  if (!isOnline.value) {
+    const forSale = await catalog.getProductForSale(result.product.uuid)
+    const info = forSale ? stockFor(forSale.product, forSale.stock, quantityMilli) : null
+    if (info?.blocked) {
+      reportScan(code, 'warning', info.blockedReason ?? String(t('pos.stock.notReservedOffline')))
+      return
+    }
+  }
+
+  if (!cart.addProduct(result.product, quantityMilli, result.revision)) {
     reportScan(code, 'error', cartError.value ?? String(t('pos.errors.CART_INVALID')))
     return
   }
@@ -767,7 +977,32 @@ function handleScanSubmit(text: string): void {
   }
 
   scanText.value = ''
-  void addByCode(parsed.code, parsed.quantityMilli)
+  // Serialized with page-level scans, so rapid consecutive scans keep their order.
+  void enqueueScan(parsed.code, parsed.quantityMilli)
+}
+
+let scanChain: Promise<void> = Promise.resolve()
+function enqueueScan(code: string, explicitMilli: number | null): Promise<void> {
+  scanChain = scanChain.then(() => addByCode(code, explicitMilli)).catch(() => undefined)
+  return scanChain
+}
+
+/**
+ * Rev 3: a new (empty) cart adopts the installed contract its product came from; an existing cart
+ * is never re-contracted here (it stays frozen until an explicit review/rebuild).
+ */
+function adoptInstalledContractForEmptyCart(revision: string | undefined): void {
+  const installed = catalog.status?.contract
+  if (
+    revision &&
+    lines.value.length === 0 &&
+    catalog.status?.catalogValid &&
+    installed &&
+    installed.revision === revision &&
+    cartContract.value?.revision !== revision
+  ) {
+    cart.setContract(installed)
+  }
 }
 
 function focusScanEntry(): void {
@@ -787,7 +1022,7 @@ function holdCurrentSale(): boolean {
     return false
   }
 
-  payment.clearDraft()
+  payment.resetEditableState()
   catalog.selectCustomer(null)
   paymentPanelOpen.value = false
   pendingMultiplier.value = null
@@ -811,7 +1046,7 @@ function recallHeldSale(id: string): void {
     return
   }
 
-  payment.clearDraft()
+  payment.resetEditableState()
   catalog.selectCustomer(held.customerUuid)
   lastAddedProductUuid.value = null
   dialogMode.value = null
@@ -865,10 +1100,9 @@ function handleQuickTender(id: string): void {
 
 /** F9: first press opens payment in the column; once a valid tender covers the sale, completes it. */
 function handlePayShortcut(): void {
+  // Inside the payment dialog F9 is routed by the scan-input router to the step's primary action.
   if (!paymentPanelOpen.value) {
     openPaymentPanel()
-  } else if (completionEnabled.value && !completionPending.value) {
-    handleComplete()
   }
 }
 
@@ -896,16 +1130,28 @@ function handleRefreshCatalog(): void {
   void catalog.refresh()
 }
 
-function handleRetryAttempt(key: string | null = blockingAttemptKey.value): void {
+function recoveryKey(): string | null {
+  return blockingAttemptKey.value ?? (currentAttemptClaimed.value ? attemptKey.value : null)
+}
+
+function handleRetryAttempt(key: string | null = recoveryKey()): void {
   if (key) {
     void payment.retryAttempt(key)
   }
 }
 
-function handleAbandonAttempt(key: string | null = blockingAttemptKey.value): void {
-  if (key) {
-    void payment.abandonAttempt(key)
+function handleAbandonAttempt(key: string | null = recoveryKey()): void {
+  if (!key) {
+    return
   }
+  const summary = key === blockingAttemptKey.value ? blockingRecovery.value : attemptRecovery.value
+  // The cashier confirmed the (legacy-aware) warning explicitly before this emit.
+  void payment
+    .abandonAttempt(key, { acknowledgeLegacyUncertainty: summary?.legacyDispatchUnknown === true })
+    .then(() => {
+      void payment.discoverPending()
+      void nextTick(focusScanEntry)
+    })
 }
 
 function handleAcknowledgeAttempt(
@@ -925,11 +1171,49 @@ function handleAcknowledgeAttempt(
     paymentPanelOpen.value &&
     (outcome?.outcome === 'committed' || outcome?.outcome === 'acknowledged') &&
     outcome.attemptKey === key
-  void payment.acknowledgeAttempt(key).then((result) => {
-    if (panelOwnsAttempt && result.outcome === 'acknowledged') {
-      paymentPanelOpen.value = false
+  if (panelOwnsAttempt) {
+    void acknowledgeAndDeliver()
+    return
+  }
+  void payment.acknowledgeAttempt(key)
+}
+
+let acknowledging = false
+/**
+ * Rev 3 scan-to-next-sale: acknowledge the committed sale, and only after main confirmed it close
+ * the dialog and deliver any codes scanned on the completed-sale screen, in order, exactly once.
+ * A failed acknowledgement keeps the result and the held codes.
+ */
+async function acknowledgeAndDeliver(): Promise<void> {
+  const outcome = completionOutcome.value
+  if (acknowledging || !outcome || outcome.outcome !== 'committed') {
+    return
+  }
+  acknowledging = true
+  try {
+    lastSale.value = {
+      total: money(outcome.invoice.grandTotalAmount),
+      change: changeDueDisplay.value ?? null
     }
-  })
+    const result = await payment.acknowledgeAttempt(outcome.attemptKey)
+    if (result?.outcome !== 'acknowledged') {
+      heldScansAckFailed.value = heldScans.value.length > 0
+      return
+    }
+    heldScansAckFailed.value = false
+    // Hand the held codes to the serialized scan chain BEFORE leaving the dialog, so any scan that
+    // arrives after it is queued behind them.
+    const codes = heldScans.value.splice(0, heldScans.value.length)
+    for (const code of codes) {
+      void enqueueScan(code, null)
+    }
+    paymentPanelOpen.value = false
+    scannerNotice.value = null
+    await nextTick()
+    focusScanEntry()
+  } finally {
+    acknowledging = false
+  }
 }
 
 function schedulePaymentPreview(): void {
@@ -958,7 +1242,14 @@ function openPaymentPanel(): void {
 }
 
 function closePaymentPanel(): void {
+  if (paymentPanelRecoveryState.value.kind === 'awaiting-acknowledgment') {
+    // Closing the completed-sale screen is "New sale" — never a way back into a locked cart.
+    void acknowledgeAndDeliver()
+    return
+  }
   paymentPanelOpen.value = false
+  scannerNotice.value = null
+  void nextTick(focusScanEntry)
 }
 
 const receiptDialogOpen = ref(false)
@@ -1054,39 +1345,46 @@ function paymentMethodIneligibleReasonKey(type: PaymentMethodType | null): strin
   return 'pos.payment.ineligibleUnsupported'
 }
 
-function stock(product: CatalogProduct): {
-  level: 'in-stock' | 'low-stock' | 'out-of-stock'
-  label: string
-} {
-  if (!product.trackStock || product.availableQuantity === null) {
-    return { level: 'in-stock', label: t('pos.stockUntracked') }
-  }
+const isOnline = computed(() => connectivity.snapshot?.status === 'online')
 
-  const quantity = Number(product.availableQuantity)
-
-  if (quantity <= 0) {
-    return { level: 'out-of-stock', label: t('pos.outOfStock') }
-  }
-
-  const count = formatNumber(quantity, localeStore.locale as LocaleCode, {
-    maximumFractionDigits: 3
+function stockFor(
+  product: CatalogProduct,
+  view: (typeof stockViews.value)[string] | undefined,
+  requestedMilli?: number
+): ReturnType<typeof describeStock> {
+  return describeStock(product.trackStock ? view : { kind: 'untracked' }, {
+    online: isOnline.value,
+    inCartMilli: Math.round((inCartQuantity.value.get(product.uuid) ?? 0) * 1000),
+    requestedMilli,
+    translate: (key, params) => String(t(key, params ?? {})),
+    formatQuantity: (value) =>
+      formatNumber(value, localeStore.locale as LocaleCode, { maximumFractionDigits: 3 }),
+    formatTime: (iso) =>
+      formatDateTime(iso, localeStore.locale as LocaleCode, { timeStyle: 'short' })
   })
+}
 
-  if (quantity <= 5) {
-    return { level: 'low-stock', label: t('pos.stock.lowStockCount', { count }) }
-  }
-
-  return { level: 'in-stock', label: t('pos.stock.inStockCount', { count }) }
+/** Rev 3: separated, honestly labelled stock facts (never an adjusted warehouse balance). */
+function stock(product: CatalogProduct): ReturnType<typeof describeStock> {
+  return stockFor(product, stockViews.value[product.uuid])
 }
 
 async function addSelectedProduct(uuid: string): Promise<void> {
-  if (canAddToCart.value) {
-    const currentProduct = await catalog.getProduct(uuid)
-
-    if (currentProduct && cart.addProduct(currentProduct, (pendingMultiplier.value ?? 1) * 1000)) {
-      pendingMultiplier.value = null
-      lastAddedProductUuid.value = currentProduct.uuid
-    }
+  if (!canAddToCart.value) {
+    return
+  }
+  const forSale = await catalog.getProductForSale(uuid)
+  if (!forSale) {
+    return
+  }
+  const quantityMilli = (pendingMultiplier.value ?? 1) * 1000
+  if (stockFor(forSale.product, forSale.stock, quantityMilli).blocked) {
+    return
+  }
+  adoptInstalledContractForEmptyCart(forSale.revision)
+  if (cart.addProduct(forSale.product, quantityMilli, forSale.revision)) {
+    pendingMultiplier.value = null
+    lastAddedProductUuid.value = forSale.product.uuid
   }
 }
 
@@ -1178,17 +1476,7 @@ async function resumeShift(): Promise<void> {
 
 /** A scan made while no input has focus lands in the same add-by-code path as the scan field. */
 async function handleBarcode(barcode: string): Promise<void> {
-  await addByCode(barcode, null)
-}
-
-async function refreshCatalog(): Promise<void> {
-  if (await bootstrap.runBootstrap()) {
-    await catalog.initialize()
-    console.log('Catalog refreshed successfully')
-    if (catalog.status?.catalogValid && catalog.status.contract) {
-      cart.setContract(catalog.status.contract)
-    }
-  }
+  await enqueueScan(barcode, null)
 }
 
 async function prepareCartRebuild(): Promise<void> {
@@ -1199,11 +1487,13 @@ async function prepareCartRebuild(): Promise<void> {
 
   const token = cart.captureContext()
   const products: CatalogProduct[] = []
+  const removedLineIds: string[] = []
   for (const line of lines.value) {
     const product = await catalog.getProduct(line.product.uuid)
-    if (!product) {
-      rebuildError.value = t('pos.rebuildProductMissing')
-      return
+    if (!product || !product.price) {
+      // Shown in the review as "removed"; dropped only when the cashier confirms.
+      removedLineIds.push(line.id)
+      continue
     }
     products.push(product)
   }
@@ -1220,7 +1510,7 @@ async function prepareCartRebuild(): Promise<void> {
   }
 
   rebuildError.value = null
-  rebuildPreview.value = { token, revision: before.contract.revision, products }
+  rebuildPreview.value = { token, revision: before.contract.revision, products, removedLineIds }
   dialogMode.value = 'rebuild'
 }
 
@@ -1239,14 +1529,56 @@ function confirmCartRebuild(): void {
     return
   }
 
-  if (cart.rebuildFromCatalog(preview.products)) {
+  if (cart.rebuildFromCatalog(preview.products, { dropLineIds: preview.removedLineIds })) {
+    payment.invalidatePreview()
     rebuildError.value = null
     dialogMode.value = null
     rebuildPreview.value = null
   }
 }
 
-useBarcodeScanner({ onScan: handleBarcode })
+const scanMode = computed<ScanInputMode>(() => {
+  if (receiptDialogOpen.value) {
+    return 'inactive'
+  }
+  if (!paymentPanelOpen.value) {
+    return dialogMode.value !== null || clearConfirmOpen.value ? 'inactive' : 'page'
+  }
+  const kind = paymentPanelRecoveryState.value.kind
+  if (kind === 'awaiting-acknowledgment') {
+    return 'payment-done'
+  }
+  if (kind === 'blocked' || completionPending.value) {
+    return 'payment-other'
+  }
+  return 'payment-tender'
+})
+
+useScanInputRouter({
+  mode: () => scanMode.value,
+  onScan: (code: string) => handleBarcode(code),
+  onDoneCode: (code: string) => {
+    heldScans.value = [...heldScans.value, code]
+    void acknowledgeAndDeliver()
+  },
+  onPrimary: () => {
+    paymentPanelRef.value?.activatePrimary()
+  },
+  onExactCash: () => handleExactCash(),
+  onPrint: () => {
+    paymentPanelRef.value?.activatePrint()
+  },
+  onEscape: () => closePaymentPanel(),
+  onScannerIgnored: () => {
+    scannerNotice.value = String(t('pos.scanner.ignoredWhilePaying'))
+  },
+  onCollectingChange: (collecting: boolean) => {
+    collectingScan.value = collecting
+  },
+  onFieldBurstReverted: () => {
+    scannerNotice.value = String(t('pos.scanner.fieldReverted'))
+  }
+})
 usePosShortcuts({
   focusSearch: () => searchRef.value?.focus(),
   showHelp: () => openDialog('help'),
@@ -1275,6 +1607,30 @@ watch(
   }
 )
 
+// --- POS reliability rev 3: sale identity, attempt lock, preview invalidation ------------------
+watch(
+  () => cart.saleId,
+  (saleId) => payment.bindSale(saleId),
+  { immediate: true }
+)
+watch(attemptProtected, (isProtected) => cart.setLocked(isProtected), { immediate: true })
+// Any cart change invalidates the preview synchronously: a stale "valid" can never enable Complete.
+watch(
+  () => cart.captureContext(),
+  () => payment.invalidatePreview(),
+  { flush: 'sync' }
+)
+watch(grandTotalAmount, (total) => {
+  if (payment.dropStaleExactRows(total)) {
+    scannerNotice.value = String(t('pos.exactCash.rowDropped'))
+  }
+})
+watch(paymentPanelOpen, (open) => {
+  if (!open) {
+    collectingScan.value = false
+  }
+})
+
 watch(query, () => {
   window.clearTimeout(searchTimer)
   searchTimer = window.setTimeout(() => void catalog.search(), 180)
@@ -1291,6 +1647,7 @@ watch(
     if (previous !== undefined && current !== previous) {
       cart.resetDraft('shift-changed')
       payment.resetPayment()
+      void payment.discoverPending()
       paymentPanelOpen.value = false
       cartSheetOpen.value = false
       pendingMultiplier.value = null
@@ -1322,12 +1679,16 @@ onBeforeUnmount(() => {
   window.clearTimeout(previewTimer)
   window.clearInterval(synchronizationAgeTimer)
   sync.dispose()
+  releaseCatalogChanges?.()
 })
+
+let releaseCatalogChanges: (() => void) | null = null
 
 onMounted(async () => {
   synchronizationAgeTimer = window.setInterval(() => {
     synchronizationReferenceTime.value = Date.now()
   }, 60_000)
+  releaseCatalogChanges = catalog.subscribeToChanges()
   await Promise.all([
     shift.loadCurrent(),
     catalog.initialize(),
@@ -1335,6 +1696,9 @@ onMounted(async () => {
     // Subscribes before its first read, so an upload finishing during startup is not missed.
     sync.initialize()
   ])
+  // Discovery can fail before the shift authority context exists; ask again once it does, so a
+  // claimed attempt is never invisible after a reload.
+  await payment.discoverPending()
 
   if (catalog.status?.catalogValid && catalog.status.contract) {
     cart.setContract(catalog.status.contract)
@@ -1354,9 +1718,15 @@ onMounted(async () => {
       :unacknowledged-results="displayUnacknowledgedResults"
       :unacknowledged-message="t('pos.recovery.unacknowledgedPrefix')"
       :acknowledge-label="t('pos.payment.completion.acknowledge')"
-      :abandon-warning="t('pos.payment.completion.abandonWarning')"
+      :abandon-warning="
+        blockingRecovery?.legacyDispatchUnknown
+          ? t('pos.recovery.legacyCancelWarning')
+          : t('pos.payment.completion.abandonWarning')
+      "
       :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
       :cancel-confirm-label="t('common.cancel')"
+      :retry-available="blockingRecovery?.needsSupport !== true"
+      :blocked-detail="recoveryDetail(blockingRecovery) ?? null"
       @retry="handleRetryAttempt"
       @abandon="handleAbandonAttempt"
       @acknowledge="handleAcknowledgeAttempt"
@@ -1366,6 +1736,9 @@ onMounted(async () => {
       :sheet-open="cartSheetOpen"
       :catalog-label="t('pos.catalogLabel')"
       :cart-label="t('pos.cart.title')"
+      :resize-label="t('pos.layout.resizeCart')"
+      :reset-width-label="t('pos.layout.resetCartWidth')"
+      :width-value-text="(value: number) => t('pos.layout.cartWidthValue', { value })"
     >
       <template #catalog>
         <CategorySelector
@@ -1496,8 +1869,8 @@ onMounted(async () => {
               <AppButton
                 variant="secondary"
                 icon="refresh"
-                :loading="isRefreshingCatalog"
-                @click="refreshCatalog"
+                :loading="isRefreshingCatalog || catalogRefreshing"
+                @click="handleRefreshCatalog"
               >
                 {{ t('pos.refreshCatalog') }}
               </AppButton>
@@ -1600,7 +1973,7 @@ onMounted(async () => {
             <AppButton
               variant="secondary"
               size="sm"
-              :disabled="lines.length === 0"
+              :disabled="lines.length === 0 || attemptProtected"
               @click="clearConfirmOpen = true"
             >
               {{ t('pos.cart.clear') }}
@@ -1679,8 +2052,17 @@ onMounted(async () => {
             <span class="text-end">{{ t('pos.cart.colAmount') }}</span>
           </div>
 
+          <p
+            v-if="lastSale && lines.length === 0"
+            class="pos-page__last-sale mx-4 mt-2 flex flex-wrap gap-x-2 text-sm text-muted"
+            role="status"
+          >
+            <span>{{ t('pos.lastSale.total', { total: lastSale.total }) }}</span>
+            <span v-if="lastSale.change"
+              >· {{ t('pos.lastSale.change', { change: lastSale.change }) }}</span
+            >
+          </p>
           <CartPanel
-            :class="{ 'pos-page__cart-lines--paying max-h-56 flex-none': paymentPanelOpen }"
             :lines="cartDisplayLines"
             :empty-title="t('pos.emptyCart')"
             :empty-description="
@@ -1775,7 +2157,7 @@ onMounted(async () => {
             </template>
           </CartPanel>
           <PaymentPanel
-            inline
+            ref="paymentPanelRef"
             class="pos-page__payment"
             :open="paymentPanelOpen"
             :title="t('pos.payment.title')"
@@ -1847,12 +2229,38 @@ onMounted(async () => {
             :retry-label="t('pos.tender.retrySale')"
             :abandon-label="t('pos.tender.abandonSale')"
             :acknowledge-label="t('pos.tender.newSale')"
-            :abandon-warning="t('pos.payment.completion.abandonWarning')"
             :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
             :cancel-confirm-label="t('common.cancel')"
             :print-receipt-label="t('pos.payment.printReceipt')"
             :quick-tenders="quickTenders"
             :quick-tenders-label="t('pos.quickSale.quickCash')"
+            :exact-cash="exactCashAction"
+            :add-remaining="addRemainingAction"
+            :scanner-notice="scannerNotice"
+            :large-change-warning="largeChangeWarning"
+            :collecting-hint="collectingScan ? t('pos.scanner.collecting') : null"
+            :held-scans-notice="
+              heldScansAckFailed && heldScans.length > 0
+                ? t('pos.scanner.heldScans', { count: heldScans.length })
+                : null
+            "
+            primary-key-hint="F9"
+            print-key-hint="Ctrl+P"
+            :key-descriptions="{
+              complete: t('pos.keys.complete'),
+              'exact-cash': t('pos.keys.exactCash'),
+              retry: t('pos.keys.retry'),
+              'confirm-abandon': t('pos.keys.confirmAbandon'),
+              print: t('pos.keys.print'),
+              acknowledge: t('pos.keys.acknowledge')
+            }"
+            :abandon-warning="
+              attemptRecovery?.legacyDispatchUnknown || blockingRecovery?.legacyDispatchUnknown
+                ? t('pos.recovery.legacyCancelWarning')
+                : t('pos.payment.completion.abandonWarning')
+            "
+            @exact-cash="handleExactCash"
+            @add-remaining="handleAddRemaining"
             @close="closePaymentPanel"
             @select-method="selectPaymentMethod"
             @edit-row="editPaymentRow"
@@ -1872,6 +2280,7 @@ onMounted(async () => {
           >
             <template #actions>
               <AppButton
+                v-if="paymentPanelRecoveryState.kind === 'clear'"
                 variant="ghost"
                 size="lg"
                 :disabled="completionPending"
@@ -1970,6 +2379,8 @@ onMounted(async () => {
               ['F7', t('pos.quickSale.customer')],
               ['F8', t('pos.discount')],
               ['F9', t('pos.quickSale.shortcutPay')],
+              ['Shift+F9', t('pos.exactCash.shortcut')],
+              ['Ctrl+P', t('pos.keys.print')],
               ['3*', t('pos.quickSale.shortcutMultiplier')]
             ]"
             :key="shortcut[0]"
@@ -2051,18 +2462,35 @@ onMounted(async () => {
             <span
               role="cell"
               class="flex flex-wrap items-center gap-1.5 font-semibold"
-              :class="row.oldPrice === row.newPrice && !row.taxChanged ? 'text-ok' : 'text-warn'"
+              :class="
+                row.oldPrice === row.newPrice &&
+                !row.taxChanged &&
+                !row.removed &&
+                !row.nameChanged &&
+                !row.trackingChanged
+                  ? 'text-ok'
+                  : 'text-warn'
+              "
             >
               <AppIcon
                 :name="
-                  row.oldPrice === row.newPrice && !row.taxChanged
+                  row.oldPrice === row.newPrice &&
+                  !row.taxChanged &&
+                  !row.removed &&
+                  !row.nameChanged &&
+                  !row.trackingChanged
                     ? 'check'
                     : 'published_with_changes'
                 "
                 :size="18"
               />
-              {{ row.oldPrice === row.newPrice ? t('pos.rebuildTable.same') : row.newPrice }}
+              <template v-if="row.removed">{{ t('pos.rebuildTable.removed') }}</template>
+              <template v-else>
+                {{ row.oldPrice === row.newPrice ? t('pos.rebuildTable.same') : row.newPrice }}
+              </template>
               <span v-if="row.taxChanged">· {{ t('pos.rebuildTaxChanged') }}</span>
+              <span v-if="row.nameChanged">· {{ t('pos.rebuildTable.nameChanged') }}</span>
+              <span v-if="row.trackingChanged">· {{ t('pos.rebuildTable.trackingChanged') }}</span>
             </span>
           </div>
         </div>

@@ -22,8 +22,12 @@ const props = withDefaults(
     abandonWarning: string
     confirmAbandonLabel: string
     cancelConfirmLabel: string
+    /** Rev 3: hidden for an integrity-blocked attempt (retrying cannot succeed). */
+    retryAvailable?: boolean
+    /** Rev 3: support reference or legacy-uncertainty context. */
+    blockedDetail?: string | null
   }>(),
-  {}
+  { retryAvailable: true, blockedDetail: null }
 )
 
 const emit = defineEmits<{
@@ -58,6 +62,11 @@ function confirmAbandon(): void {
   >
     <AppBanner v-if="blockingAttemptKey" variant="warning" role="alert">
       {{ confirmingAbandon ? abandonWarning : blockedMessage }}
+      <span
+        v-if="blockedDetail && !confirmingAbandon"
+        class="sale-recovery-banner__detail block text-sm"
+        >{{ blockedDetail }}</span
+      >
       <template #action>
         <div v-if="confirmingAbandon" class="sale-recovery-banner__actions flex flex-wrap gap-2">
           <AppButton variant="secondary" size="sm" @click="confirmingAbandon = false">
@@ -72,6 +81,7 @@ function confirmAbandon(): void {
             {{ abandonLabel }}
           </AppButton>
           <AppButton
+            v-if="retryAvailable"
             variant="primary"
             size="sm"
             icon="refresh"

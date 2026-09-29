@@ -1,10 +1,12 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type {
+  CheckoutAttemptStatus,
   CheckoutCompletionOutcome,
   CheckoutIntent,
   CheckoutPreviewOutcome,
-  CheckoutRecoveryState
+  CheckoutRecoveryState,
+  RecoveryAttemptSummary
 } from '@shared/contracts/checkout.contract'
 import { parseMinorCurrencyInput, type MoneyInputResult } from '@shared/money/minorUnits'
 import { handleRuntimeTransition } from '@renderer/app/session/runtimeTransition'
@@ -17,7 +19,32 @@ export interface PaymentDraftRow {
   readonly methodUuid: string
   readonly amount: number
   readonly reference: string | null
+  /** Rev 3: a row created by "Exact cash" for this total; dropped (never resized) if the total moves. */
+  readonly exactFor?: number
 }
+
+/**
+ * Failure codes after which main keeps the attempt `claimed` (a durable, protected attempt). The
+ * renderer never decides this alone: after any failure it also asks `checkout:attempt-status`.
+ */
+const CLAIMED_FAILURE_CODES = new Set([
+  'permission-denied',
+  'shift-unavailable',
+  'shift-not-open',
+  'shift-none',
+  'shift-reconciliation-required',
+  'shift-observation-foreign',
+  'shift-observation-unknown',
+  'workstation-unassigned',
+  'allocation-data-unavailable',
+  'allocation-acquisition-unresolved',
+  'allocation-refused',
+  'allocation-integrity-blocked',
+  'context-changed',
+  'refresh-required'
+])
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 export type PaymentDraftErrorCode = Exclude<MoneyInputResult, { ok: true }>['code']
 
@@ -52,11 +79,36 @@ export const usePaymentStore = defineStore('payment', () => {
   const pendingResults = ref<CheckoutRecoveryState['unacknowledgedResults']>([])
   let activeCompletionRequest: symbol | null = null
 
+  // --- POS reliability rev 3: identity model ----------------------------------------------------
+  // `boundSaleId` is the cart draft this editable tender state belongs to. `attemptState` is main's
+  // durable state for `attemptKey` as last learned. A late result is always recorded against its
+  // ORIGINAL key and applied to the draft only when {generation, saleId, key} still match.
+  const boundSaleId = ref<string | null>(null)
+  const attemptState = ref<CheckoutAttemptStatus['state'] | null>(null)
+  /** Main's recovery summary for the claimed attempt (legacy / support / outstanding requests). */
+  const attemptRecovery = ref<RecoveryAttemptSummary | null>(null)
+  const blockingRecovery = ref<RecoveryAttemptSummary | null>(null)
+  /** An IPC call whose outcome could not be observed; main is being asked what happened. */
+  const reconciling = ref(false)
+
   const paidTotalAmount = computed(() => rows.value.reduce((sum, row) => sum + row.amount, 0))
   const isEditingDraft = computed(() => activeMethodUuid.value !== null)
   const previewError = previewErrorState.error
   const completionError = completionErrorState.error
   const isBlocked = computed(() => blockingAttemptKey.value !== null)
+  /**
+   * True while this draft's attempt must not be discarded by the UI: a request in flight or being
+   * reconciled, a claimed (retryable or uncertain) attempt, or a committed sale not yet
+   * acknowledged. The cart is locked meanwhile.
+   */
+  const attemptProtected = computed(
+    () =>
+      completionPending.value ||
+      reconciling.value ||
+      completionOutcome.value?.outcome === 'committed' ||
+      (attemptKey.value !== null &&
+        (attemptState.value === 'claimed' || attemptState.value === 'in-flight'))
+  )
 
   function currentToken(cartToken: string): string {
     return `${cartToken}:${paymentRevision.value}`
@@ -159,6 +211,79 @@ export const usePaymentStore = defineStore('payment', () => {
     previewErrorState.clear()
   }
 
+  /**
+   * Rev 3 explicit reset for a NEW draft (confirmed Clear, removing the last item, "New sale",
+   * recall): editable tender rows, the half-typed amount/reference, change and preview, and the
+   * completion message/error of a finished attempt. Never touches a protected attempt.
+   */
+  function resetEditableState(): boolean {
+    if (attemptProtected.value) {
+      return false
+    }
+    clearDraft()
+    completionOutcome.value = null
+    completionErrorState.clear()
+    attemptKey.value = null
+    attemptState.value = null
+    attemptRecovery.value = null
+    return true
+  }
+
+  /** Binds editable tender state to a draft; a different draft starts from a clean state. */
+  function bindSale(saleId: string): void {
+    if (boundSaleId.value === saleId) {
+      return
+    }
+    if (resetEditableState() || boundSaleId.value === null) {
+      boundSaleId.value = saleId
+    }
+  }
+
+  /**
+   * Drops "Exact cash" rows whose total no longer matches (never silently resized). Rows bound to a
+   * protected attempt are what main recorded — a committed sale empties the cart — so they are never
+   * touched here.
+   */
+  function dropStaleExactRows(outstandingTotal: number): boolean {
+    if (attemptProtected.value) {
+      return false
+    }
+    const next = rows.value.filter(
+      (row) => row.exactFor === undefined || row.exactFor === outstandingTotal
+    )
+    if (next.length === rows.value.length) {
+      return false
+    }
+    rows.value = next
+    bumpRevision()
+    return true
+  }
+
+  /** Adds one tagged cash row for exactly `amount` (the caller verified eligibility). */
+  function addExactRow(methodUuid: string, amount: number): void {
+    cancelDraftRow()
+    rows.value = [
+      ...rows.value,
+      { id: crypto.randomUUID(), methodUuid, amount, reference: null, exactFor: amount }
+    ]
+    bumpRevision()
+  }
+
+  /** "Add remaining in cash": an ordinary (untagged) row for the outstanding amount. */
+  function addRemainingRow(methodUuid: string, amount: number): void {
+    cancelDraftRow()
+    rows.value = [...rows.value, { id: crypto.randomUUID(), methodUuid, amount, reference: null }]
+    bumpRevision()
+  }
+
+  /** Rev 3: a cart change invalidates the preview synchronously (never a stale "valid"). */
+  function invalidatePreview(): void {
+    paymentRevision.value += 1
+    previewOutcome.value = null
+    previewPending.value = false
+    previewErrorState.clear()
+  }
+
   /** Logout, session/device recovery, company/cashier/shift change, and `cart.resetDraft`. */
   function resetPayment(): void {
     contextGeneration.value += 1
@@ -175,6 +300,11 @@ export const usePaymentStore = defineStore('payment', () => {
     // `discoverPending()` again once the new owner context is established.
     blockingAttemptKey.value = null
     pendingResults.value = []
+    boundSaleId.value = null
+    attemptState.value = null
+    attemptRecovery.value = null
+    blockingRecovery.value = null
+    reconciling.value = false
   }
 
   async function refreshPreview(
@@ -226,10 +356,14 @@ export const usePaymentStore = defineStore('payment', () => {
     getCartToken: () => string,
     intent: CheckoutIntent,
     onCommitted: () => void,
-    service: Pick<CheckoutRendererService, 'complete'> = new CheckoutRendererService()
+    service: Pick<CheckoutRendererService, 'complete'> &
+      Partial<
+        Pick<CheckoutRendererService, 'attemptStatus' | 'retryAttempt'>
+      > = new CheckoutRendererService()
   ): Promise<void> {
     if (
       activeCompletionRequest !== null ||
+      reconciling.value ||
       completionOutcome.value?.outcome === 'committed' ||
       completionOutcome.value?.outcome === 'acknowledged'
     ) {
@@ -240,50 +374,225 @@ export const usePaymentStore = defineStore('payment', () => {
       attemptKey.value = crypto.randomUUID()
     }
     const key = attemptKey.value
+    const issuedGeneration = contextGeneration.value
+    const issuedSaleId = boundSaleId.value
     const issuedToken = currentToken(getCartToken())
     const request = Symbol('checkout-completion')
     activeCompletionRequest = request
     completionPending.value = true
+    attemptState.value = 'in-flight'
     completionErrorState.clear()
+
+    // Rev 3: a result is applied to the draft only while {generation, sale, key} still match.
+    // Otherwise it is recorded for its original key only (recovery list), never shown on — and
+    // never clearing — a replacement cart. Main remains authoritative either way.
+    const bound = (): boolean =>
+      contextGeneration.value === issuedGeneration &&
+      boundSaleId.value === issuedSaleId &&
+      attemptKey.value === key
 
     try {
       const outcome = await service.complete(key, intent)
-      if (issuedToken !== currentToken(getCartToken())) {
+      if (contextGeneration.value !== issuedGeneration) {
+        // Another owner is signed in now: nothing of this attempt may surface here. Main keeps it,
+        // and the same cashier sees it again through `pending-attempts`.
+        return
+      }
+      if (!bound()) {
+        recordUnboundOutcome(key, outcome)
         return
       }
 
-      completionOutcome.value = outcome
-      completionErrorState.clear()
-
-      if (outcome.outcome === 'committed') {
-        onCommitted()
-      } else if (outcome.outcome === 'rejected') {
-        // T3: this exact key can never become a sale again. A corrected cart needs a new key.
-        attemptKey.value = null
-      } else if (outcome.outcome === 'failed' && outcome.code === 'attempt-blocked') {
-        blockingAttemptKey.value = outcome.blockingAttemptKey ?? null
-      }
+      applyOutcome(key, outcome, onCommitted)
+      void issuedToken
     } catch (cause) {
-      if (issuedToken !== currentToken(getCartToken())) {
+      if (contextGeneration.value !== issuedGeneration) {
         return
       }
-
-      completionOutcome.value = null
       const publicError = parsePublicAppError(cause)
-
       if (publicError) {
         void handleRuntimeTransition(publicError)
-        completionErrorState.setDetail(publicError)
-      } else {
-        completionErrorState.setFallbackKey('pos.payment.completion.unavailable')
       }
-    } finally {
-      // The committed callback intentionally clears the cart, which changes `issuedToken`. Busy
-      // state belongs to this request, not to the draft token: only a reset/newer request may take
-      // ownership away, and the request that still owns it must always release it.
+      // The call's outcome was not observed. It is NEVER treated as "the sale failed": main is
+      // asked what happened to this key before anything else may happen on this draft.
       if (activeCompletionRequest === request) {
         activeCompletionRequest = null
         completionPending.value = false
+      }
+      await reconcile(
+        key,
+        onCommitted,
+        {
+          attemptStatus: (k) =>
+            service.attemptStatus
+              ? service.attemptStatus(k)
+              : new CheckoutRendererService().attemptStatus(k),
+          retryAttempt: (k) =>
+            service.retryAttempt
+              ? service.retryAttempt(k)
+              : new CheckoutRendererService().retryAttempt(k)
+        },
+        bound
+      )
+      if (
+        contextGeneration.value === issuedGeneration &&
+        boundSaleId.value === issuedSaleId &&
+        attemptState.value === null &&
+        completionOutcome.value === null
+      ) {
+        // Main holds nothing durable for this key: the request never took effect. Say so.
+        if (publicError) {
+          completionErrorState.setDetail(publicError)
+        } else {
+          completionErrorState.setFallbackKey('pos.payment.completion.unavailable')
+        }
+      }
+    } finally {
+      // The committed callback intentionally clears the cart. Busy state belongs to this request,
+      // not to the draft: only a reset/newer request may take ownership away.
+      if (activeCompletionRequest === request) {
+        activeCompletionRequest = null
+        completionPending.value = false
+      }
+    }
+  }
+
+  function recordUnboundOutcome(key: string, outcome: CheckoutCompletionOutcome): void {
+    if (
+      outcome.outcome === 'committed' &&
+      !pendingResults.value.some((r) => r.attemptKey === key)
+    ) {
+      pendingResults.value = [
+        ...pendingResults.value,
+        { attemptKey: key, committedAt: outcome.invoice.soldAt }
+      ]
+    }
+    if (outcome.outcome === 'failed' && CLAIMED_FAILURE_CODES.has(outcome.code)) {
+      blockingAttemptKey.value = key
+    }
+  }
+
+  function applyOutcome(
+    key: string,
+    outcome: CheckoutCompletionOutcome,
+    onCommitted: () => void
+  ): void {
+    completionOutcome.value = outcome
+    completionErrorState.clear()
+
+    if (outcome.outcome === 'committed') {
+      attemptState.value = 'committed'
+      attemptRecovery.value = null
+      onCommitted()
+    } else if (outcome.outcome === 'rejected') {
+      // T3: this exact key can never become a sale again. A corrected cart needs a new key.
+      attemptKey.value = null
+      attemptState.value = null
+      attemptRecovery.value = null
+    } else if (outcome.outcome === 'failed') {
+      if (outcome.code === 'attempt-blocked') {
+        blockingAttemptKey.value = outcome.blockingAttemptKey ?? null
+        attemptKey.value = null
+        attemptState.value = null
+      } else if (CLAIMED_FAILURE_CODES.has(outcome.code) || outcome.code === 'policy-blocked') {
+        attemptState.value = 'claimed'
+        void refreshAttemptStatus(key)
+      } else {
+        // Not claimed by main (e.g. attempt-conflict, invalid-request): the key is released.
+        attemptKey.value = outcome.code === 'attempt-conflict' ? null : attemptKey.value
+        attemptState.value = null
+      }
+    }
+  }
+
+  async function refreshAttemptStatus(
+    key: string,
+    service?: Pick<CheckoutRendererService, 'attemptStatus'>
+  ): Promise<void> {
+    const issuedGeneration = contextGeneration.value
+    try {
+      const status = await (service ?? new CheckoutRendererService()).attemptStatus(key)
+      if (contextGeneration.value !== issuedGeneration || attemptKey.value !== key) {
+        return
+      }
+      if (status.state === 'claimed' || status.state === 'in-flight') {
+        attemptState.value = status.state
+        attemptRecovery.value = status.recovery ?? attemptRecovery.value
+      } else if (status.state === 'unknown') {
+        // No row for this owner: main never claimed it, so nothing durable is protected.
+        attemptKey.value = null
+        attemptState.value = null
+        attemptRecovery.value = null
+      }
+    } catch {
+      // Keep the protected state; a later action re-asks.
+    }
+  }
+
+  /**
+   * After an IPC failure: ask main for this key's durable state until it is decided. Committed
+   * results are re-read through `retry` (a read-only replay for a non-claimed row).
+   */
+  async function reconcile(
+    key: string,
+    onCommitted: () => void,
+    service: Pick<CheckoutRendererService, 'attemptStatus' | 'retryAttempt'>,
+    bound: () => boolean
+  ): Promise<void> {
+    const issuedGeneration = contextGeneration.value
+    reconciling.value = true
+    try {
+      for (let round = 0; round < 20; round += 1) {
+        let status: CheckoutAttemptStatus
+        try {
+          status = await service.attemptStatus(key)
+        } catch {
+          await sleep(500)
+          continue
+        }
+        if (contextGeneration.value !== issuedGeneration) {
+          return
+        }
+        if (status.state === 'in-flight') {
+          await sleep(500)
+          continue
+        }
+        if (status.state === 'committed' || status.state === 'acknowledged') {
+          const replay = await service.retryAttempt(key)
+          if (contextGeneration.value !== issuedGeneration) {
+            return
+          }
+          if (bound()) {
+            applyOutcome(key, replay, onCommitted)
+          } else {
+            recordUnboundOutcome(key, replay)
+          }
+          return
+        }
+        if (status.state === 'claimed') {
+          if (bound()) {
+            attemptState.value = 'claimed'
+            attemptRecovery.value = status.recovery ?? null
+          } else {
+            blockingAttemptKey.value = key
+          }
+          return
+        }
+        if (bound()) {
+          // rejected / abandoned / unknown (never reached main): the key holds nothing durable.
+          attemptKey.value = null
+          attemptState.value = null
+          attemptRecovery.value = null
+        }
+        return
+      }
+      // Still undecided: stay protected; the recovery banner offers an explicit re-check.
+      if (bound()) {
+        attemptState.value = 'claimed'
+      }
+    } finally {
+      if (contextGeneration.value === issuedGeneration) {
+        reconciling.value = false
       }
     }
   }
@@ -296,9 +605,22 @@ export const usePaymentStore = defineStore('payment', () => {
   async function retryAttempt(
     key: string,
     service: Pick<CheckoutRendererService, 'retryAttempt'> = new CheckoutRendererService()
-  ): Promise<CheckoutCompletionOutcome> {
+  ): Promise<CheckoutCompletionOutcome | null> {
     const issuedGeneration = contextGeneration.value
-    const outcome = await service.retryAttempt(key)
+    let outcome: CheckoutCompletionOutcome
+    try {
+      completionPending.value = true
+      outcome = await service.retryAttempt(key)
+    } catch (cause) {
+      if (contextGeneration.value === issuedGeneration) {
+        reportActionError(cause)
+      }
+      return null
+    } finally {
+      if (contextGeneration.value === issuedGeneration) {
+        completionPending.value = false
+      }
+    }
     // A logout/device-recovery/cashier change while this call was in flight must never let its
     // result apply to whoever the current owner is now (plan §2.10: late responses never apply to
     // a newer session).
@@ -306,22 +628,57 @@ export const usePaymentStore = defineStore('payment', () => {
       return outcome
     }
 
-    completionOutcome.value = outcome
+    if (key === attemptKey.value) {
+      // This draft's own attempt: apply exactly like a completion result (no cart clear needed —
+      // the cart is locked to this attempt and cleared on acknowledge).
+      applyOutcome(key, outcome, () => undefined)
+    } else if (outcome.outcome === 'committed') {
+      // A different (recovery-banner) attempt: recorded against its own key only — it never
+      // replaces this draft's completion state or tender rows.
+      recordUnboundOutcome(key, outcome)
+    }
 
-    if (outcome.outcome === 'committed' && blockingAttemptKey.value === key) {
+    if (outcome.outcome !== 'failed' && blockingAttemptKey.value === key) {
       blockingAttemptKey.value = null
+      blockingRecovery.value = null
     }
 
     return outcome
   }
 
+  function reportActionError(cause: unknown): void {
+    const publicError = parsePublicAppError(cause)
+    if (publicError) {
+      void handleRuntimeTransition(publicError)
+      completionErrorState.setDetail(publicError)
+    } else {
+      completionErrorState.setFallbackKey('pos.payment.completion.unavailable')
+    }
+  }
+
   /** `checkout:abandon-attempt` (T5, D1-A) — no `pos.sell`/open-shift/commercial-access required. */
   async function abandonAttempt(
     key: string,
-    service: Pick<CheckoutRendererService, 'abandonAttempt'> = new CheckoutRendererService()
-  ): Promise<CheckoutCompletionOutcome> {
+    optionsOrService:
+      | { readonly acknowledgeLegacyUncertainty?: boolean }
+      | Pick<CheckoutRendererService, 'abandonAttempt'> = {},
+    serviceArgument?: Pick<CheckoutRendererService, 'abandonAttempt'>
+  ): Promise<CheckoutCompletionOutcome | null> {
+    const isService = 'abandonAttempt' in optionsOrService
+    const options = isService ? {} : optionsOrService
+    const service: Pick<CheckoutRendererService, 'abandonAttempt'> = isService
+      ? (optionsOrService as Pick<CheckoutRendererService, 'abandonAttempt'>)
+      : (serviceArgument ?? new CheckoutRendererService())
     const issuedGeneration = contextGeneration.value
-    const outcome = await service.abandonAttempt(key)
+    let outcome: CheckoutCompletionOutcome
+    try {
+      outcome = await service.abandonAttempt(key, options)
+    } catch (cause) {
+      if (contextGeneration.value === issuedGeneration) {
+        reportActionError(cause)
+      }
+      return null
+    }
     if (contextGeneration.value !== issuedGeneration) {
       return outcome
     }
@@ -329,11 +686,17 @@ export const usePaymentStore = defineStore('payment', () => {
     if (outcome.outcome === 'abandoned') {
       if (blockingAttemptKey.value === key) {
         blockingAttemptKey.value = null
+        blockingRecovery.value = null
       }
       if (attemptKey.value === key) {
         attemptKey.value = null
+        attemptState.value = null
+        attemptRecovery.value = null
         completionOutcome.value = null
+        completionErrorState.clear()
       }
+    } else if (key === attemptKey.value) {
+      completionOutcome.value = outcome
     }
 
     return outcome
@@ -343,9 +706,17 @@ export const usePaymentStore = defineStore('payment', () => {
   async function acknowledgeAttempt(
     key: string,
     service: Pick<CheckoutRendererService, 'acknowledgeAttempt'> = new CheckoutRendererService()
-  ): Promise<CheckoutCompletionOutcome> {
+  ): Promise<CheckoutCompletionOutcome | null> {
     const issuedGeneration = contextGeneration.value
-    const outcome = await service.acknowledgeAttempt(key)
+    let outcome: CheckoutCompletionOutcome
+    try {
+      outcome = await service.acknowledgeAttempt(key)
+    } catch (cause) {
+      if (contextGeneration.value === issuedGeneration) {
+        reportActionError(cause)
+      }
+      return null
+    }
     if (contextGeneration.value !== issuedGeneration) {
       return outcome
     }
@@ -358,6 +729,8 @@ export const usePaymentStore = defineStore('payment', () => {
       // must leave the cashier's current work untouched.
       if (attemptKey.value === key) {
         attemptKey.value = null
+        attemptState.value = null
+        attemptRecovery.value = null
         completionOutcome.value = null
         completionErrorState.clear()
         clearDraft()
@@ -383,6 +756,11 @@ export const usePaymentStore = defineStore('payment', () => {
       }
 
       blockingAttemptKey.value = result.blockingAttempt?.attemptKey ?? null
+      blockingRecovery.value = result.blockingAttempt?.recovery ?? null
+      if (result.blockingAttempt && result.blockingAttempt.attemptKey === attemptKey.value) {
+        attemptState.value = 'claimed'
+        attemptRecovery.value = result.blockingAttempt.recovery ?? null
+      }
       pendingResults.value = result.unacknowledgedResults
     } catch (cause) {
       // Non-critical bootstrap data: a transient failure here (e.g. called before a shift
@@ -430,6 +808,19 @@ export const usePaymentStore = defineStore('payment', () => {
     retryAttempt,
     abandonAttempt,
     acknowledgeAttempt,
-    discoverPending
+    discoverPending,
+    boundSaleId,
+    attemptState,
+    attemptRecovery,
+    blockingRecovery,
+    reconciling,
+    attemptProtected,
+    bindSale,
+    resetEditableState,
+    invalidatePreview,
+    addExactRow,
+    addRemainingRow,
+    dropStaleExactRows,
+    refreshAttemptStatus
   }
 })

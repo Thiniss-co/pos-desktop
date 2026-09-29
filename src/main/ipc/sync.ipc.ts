@@ -4,11 +4,13 @@ import {
   SYNC_FAILURE_PAGE_DEFAULT_SIZE,
   syncFailurePageSchema,
   syncStatusSchema,
+  syncSupportIssuesSchema,
   type SyncStatus
 } from '@shared/contracts/sync.contract'
 import {
   syncGetStatusInputSchema,
   syncListFailuresInputSchema,
+  syncSupportIssuesInputSchema,
   syncUploadNowInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
@@ -74,6 +76,16 @@ export function registerSyncIpcHandlers(services: ApplicationServices): void {
           parsed?.limit ?? SYNC_FAILURE_PAGE_DEFAULT_SIZE
         )
       )
+    )
+  })
+
+  ipcMain.handle(IPC_CHANNELS.syncSupportIssues, (event, input: unknown) => {
+    assertTrustedSender(event)
+
+    // Takes no argument: main resolves the company/device/cashier from its own session. The
+    // projection is read-only — no channel exists to retry, acknowledge, close or delete these.
+    return handleIpcRequest(input, syncSupportIssuesInputSchema, () =>
+      syncSupportIssuesSchema.parse(services.supportIssues.list())
     )
   })
 }

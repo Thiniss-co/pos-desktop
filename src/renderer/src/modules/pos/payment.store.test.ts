@@ -494,12 +494,13 @@ describe('usePaymentStore', () => {
     expect(store.completionPending).toBe(false)
   })
 
-  it('drops a stale completion reply when the cart context changes while in flight', async () => {
+  it('applies a committed reply to its own draft even though the post-commit clear moves the cart token', async () => {
     let resolveFirst!: (value: CheckoutCompletionOutcome) => void
     const first = new Promise<CheckoutCompletionOutcome>((resolve) => {
       resolveFirst = resolve
     })
     const store = usePaymentStore()
+    store.bindSale('sale-1')
     let token = 'context-1'
     const service: Pick<CheckoutRendererService, 'complete'> = { complete: () => first }
     let cleared = false
@@ -513,8 +514,45 @@ describe('usePaymentStore', () => {
     token = 'context-2'
     resolveFirst({
       outcome: 'committed',
-      attemptKey: 'k',
-      invoice: {} as never,
+      attemptKey: store.attemptKey as string,
+      invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
+      items: [],
+      payments: [],
+      replay: false
+    })
+    await pending
+
+    expect(cleared).toBe(true)
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(store.attemptProtected).toBe(true)
+    expect(store.completionPending).toBe(false)
+  })
+
+  it('never applies a late reply to a replacement draft or another owner; it is recorded for its own key', async () => {
+    let resolveFirst!: (value: CheckoutCompletionOutcome) => void
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    const service: Pick<CheckoutRendererService, 'complete'> = {
+      complete: () =>
+        new Promise<CheckoutCompletionOutcome>((resolve) => {
+          resolveFirst = resolve
+        })
+    }
+    let cleared = false
+    const pending = store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared = true),
+      service
+    )
+    const key = store.attemptKey as string
+    // Renderer recreation / owner reset while in flight.
+    store.resetPayment()
+    store.bindSale('sale-2')
+    resolveFirst({
+      outcome: 'committed',
+      attemptKey: key,
+      invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
       items: [],
       payments: [],
       replay: false
@@ -523,7 +561,45 @@ describe('usePaymentStore', () => {
 
     expect(cleared).toBe(false)
     expect(store.completionOutcome).toBeNull()
-    expect(store.completionPending).toBe(false)
+    expect(store.rows).toEqual([])
+    // A reset owner context never surfaces the previous owner's result in this renderer.
+    expect(store.pendingResults).toEqual([])
+  })
+
+  it('reconciles an IPC failure with main instead of assuming the sale failed', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    let cleared = false
+    const committedReplay: CheckoutCompletionOutcome = {
+      outcome: 'committed',
+      attemptKey: 'placeholder',
+      invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
+      items: [],
+      payments: [],
+      replay: true
+    }
+    const service = {
+      complete: async () => {
+        throw new Error('renderer lost the reply')
+      },
+      attemptStatus: async (key: string) => ({
+        attemptKey: key,
+        state: 'committed' as const,
+        failureCode: null
+      }),
+      retryAttempt: async (key: string) => ({ ...committedReplay, attemptKey: key })
+    }
+
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared = true),
+      service
+    )
+
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(cleared).toBe(true)
+    expect(store.completionError).toBeNull()
   })
 
   it('surfaces a thrown backend error as a localized completion error', async () => {
@@ -534,9 +610,17 @@ describe('usePaymentStore', () => {
       backendCode: 'CHECKOUT_PERMISSION_DENIED',
       retryable: false
     })
-    const service: Pick<CheckoutRendererService, 'complete'> = {
+    const service = {
       complete: async () => {
         throw error
+      },
+      attemptStatus: async (key: string) => ({
+        attemptKey: key,
+        state: 'unknown' as const,
+        failureCode: null
+      }),
+      retryAttempt: async () => {
+        throw new Error('not used')
       }
     }
 
@@ -555,14 +639,23 @@ describe('usePaymentStore', () => {
   it('keeps the same attempt key after a transport ambiguity', async () => {
     const store = usePaymentStore()
     const keysSeen: string[] = []
-    const service: Pick<CheckoutRendererService, 'complete'> = {
-      complete: async (key) => {
+    const service = {
+      complete: async (key: string): Promise<CheckoutCompletionOutcome> => {
         keysSeen.push(key)
         if (keysSeen.length === 1) {
           throw new Error('response lost')
         }
 
         return { outcome: 'failed', code: 'attempt-unresolved', attemptKey: key }
+      },
+      // Main reports the attempt as claimed: the key is protected and reused.
+      attemptStatus: async (key: string) => ({
+        attemptKey: key,
+        state: 'claimed' as const,
+        failureCode: null
+      }),
+      retryAttempt: async () => {
+        throw new Error('not used')
       }
     }
 
@@ -590,6 +683,10 @@ describe('usePaymentStore', () => {
       complete: async () => ({
         ok: true,
         data: { outcome: 'committed' }
+      }),
+      attemptStatus: async (input: { attemptKey: string }) => ({
+        ok: true,
+        data: { attemptKey: input.attemptKey, state: 'unknown', failureCode: null }
       })
     } as unknown as Window['posApi']['checkout'])
 
@@ -845,5 +942,110 @@ describe('usePaymentStore', () => {
     expect(store.completionOutcome).toBeNull()
     expect(store.blockingAttemptKey).toBeNull()
     expect(store.pendingResults).toHaveLength(0)
+  })
+})
+
+describe('usePaymentStore — POS reliability rev 3 editable tender state', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('a new draft starts from clean editable tender state; the same draft keeps its rows', () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    store.beginAddRow('cash')
+    store.setDraftAmountText('10.00')
+    store.commitDraftRow(2)
+    store.beginAddRow('card')
+    store.setDraftReferenceText('REF-1')
+
+    store.bindSale('sale-1')
+    expect(store.rows).toHaveLength(1)
+
+    store.bindSale('sale-2')
+    expect(store.rows).toEqual([])
+    expect(store.draftReferenceText).toBe('')
+    expect(store.activeMethodUuid).toBeNull()
+    expect(store.previewOutcome).toBeNull()
+    expect(store.completionOutcome).toBeNull()
+  })
+
+  it('never resets a protected attempt through the editable-state path', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    store.beginAddRow('cash')
+    store.setDraftAmountText('10.00')
+    store.commitDraftRow(2)
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => undefined,
+      {
+        complete: async (key) => ({
+          outcome: 'committed',
+          attemptKey: key,
+          invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
+          items: [],
+          payments: [],
+          replay: false
+        })
+      }
+    )
+
+    expect(store.attemptProtected).toBe(true)
+    expect(store.resetEditableState()).toBe(false)
+    store.bindSale('sale-2')
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(store.rows).toHaveLength(1)
+  })
+
+  it('a preview reply that arrives after the cart changed can never restore a valid preview', async () => {
+    const store = usePaymentStore()
+    let resolve!: (value: never) => void
+    let token = 'context-1'
+    const pending = store.refreshPreview(() => token, baseIntent(), {
+      validate: () => new Promise((r) => (resolve = r as never))
+    })
+    token = 'context-2'
+    store.invalidatePreview()
+    resolve({ outcome: 'valid', dueAmount: 0, changeDueAmount: 0 } as never)
+    await pending
+    expect(store.previewOutcome).toBeNull()
+    expect(store.previewPending).toBe(false)
+  })
+
+  it('drops (never resizes) exact-cash rows when the total moves', () => {
+    const store = usePaymentStore()
+    store.addExactRow('cash', 1725)
+    expect(store.dropStaleExactRows(1725)).toBe(false)
+    expect(store.dropStaleExactRows(2000)).toBe(true)
+    expect(store.rows).toEqual([])
+    store.addRemainingRow('cash', 500)
+    expect(store.dropStaleExactRows(9999)).toBe(false)
+  })
+
+  it('never drops the exact-cash row of a committed sale when the cart empties', async () => {
+    // Live finding: completion empties the cart, the total watcher saw 0 and removed the recorded
+    // row, showing "the exact-cash payment was removed" on the done screen.
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    store.addExactRow('cash', 1725)
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => undefined,
+      {
+        complete: async (key) => ({
+          outcome: 'committed',
+          attemptKey: key,
+          invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
+          items: [],
+          payments: [],
+          replay: false
+        })
+      }
+    )
+
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(store.dropStaleExactRows(0)).toBe(false)
+    expect(store.rows).toHaveLength(1)
   })
 })

@@ -15,6 +15,7 @@ import { useStartupStore } from '@renderer/app/startup/startup.store'
 import { useAuthStore } from '@renderer/modules/auth/store'
 import { useCartStore } from '@renderer/modules/pos/cart.store'
 import { usePaymentStore } from '@renderer/modules/pos/payment.store'
+import { useCatalogStore } from '@renderer/modules/pos/catalog.store'
 import { useSyncStore } from '@renderer/modules/sync/store'
 import { getStartupRouteName } from '../router/guards'
 
@@ -25,6 +26,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const cart = useCartStore()
 const payment = usePaymentStore()
+const catalog = useCatalogStore()
 const startup = useStartupStore()
 const sync = useSyncStore()
 const router = useRouter()
@@ -38,6 +40,7 @@ async function confirm(): Promise<void> {
     await auth.logout()
     cart.resetDraft('logout')
     payment.resetPayment()
+    catalog.resetCatalog()
     await startup.refresh()
     emit('close')
     await router.push({ name: getStartupRouteName(startup.state) })

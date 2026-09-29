@@ -76,7 +76,10 @@ describe('i18n catalogs', () => {
 
     i18n.global.locale.value = 'en'
     const english = String(i18n.global.t(key))
-    expect(english).toContain('Nothing was charged or saved')
+    // Rev 3: only what main's witnesses support ("no sale was recorded"); the app cannot see an
+    // external card terminal, so it never claims nothing was charged.
+    expect(english).toContain('No sale was recorded')
+    expect(english).not.toMatch(/charged/i)
     expect(english).toContain('Retry this same sale')
     // It must never imply a refresh creates or increases an allocation.
     expect(english).not.toMatch(/refresh/i)

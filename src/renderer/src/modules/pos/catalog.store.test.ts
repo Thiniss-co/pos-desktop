@@ -398,3 +398,103 @@ describe('useCatalogStore', () => {
     })
   })
 })
+
+describe('useCatalogStore — POS reliability rev 3 consistency', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  const readable = {
+    status: 'fresh',
+    isReadable: true,
+    catalogValid: true,
+    lastSyncedAt: '2026-01-01T00:00:00Z',
+    contract
+  } as const
+
+  it('drops a delayed initialize that was overtaken by a newer snapshot', async () => {
+    const statuses: Array<(value: unknown) => void> = []
+    const service = {
+      getStatus: () => new Promise((resolve) => statuses.push(resolve)),
+      listCategories: async () => [],
+      listPaymentMethods: async () => [],
+      searchProducts: async () => ({ items: [], total: 0, limit: 24, offset: 0, contract }),
+      searchCustomers: async () => ({ items: [], total: 0, limit: 24, offset: 0 })
+    } as unknown as CatalogRendererService
+    const store = useCatalogStore()
+    const slow = store.initialize(service)
+    const fast = store.initialize(service)
+    statuses[1](readable)
+    await fast
+    statuses[0]({ ...readable, contract: { ...contract, revision: 'e'.repeat(64) } })
+    await slow
+    expect(store.status?.contract?.revision).toBe(contract.revision)
+  })
+
+  it('never shows rows read under a different install than its status; re-reads status instead', async () => {
+    const getStatus = vi.fn(async () => readable)
+    const service = {
+      getStatus,
+      listCategories: async () => [],
+      listPaymentMethods: async () => [],
+      searchProducts: async () => ({
+        items: [{ uuid: 'x' }],
+        total: 1,
+        limit: 24,
+        offset: 0,
+        contract: { ...contract, revision: 'f'.repeat(64) }
+      }),
+      searchCustomers: async () => ({ items: [], total: 0, limit: 24, offset: 0 })
+    } as unknown as CatalogRendererService
+    const store = useCatalogStore()
+    store.status = readable as never
+    await store.search(service)
+    expect(store.products).toEqual([])
+    expect(getStatus).toHaveBeenCalled()
+  })
+
+  it('keeps the stock facts that came with the page and clears them on owner reset', async () => {
+    const service = {
+      searchProducts: async () => ({
+        items: [],
+        total: 0,
+        limit: 24,
+        offset: 0,
+        contract,
+        stock: { p: { kind: 'untracked' } }
+      })
+    } as unknown as CatalogRendererService
+    const store = useCatalogStore()
+    await store.search(service)
+    expect(store.stock).toEqual({ p: { kind: 'untracked' } })
+    store.resetCatalog()
+    expect(store.stock).toEqual({})
+  })
+
+  it('shares one change subscription between holders and releases it with the last one', () => {
+    const unsubscribe = vi.fn()
+    let listener:
+      ((change: { reason: 'stock' | 'snapshot'; revision: string | null }) => void) | null = null
+    const service = {
+      onChanged: vi.fn((next) => {
+        listener = next
+        return unsubscribe
+      }),
+      getStatus: vi.fn(async () => readable),
+      listCategories: async () => [],
+      listPaymentMethods: async () => [],
+      searchProducts: async () => ({ items: [], total: 0, limit: 24, offset: 0, contract }),
+      searchCustomers: async () => ({ items: [], total: 0, limit: 24, offset: 0 })
+    } as unknown as CatalogRendererService
+    const store = useCatalogStore()
+    const releaseA = store.subscribeToChanges(service)
+    const releaseB = store.subscribeToChanges(service)
+    expect(service.onChanged).toHaveBeenCalledTimes(1)
+    const generation = store.generation
+    listener!({ reason: 'snapshot', revision: null })
+    expect(store.generation).toBe(generation + 1)
+    releaseA()
+    releaseA()
+    expect(unsubscribe).not.toHaveBeenCalled()
+    releaseB()
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
+  })
+})

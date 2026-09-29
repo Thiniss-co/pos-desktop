@@ -26,8 +26,11 @@ import type { Shift } from '@shared/contracts/shift.contract'
 import { i18n } from '@renderer/i18n'
 import AppConfirmDialog from '@renderer/shared/components/common/AppConfirmDialog.vue'
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
+import CatalogRefreshPanel from '@renderer/shared/components/pos/CatalogRefreshPanel.vue'
 import SaleRecoveryBanner from '@renderer/shared/components/pos/SaleRecoveryBanner.vue'
+import ScanEntry from '@renderer/shared/components/pos/ScanEntry.vue'
 import { useCartStore } from '../cart.store'
+import { useCatalogStore } from '../catalog.store'
 import { usePaymentStore } from '../payment.store'
 import PosPage from './PosPage.vue'
 
@@ -138,6 +141,14 @@ function installPosApi(): { abandonAttempt: ReturnType<typeof vi.fn> } {
       getProduct: vi.fn(async (input: { uuid: string }) =>
         ok(PRODUCTS.find((item) => item.uuid === input.uuid))
       ),
+      getProductForSale: vi.fn(async (input: { uuid: string }) =>
+        ok({
+          product: PRODUCTS.find((item) => item.uuid === input.uuid),
+          revision: CONTRACT.revision,
+          stock: { kind: 'untracked' }
+        })
+      ),
+      onChanged: vi.fn(() => () => undefined),
       findProductByBarcode: vi.fn(async () => ok({ outcome: 'not-found' as const })),
       searchCustomers: vi.fn(async () => ok({ items: [], total: 0, limit: 24, offset: 0 })),
       getCustomer: vi.fn(async () => ok(null))
@@ -152,6 +163,9 @@ function installPosApi(): { abandonAttempt: ReturnType<typeof vi.fn> } {
       acknowledgeAttempt: vi.fn(),
       pendingAttempts: vi.fn(async () =>
         ok({ blockingAttempt: null, unacknowledgedResults: [], nextCursor: null })
+      ),
+      attemptStatus: vi.fn(async (input: { attemptKey: string }) =>
+        ok({ attemptKey: input.attemptKey, state: 'unknown', failureCode: null })
       )
     },
     sync: {
@@ -215,6 +229,46 @@ function committed(
 describe('POS page V3 cart and checkout behaviour', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  it('clears the last scan line together with the cart it described', async () => {
+    // Live finding: after a confirmed Clear the cart read "0 items" but the scan strip still said
+    // "<code> Added to sale".
+    const { wrapper } = await renderPos()
+    await addBothProducts(wrapper)
+    const scanEntry = wrapper.getComponent(ScanEntry)
+    scanEntry.vm.$emit('update:modelValue', 'UNKNOWN-CODE')
+    scanEntry.vm.$emit('submit', 'UNKNOWN-CODE')
+    await flushPromises()
+    expect(scanEntry.props('result')).not.toBeNull()
+
+    const clearButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === String(i18n.global.t('pos.cart.clear')))
+    await clearButton!.trigger('click')
+    wrapper.getComponent(AppConfirmDialog).vm.$emit('confirm')
+    await flushPromises()
+
+    expect(useCartStore().lines).toHaveLength(0)
+    expect(scanEntry.props('result')).toBeNull()
+  })
+
+  it('asks for a rebuild only while the open cart is frozen on an older catalog', async () => {
+    // Live finding: after a refresh that changed the revision, a NEW cart (which adopted the
+    // installed contract) still showed "The refreshed catalog changed. Rebuild or clear…".
+    const { wrapper } = await renderPos()
+    useCatalogStore().lastRefreshRevisionChanged = true
+    await addBothProducts(wrapper)
+    const panel = wrapper.getComponent(CatalogRefreshPanel)
+    expect(useCartStore().lines).toHaveLength(2)
+    expect(panel.props('revisionChangedMessage')).toBeNull()
+
+    useCartStore().setContract({ ...CONTRACT, revision: 'c'.repeat(64) })
+    await flushPromises()
+    expect(useCartStore().catalogChanged).toBe(true)
+    expect(panel.props('revisionChangedMessage')).toBe(
+      String(i18n.global.t('pos.catalogRefresh.revisionChanged'))
+    )
   })
 
   it('keeps the cart when the clear confirmation is cancelled, and clears only on confirm', async () => {

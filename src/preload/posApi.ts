@@ -70,11 +70,16 @@ import type {
 import type { DeviceIdentitySummary } from '@shared/contracts/device.contract'
 import type { IpcResult } from '@shared/contracts/ipc.contract'
 import type { CommercialAccessSnapshot } from '@shared/contracts/license.contract'
-import type { LocaleCode, ThemePreference } from '@shared/contracts/preferences.contract'
+import type {
+  LocaleCode,
+  PosCartWidthPreference,
+  ThemePreference
+} from '@shared/contracts/preferences.contract'
 import type {
   SyncFailureCursor,
   SyncFailurePage,
-  SyncStatus
+  SyncStatus,
+  SyncSupportIssues
 } from '@shared/contracts/sync.contract'
 import type { RuntimeInfo } from '@shared/contracts/system.contract'
 import type {
@@ -150,6 +155,7 @@ export interface PosApi {
     getStatus(): Promise<IpcResult<SyncStatus>>
     uploadNow(): Promise<IpcResult<SyncStatus>>
     listFailures(cursor?: SyncFailureCursor | null): Promise<IpcResult<SyncFailurePage>>
+    supportIssues(): Promise<IpcResult<SyncSupportIssues>>
     onChanged(listener: (status: SyncStatus) => void): () => void
   }
   readonly allocationRecovery: {
@@ -179,6 +185,9 @@ export interface PosApi {
     setLocale(locale: LocaleCode): Promise<IpcResult<LocaleCode>>
     getTheme(): Promise<IpcResult<ThemePreference | null>>
     setTheme(theme: ThemePreference): Promise<IpcResult<ThemePreference>>
+    /** Layout-only: POS cart column width in px, or `null` for the design default. */
+    getPosCartWidth(): Promise<IpcResult<PosCartWidthPreference>>
+    setPosCartWidth(width: number | null): Promise<IpcResult<PosCartWidthPreference>>
   }
   readonly companyUsers: {
     getAccess(): Promise<IpcResult<CompanyUserAccess>>
@@ -380,6 +389,8 @@ export const posApi: PosApi = Object.freeze({
     // no numeric row index: main resolves the company/device pair from its own session.
     listFailures: (cursor?: SyncFailureCursor | null) =>
       ipcRenderer.invoke(IPC_CHANNELS.syncListFailures, { cursor: cursor ?? null }),
+    // Read-only and argument-free: main resolves the owner and redacts other cashiers' records.
+    supportIssues: () => ipcRenderer.invoke(IPC_CHANNELS.syncSupportIssues),
     onChanged: (listener: (status: SyncStatus) => void) => {
       const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
         // Main validates the status against its schema before every send. This second, structural
@@ -429,7 +440,12 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.preferencesSetLocale, locale),
     getTheme: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetTheme),
     setTheme: (theme: ThemePreference) =>
-      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetTheme, theme)
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetTheme, theme),
+    // Like the other preference methods, runtime validation stays out of this sandboxed bundle:
+    // main Zod-validates the input, and the renderer's PreferencesService validates the result.
+    getPosCartWidth: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetPosCartWidth),
+    setPosCartWidth: (width: number | null) =>
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetPosCartWidth, width)
   }),
   companyUsers: Object.freeze({
     getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGetAccess),
