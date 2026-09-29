@@ -1,0 +1,24 @@
+{
+  "scenario": "A-allocation-no-stock-record",
+  "recordedAt": "2026-09-29T17:41:42.748Z",
+  "outcome": "passed",
+  "refused": {
+    "attemptState": "rejected",
+    "failureCode": "stock-allocation-unavailable",
+    "dispatchState": "granted",
+    "serverRequests": 1,
+    "serverGrants": 0,
+    "serverStockItem": null
+  },
+  "afterReceivingAndRefresh": {
+    "outcome": "committed",
+    "localSyncStatus": "synced",
+    "server": {
+      "invoices": 1,
+      "syncRecords": 1,
+      "movements": 1,
+      "movedMilli": 1000
+    },
+    "serverStockQuantityMilli": 4000
+  }
+}

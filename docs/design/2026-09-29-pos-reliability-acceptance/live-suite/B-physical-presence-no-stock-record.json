@@ -1,0 +1,25 @@
+{
+  "scenario": "B-physical-presence-no-stock-record",
+  "recordedAt": "2026-09-29T17:41:52.790Z",
+  "outcome": "passed",
+  "withoutAuthority": {
+    "outcome": "rejected",
+    "failureCode": "stock-allocation-unavailable"
+  },
+  "withAuthority": {
+    "outcome": "committed",
+    "stockAuthorizationPolicy": "physical_presence",
+    "localSyncStatus": "synced",
+    "server": {
+      "invoices": 1,
+      "syncRecords": 1,
+      "movements": 1,
+      "movedMilli": 1000
+    },
+    "serverStockItemAfterUpload": {
+      "quantityMilli": -1000,
+      "availableQuantityMilli": -1000,
+      "inventoryValueAmount": 0
+    }
+  }
+}

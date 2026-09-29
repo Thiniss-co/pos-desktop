@@ -1,0 +1,20 @@
+{
+  "scenario": "C-catalog-change-rebuild",
+  "recordedAt": "2026-09-29T17:41:46.985Z",
+  "outcome": "passed",
+  "revisionChanged": true,
+  "staleCart": {
+    "outcome": "rejected",
+    "failureCode": "catalog-superseded",
+    "localInvoices": 0
+  },
+  "rebuiltCart": {
+    "outcome": "committed",
+    "server": {
+      "invoices": 1,
+      "syncRecords": 1,
+      "movements": 1,
+      "movedMilli": 1000
+    }
+  }
+}

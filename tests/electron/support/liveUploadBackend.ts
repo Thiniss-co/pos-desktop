@@ -51,6 +51,25 @@ export interface LiveUploadFixture {
    * `receiptProfileLiveUpload.suite.ts` skips entirely.
    */
   readonly receiptProfileContext: ReceiptProfileLiveContext | null
+  /**
+   * POS reliability rev 3 — the owner-product live context (DESKTOP-MVP register, token, open
+   * shift). Absent from a fixture minted without `CP3G5_MINT_OWNER_PRODUCT_CONTEXT=1`, in which
+   * case `ownerProductCheckoutLive.suite.ts` skips entirely.
+   */
+  readonly ownerProductContext: OwnerProductLiveContext | null
+}
+
+export interface OwnerProductLiveContext {
+  readonly token: string
+  readonly device_uuid: string
+  /** The server's device id, as login returns it (`device.id`); distinct from `device_uuid`. */
+  readonly server_device_id: string
+  readonly company_uuid: string
+  readonly user_uuid: string
+  readonly shift_uuid: string
+  readonly payment_method_uuid: string
+  /** Where `guiFixture.php` is pointed. Never written to an evidence file. */
+  readonly backend_root: string
 }
 
 /** One already-committed original-sale line, as `PosInvoiceItemResource` would report it. */
@@ -200,6 +219,7 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     historical_track_stock_context?: HistoricalTrackStockContext
     refund_context?: RefundLiveContext
     receipt_profile_context?: ReceiptProfileLiveContext
+    owner_product_context?: OwnerProductLiveContext
   }
 
   cached = {
@@ -214,7 +234,8 @@ export function liveUploadFixture(): LiveUploadFixture | null {
     serviceLineContext: raw.service_line_context ?? null,
     historicalTrackStockContext: raw.historical_track_stock_context ?? null,
     refundContext: raw.refund_context ?? null,
-    receiptProfileContext: raw.receipt_profile_context ?? null
+    receiptProfileContext: raw.receipt_profile_context ?? null,
+    ownerProductContext: raw.owner_product_context ?? null
   }
 
   return cached
@@ -399,6 +420,17 @@ export function liveReceiptProfileBackendAvailable(): boolean {
   )
 }
 
+/** Whether a live backend carrying the rev-3 owner-product context was provided. */
+export function liveOwnerProductBackendAvailable(): boolean {
+  const fixture = liveUploadFixture()
+
+  return (
+    fixture !== null &&
+    fixture.ownerProductContext !== null &&
+    Boolean(process.env.CP3G5_BACKEND_DB)
+  )
+}
+
 /**
  * A single numeric aggregate read from the live backend database, read-only.
  *
@@ -418,6 +450,23 @@ export function liveBackendScalar(sql: string, ...parameters: readonly unknown[]
 
   try {
     return (database.prepare(sql).get(...parameters) as { total: number }).total
+  } finally {
+    database.close()
+  }
+}
+
+/** Rows from the live backend database, read-only — the row-shaped sibling of `liveBackendScalar`. */
+export function liveBackendRows<T>(sql: string, ...parameters: readonly unknown[]): T[] {
+  const databasePath = process.env.CP3G5_BACKEND_DB
+
+  if (!databasePath) {
+    throw new Error('CP3G5_BACKEND_DB is required to read the live backend state')
+  }
+
+  const database = new Database(databasePath, { readonly: true })
+
+  try {
+    return database.prepare(sql).all(...parameters) as T[]
   } finally {
     database.close()
   }

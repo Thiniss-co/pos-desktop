@@ -1,0 +1,706 @@
+{
+  "recorded": "2026-09-29",
+  "notes": {
+    "screenshots/pos-payment-matrix": "Real Electron app (CDP) against a guarded disposable Laravel backend; EN/AR x light/dark x 4 viewports; POS page and payment dialog. automatedLayoutCheck: no horizontal page scroll, dialog inside the viewport, primary (F9) action visible.",
+    "screenshots/done-screen": "Completed-sale screen after a real exact-cash sale.",
+    "screenshots/owner-dashboard": "Owner SPA (isolated headless Chrome) against the same disposable backend; register presence after the till relaunched.",
+    "screenshots/sync-needs-attention": "live-pending-*: real unanswered reservation request (server stopped mid-request) and the waiting payment. legacy-cancel-acknowledgement-*: the real cancel acknowledgement. final-*: after the real legacy cancel (ONE SIMULATED PRECONDITION: the attempt was marked dispatch_evidence=unknown, exactly what migration 0016 writes for an attempt claimed by an older build) and after the pending request was confirmed automatically on reconnection.",
+    "walkthrough": "live-01 shows a DEFECT found live (false \"exact-cash payment was removed\" notice), fixed afterwards; live-02 honest no-stock refusal; live-03 offline x10 gate before the \"Only N reserved\" wording; live-04 done screen after the fix.",
+    "reproduction": "Pre-fix reproduction: unmodified desktop build 8bf0154 against a read-only git-archive copy of backend HEAD 1479622."
+  },
+  "files": [
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-ar-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "dc988e1e900c538bc3931c902a7adf093be47ff1341a8903b8ac2d7a19fce246",
+      "viewport": "1024x768",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 24,
+          "y": 85,
+          "w": 976,
+          "h": 598,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-ar-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "55977452974a3e58247058ae4409b3c8afc6bd34f5e4d62ca8e80496027e1012",
+      "viewport": "1024x768",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-ar-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "e353af1277d0098f47ceab644e7e847dcd125832cd5eee70d4f6871a3a279e37",
+      "viewport": "1024x768",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 24,
+          "y": 85,
+          "w": 976,
+          "h": 598,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-ar-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "fad58a0ef16e420e616957a8e19657fdcfe7c7b9273d85ed8c01b1877eedd438",
+      "viewport": "1024x768",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-en-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "818fecf505fe976d7229de8b482e61c74ff324fafa4c5d33b5f3cf94ba9dc263",
+      "viewport": "1024x768",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 24,
+          "y": 91,
+          "w": 976,
+          "h": 587,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-en-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "46e83ebec3fdb44288939e49af6bba44e89dfad93f07214712ba3b12554b4306",
+      "viewport": "1024x768",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-en-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "b486d2b50678034cf8a145b7dccde07498de640ed0dfcf4178edb177429054b6",
+      "viewport": "1024x768",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 24,
+          "y": 91,
+          "w": 976,
+          "h": 587,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1024x768-en-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "8865a9ee557a01b3fb1c0f8541a33e3cd8c33f9f285a18fd19c5ccebd25fc1fb",
+      "viewport": "1024x768",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-ar-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "509c0cf86171e0e5dfb44b8f21013d868dde6af46ad4431c5188ce5be8a78376",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 163,
+          "y": 85,
+          "w": 1040,
+          "h": 598,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-ar-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "c843bca4d3d35aea52ef2812f80222ca86c0a754d87bcf443c38e8149ab3a13a",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-ar-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "31efa5afa5af160a2bce1be3ba347786dcd9a92e810ee0c06824b9a5744975e4",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 163,
+          "y": 85,
+          "w": 1040,
+          "h": 598,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-ar-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "f84d861a582ec0935b8c43b63c396c07df4e12ecb4e8c4b52f3a9be10270b7eb",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-en-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "d31e7b76f3601d5c65938ffb3fa76228fe36fd656301a01c5e4f154daf7f040d",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 163,
+          "y": 99,
+          "w": 1040,
+          "h": 571,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-en-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "c6991278c90f29ca3adf5c01b4dac86dc504dfd8d7c1b8894886fe53cc98a53c",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-en-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "acf52949bde93c28cad1faf015d7c9dfa6860674ebd9a3001409e3cf170aa4c3",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 163,
+          "y": 99,
+          "w": 1040,
+          "h": 571,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1366x768-en-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "98d02acc42c9401f92ea3f7c724132109dfe7e58f8f0c69f7bf01afcfe8e1018",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-ar-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "866677f51e429d924be2c8137f066086bc42a6e579f2a2908b1f579b7ac02604",
+      "viewport": "1920x1080",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 440,
+          "y": 241,
+          "w": 1040,
+          "h": 598,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-ar-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "dd1d7158778df5dfd16dcc9eb0275421e0d760d9be05ca6877779cfc211d94e4",
+      "viewport": "1920x1080",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-ar-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "af9110c387d667f2b941d54d3c3c2072d6998a09bb9d5ba49212b9c18440859b",
+      "viewport": "1920x1080",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 440,
+          "y": 241,
+          "w": 1040,
+          "h": 598,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-ar-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "8f712c1ea39d928d860c1ee8fbe206a437687e2e201b28fe027e6b0d7cc13831",
+      "viewport": "1920x1080",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-en-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "3009242a3c85ebafa7d40b8544d65d2695bd86600793c51a6e3b37edeaa12cf7",
+      "viewport": "1920x1080",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 440,
+          "y": 255,
+          "w": 1040,
+          "h": 571,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-en-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "857c08769885007ae2f9e58a92249cb7376e22cb3bbe59762479c80d2a35f66d",
+      "viewport": "1920x1080",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-en-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "7a43c9204772a3d04978212e166013041637e42d5c34d92665e50f7e82c96660",
+      "viewport": "1920x1080",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 440,
+          "y": 255,
+          "w": 1040,
+          "h": 571,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/1920x1080-en-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "f841173997c93876ba499104b3f666100e38842594f939a0a601357b8a4ab8cc",
+      "viewport": "1920x1080",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-ar-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "6d596dc886bf0856eb6109345f7a509e9732b5b6882a96eb6a5e030ca138a8ec",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 600,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-ar-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "d370b57ede7bd1e2add23d6d8c866674e6b3fd06224247a5546f45013d01a183",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-ar-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "3c2964fddc9483e72ff25663e7d7fd485b57e964729fe4b2ab48159a8796ec4b",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 600,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-ar-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "b8da3b19842759919ae0a03a2886857547f48b7a5d915ff8bf86c43ec5d6c00b",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-en-dark-payment.png",
+      "label": "live walkthrough",
+      "sha256": "1370b0896bc0fd44851e6ffb51ac8553fd6615131892c5f1ae752faed986b882",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 600,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-en-dark-pos.png",
+      "label": "live walkthrough",
+      "sha256": "d0bc07e758dcdd5b438b8e4defe7717e3ecf6266912f3ed1e280d472fcea7e47",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "dark",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-en-light-payment.png",
+      "label": "live walkthrough",
+      "sha256": "76677fea51c097484eae2b051ade5b94ff93e9abe6a7dad9f3cab7dfb616ee1c",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false,
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 600,
+          "fits": true
+        },
+        "primaryVisible": true
+      }
+    },
+    {
+      "file": "screenshots/pos-payment-matrix/800x600-en-light-pos.png",
+      "label": "live walkthrough",
+      "sha256": "b11adad6c68034c7e7ef51ff675908aec6f6a3f42e9a8fb14c2a33eef447e75c",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "light",
+      "automatedLayoutCheck": {
+        "hScroll": false
+      }
+    },
+    {
+      "file": "screenshots/done-screen/800x600-ar-dark-done.png",
+      "label": "live walkthrough",
+      "sha256": "d646b7c053f66797118315d844fc13f4d07f5ba693f4f5702dce5ececc5217eb",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/done-screen/800x600-ar-light-done.png",
+      "label": "live walkthrough",
+      "sha256": "6577135855537134cd855b2420acc0c5051b69a38bd6e8587aa6a8fc7d41c24d",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/done-screen/800x600-en-dark-done.png",
+      "label": "live walkthrough",
+      "sha256": "a0930eceaea1cab77e8eaacfccaad26d131d548b4a98a93f7ff1cb23d3944589",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/done-screen/800x600-en-light-done.png",
+      "label": "live walkthrough",
+      "sha256": "f1aaea9f7923974688e6bed7977e8af945aa3ac62192a7f32d4d371567253858",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/owner-dashboard/owner-devices-presence.png",
+      "label": "live walkthrough",
+      "sha256": "85c14a083eac12b7043c79af065d8ca974ab98fbbb7d3a57f5480c62767a6495"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-1366x768-ar-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "4de46b0cd047be0d3e53e618ef642bb6c0ed4136ccf3e55ec6964c182d4429d6",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-1366x768-ar-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "a4e7d13b18c7e47e21c501a641ede18029d75b1d6de979cceb94dfefb6c553c4",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-1366x768-en-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "436efd945833ca11ebc69f26c9437e9f2734e1509106adfc69461610c38859c3",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-1366x768-en-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "fe59b556cad3b213535d537df2858f329c0388a1dbf107c5a40d74f0dc70c266",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-800x600-ar-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "7f70d2235cf428f7678c99dff663b927e3497a3036366529259d602883075e09",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-800x600-ar-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "00fccc405e412b3e7eeec611e2cbd18843772b61a54a7e67b146f7b26799b7ba",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-800x600-en-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "ed370e97538c30b5539de47ab7c8c9324d3ef4bfd637d8071c0a7851dd3d064c",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/final-800x600-en-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "d51a3cc2e73d40a71d43eda30b36adde3e478f4c2f0c5d0b1513a4ee0ffd8f12",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/legacy-cancel-acknowledgement-1366x768-en-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "b470bd37f6f21ba8bea8bb52c4760035053ce8cfd5046eeefe868509875df632",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-1366x768-ar-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "285fbd4179951234083cab862891d4e5bd96b1a1d06faf08f3d99ad4a237b599",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-1366x768-ar-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "f27f47f8d4a16ddd5ec86f1eab14257d74a90e67dc32ae5cb40ce43beae86831",
+      "viewport": "1366x768",
+      "locale": "ar",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-1366x768-en-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "ad6037a55c0be8787d37d41ed063a2e384cae51c1847cdff05808ede5b8b4cc5",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-1366x768-en-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "2d2739903c0cda121d8c100266359052aa091017a3331e3b2490c2a42aaa2912",
+      "viewport": "1366x768",
+      "locale": "en",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-800x600-ar-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "bb5d2c0350a096013de762fb2435bc978d546d7391fb409d47ea5a1436e1c68e",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-800x600-ar-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "a6dd3cc42c7944cf87de821bc4a2b33443a03d931a94a6706732d1b5580cc065",
+      "viewport": "800x600",
+      "locale": "ar",
+      "theme": "light"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-800x600-en-dark.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "925dc4de4535877a56153e3821ca130a81bb6a7ad55707cedcbdf9baf79c111c",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "dark"
+    },
+    {
+      "file": "screenshots/sync-needs-attention/live-pending-800x600-en-light.png",
+      "label": "live walkthrough (one simulated precondition for the legacy item)",
+      "sha256": "e4486ecef7078c3858db05936bdabcce9928bc0f9550b36ba165f66bb93fba91",
+      "viewport": "800x600",
+      "locale": "en",
+      "theme": "light"
+    },
+    {
+      "file": "walkthrough/live-01-done-800.png",
+      "label": "live walkthrough",
+      "sha256": "2efad09789f0384a47c5a1776245044dfc3e8e1e503db35ef10303f8a2563a6d"
+    },
+    {
+      "file": "walkthrough/live-02-nostock.png",
+      "label": "live walkthrough",
+      "sha256": "8debd327a107ae2b744f1d2b1a67acbf13c0a18cc8fd4abff1daa55f1cc2c867"
+    },
+    {
+      "file": "walkthrough/live-03-offline-gate.png",
+      "label": "live walkthrough",
+      "sha256": "e69dda2f7a2dff800f616a13094674e63da4cd8156d20c1c274eb75d1b3fd59c"
+    },
+    {
+      "file": "walkthrough/live-04-done-offline.png",
+      "label": "live walkthrough",
+      "sha256": "0fc10132247563f10a81974790aab0fbd4909010b40398dbb56c0c3f0a4a0bf5"
+    },
+    {
+      "file": "reproduction/repro-01-after-cola-sale.png",
+      "label": "live walkthrough (pre-fix reproduction)",
+      "sha256": "6c8fd7ccd059151b82d038e3cf6a2b36a20ba4d4ad7ef3cd76259a50919b287d"
+    },
+    {
+      "file": "reproduction/repro-02-newproduct-refused-en.png",
+      "label": "live walkthrough (pre-fix reproduction)",
+      "sha256": "0a19efcc13ed67d92ba8c321bbd7f5e8f3a1a868e3aba1cd6a3fef30aed09df8"
+    },
+    {
+      "file": "reproduction/repro-03-newproduct-catalog-changed-en.png",
+      "label": "live walkthrough (pre-fix reproduction)",
+      "sha256": "1f5337488927cb50b3547e877744e6b26072de633dda3d5abd1fcccae23a4e2c"
+    },
+    {
+      "file": "reproduction/repro-04-next-cart-after-refusal-en.png",
+      "label": "live walkthrough (pre-fix reproduction)",
+      "sha256": "cc25ba6575b7b29dd586dd1daf72cd5e801db1fed0f5ba239be13a3ef86fc985"
+    }
+  ]
+}

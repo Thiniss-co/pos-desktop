@@ -952,6 +952,63 @@ try {
         ];
     }
 
+    /*
+     * POS reliability rev 3 — owner-product live context. Opt-in via
+     * CP3G5_MINT_OWNER_PRODUCT_CONTEXT=1, so every other run is byte-for-byte unchanged.
+     *
+     * Reuses the `DesktopMvpSmokeSeeder` company (DESKTOP-MVP) because the suite drives the SAME
+     * guarded owner/inventory operations the GUI walkthrough used (`guiFixture.php`:
+     * create-owner-product, receive-stock, mode-allocation, mode-physical-presence and the read-only
+     * stock/allocations/report probes). Only the register, its token and its open shift are minted
+     * here; every product the scenarios sell is created DURING the suite through the owner path.
+     */
+    $ownerProductContext = null;
+
+    if (getenv('CP3G5_MINT_OWNER_PRODUCT_CONTEXT') === '1') {
+        $cp3g5Phase = 'owner-product-context';
+        $cp3g5Operation = 'smoke-seed';
+
+        $app->make(\Database\Seeders\DesktopMvpSmokeSeeder::class)->run();
+
+        $cp3g5Operation = 'register-create';
+        $opCompany = Company::query()->where('code', 'DESKTOP-MVP')->firstOrFail();
+        $opBranch = Branch::query()->where('company_id', $opCompany->id)->where('name', 'Main Branch')->firstOrFail();
+        $opWarehouse = Warehouse::query()->where('company_id', $opCompany->id)->where('name', 'Main Warehouse')->firstOrFail();
+        $opUser = User::query()->where('email', 'admin@desktop-mvp.test')->firstOrFail();
+        $opDevice = DesktopDevice::factory()->create([
+            'company_id' => $opCompany->id,
+            'branch_id' => $opBranch->id,
+            'warehouse_id' => $opWarehouse->id,
+        ]);
+        $opPaymentMethod = PaymentMethod::query()->where('company_id', $opCompany->id)
+            ->where('type', 'cash')->where('is_active', true)->orderBy('id')->firstOrFail();
+
+        $cp3g5Operation = 'shift-create';
+        $opShift = Shift::factory()->create([
+            'company_id' => $opCompany->id,
+            'branch_id' => $opBranch->id,
+            'warehouse_id' => $opWarehouse->id,
+            'desktop_device_id' => $opDevice->id,
+            'user_id' => $opUser->id,
+            'status' => 'open',
+        ]);
+
+        $cp3g5Operation = 'token-issue';
+        $ownerProductContext = [
+            'token' => issueToken($opUser, $opDevice),
+            'device_uuid' => $opDevice->device_uuid,
+            // The server's own device id, which login returns as `device.id` (not `device_uuid`).
+            'server_device_id' => $opDevice->uuid,
+            'company_uuid' => $opCompany->uuid,
+            'user_uuid' => $opUser->uuid,
+            'shift_uuid' => $opShift->uuid,
+            'payment_method_uuid' => $opPaymentMethod->uuid,
+            // The suite re-enters the SAME backend through the guarded fixture script; it needs the
+            // root that script is invoked with. Never written to any evidence file.
+            'backend_root' => $backendRoot,
+        ];
+    }
+
     $cp3g5Phase = 'fixture-write';
     $cp3g5Operation = 'encode-fixture';
 
@@ -963,6 +1020,7 @@ try {
         'payloads' => $payloads,
         'refund_context' => $refundContext,
         'receipt_profile_context' => $receiptProfileContext,
+        'owner_product_context' => $ownerProductContext,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
     $cp3g5Operation = 'write-fixture';

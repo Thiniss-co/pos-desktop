@@ -1,0 +1,61 @@
+{
+  "scenario": "E-offline-before-reconciliation",
+  "recordedAt": "2026-09-29T17:41:55.130Z",
+  "outcome": "passed",
+  "upload-then-reconcile": {
+    "lostAnswer": {
+      "outcome": "failed",
+      "code": "allocation-acquisition-unresolved"
+    },
+    "offlineRetry": {
+      "outcome": "committed",
+      "stockAuthorizationPolicy": "physical_presence"
+    },
+    "after": {
+      "localSyncStatus": "synced",
+      "dispatchState": "granted",
+      "server": {
+        "invoices": 1,
+        "syncRecords": 1,
+        "movements": 1,
+        "movedMilli": 1000
+      },
+      "serverStockDeltaMilli": -1000,
+      "serverRequests": 1,
+      "serverGrants": 1,
+      "localGrants": 1,
+      "frozenPayloadUnchanged": true,
+      "topUpSends": 2,
+      "replayBodyIdentical": true,
+      "lateGrantSpendableMilli": 1000
+    }
+  },
+  "reconcile-then-upload": {
+    "lostAnswer": {
+      "outcome": "failed",
+      "code": "allocation-acquisition-unresolved"
+    },
+    "offlineRetry": {
+      "outcome": "committed",
+      "stockAuthorizationPolicy": "physical_presence"
+    },
+    "after": {
+      "localSyncStatus": "synced",
+      "dispatchState": "granted",
+      "server": {
+        "invoices": 1,
+        "syncRecords": 1,
+        "movements": 1,
+        "movedMilli": 1000
+      },
+      "serverStockDeltaMilli": -1000,
+      "serverRequests": 1,
+      "serverGrants": 1,
+      "localGrants": 1,
+      "frozenPayloadUnchanged": true,
+      "topUpSends": 2,
+      "replayBodyIdentical": true,
+      "lateGrantSpendableMilli": 1000
+    }
+  }
+}

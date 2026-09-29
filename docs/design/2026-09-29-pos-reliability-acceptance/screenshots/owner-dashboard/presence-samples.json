@@ -1,0 +1,76 @@
+{
+  "label": "live walkthrough",
+  "what": "Owner SPA Registers page left open in isolated headless Chrome; the desktop till was stopped at 2026-09-29T16:46:22Z (heartbeats stop). One sample per minute from the SAME document (no reload). polls = number of /api/v1/company-owner/devices requests the page had made.",
+  "tillStoppedAt": "2026-09-29T16:46:22Z",
+  "samples": [
+    {
+      "at": "2026-09-29T16:46:22.722Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 5 min 1 min ago Main Branch Main Warehouse 5 min ago 39.8.10 ",
+      "polls": 1,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:47:22.810Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 5 min 2 min ago Main Branch Main Warehouse 6 min ago 39.8.10 ",
+      "polls": 3,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:48:22.905Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 5 min 3 min ago Main Branch Main Warehouse 7 min ago 39.8.10 ",
+      "polls": 5,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:49:23.009Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 5 min 4 min ago Main Branch Main Warehouse 8 min ago 39.8.10 ",
+      "polls": 7,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:50:23.111Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 24 h 5 min ago Main Branch Main Warehouse 9 min ago 39.8.10 ",
+      "polls": 9,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:51:23.215Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 24 h 6 min ago Main Branch Main Warehouse 10 min ago 39.8.10 ",
+      "polls": 11,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:52:23.318Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 24 h 7 min ago Main Branch Main Warehouse 11 min ago 39.8.10 ",
+      "polls": 13,
+      "sameDocument": true
+    },
+    {
+      "at": "2026-09-29T16:53:23.421Z",
+      "row": "Sandbox Till 1 Active Seen ≤ 24 h 8 min ago Main Branch Main Warehouse 12 min ago 39.8.10 ",
+      "polls": 15,
+      "sameDocument": true
+    }
+  ],
+  "recoveryAfterRelaunch": {
+    "note": "Till relaunched at 17:02:55Z; sampled once a minute on the same page. Values copied verbatim from the sampler output.",
+    "samples": [
+      {
+        "at": "2026-09-29T17:02:55.323Z",
+        "row": "Sandbox Till 1 Active Seen ≤ 24 h 17 min ago Main Branch Main Warehouse 21 min ago 39.8.10",
+        "sameDocument": true
+      },
+      {
+        "at": "2026-09-29T17:03:55.379Z",
+        "row": "Sandbox Till 1 Active Seen ≤ 5 min just now Main Branch Main Warehouse 22 min ago 39.8.10",
+        "sameDocument": true
+      },
+      {
+        "at": "2026-09-29T17:04:55.440Z",
+        "row": "Sandbox Till 1 Active Seen ≤ 5 min 1 min ago Main Branch Main Warehouse 23 min ago 39.8.10",
+        "sameDocument": false,
+        "note": "the page was reloaded between these samples; most likely hot reload from the Vite dev server the page loads its assets from (another session was editing the owner SPA). Not proven."
+      }
+    ]
+  }
+}

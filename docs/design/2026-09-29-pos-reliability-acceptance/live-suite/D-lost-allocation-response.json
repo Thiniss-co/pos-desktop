@@ -1,0 +1,36 @@
+{
+  "scenario": "D-lost-allocation-response",
+  "recordedAt": "2026-09-29T17:41:49.905Z",
+  "outcome": "passed",
+  "injection": "lose-acknowledgment after the real server committed the top-up",
+  "beforeRestart": {
+    "outcome": "failed",
+    "code": "allocation-acquisition-unresolved",
+    "attemptState": "claimed",
+    "dispatchState": "dispatched",
+    "ambiguousSendCount": 1,
+    "serverRequests": 1,
+    "serverGrants": 1,
+    "localGrants": 0
+  },
+  "afterRestart": {
+    "replaySends": 1,
+    "replayBodyIdenticalToOriginal": true,
+    "dispatchState": "granted",
+    "serverRequests": 1,
+    "serverGrantsUnchanged": true,
+    "localGrants": 1
+  },
+  "retry": {
+    "outcome": "committed",
+    "additionalTopUps": 0,
+    "server": {
+      "invoices": 1,
+      "syncRecords": 1,
+      "movements": 1,
+      "movedMilli": 1000
+    },
+    "serverConsumptions": 1
+  },
+  "totalTopUpSendsForKey": 2
+}
