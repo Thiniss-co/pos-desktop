@@ -130,6 +130,8 @@ export interface AuthorizedFixture {
    * `bootstrapSnapshot.suite.ts` fault-injection pattern).
    */
   withWriteDatabase(writeDatabase: SqliteDatabase): LocalSaleService
+  readonly catalog: CatalogService
+  readonly catalogClock: CatalogTrustedClockService
 }
 
 export function setUpAuthorizedContext(
@@ -276,6 +278,7 @@ export function setUpAuthorizedContext(
         })
       },
       syncQueue: writeRepositories.syncQueue,
+      allocationDispatches: writeRepositories.allocationDispatches,
       now
     })
   }
@@ -284,7 +287,9 @@ export function setUpAuthorizedContext(
     localSale: buildLocalSale(database),
     authority,
     session,
-    withWriteDatabase: buildLocalSale
+    withWriteDatabase: buildLocalSale,
+    catalog,
+    catalogClock
   }
 }
 

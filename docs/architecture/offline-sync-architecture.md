@@ -49,6 +49,40 @@ License or token denial pauses the worker operationally without adding a persist
 - Idempotency keys are assigned at record-creation time (in the repository, not the worker), so a
   retry after a lost response reuses the same key safely.
 
+## Sale attempts and allocation dispatch evidence
+
+A sale attempt (`sale_attempts`) exists _before_ a queue item: it is the durable claim made when
+the cashier completes payment. It holds one attempt per owner (company, device, user); while it is
+`claimed`, every other sale for that owner is refused with `attempt-blocked`. An attempt is only
+released on evidence, never on a timer:
+
+| Situation                                                                                | Result                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Catalog superseded (revision changed or catalog no longer valid)                         | Terminal `rejected` with `catalog-superseded`, inside the serialized business transaction, before any write. It can never commit: revisions and the trusted clock only move forward. |
+| Offline allocation cannot cover the sale                                                 | Terminal `rejected` with `stock-allocation-unavailable`.                                                                                                                             |
+| Refreshable local state (shift, permission, workstation, allocation data)                | Stays `claimed`; retry after the fix.                                                                                                                                                |
+| Top-up refused after the server's idempotency lookup (`STOCK_ALLOCATION_DEMAND_REFUSED`) | Stays `claimed` (`allocation-refused`); retry re-sends the same key and bytes.                                                                                                       |
+| Top-up outcome unknown (transport, 5xx, 429/503)                                         | Stays `claimed` (`allocation-acquisition-unresolved`); retry re-sends the recorded bytes.                                                                                            |
+| The server holds this key with different bytes, or the bytes are invalid                 | Stays `claimed` (`allocation-integrity-blocked`); Retry is hidden, and the support reference is kept.                                                                                |
+| Explicit Cancel by the cashier                                                           | `abandoned`, after main re-reads the witnesses (no invoice for the attempt). Recorded requests are never discarded.                                                                  |
+
+Every top-up request is recorded in `attempt_allocation_dispatches` _before_ it is sent, with its
+exact bytes. The row is resolved only by a server answer: `granted`, `refused`, `conflict` or
+`invalid`. Rows are never deleted. A main-owned `AllocationDispatchReconciler` re-sends outstanding
+rows for the current owner when the app is online. It never mints a key and never touches an
+invoice or queue row, so a request whose response was lost is resolved exactly once, even after
+the sale committed offline.
+
+Attempts claimed by a build older than this evidence (`dispatch_evidence = 'unknown'`) cannot prove
+what was sent. Cancelling one requires an explicit acknowledgement. It records an append-only
+`legacy_dispatch_uncertainties` row, which is never closed automatically. A reservation that
+appears later is handled by the normal grant lifecycle and is not claimed to be related.
+
+Grant ingest is exactly-once. At an equal allocation revision, lifecycle fields must be identical,
+and consumption may only advance. It is validated against a persisted high-water mark
+(`stock_allocation_validation_marks`), because non-final consumption writes no lifecycle audit on
+the server.
+
 ## Conflict and Rejection Handling
 
 `conflict` items are surfaced in a dedicated UI (sync/queue screen) with enough detail (local

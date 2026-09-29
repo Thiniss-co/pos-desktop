@@ -237,6 +237,26 @@ function sameBootstrapEnvelope(
 }
 
 /**
+ * Every envelope field the device-wide *lifecycle* revision covers. `consumed_quantity_milli` and
+ * `remaining_quantity_milli` are live server values: non-final consumption writes no lifecycle audit
+ * (`StockAllocationService::revision()` is max(audit.id); bh-04a §232 "the device-wide lifecycle
+ * revision is not a coverage signal"), so they may legitimately advance at an equal revision. They
+ * are validated separately as a monotonic, self-consistent advance (`assertConsumptionAdvance`).
+ */
+function sameLifecycleEnvelope(
+  existing: StockAllocationGrantRow,
+  incoming: BootstrapStockAllocationGrant
+): boolean {
+  return sameBootstrapEnvelope(existing, {
+    ...incoming,
+    consumedQuantityMilli: existing.serverConsumedQuantityMilli,
+    remainingQuantityMilli: existing.serverRemainingQuantityMilli
+  })
+}
+
+type ObservationSource = 'bootstrap' | 'incremental'
+
+/**
  * Main-process persistence for server-created allocation envelopes. Bootstrap writes it inside the
  * same SQLite transaction as the catalog. Omitted grants are intentionally retained for audit, but
  * become unusable because `lastObservedRevision` no longer matches the current full snapshot.
@@ -316,18 +336,38 @@ export class StockAllocationRepository {
     }
 
     if (capability?.state === 'supported' && capability.revision === revision) {
+      // An equal lifecycle revision names the same set of grants with the same lifecycle fields.
+      // Two things may still differ, neither of which is a conflict:
+      //  - live consumption (validated as a monotonic advance against the persisted high-water);
+      //  - a grant this device ingested *incrementally* (top-up or preparation response) that is
+      //    newer than this snapshot's own allocation read. The server reads stock and allocations in
+      //    separate transactions, so a preparation can commit between them.
+      // A bootstrap-sourced grant that disappears, an unknown grant, or any lifecycle difference is
+      // still a conflict, and the caller's install transaction rolls back.
       const current = this.grantsObservedAt(revision)
-      const identical =
-        current.length === grants.length &&
-        grants.every((grant) => {
-          const existing = current.find((row) => row.allocationUuid === grant.allocationUuid)
-          return existing ? sameBootstrapEnvelope(existing, grant) : false
-        })
+      const conflict = (): Error =>
+        new Error('The allocation revision conflicts with the active local allocation snapshot')
 
-      if (!identical) {
-        throw new Error(
-          'The allocation revision conflicts with the active local allocation snapshot'
-        )
+      for (const grant of grants) {
+        const existing = current.find((row) => row.allocationUuid === grant.allocationUuid)
+        if (!existing || !sameLifecycleEnvelope(existing, grant)) {
+          throw conflict()
+        }
+        this.assertConsumptionAdvance(existing, grant)
+      }
+
+      for (const row of current) {
+        if (
+          !allocationUuids.has(row.allocationUuid) &&
+          this.observationSource(row.allocationUuid) !== 'incremental'
+        ) {
+          throw conflict()
+        }
+      }
+
+      for (const grant of grants) {
+        this.raiseValidationMark(grant, revision, observedAt)
+        this.setObservationSource(grant.allocationUuid, 'bootstrap')
       }
 
       // An identical re-apply is a no-op for the grants, but the representation still records how
@@ -348,8 +388,10 @@ export class StockAllocationRepository {
           throw new Error('The allocation snapshot rolls back a grant lifecycle generation')
         }
       }
+      this.assertConsumptionAdvance(existing, grant)
 
       this.upsertGrant(grant, { revision, observedAt })
+      this.raiseValidationMark(grant, revision, observedAt)
     }
 
     this.writeCapability(revision, observedAt, representation)
@@ -415,12 +457,23 @@ export class StockAllocationRepository {
         if (grant.lifecycleGeneration < existing.lifecycleGeneration) {
           throw new Error('The allocation top-up rolls back a grant lifecycle generation')
         }
-        if (!sameBootstrapEnvelope(existing, grant)) {
+        if (
+          grant.lifecycleGeneration === existing.lifecycleGeneration &&
+          !sameLifecycleEnvelope(existing, grant)
+        ) {
           throw new Error('The allocation top-up conflicts with the stored grant envelope')
         }
+        this.assertConsumptionAdvance(existing, grant)
+        // Exactly once: a grant this device already stores is never rewritten from an incremental
+        // response (a late replay carries live consumption and may carry a newer lifecycle). Only
+        // the shared validation mark moves; the envelope moves with the next bootstrap snapshot.
+        this.raiseValidationMark(grant, capability.revision, observedAt)
+        continue
       }
 
-      this.writeBootstrapGrant(grant, capability.revision, observedAt)
+      this.assertConsumptionAdvance(null, grant)
+      this.writeBootstrapGrant(grant, capability.revision, observedAt, 'incremental')
+      this.raiseValidationMark(grant, capability.revision, observedAt)
     }
   }
 
@@ -1125,7 +1178,8 @@ export class StockAllocationRepository {
   private writeBootstrapGrant(
     grant: BootstrapStockAllocationGrant,
     revision: number,
-    observedAt: string
+    observedAt: string,
+    source: ObservationSource = 'bootstrap'
   ): void {
     this.database
       .prepare(
@@ -1135,8 +1189,8 @@ export class StockAllocationRepository {
            granted_quantity_milli, server_consumed_quantity_milli, server_remaining_quantity_milli,
            consume_until, status, server_status, envelope_hash, seal_nonce,
            final_consumption_sequence, final_consumption_hash, received_at, sealed_at,
-           acknowledged_at, released_at, last_observed_revision, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           acknowledged_at, released_at, last_observed_revision, updated_at, observation_source
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(allocation_uuid) DO UPDATE SET
            rights_generation = excluded.rights_generation,
            -- BH-04B-3: the legacy mirror is part of the update set. Leaving it behind is what made a
@@ -1157,7 +1211,8 @@ export class StockAllocationRepository {
            acknowledged_at = excluded.acknowledged_at,
            released_at = excluded.released_at,
            last_observed_revision = excluded.last_observed_revision,
-           updated_at = excluded.updated_at`
+           updated_at = excluded.updated_at,
+           observation_source = excluded.observation_source`
       )
       .run(
         grant.allocationUuid,
@@ -1186,7 +1241,91 @@ export class StockAllocationRepository {
         grant.acknowledgedAt,
         grant.releasedAt,
         revision,
+        observedAt,
+        source
+      )
+  }
+
+  /**
+   * Consumption is a live server value, validated — never equated — across envelopes of the same
+   * grant: self-consistent, within the grant, and never below the highest value this workstation has
+   * already accepted for the same rights generation (the stored envelope or the persisted mark).
+   */
+  private assertConsumptionAdvance(
+    existing: StockAllocationGrantRow | null,
+    incoming: BootstrapStockAllocationGrant
+  ): void {
+    if (
+      !Number.isSafeInteger(incoming.consumedQuantityMilli) ||
+      incoming.consumedQuantityMilli < 0 ||
+      incoming.consumedQuantityMilli > incoming.grantedQuantityMilli ||
+      incoming.consumedQuantityMilli + incoming.remainingQuantityMilli !==
+        incoming.grantedQuantityMilli
+    ) {
+      throw new Error('The allocation envelope carries inconsistent consumption')
+    }
+
+    let floor = this.validationMark(incoming.allocationUuid, incoming.rightsGeneration) ?? 0
+    if (existing && existing.rightsGeneration === incoming.rightsGeneration) {
+      floor = Math.max(floor, existing.serverConsumedQuantityMilli)
+    }
+
+    if (incoming.consumedQuantityMilli < floor) {
+      throw new Error('The allocation envelope regresses an accepted consumed quantity')
+    }
+  }
+
+  private validationMark(allocationUuid: string, rightsGeneration: number): number | null {
+    const row = this.database
+      .prepare(
+        `SELECT consumed_high_water_milli AS mark FROM stock_allocation_validation_marks
+          WHERE allocation_uuid = ? AND rights_generation = ?`
+      )
+      .get(allocationUuid, rightsGeneration) as { mark: number } | undefined
+    return row?.mark ?? null
+  }
+
+  /** Validation evidence only: `spendableMilli`, usability and coverage never read it. */
+  private raiseValidationMark(
+    grant: BootstrapStockAllocationGrant,
+    revision: number,
+    observedAt: string
+  ): void {
+    this.database
+      .prepare(
+        `INSERT INTO stock_allocation_validation_marks (
+           allocation_uuid, rights_generation, consumed_high_water_milli, observed_revision,
+           updated_at
+         ) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(allocation_uuid, rights_generation) DO UPDATE SET
+           consumed_high_water_milli = MAX(consumed_high_water_milli,
+                                           excluded.consumed_high_water_milli),
+           observed_revision = MAX(observed_revision, excluded.observed_revision),
+           updated_at = excluded.updated_at`
+      )
+      .run(
+        grant.allocationUuid,
+        grant.rightsGeneration,
+        grant.consumedQuantityMilli,
+        revision,
         observedAt
       )
+  }
+
+  private observationSource(allocationUuid: string): ObservationSource | null {
+    const row = this.database
+      .prepare(
+        'SELECT observation_source AS source FROM stock_allocation_grants WHERE allocation_uuid = ?'
+      )
+      .get(allocationUuid) as { source: ObservationSource } | undefined
+    return row?.source ?? null
+  }
+
+  private setObservationSource(allocationUuid: string, source: ObservationSource): void {
+    this.database
+      .prepare(
+        'UPDATE stock_allocation_grants SET observation_source = ? WHERE allocation_uuid = ?'
+      )
+      .run(source, allocationUuid)
   }
 }

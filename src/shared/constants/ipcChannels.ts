@@ -16,6 +16,9 @@ export const IPC_CHANNELS = Object.freeze({
   catalogListCategories: 'catalog:list-categories',
   catalogSearchProducts: 'catalog:search-products',
   catalogGetProduct: 'catalog:get-product',
+  catalogGetProductForSale: 'catalog:get-product-for-sale',
+  /** Main → renderer only: a stock or snapshot change hint; carries no quantities. */
+  catalogChanged: 'catalog:changed',
   catalogFindByBarcode: 'catalog:find-by-barcode',
   catalogListPaymentMethods: 'catalog:list-payment-methods',
   catalogSearchCustomers: 'catalog:search-customers',
@@ -33,6 +36,7 @@ export const IPC_CHANNELS = Object.freeze({
   checkoutRetryAttempt: 'checkout:retry-attempt',
   checkoutAbandonAttempt: 'checkout:abandon-attempt',
   checkoutAcknowledgeAttempt: 'checkout:acknowledge-attempt',
+  checkoutAttemptStatus: 'checkout:attempt-status',
   /**
    * CP4: the narrow preparation surface (plan §10 CP4 — "no broad database/network IPC").
    *

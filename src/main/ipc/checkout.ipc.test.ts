@@ -390,8 +390,82 @@ describe('checkout:abandon-attempt', () => {
     const handler = handlers.get(IPC_CHANNELS.checkoutAbandonAttempt)
     const result = await handler?.(fakeEvent(), { attemptKey: ATTEMPT_KEY })
 
-    expect(abandon).toHaveBeenCalledWith(ATTEMPT_KEY)
+    expect(abandon).toHaveBeenCalledWith(ATTEMPT_KEY, { acknowledgeLegacyUncertainty: false })
     expect(result).toEqual({ ok: true, data: outcome })
+  })
+
+  it('passes the explicit legacy-uncertainty acknowledgement through and accepts only `true`', async () => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const abandon = vi.fn(() => ({ outcome: 'abandoned', attemptKey: ATTEMPT_KEY }))
+    registerWithLocalSale({ abandon })
+    const handler = handlers.get(IPC_CHANNELS.checkoutAbandonAttempt)
+
+    await handler?.(fakeEvent(), { attemptKey: ATTEMPT_KEY, acknowledgeLegacyUncertainty: true })
+    expect(abandon).toHaveBeenCalledWith(ATTEMPT_KEY, { acknowledgeLegacyUncertainty: true })
+
+    abandon.mockClear()
+    const refused = await handler?.(fakeEvent(), {
+      attemptKey: ATTEMPT_KEY,
+      acknowledgeLegacyUncertainty: false
+    })
+    expect(refused).toMatchObject({ ok: false, error: { category: 'validation' } })
+    expect(abandon).not.toHaveBeenCalled()
+  })
+})
+
+describe('checkout:attempt-status (POS reliability rev 3)', () => {
+  it('checks the sender before parsing the payload', async () => {
+    assertTrustedSender.mockImplementation(() => {
+      throw { category: 'authorization', message: 'untrusted', retryable: false }
+    })
+    const attemptStatus = vi.fn()
+    registerWithLocalSale({ attemptStatus, isInFlight: vi.fn() })
+
+    const result = await handlers.get(IPC_CHANNELS.checkoutAttemptStatus)?.(fakeEvent(), {
+      attemptKey: ATTEMPT_KEY
+    })
+
+    expect(result).toMatchObject({ ok: false, error: { category: 'authorization' } })
+    expect(attemptStatus).not.toHaveBeenCalled()
+  })
+
+  it('rejects a malformed key before reaching main state', async () => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const attemptStatus = vi.fn()
+    registerWithLocalSale({ attemptStatus, isInFlight: vi.fn() })
+
+    const result = await handlers.get(IPC_CHANNELS.checkoutAttemptStatus)?.(fakeEvent(), {
+      attemptKey: 'not-a-uuid'
+    })
+
+    expect(result).toMatchObject({ ok: false, error: { category: 'validation' } })
+    expect(attemptStatus).not.toHaveBeenCalled()
+  })
+
+  it('reports a claim main is still working on as in-flight, and passes durable states through', async () => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const attemptStatus = vi
+      .fn()
+      .mockReturnValueOnce({ state: 'claimed', failureCode: null })
+      .mockReturnValueOnce({ state: 'committed', failureCode: null })
+      .mockReturnValueOnce({ state: 'unknown', failureCode: null })
+    const isInFlight = vi.fn().mockReturnValueOnce(true).mockReturnValue(false)
+    registerWithLocalSale({ attemptStatus, isInFlight })
+    const handler = handlers.get(IPC_CHANNELS.checkoutAttemptStatus)
+
+    expect(await handler?.(fakeEvent(), { attemptKey: ATTEMPT_KEY })).toEqual({
+      ok: true,
+      data: { attemptKey: ATTEMPT_KEY, state: 'in-flight', failureCode: null }
+    })
+    expect(await handler?.(fakeEvent(), { attemptKey: ATTEMPT_KEY })).toEqual({
+      ok: true,
+      data: { attemptKey: ATTEMPT_KEY, state: 'committed', failureCode: null }
+    })
+    // A key owned by someone else and a key that never reached main are indistinguishable.
+    expect(await handler?.(fakeEvent(), { attemptKey: ATTEMPT_KEY })).toEqual({
+      ok: true,
+      data: { attemptKey: ATTEMPT_KEY, state: 'unknown', failureCode: null }
+    })
   })
 })
 
@@ -484,7 +558,13 @@ describe('checkout:pending-attempts', () => {
       unacknowledgedResults: [],
       nextCursor: null
     }))
-    registerWithLocalSale({ pendingAttempts })
+    const recoverySummary = vi.fn(() => ({
+      legacyDispatchUnknown: false,
+      outstandingRequests: 0,
+      needsSupport: false,
+      supportReference: null
+    }))
+    registerWithLocalSale({ pendingAttempts, recoverySummary })
 
     const handler = handlers.get(IPC_CHANNELS.checkoutPendingAttempts)
     const result = await handler?.(fakeEvent(), {})
@@ -494,6 +574,12 @@ describe('checkout:pending-attempts', () => {
       ok: true,
       data: {
         blockingAttempt: {
+          recovery: {
+            legacyDispatchUnknown: false,
+            outstandingRequests: 0,
+            needsSupport: false,
+            supportReference: null
+          },
           attemptKey: ATTEMPT_KEY,
           state: 'claimed',
           claimedAt: '2026-01-01T00:00:00.000Z'

@@ -177,7 +177,19 @@ function harness(options: {
   )
 
   handlers.clear()
-  registerCatalogIpcHandlers({ catalog } as ApplicationServices)
+  // The stock view adds read-only stock facts around the same catalog reads; these tests pin the
+  // catalog authorization/validation behaviour, so it passes the catalog results straight through.
+  const stockView = {
+    searchPage: (input: Parameters<CatalogService['searchProducts']>[0]) =>
+      catalog.searchProducts(input),
+    barcodeForSale: (barcode: string) => catalog.findProductByBarcode(barcode),
+    productForSale: (uuid: string) => ({
+      product: catalog.getProduct(uuid),
+      revision: catalog.getStatus().contract?.revision ?? '',
+      stock: undefined
+    })
+  }
+  registerCatalogIpcHandlers({ catalog, stockView } as unknown as ApplicationServices)
 
   return {
     repository,

@@ -82,7 +82,11 @@ const expectedTables = [
   'local_invoice_receipt_context',
   'local_refund_receipt_context',
   'local_refund_line_receipt_context',
-  'receipt_print_jobs'
+  'receipt_print_jobs',
+  // POS reliability rev 3 (migration 0016): allocation-dispatch evidence and validation marks.
+  'attempt_allocation_dispatches',
+  'legacy_dispatch_uncertainties',
+  'stock_allocation_validation_marks'
 ]
 
 databaseTest(
@@ -107,6 +111,8 @@ databaseTest(
     }
     equal(tables.includes('product_prices'), false)
     deepEqual(indexes, [
+      'idx_attempt_allocation_dispatches_attempt',
+      'idx_attempt_allocation_dispatches_owner_state',
       'idx_catalog_categories_active_name',
       'idx_catalog_customers_active_name',
       'idx_catalog_customers_search_name',
@@ -120,6 +126,7 @@ databaseTest(
       'idx_catalog_stock_items_warehouse',
       'idx_disposition_conflicts_invoice',
       'idx_disposition_holds_invoice',
+      'idx_legacy_dispatch_uncertainties_owner',
       'idx_local_allocation_consumptions_grant',
       'idx_local_allocation_consumptions_invoice',
       'idx_local_allocation_consumptions_journal',

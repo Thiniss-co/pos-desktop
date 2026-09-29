@@ -121,13 +121,64 @@ export const catalogBarcodeInputSchema = z
   .object({ barcode: z.string().trim().min(1).max(255) })
   .strict()
 
+/**
+ * POS reliability rev 3 — separated, honestly labelled stock information for one product. Nothing
+ * here is an adjusted warehouse balance: the installed snapshot can never prove whether a local
+ * effect is already included in it, so snapshot and local activity are reported side by side.
+ *
+ * - `warehouse`: the server's unreserved quantity for THIS device's assigned warehouse when the
+ *   catalog was generated (`asOf`). Historical; later sales and reservations by any till are not
+ *   included. `quantity: null` means the snapshot has no stock record for that warehouse.
+ * - `soldHereUnderCatalog`: tracked quantity sold on this workstation under the currently installed
+ *   catalog version (a purely local fact; never subtracted from `warehouse`).
+ * - `reservedHere` (allocation mode): exact spendable allocation, the same figure the sale commit
+ *   enforces; `null` when the trusted clock is unavailable.
+ */
+const stockDecimalSchema = z.string().regex(/^-?\d{1,9}(\.\d{1,3})?$/)
+const warehouseSnapshotSchema = z
+  .object({
+    quantity: stockDecimalSchema.nullable(),
+    asOf: isoDateTimeSchema
+  })
+  .strict()
+
+export const productStockViewSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('untracked') }).strict(),
+  z
+    .object({
+      kind: z.literal('allocation'),
+      warehouse: warehouseSnapshotSchema,
+      soldHereUnderCatalog: stockDecimalSchema,
+      reservedHere: stockDecimalSchema.nullable()
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('physical_presence'),
+      warehouse: warehouseSnapshotSchema,
+      soldHereUnderCatalog: stockDecimalSchema
+    })
+    .strict()
+])
+
 export const catalogProductPageSchema = z
   .object({
     items: z.array(catalogProductSchema),
     total: z.number().int().nonnegative(),
     limit: z.number().int().positive(),
     offset: z.number().int().nonnegative(),
-    contract: catalogContractSchema
+    contract: catalogContractSchema,
+    /** Rev 3: read in the same SQLite read transaction as `items` and `contract`. */
+    stock: z.record(z.string(), productStockViewSchema).optional()
+  })
+  .strict()
+
+/** Rev 3: a product read for selling carries the catalog revision it was read under. */
+export const catalogProductForSaleSchema = z
+  .object({
+    product: catalogProductSchema,
+    revision: revisionSchema,
+    stock: productStockViewSchema
   })
   .strict()
 
@@ -196,7 +247,14 @@ export const checkoutResolutionSchema = z
   .strict()
 
 export const catalogBarcodeLookupSchema = z.discriminatedUnion('outcome', [
-  z.object({ outcome: z.literal('found'), product: catalogProductSchema }).strict(),
+  z
+    .object({
+      outcome: z.literal('found'),
+      product: catalogProductSchema,
+      /** Rev 3: the catalog revision this lookup was read under (optional for older callers). */
+      revision: revisionSchema.optional()
+    })
+    .strict(),
   z.object({ outcome: z.literal('not-found') }).strict(),
   z.object({ outcome: z.literal('ambiguous') }).strict(),
   z.object({ outcome: z.literal('stale-catalog') }).strict(),
@@ -217,3 +275,5 @@ export type PaymentMethodType = z.infer<typeof paymentMethodTypeSchema>
 export type CatalogPaymentMethod = z.infer<typeof catalogPaymentMethodSchema>
 export type CheckoutResolution = z.infer<typeof checkoutResolutionSchema>
 export type CatalogBarcodeLookup = z.infer<typeof catalogBarcodeLookupSchema>
+export type ProductStockView = z.infer<typeof productStockViewSchema>
+export type CatalogProductForSale = z.infer<typeof catalogProductForSaleSchema>

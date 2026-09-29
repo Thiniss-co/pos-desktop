@@ -7,6 +7,8 @@ import type { BootstrapResult, BootstrapStatus } from '@shared/contracts/bootstr
 import type {
   CheckoutAbandonAttemptInput,
   CheckoutAcknowledgeAttemptInput,
+  CheckoutAttemptStatus,
+  CheckoutAttemptStatusInput,
   CheckoutCompleteInput,
   CheckoutCompletionOutcome,
   CheckoutIntent,
@@ -43,6 +45,7 @@ import type {
   CatalogCustomerSearchInput,
   CatalogPaymentMethod,
   CatalogProduct,
+  CatalogProductForSale,
   CatalogProductPage,
   CatalogRefreshResult,
   CatalogSearchInput,
@@ -112,10 +115,14 @@ export interface PosApi {
     listCategories(): Promise<IpcResult<CatalogCategory[]>>
     searchProducts(input: CatalogSearchInput): Promise<IpcResult<CatalogProductPage>>
     getProduct(input: { uuid: string }): Promise<IpcResult<CatalogProduct>>
+    /** Rev 3: the product, the catalog revision it was read under, and its stock view. */
+    getProductForSale(input: { uuid: string }): Promise<IpcResult<CatalogProductForSale>>
     findProductByBarcode(input: { barcode: string }): Promise<IpcResult<CatalogBarcodeLookup>>
     listPaymentMethods(): Promise<IpcResult<CatalogPaymentMethod[]>>
     searchCustomers(input: CatalogCustomerSearchInput): Promise<IpcResult<CatalogCustomerPage>>
     getCustomer(input: { uuid: string }): Promise<IpcResult<CatalogCustomer>>
+    /** Rev 3: main → renderer hint that catalog or stock data may have changed. */
+    onChanged(listener: (change: CatalogChange) => void): () => void
   }
   readonly shifts: {
     current(): Promise<IpcResult<Shift | null>>
@@ -137,6 +144,7 @@ export interface PosApi {
       input: CheckoutAcknowledgeAttemptInput
     ): Promise<IpcResult<CheckoutCompletionOutcome>>
     pendingAttempts(input: CheckoutPendingAttemptsInput): Promise<IpcResult<CheckoutRecoveryState>>
+    attemptStatus(input: CheckoutAttemptStatusInput): Promise<IpcResult<CheckoutAttemptStatus>>
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
@@ -248,6 +256,23 @@ function isCountShape(value: unknown): boolean {
 }
 
 /** Dependency-free structural guard for a pushed status; keeps the sandboxed bundle import-free. */
+export interface CatalogChange {
+  readonly reason: 'stock' | 'snapshot'
+  readonly revision: string | null
+}
+
+function isCatalogChangeShape(value: unknown): value is CatalogChange {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const change = value as Record<string, unknown>
+  return (
+    (change.reason === 'stock' || change.reason === 'snapshot') &&
+    (change.revision === null ||
+      (typeof change.revision === 'string' && /^[a-f0-9]{64}$/.test(change.revision)))
+  )
+}
+
 function isSyncStatusShape(value: unknown): value is SyncStatus {
   if (typeof value !== 'object' || value === null) {
     return false
@@ -302,13 +327,27 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.catalogSearchProducts, input),
     getProduct: (input: { uuid: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.catalogGetProduct, input),
+    getProductForSale: (input: { uuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogGetProductForSale, input),
     findProductByBarcode: (input: { barcode: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.catalogFindByBarcode, input),
     listPaymentMethods: () => ipcRenderer.invoke(IPC_CHANNELS.catalogListPaymentMethods),
     searchCustomers: (input: CatalogCustomerSearchInput) =>
       ipcRenderer.invoke(IPC_CHANNELS.catalogSearchCustomers, input),
     getCustomer: (input: { uuid: string }) =>
-      ipcRenderer.invoke(IPC_CHANNELS.catalogGetCustomer, input)
+      ipcRenderer.invoke(IPC_CHANNELS.catalogGetCustomer, input),
+    onChanged: (listener: (change: CatalogChange) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        // Structural check only (the preload stays dependency-free); the Electron event object is
+        // never handed to a renderer listener.
+        if (isCatalogChangeShape(payload)) {
+          listener({ reason: payload.reason, revision: payload.revision })
+        }
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.catalogChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.catalogChanged, subscription)
+    }
   }),
   shifts: Object.freeze({
     current: () => ipcRenderer.invoke(IPC_CHANNELS.shiftsCurrent),
@@ -330,7 +369,9 @@ export const posApi: PosApi = Object.freeze({
     acknowledgeAttempt: (input: CheckoutAcknowledgeAttemptInput) =>
       ipcRenderer.invoke(IPC_CHANNELS.checkoutAcknowledgeAttempt, input),
     pendingAttempts: (input: CheckoutPendingAttemptsInput) =>
-      ipcRenderer.invoke(IPC_CHANNELS.checkoutPendingAttempts, input)
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutPendingAttempts, input),
+    attemptStatus: (input: CheckoutAttemptStatusInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutAttemptStatus, input)
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus),

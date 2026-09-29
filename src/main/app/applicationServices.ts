@@ -34,6 +34,7 @@ import { InvoiceUploadWorker } from '../sync/invoiceUploadWorker'
 import { uploadInvoice } from '../sync/invoiceUpload.client'
 import { ActivationService } from '../services/activation.service'
 import { AllocationAcquisitionService } from '../services/allocationAcquisition.service'
+import { AllocationDispatchRepository } from '../repositories/allocationDispatch.repository'
 import { AllocationReconciliationService } from '../services/allocationReconciliation.service'
 import { AllocationRecoveryService } from '../services/allocationRecovery.service'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from '../services/auth.service'
@@ -103,6 +104,9 @@ import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
 import { CommercialAccessPublisher } from '../ipc/license.ipc'
 import { broadcastSyncChanged } from '../ipc/sync.ipc'
+import { broadcastCatalogChanged } from '../ipc/catalog.ipc'
+import { AllocationDispatchReconciler } from '../services/allocationDispatchReconciler.service'
+import { StockViewService } from '../services/stockView.service'
 import { createDeviceHeartbeat, type DeviceHeartbeatHandle } from './deviceHeartbeatWiring'
 
 export interface ApplicationServices {
@@ -140,6 +144,10 @@ export interface ApplicationServices {
   readonly receiptProfileAdmin: ReceiptProfileAdminService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
+  /** POS reliability rev 3: separated, read-only stock information for POS catalog reads. */
+  readonly stockView: StockViewService
+  /** POS reliability rev 3: owner of every outstanding allocation request identity. */
+  readonly allocationDispatchReconciler: AllocationDispatchReconciler
   /** Presence-only heartbeat; runs only while a cashier session is valid. */
   readonly deviceHeartbeat: DeviceHeartbeatHandle
   readonly invoiceUploads: InvoiceUploadWorker
@@ -212,12 +220,14 @@ export function createApplicationServices(): ApplicationServices {
   const secureStorage = new SecureStorageService(secureSecrets, safeStorage)
   // Assigned once the API client and access publisher exist (below).
   let deviceHeartbeat: DeviceHeartbeatHandle | null = null
+  let allocationDispatchTrigger: (() => void) | null = null
   const session = new SessionService(sessionMetadata, secureStorage, {
     database,
     epoch: sessionEpoch,
     observations: shiftObservations,
     onChanged: () => {
       deviceHeartbeat?.notifySessionChanged()
+      allocationDispatchTrigger?.()
     }
   })
   let commercialAccessPublisher: CommercialAccessPublisher | null = null
@@ -241,6 +251,7 @@ export function createApplicationServices(): ApplicationServices {
         // Coming back online is the single most likely moment for a queue to be drainable.
         invoiceUploadTrigger?.()
         allocationRecoveryTrigger?.()
+        allocationDispatchTrigger?.()
       }
     }
   })
@@ -330,6 +341,8 @@ export function createApplicationServices(): ApplicationServices {
         catalog.markPublished(result.catalogRevision)
       }
       commercialAccessPublisher?.publishCurrent()
+      // Rev 3: fired after the install transaction committed; the renderer re-reads coherently.
+      broadcastCatalogChanged({ reason: 'snapshot', revision: result.catalogRevision ?? null })
     },
     undefined,
     // Mirrors the negotiated `receipt_profile` block for the responding company and the current
@@ -401,9 +414,12 @@ export function createApplicationServices(): ApplicationServices {
       }
     }
   })
+  // POS reliability rev 3: durable top-up request identities (migration 0016).
+  const allocationDispatches = new AllocationDispatchRepository(database)
   const localSale = new LocalSaleService({
     database,
     saleAttempts,
+    allocationDispatches,
     localSale: localSaleRepository,
     localStock,
     stockAllocations,
@@ -478,7 +494,43 @@ export function createApplicationServices(): ApplicationServices {
     stockAllocations,
     allocationService,
     allocationReconciliation,
-    connectivity
+    connectivity,
+    allocationDispatches
+  })
+  const allocationDispatchReconciler = new AllocationDispatchReconciler({
+    dispatches: allocationDispatches,
+    acquisition: allocationAcquisition,
+    connectivity,
+    apiClient,
+    owner: () => {
+      try {
+        const context = shiftAuthority.captureContext()
+        return { companyUuid: context.companyUuid, deviceUuid: context.deviceUuid }
+      } catch {
+        return null
+      }
+    },
+    allocationCapabilitySupported: () => stockAllocations.getCapability()?.state === 'supported',
+    onGrantsChanged: () => broadcastCatalogChanged({ reason: 'stock', revision: null }),
+    // The Sync page's "needs attention" list re-reads on the sanitized sync status push.
+    onRequestsResolved: () => broadcastSyncChanged(invoiceUploads.getStatus())
+  })
+  allocationDispatchTrigger = () => allocationDispatchReconciler.requestRun()
+  const stockView = new StockViewService({
+    database,
+    catalog,
+    bootstrapSnapshot,
+    stockAllocations,
+    offlineSaleAuthorities,
+    clock: catalogClock,
+    owner: () => {
+      try {
+        const context = shiftAuthority.captureContext()
+        return { companyUuid: context.companyUuid, deviceUuid: context.deviceUuid }
+      } catch {
+        return null
+      }
+    }
   })
   const invoiceUploads = new InvoiceUploadWorker({
     syncQueue,
@@ -724,6 +776,7 @@ export function createApplicationServices(): ApplicationServices {
     }
 
     const outcome = await preparation.runCycle(owner)
+    broadcastCatalogChanged({ reason: 'stock', revision: null })
 
     return {
       outcome: outcome.kind,
@@ -777,6 +830,8 @@ export function createApplicationServices(): ApplicationServices {
     acquisition: allocationAcquisition,
     // A sale that just queued a row should not wait for an unrelated trigger to be uploaded.
     onSaleCommitted: () => invoiceUploads.requestRun(),
+    // Rev 3: the renderer re-reads the visible stock figures locally (no network request).
+    onStockMayHaveChanged: () => broadcastCatalogChanged({ reason: 'stock', revision: null }),
     // Receipt-printing plan §D-5 D: main-owned auto-print, scheduled after this tick (never inside
     // the commit's own call stack) and fully isolated from the sale outcome by both this catch and
     // the try/catch already wrapping every `onSaleCommittedForPrint` call in
@@ -832,6 +887,8 @@ export function createApplicationServices(): ApplicationServices {
     receiptProfileAdmin,
     companyUsers,
     connectivity,
+    stockView,
+    allocationDispatchReconciler,
     deviceHeartbeat: heartbeat,
     invoiceUploads,
     allocationRecoveries,
@@ -856,6 +913,7 @@ export function createApplicationServices(): ApplicationServices {
       unsubscribeRecoveryAccessTrigger()
       unsubscribePreparationTrigger()
       heartbeat.dispose()
+      allocationDispatchReconciler.stop()
       invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()

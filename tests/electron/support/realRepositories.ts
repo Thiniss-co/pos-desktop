@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert'
 import type { SqliteDatabase } from '../../../src/main/database/connection'
 import { AppSettingsRepository } from '../../../src/main/repositories/appSettings.repository'
+import { AllocationDispatchRepository } from '../../../src/main/repositories/allocationDispatch.repository'
 import { AllocationRecoveryRepository } from '../../../src/main/repositories/allocationRecovery.repository'
 import { BootstrapSnapshotRepository } from '../../../src/main/repositories/bootstrapSnapshot.repository'
 import { BootstrapStateRepository } from '../../../src/main/repositories/bootstrapState.repository'
@@ -27,6 +28,7 @@ import { AllocationReconciliationService } from '../../../src/main/services/allo
 
 export interface RealRepositories {
   readonly appSettings: AppSettingsRepository
+  readonly allocationDispatches: AllocationDispatchRepository
   readonly allocationRecoveries: AllocationRecoveryRepository
   readonly bootstrapSnapshot: BootstrapSnapshotRepository
   readonly bootstrapState: BootstrapStateRepository
@@ -73,6 +75,7 @@ export function realRepositories(
   })
   const repositories = {
     appSettings: new AppSettingsRepository(database),
+    allocationDispatches: new AllocationDispatchRepository(database),
     allocationRecoveries,
     bootstrapSnapshot: new BootstrapSnapshotRepository(
       database,
@@ -103,6 +106,7 @@ export function realRepositories(
   }
 
   assert.ok(repositories.appSettings instanceof AppSettingsRepository)
+  assert.ok(repositories.allocationDispatches instanceof AllocationDispatchRepository)
   assert.ok(repositories.allocationRecoveries instanceof AllocationRecoveryRepository)
   assert.ok(repositories.bootstrapSnapshot instanceof BootstrapSnapshotRepository)
   assert.ok(repositories.bootstrapState instanceof BootstrapStateRepository)

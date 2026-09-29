@@ -53,6 +53,11 @@ export interface SaleAttemptRow {
   readonly acknowledgedAt: string | null
   readonly abandonedAt: string | null
   readonly updatedAt: string
+  /**
+   * `unknown` only for attempts that were already claimed when migration 0016 ran: the build that
+   * claimed them recorded no allocation-dispatch evidence. Absent means `recorded`.
+   */
+  readonly dispatchEvidence?: 'recorded' | 'unknown'
 }
 
 export interface NewSaleAttempt {

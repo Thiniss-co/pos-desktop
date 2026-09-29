@@ -21,6 +21,7 @@ import {
 import { invoiceRequestHash } from './invoiceRequestHash'
 import type { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import type { CheckoutResolutionInput } from '../repositories/catalog.repository'
+import type { AllocationDispatchRepository } from '../repositories/allocationDispatch.repository'
 import type { LocalSaleRepository } from '../repositories/localSale.repository'
 import type { LocalStockRepository } from '../repositories/localStock.repository'
 import type { OwnerTuple, SaleAttemptRepository } from '../repositories/saleAttempt.repository'
@@ -68,7 +69,16 @@ const NON_TERMINAL_FAILURE_CODES: ReadonlySet<LocalSaleFailure> = new Set([
   // persist). Laravel may or may not hold a grant under this attempt's derived key, so the attempt
   // must stay claimed and be replayed under that same key — never rejected into a new one.
   'allocation-acquisition-unresolved',
+  // POS reliability rev 3: the server definitively refused one recorded request of this attempt
+  // (post-lookup, so that key holds no server row). A retry re-sends the same bytes and may succeed
+  // once server state changes; earlier requests are judged by their own dispatch rows.
+  'allocation-refused',
+  // A recorded request is in a terminal integrity state (identity conflict or bytes the server can
+  // never accept). Retry is withheld; the attempt stays claimed until explicitly cancelled.
+  'allocation-integrity-blocked',
   'context-changed',
+  // Only the defensive branch: the SAME valid revision is installed but a line no longer resolves.
+  // A superseded or expired contract is `catalog-superseded`, a terminal rejection (see below).
   'refresh-required'
 ])
 
@@ -95,6 +105,10 @@ export type LocalSaleFailure =
   | 'attempt-unresolved'
   | 'integrity-inconsistency'
   | 'policy-blocked'
+  | 'catalog-superseded'
+  | 'allocation-refused'
+  | 'allocation-integrity-blocked'
+  | 'legacy-uncertainty-acknowledgement-required'
 
 export interface LocalSaleRejected {
   readonly outcome: 'rejected'
@@ -160,6 +174,38 @@ export interface PendingAttemptsResult {
   readonly nextCursor: { readonly committedAt: string; readonly attemptKey: string } | null
 }
 
+export interface RecoverySummary {
+  readonly legacyDispatchUnknown: boolean
+  readonly outstandingRequests: number
+  readonly needsSupport: boolean
+  readonly supportReference: string | null
+}
+
+/** Product/quantity pairs of a frozen intent, for the legacy uncertainty record. Never throws. */
+function legacyProductQuantities(
+  intentJson: string | null
+): readonly { readonly productUuid: string; readonly quantity: string }[] {
+  try {
+    const parsed = JSON.parse(intentJson ?? 'null') as { items?: unknown } | null
+    const items = Array.isArray(parsed?.items) ? parsed.items : []
+    return items.flatMap((item) =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as { productUuid?: unknown }).productUuid === 'string' &&
+      typeof (item as { quantity?: unknown }).quantity === 'string'
+        ? [
+            {
+              productUuid: (item as { productUuid: string }).productUuid,
+              quantity: (item as { quantity: string }).quantity
+            }
+          ]
+        : []
+    )
+  } catch {
+    return []
+  }
+}
+
 export interface LocalSaleDependencies {
   readonly database: SqliteDatabase
   readonly saleAttempts: SaleAttemptRepository
@@ -173,7 +219,10 @@ export interface LocalSaleDependencies {
     captureContext(): ShiftAuthorityContext
   }
   readonly bootstrapSnapshot: Pick<BootstrapSnapshotRepository, 'getBranch' | 'getWarehouse'>
-  readonly catalog: Pick<CatalogService, 'resolveForSale'>
+  readonly catalog: Pick<CatalogService, 'resolveForSale'> &
+    Partial<Pick<CatalogService, 'getStatus'>>
+  /** Rev 3: request-identity evidence for the recovery summary. Optional for older call sites. */
+  readonly allocationDispatches?: Pick<AllocationDispatchRepository, 'listForAttempt'>
   readonly connectivity: { getSnapshot(): ConnectivitySnapshot }
   readonly syncQueue: Pick<SyncQueueRepository, 'enqueue' | 'invoiceUploadRowsFor'>
   /**
@@ -327,7 +376,10 @@ export class LocalSaleService {
 
   /** `checkout:abandon-attempt` (T5, D1-A): no `pos.sell`, no open shift, no commercial access
    * required — only authentication/binding/owner and §1.7 no-sale evidence. */
-  abandon(attemptKey: string): LocalSaleOutcome {
+  abandon(
+    attemptKey: string,
+    options: { readonly acknowledgeLegacyUncertainty?: boolean } = {}
+  ): LocalSaleOutcome {
     let owner: OwnerTuple
     try {
       owner = this.dependencies.shiftAuthority.captureContext()
@@ -335,30 +387,94 @@ export class LocalSaleService {
       return { outcome: 'failed', code: 'policy-blocked', attemptKey: null }
     }
 
+    // POS reliability rev 3.1: the witnesses are re-read and the transition (plus, for a legacy
+    // attempt, the verbatim copy of its intent) is written in ONE serialized transaction, so no
+    // concurrent completion can slip between the check and the write.
+    return runSerializedWrite(this.dependencies.database, (): LocalSaleOutcome => {
+      const existing = this.dependencies.saleAttempts.findByKeyForOwner(attemptKey, owner)
+
+      if (!existing) {
+        return { outcome: 'failed', code: 'not-found', attemptKey: null }
+      }
+
+      if (existing.state !== 'claimed') {
+        return existing.state === 'committed' || existing.state === 'acknowledged'
+          ? { outcome: 'failed', code: 'already-committed', attemptKey }
+          : this.replayTerminal(existing)
+      }
+
+      // §1.7: two independent local witnesses that no sale committed for this claimed row.
+      if (existing.invoiceLocalUuid !== null) {
+        return { outcome: 'failed', code: 'integrity-inconsistency', attemptKey }
+      }
+      const linkedInvoice = this.dependencies.localSale.findInvoiceByAttemptKey(attemptKey)
+      if (linkedInvoice !== null) {
+        return { outcome: 'failed', code: 'integrity-inconsistency', attemptKey }
+      }
+
+      const abandonedAt = this.now().toISOString()
+
+      // Rev 3.1 legacy rule: an attempt claimed before dispatch evidence existed may have sent a
+      // top-up nobody can now identify. Cancelling it requires the cashier's explicit
+      // acknowledgement, and its intent is kept (append-only, never marked reconciled) before the
+      // abandon transition nulls it. Recorded requests of newer attempts need no such step: their
+      // dispatch rows stay owned by the reconciler whatever happens to the sale attempt.
+      if (existing.dispatchEvidence === 'unknown') {
+        if (options.acknowledgeLegacyUncertainty !== true) {
+          return {
+            outcome: 'failed',
+            code: 'legacy-uncertainty-acknowledgement-required',
+            attemptKey
+          }
+        }
+        this.dependencies.saleAttempts.recordLegacyUncertainty(
+          existing,
+          legacyProductQuantities(existing.intentJson),
+          abandonedAt
+        )
+      }
+
+      this.dependencies.saleAttempts.markAbandoned(attemptKey, abandonedAt)
+
+      return { outcome: 'abandoned', attemptKey }
+    })
+  }
+
+  /**
+   * `checkout:attempt-status` — owner-scoped, read-only. Never reveals whether a key exists for a
+   * different owner: that and "never reached main" are both `unknown`.
+   */
+  attemptStatus(attemptKey: string): {
+    readonly state: 'claimed' | 'committed' | 'acknowledged' | 'rejected' | 'abandoned' | 'unknown'
+    readonly failureCode: string | null
+    readonly recovery?: RecoverySummary
+  } {
+    const owner = this.dependencies.shiftAuthority.captureContext()
     const existing = this.dependencies.saleAttempts.findByKeyForOwner(attemptKey, owner)
 
     if (!existing) {
-      return { outcome: 'failed', code: 'not-found', attemptKey: null }
+      return { state: 'unknown', failureCode: null }
     }
 
-    if (existing.state !== 'claimed') {
-      return existing.state === 'committed' || existing.state === 'acknowledged'
-        ? { outcome: 'failed', code: 'already-committed', attemptKey }
-        : this.replayTerminal(existing)
+    return {
+      state: existing.state,
+      failureCode: existing.failureCode,
+      ...(existing.state === 'claimed' ? { recovery: this.recoverySummary(existing) } : {})
     }
+  }
 
-    // §1.7: two independent local witnesses that no sale committed for this claimed row.
-    if (existing.invoiceLocalUuid !== null) {
-      return { outcome: 'failed', code: 'integrity-inconsistency', attemptKey }
+  /** What the recovery UI needs to choose its actions; counts and a trace id only. */
+  recoverySummary(attempt: SaleAttemptRow): RecoverySummary {
+    const dispatches =
+      this.dependencies.allocationDispatches?.listForAttempt(attempt.attemptKey) ?? []
+    const support = dispatches.find((row) => row.state === 'conflict' || row.state === 'invalid')
+
+    return {
+      legacyDispatchUnknown: attempt.dispatchEvidence === 'unknown',
+      outstandingRequests: dispatches.filter((row) => row.state === 'dispatched').length,
+      needsSupport: support !== undefined,
+      supportReference: support?.lastOutcome?.traceId ?? null
     }
-    const linkedInvoice = this.dependencies.localSale.findInvoiceByAttemptKey(attemptKey)
-    if (linkedInvoice !== null) {
-      return { outcome: 'failed', code: 'integrity-inconsistency', attemptKey }
-    }
-
-    this.dependencies.saleAttempts.markAbandoned(attemptKey, this.now().toISOString())
-
-    return { outcome: 'abandoned', attemptKey }
   }
 
   /** `checkout:acknowledge-attempt` (T7/T8): D1-A, no `pos.sell` required; idempotent. */
@@ -832,6 +948,21 @@ export class LocalSaleService {
     })
   }
 
+  /**
+   * True only when the installed catalog proves this revision can never be sold against again: a
+   * readable contract with a different revision, or the same revision past its own valid_until
+   * (`stale`). An unavailable or unreadable catalog (missing trusted clock, access denied, missing
+   * snapshot) proves nothing and stays the retryable `refresh-required`.
+   */
+  private isCatalogSuperseded(intentRevision: string): boolean {
+    const status = this.dependencies.catalog.getStatus?.()
+    if (!status || !status.isReadable || status.contract === null) {
+      return false
+    }
+
+    return status.contract.revision !== intentRevision || status.status === 'stale'
+  }
+
   private recordRejection(attemptKey: string, failureCode: string, rejectedAt: string): void {
     try {
       this.dependencies.saleAttempts.markRejected(attemptKey, failureCode, rejectedAt)
@@ -919,7 +1050,19 @@ export class LocalSaleService {
     }
     const resolution = this.dependencies.catalog.resolveForSale(resolutionInput)
     if (!resolution || resolution.contract.revision !== intent.catalogRevision) {
-      return { ok: false, code: 'refresh-required' }
+      // POS reliability rev 3: a frozen intent whose catalog was superseded or whose window closed
+      // can never commit — installed revisions only move forward (bootstrapSnapshot
+      // CATALOG_SNAPSHOT_OLDER), the revision hashes generated_at/valid_until, and the trusted
+      // clock never regresses. Recording it as a terminal rejection (zero business writes; we are
+      // before any of them) frees the owner's blocking slot instead of stranding the till. Only the
+      // same-valid-revision "a line no longer resolves" branch stays the non-terminal
+      // `refresh-required`.
+      return {
+        ok: false,
+        code: this.isCatalogSuperseded(intent.catalogRevision)
+          ? 'catalog-superseded'
+          : 'refresh-required'
+      }
     }
 
     const productsByUuid = new Map(resolution.products.map((product) => [product.uuid, product]))

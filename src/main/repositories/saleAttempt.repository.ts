@@ -1,6 +1,16 @@
 import type { SaleAttemptRow, SaleAttemptState } from '@shared/contracts/sale.contract'
 import type { SqliteDatabase } from '../database/connection'
 
+export interface LegacyDispatchUncertaintyRow {
+  readonly attemptKey: string
+  readonly userUuid: string
+  readonly productQuantities: readonly { readonly productUuid: string; readonly quantity: string }[]
+  readonly claimedAt: string
+  readonly recordedAt: string
+  /** Always `open`: nothing on the workstation can close an uncertainty. */
+  readonly status: 'open'
+}
+
 export interface OwnerTuple {
   readonly companyUuid: string
   readonly deviceUuid: string
@@ -44,6 +54,7 @@ interface SaleAttemptTableRow {
   readonly acknowledged_at: string | null
   readonly abandoned_at: string | null
   readonly updated_at: string
+  readonly dispatch_evidence?: 'recorded' | 'unknown'
 }
 
 function mapRow(row: SaleAttemptTableRow): SaleAttemptRow {
@@ -70,7 +81,9 @@ function mapRow(row: SaleAttemptTableRow): SaleAttemptRow {
     rejectedAt: row.rejected_at,
     acknowledgedAt: row.acknowledged_at,
     abandonedAt: row.abandoned_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    // Only the migration-0016 legacy marker is surfaced, so every recorded row keeps its shape.
+    ...(row.dispatch_evidence === 'unknown' ? { dispatchEvidence: 'unknown' as const } : {})
   }
 }
 
@@ -251,5 +264,91 @@ export class SaleAttemptRepository {
     if (result.changes !== 1) {
       throw new Error('Sale attempt was not in a claimed state to abandon')
     }
+  }
+
+  /**
+   * Rev 3.1 legacy rule: before a `dispatch_evidence = 'unknown'` attempt may be abandoned (which
+   * nulls its intent), its frozen intent is copied here verbatim. The row is append-only and its
+   * status is always `open` — whether a request from that earlier build ever reached the server
+   * cannot be established, so nothing ever marks it reconciled.
+   */
+  recordLegacyUncertainty(
+    attempt: SaleAttemptRow,
+    productQuantities: readonly { readonly productUuid: string; readonly quantity: string }[],
+    recordedAt: string
+  ): void {
+    if (attempt.intentJson === null) {
+      throw new Error('A legacy attempt without a retained intent cannot be recorded')
+    }
+
+    this.database
+      .prepare(
+        `INSERT INTO legacy_dispatch_uncertainties (
+           attempt_key, company_uuid, device_uuid, user_uuid, warehouse_uuid, intent_json,
+           product_quantities_json, claimed_at, recorded_at, status
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')`
+      )
+      .run(
+        attempt.attemptKey,
+        attempt.companyUuid,
+        attempt.deviceUuid,
+        attempt.userUuid,
+        attempt.originWarehouseUuid,
+        attempt.intentJson,
+        JSON.stringify(productQuantities),
+        attempt.claimedAt,
+        recordedAt
+      )
+  }
+
+  /**
+   * Open legacy uncertainties for one company + device (every cashier), newest first and bounded.
+   * Read-only; the frozen `intent_json` is never selected — only the per-product quantities copied
+   * at cancellation, which the caller shows to their own cashier only.
+   */
+  listOpenLegacyUncertainties(
+    owner: { readonly companyUuid: string; readonly deviceUuid: string },
+    limit: number
+  ): readonly LegacyDispatchUncertaintyRow[] {
+    return (
+      this.database
+        .prepare(
+          `SELECT attempt_key, user_uuid, product_quantities_json, claimed_at, recorded_at, status
+             FROM legacy_dispatch_uncertainties
+            WHERE company_uuid = ? AND device_uuid = ? AND status = 'open'
+            ORDER BY recorded_at DESC, attempt_key ASC
+            LIMIT ?`
+        )
+        .all(owner.companyUuid, owner.deviceUuid, limit) as Array<{
+        attempt_key: string
+        user_uuid: string
+        product_quantities_json: string
+        claimed_at: string
+        recorded_at: string
+        status: 'open'
+      }>
+    ).map((row) => ({
+      attemptKey: row.attempt_key,
+      userUuid: row.user_uuid,
+      productQuantities: JSON.parse(row.product_quantities_json) as Array<{
+        productUuid: string
+        quantity: string
+      }>,
+      claimedAt: row.claimed_at,
+      recordedAt: row.recorded_at,
+      status: row.status
+    }))
+  }
+
+  /** Open legacy uncertainties for one owner. Counts only; transaction details stay in main. */
+  countOpenLegacyUncertaintiesForOwner(owner: OwnerTuple): number {
+    return (
+      this.database
+        .prepare(
+          `SELECT COUNT(*) AS n FROM legacy_dispatch_uncertainties
+              WHERE company_uuid = ? AND device_uuid = ? AND user_uuid = ? AND status = 'open'`
+        )
+        .get(owner.companyUuid, owner.deviceUuid, owner.userUuid) as { n: number }
+    ).n
   }
 }

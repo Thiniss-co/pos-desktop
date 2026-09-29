@@ -332,7 +332,11 @@ export const checkoutFailureCodeSchema = z.enum([
   'already-committed',
   'attempt-unresolved',
   'integrity-inconsistency',
-  'policy-blocked'
+  'policy-blocked',
+  // POS reliability rev 3 (allocation dispatch lifecycle).
+  'allocation-refused',
+  'allocation-integrity-blocked',
+  'legacy-uncertainty-acknowledgement-required'
 ])
 
 /**
@@ -388,11 +392,29 @@ export const checkoutCompletionOutcomeSchema = z.discriminatedUnion('outcome', [
  * `sale_attempts` row: never exposes `intent_json`, fingerprints, or origin columns to the
  * renderer boundary — only what the recovery banner needs to list and act on a result.
  */
+/**
+ * What the recovery UI needs to offer the right actions for a blocked attempt, never its contents.
+ * `legacyDispatchUnknown`: claimed by a build that recorded no allocation-dispatch evidence, so
+ * cancelling requires the cashier's explicit acknowledgement of that uncertainty.
+ * `needsSupport`: a recorded request of this attempt is in a terminal integrity state (identity
+ * conflict or bytes the server cannot accept) — retrying cannot succeed; `supportReference` is the
+ * server trace id to quote.
+ */
+export const recoveryAttemptSummarySchema = z
+  .object({
+    legacyDispatchUnknown: z.boolean(),
+    outstandingRequests: z.number().int().min(0),
+    needsSupport: z.boolean(),
+    supportReference: z.string().max(128).nullable()
+  })
+  .strict()
+
 export const recoveryBlockingAttemptSchema = z
   .object({
     attemptKey: z.string(),
     state: z.literal('claimed'),
-    claimedAt: isoDateTimeSchema
+    claimedAt: isoDateTimeSchema,
+    recovery: recoveryAttemptSummarySchema.optional()
   })
   .strict()
 
@@ -435,7 +457,37 @@ export const checkoutRetryAttemptInputSchema = z
 
 export const checkoutAbandonAttemptInputSchema = z
   .object({
+    attemptKey: attemptKeySchema,
+    /** Required (and only accepted as `true`) to cancel a legacy attempt with unknown dispatch history. */
+    acknowledgeLegacyUncertainty: z.literal(true).optional()
+  })
+  .strict()
+
+/**
+ * `checkout:attempt-status` — owner-scoped, read-only reconciliation after an IPC failure or a
+ * renderer recreation. `unknown` means no attempt with this key exists for the current owner (the
+ * request never reached main, or the key belongs to someone else — never distinguished).
+ */
+export const checkoutAttemptStatusInputSchema = z
+  .object({
     attemptKey: attemptKeySchema
+  })
+  .strict()
+
+export const checkoutAttemptStatusSchema = z
+  .object({
+    attemptKey: z.string(),
+    state: z.enum([
+      'in-flight',
+      'claimed',
+      'committed',
+      'acknowledged',
+      'rejected',
+      'abandoned',
+      'unknown'
+    ]),
+    failureCode: z.string().max(64).nullable(),
+    recovery: recoveryAttemptSummarySchema.optional()
   })
   .strict()
 
@@ -471,3 +523,6 @@ export type SaleResult = z.infer<typeof saleResultSchema>
 export type CheckoutFailureCode = z.infer<typeof checkoutFailureCodeSchema>
 export type CheckoutCompletionOutcome = z.infer<typeof checkoutCompletionOutcomeSchema>
 export type CheckoutRecoveryState = z.infer<typeof checkoutRecoveryStateSchema>
+export type RecoveryAttemptSummary = z.infer<typeof recoveryAttemptSummarySchema>
+export type CheckoutAttemptStatusInput = z.infer<typeof checkoutAttemptStatusInputSchema>
+export type CheckoutAttemptStatus = z.infer<typeof checkoutAttemptStatusSchema>

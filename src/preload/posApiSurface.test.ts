@@ -63,6 +63,11 @@ describe('posApi surface', () => {
     expect(source).toContain('pendingAttempts')
   })
 
+  it('exposes the owner-scoped attempt-status reconciliation read (POS reliability rev 3)', () => {
+    expect(source).toContain('attemptStatus(input: CheckoutAttemptStatusInput)')
+    expect(source).toContain('IPC_CHANNELS.checkoutAttemptStatus')
+  })
+
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)

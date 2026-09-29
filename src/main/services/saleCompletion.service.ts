@@ -20,6 +20,12 @@ export interface SaleCompletionDependencies {
    */
   readonly onSaleCommitted?: () => void
   /**
+   * POS reliability rev 3: fired after any completion run that reached allocation acquisition or
+   * the business transaction (grants may have been ingested, stock consumed). A hint for the
+   * renderer's local stock display only — it carries no quantities and grants no authority.
+   */
+  readonly onStockMayHaveChanged?: () => void
+  /**
    * Receipt-printing plan §D-5 D — fired ONLY for a fresh, non-replay `committed` outcome (never
    * for `acknowledged`, a replay, or a restart), so auto-print can never fire twice for the same
    * sale from this call site. Carries the invoice's local UUID and owner tuple, which is all
@@ -70,6 +76,11 @@ export class SaleCompletionService {
 
   constructor(private readonly dependencies: SaleCompletionDependencies) {
     this.now = dependencies.now ?? (() => new Date())
+  }
+
+  /** `checkout:attempt-status`: whether main is still working on this key right now. */
+  isInFlight(attemptKey: string): boolean {
+    return this.inFlight.has(attemptKey)
   }
 
   async complete(attemptKey: string, intent: CheckoutIntent): Promise<LocalSaleOutcome> {
@@ -125,12 +136,18 @@ export class SaleCompletionService {
             // never a warehouse re-read after the claim.
             warehouseUuid: prepared.claimed.originWarehouseUuid
           },
+          actorUserUuid: prepared.claimed.userUuid,
           trackedLines,
           nowIso: this.now().toISOString()
         }
       )
 
       if (acquisition.kind === 'blocked') {
+        try {
+          this.dependencies.onStockMayHaveChanged?.()
+        } catch {
+          // Display hint only.
+        }
         return {
           outcome: 'failed',
           code: acquisition.code,
@@ -140,6 +157,12 @@ export class SaleCompletionService {
     }
 
     const outcome = this.dependencies.localSale.runPrepared(prepared)
+
+    try {
+      this.dependencies.onStockMayHaveChanged?.()
+    } catch {
+      // A display hint must never affect the recorded sale outcome.
+    }
 
     if (outcome.outcome === 'committed') {
       try {

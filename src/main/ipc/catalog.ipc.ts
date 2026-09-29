@@ -1,8 +1,9 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import {
   catalogFindByBarcodeInputSchema,
   catalogGetCustomerInputSchema,
+  catalogGetProductForSaleInputSchema,
   catalogGetProductInputSchema,
   catalogGetStatusInputSchema,
   catalogListCategoriesInputSchema,
@@ -22,6 +23,38 @@ const unexpectedError = {
   message: 'The request could not be completed',
   retryable: false
 } as const
+
+export interface CatalogChangedPayload {
+  readonly reason: 'stock' | 'snapshot'
+  readonly revision: string | null
+}
+
+/**
+ * POS reliability rev 3: tells every live renderer that locally readable catalog/stock data may
+ * have changed. Sent only AFTER the writing transaction committed. Main → renderer only (no
+ * handler exists for this channel), and it carries no quantities: the renderer re-reads through
+ * the normal validated channels.
+ */
+export function broadcastCatalogChanged(payload: CatalogChangedPayload): void {
+  const safe: CatalogChangedPayload = {
+    reason: payload.reason === 'snapshot' ? 'snapshot' : 'stock',
+    revision:
+      typeof payload.revision === 'string' && /^[a-f0-9]{64}$/.test(payload.revision)
+        ? payload.revision
+        : null
+  }
+
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) {
+      continue
+    }
+    try {
+      window.webContents.send(IPC_CHANNELS.catalogChanged, safe)
+    } catch {
+      // A teardown race in one renderer must not stop delivery to the others.
+    }
+  }
+}
 
 export function registerCatalogIpcHandlers(services: ApplicationServices): void {
   ipcMain.handle(IPC_CHANNELS.catalogGetStatus, (_event, input: unknown) =>
@@ -49,7 +82,7 @@ export function registerCatalogIpcHandlers(services: ApplicationServices): void 
   )
   ipcMain.handle(IPC_CHANNELS.catalogSearchProducts, (_event, input: unknown) =>
     handleIpcRequest(input, catalogSearchProductsInputSchema, (value) =>
-      services.catalog.searchProducts(value)
+      services.stockView.searchPage(value)
     )
   )
   ipcMain.handle(IPC_CHANNELS.catalogGetProduct, (_event, input: unknown) =>
@@ -57,9 +90,15 @@ export function registerCatalogIpcHandlers(services: ApplicationServices): void 
       services.catalog.getProduct(value.uuid)
     )
   )
+  ipcMain.handle(IPC_CHANNELS.catalogGetProductForSale, (_event, input: unknown) =>
+    handleIpcRequest(input, catalogGetProductForSaleInputSchema, (value) =>
+      services.stockView.productForSale(value.uuid)
+    )
+  )
+
   ipcMain.handle(IPC_CHANNELS.catalogFindByBarcode, (_event, input: unknown) =>
     handleIpcRequest(input, catalogFindByBarcodeInputSchema, (value) =>
-      services.catalog.findProductByBarcode(value.barcode)
+      services.stockView.barcodeForSale(value.barcode)
     )
   )
   ipcMain.handle(IPC_CHANNELS.catalogListPaymentMethods, (_event, input: unknown) =>

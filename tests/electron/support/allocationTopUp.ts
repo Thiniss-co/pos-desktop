@@ -89,6 +89,7 @@ export interface TopUpHarness {
   readonly saleCompletion: SaleCompletionService
   readonly calls: TopUpCall[]
   readonly diagnostics: string[]
+  readonly acquisition: AllocationAcquisitionService
 }
 
 const onlineSnapshot: ConnectivitySnapshot = {
@@ -130,6 +131,7 @@ export function buildTopUpHarness(params: {
 
   const acquisition = new AllocationAcquisitionService({
     database: params.database,
+    allocationDispatches: params.repositories.allocationDispatches,
     apiClient: {
       assertRequestPreconditions: (): void => {
         if (params.preconditionsFail) {
@@ -170,6 +172,7 @@ export function buildTopUpHarness(params: {
       now: () => new Date('2026-01-01T02:00:00.000Z')
     }),
     calls,
-    diagnostics
+    diagnostics,
+    acquisition
   }
 }

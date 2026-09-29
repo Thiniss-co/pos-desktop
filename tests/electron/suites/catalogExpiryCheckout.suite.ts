@@ -31,6 +31,7 @@ import { readCommitted } from '../support/committedState'
 import { openTestDatabase } from '../support/openTestDatabase'
 import { realRepositories, type RealRepositories } from '../support/realRepositories'
 import {
+  bootstrapResource,
   companyUuid,
   deviceUuid,
   methodUuid,
@@ -141,15 +142,83 @@ databaseTest(
 
       const outcome = localSale.complete('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', validIntent())
 
-      ok(outcome.outcome === 'failed')
-      equal(outcome.code, 'refresh-required')
+      ok(outcome.outcome === 'rejected')
+      equal(outcome.failureCode, 'catalog-superseded')
       assertNoBusinessWrites(sandbox)
-      // Non-terminal: the attempt stays claimed with its retained intent, so the cashier's cart is
-      // recoverable once the catalog is refreshed. It is not rejected into a dead key.
+      // POS reliability rev 3: an expired contract can never be sold against again (fixed
+      // valid_until, non-regressing trusted clock; a refresh installs a NEW revision). Keeping the
+      // attempt claimed stranded the till until an explicit abandon — proven by the pre-fix run of
+      // the disproof test below. It is now a terminal rejection with zero business writes; the
+      // cart itself stays in the renderer for review and a fresh attempt.
       equal(
-        readCommitted<{ state: string }>(sandbox, 'SELECT state FROM sale_attempts')[0]?.state,
-        'claimed'
+        readCommitted<{ state: string; failure_code: string }>(
+          sandbox,
+          'SELECT state, failure_code FROM sale_attempts'
+        )[0]?.state,
+        'rejected'
       )
+    } finally {
+      closeDatabase(database)
+    }
+  }
+)
+
+/**
+ * POS reliability rev 3 — the evidence behind the changed expectation above. Before the change this
+ * test asserted the old behaviour and PASSED: after refreshing to a newer catalog, retrying the SAME
+ * attempt still failed `refresh-required` and a new sale failed `attempt-blocked` — the rationale
+ * "the cart is recoverable once the catalog is refreshed" did not hold for the attempt, and the till
+ * stayed blocked until an explicit abandon. It now asserts the repaired behaviour.
+ */
+databaseTest(
+  'after a refresh, a superseded expired-catalog attempt stays terminal and a new sale commits',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    try {
+      const repositories = realRepositories(database)
+      let current = AFTER_EXPIRY
+      const { localSale } = setUpAuthorizedContext(database, repositories, () => current)
+      reValidateLicenseWithoutCatalogRefresh(repositories)
+
+      const staleKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      const first = localSale.complete(staleKey, validIntent())
+      ok(first.outcome === 'rejected')
+      equal(first.failureCode, 'catalog-superseded')
+
+      // "Refresh workstation data": a newer contract with a fresh window is installed.
+      const refreshed = bootstrapResource()
+      repositories.bootstrapSnapshot.persistSnapshot(
+        {
+          ...refreshed,
+          server_time: '2026-01-05T00:00:00+00:00',
+          products: (refreshed.products ?? []).map((product) => ({
+            ...product,
+            resolved_price: product.resolved_price
+              ? { ...product.resolved_price, valid_until: '2026-01-08T00:00:00+00:00' }
+              : null
+          })),
+          catalog_contract: {
+            ...refreshed.catalog_contract,
+            revision: 'b'.repeat(64),
+            generated_at: '2026-01-05T00:00:00+00:00',
+            valid_until: '2026-01-08T00:00:00+00:00'
+          }
+        },
+        '2026-01-05T00:00:01+00:00'
+      )
+      current = new Date('2026-01-05T01:00:00.000Z')
+
+      const retried = localSale.retry(staleKey)
+      const fresh = localSale.complete(
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        validIntent({ catalogRevision: 'b'.repeat(64) })
+      )
+
+      // Pre-fix (recorded 2026-09-29 against the unmodified service): retried → failed
+      // `refresh-required` and fresh → failed `attempt-blocked`, i.e. the till was stranded.
+      equal(retried.outcome, 'rejected')
+      equal((retried as { failureCode: string }).failureCode, 'catalog-superseded')
+      equal(fresh.outcome, 'committed')
     } finally {
       closeDatabase(database)
     }
@@ -167,8 +236,8 @@ databaseTest(
 
       const outcome = localSale.complete('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', validIntent())
 
-      ok(outcome.outcome === 'failed')
-      equal(outcome.code, 'refresh-required')
+      ok(outcome.outcome === 'rejected')
+      equal(outcome.failureCode, 'catalog-superseded')
       assertNoBusinessWrites(sandbox)
     } finally {
       closeDatabase(database)
@@ -188,8 +257,8 @@ databaseTest(
 
       const outcome = localSale.complete('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', trackedIntent())
 
-      ok(outcome.outcome === 'failed')
-      equal(outcome.code, 'refresh-required')
+      ok(outcome.outcome === 'rejected')
+      equal(outcome.failureCode, 'catalog-superseded')
       assertNoBusinessWrites(sandbox)
       // The grant itself is untouched and still active: the refusal consumed no rights.
       equal(
@@ -212,8 +281,8 @@ databaseTest('a sale exactly at catalog valid_until cannot commit', (sandbox) =>
 
     const outcome = localSale.complete('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', validIntent())
 
-    ok(outcome.outcome === 'failed')
-    equal(outcome.code, 'refresh-required')
+    ok(outcome.outcome === 'rejected')
+    equal(outcome.failureCode, 'catalog-superseded')
     assertNoBusinessWrites(sandbox)
   } finally {
     closeDatabase(database)
@@ -242,12 +311,12 @@ databaseTest(
       reValidateLicenseWithoutCatalogRefresh(repositories)
       const outcome = localSale.runPrepared(prepared)
 
-      ok(outcome.outcome === 'failed')
-      equal(outcome.code, 'refresh-required')
+      ok(outcome.outcome === 'rejected')
+      equal(outcome.failureCode, 'catalog-superseded')
       assertNoBusinessWrites(sandbox)
       equal(
         readCommitted<{ state: string }>(sandbox, 'SELECT state FROM sale_attempts')[0]?.state,
-        'claimed'
+        'rejected'
       )
     } finally {
       closeDatabase(database)

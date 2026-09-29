@@ -83,7 +83,10 @@ export function grant(
     lifecycleGeneration: 1,
     grantedQuantityMilli: 10_000,
     consumedQuantityMilli: 0,
-    remainingQuantityMilli: 10_000,
+    // The server always sends remaining = granted − consumed (StockAllocationResource), so a test
+    // that overrides either quantity gets a consistent envelope unless it sets remaining itself.
+    remainingQuantityMilli:
+      (overrides.grantedQuantityMilli ?? 10_000) - (overrides.consumedQuantityMilli ?? 0),
     consumeUntil: FAR_FUTURE,
     status: 'active',
     envelopeHash: HASH_64,

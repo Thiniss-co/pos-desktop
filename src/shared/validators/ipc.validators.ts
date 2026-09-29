@@ -10,6 +10,7 @@ import {
 import {
   checkoutAbandonAttemptInputSchema as checkoutAbandonAttemptContractSchema,
   checkoutAcknowledgeAttemptInputSchema as checkoutAcknowledgeAttemptContractSchema,
+  checkoutAttemptStatusInputSchema as checkoutAttemptStatusContractSchema,
   checkoutCompleteInputSchema as checkoutCompleteContractSchema,
   checkoutIntentSchema,
   checkoutPendingAttemptsInputSchema as checkoutPendingAttemptsContractSchema,
@@ -73,6 +74,7 @@ export const catalogRefreshInputSchema = z.undefined()
 export const catalogListCategoriesInputSchema = z.undefined()
 export const catalogSearchProductsInputSchema = catalogSearchInputSchema
 export const catalogGetProductInputSchema = catalogProductIdInputSchema
+export const catalogGetProductForSaleInputSchema = catalogProductIdInputSchema
 export const catalogFindByBarcodeInputSchema = catalogBarcodeInputSchema
 export const catalogListPaymentMethodsInputSchema = z.undefined()
 export const catalogSearchCustomersInputSchema = catalogCustomerSearchInputSchema
@@ -90,6 +92,7 @@ export const checkoutPendingAttemptsInputSchema = checkoutPendingAttemptsContrac
 export const checkoutRetryAttemptInputSchema = checkoutRetryAttemptContractSchema
 export const checkoutAbandonAttemptInputSchema = checkoutAbandonAttemptContractSchema
 export const checkoutAcknowledgeAttemptInputSchema = checkoutAcknowledgeAttemptContractSchema
+export const checkoutAttemptStatusInputSchema = checkoutAttemptStatusContractSchema
 /**
  * CP4: both preparation channels take an empty, strict object.
  *

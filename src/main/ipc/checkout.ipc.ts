@@ -1,15 +1,19 @@
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
-import type { CheckoutRecoveryState } from '@shared/contracts/checkout.contract'
+import type {
+  CheckoutAttemptStatus,
+  CheckoutRecoveryState
+} from '@shared/contracts/checkout.contract'
 import {
   checkoutAbandonAttemptInputSchema,
   checkoutAcknowledgeAttemptInputSchema,
+  checkoutAttemptStatusInputSchema,
   checkoutCompleteInputSchema,
   checkoutPendingAttemptsInputSchema,
   checkoutRetryAttemptInputSchema,
   checkoutValidateInputSchema
 } from '@shared/validators/ipc.validators'
-import type { PendingAttemptsResult } from '../services/localSale.service'
+import type { PendingAttemptsResult, RecoverySummary } from '../services/localSale.service'
 import type { ApplicationServices } from '../app/applicationServices'
 import { isPublicAppError } from '../http/apiError'
 import { ipcFailure } from '@shared/contracts/ipc.contract'
@@ -27,13 +31,17 @@ const unexpectedError = {
  * rows `LocalSaleService.pendingAttempts()` reads — `intent_json`, fingerprints, and origin columns
  * never cross the IPC boundary. Matches `checkoutRecoveryStateSchema` in `checkout.contract.ts`.
  */
-function toRecoveryState(result: PendingAttemptsResult): CheckoutRecoveryState {
+function toRecoveryState(
+  result: PendingAttemptsResult,
+  summarize: (row: NonNullable<PendingAttemptsResult['blockingAttempt']>) => RecoverySummary
+): CheckoutRecoveryState {
   return {
     blockingAttempt: result.blockingAttempt
       ? {
           attemptKey: result.blockingAttempt.attemptKey,
           state: 'claimed',
-          claimedAt: result.blockingAttempt.claimedAt
+          claimedAt: result.blockingAttempt.claimedAt,
+          recovery: summarize(result.blockingAttempt)
         }
       : null,
     unacknowledgedResults: result.unacknowledgedResults.map((row) => ({
@@ -97,8 +105,13 @@ export function registerCheckoutIpcHandlers(services: ApplicationServices): void
       return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
     }
 
-    return handleIpcRequest(input, checkoutAbandonAttemptInputSchema, ({ attemptKey }) =>
-      services.localSale.abandon(attemptKey)
+    return handleIpcRequest(
+      input,
+      checkoutAbandonAttemptInputSchema,
+      ({ attemptKey, acknowledgeLegacyUncertainty }) =>
+        services.localSale.abandon(attemptKey, {
+          acknowledgeLegacyUncertainty: acknowledgeLegacyUncertainty === true
+        })
     )
   })
 
@@ -122,7 +135,40 @@ export function registerCheckoutIpcHandlers(services: ApplicationServices): void
     }
 
     return handleIpcRequest(input, checkoutPendingAttemptsInputSchema, ({ limit, after }) =>
-      toRecoveryState(services.localSale.pendingAttempts(limit, after ?? null))
+      toRecoveryState(services.localSale.pendingAttempts(limit, after ?? null), (row) =>
+        services.localSale.recoverySummary(row)
+      )
+    )
+  })
+
+  // POS reliability rev 3: owner-scoped, read-only reconciliation after an IPC failure or a
+  // renderer recreation. Main stays authoritative; the renderer never infers "the sale failed".
+  ipcMain.handle(IPC_CHANNELS.checkoutAttemptStatus, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+
+    return handleIpcRequest(
+      input,
+      checkoutAttemptStatusInputSchema,
+      ({ attemptKey }): CheckoutAttemptStatus => {
+        const status = services.localSale.attemptStatus(attemptKey)
+        const inFlight = services.saleCompletion.isInFlight(attemptKey)
+
+        return {
+          attemptKey,
+          // A claim that main is still working on is reported as such; everything else is the
+          // durable row's state (or `unknown` for no row owned by this cashier).
+          state:
+            inFlight && (status.state === 'claimed' || status.state === 'unknown')
+              ? 'in-flight'
+              : status.state,
+          failureCode: status.failureCode,
+          ...(status.recovery ? { recovery: status.recovery } : {})
+        }
+      }
     )
   })
 }
