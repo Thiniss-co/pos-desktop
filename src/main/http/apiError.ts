@@ -1,5 +1,6 @@
 import {
   type ApiErrorEnvelope,
+  MAX_RETRY_AFTER_SECONDS,
   type PublicAppError,
   publicAppErrorSchema
 } from '@shared/contracts/api.contract'
@@ -275,4 +276,94 @@ export function redactSensitiveText(value: string): string {
 
 export function isPublicAppError(value: unknown): value is PublicAppError {
   return publicAppErrorSchema.safeParse(value).success
+}
+
+/** The HTTP statuses whose `Retry-After` header this client honors (RFC 9110 §10.2.3). */
+export const RETRY_AFTER_STATUSES: ReadonlySet<number> = new Set([429, 503])
+
+// RFC 9110 §5.6.7 IMF-fixdate, e.g. `Sun, 06 Nov 1994 08:49:37 GMT`. Only this form is accepted:
+// `Date.parse` alone also accepts bare years, negative numbers and local-time strings, and treating
+// any of those as a server instruction would be a guess.
+const IMF_FIXDATE_PATTERN =
+  /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/
+
+function parseImfFixdate(value: string | null | undefined): number | null {
+  const trimmed = value?.trim()
+
+  if (!trimmed || !IMF_FIXDATE_PATTERN.test(trimmed)) {
+    return null
+  }
+
+  const parsed = Date.parse(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * Parses an HTTP `Retry-After` header into whole seconds to wait.
+ *
+ * - delta-seconds (`/^\d+$/`) → that many seconds, honored in full up to
+ *   {@link MAX_RETRY_AFTER_SECONDS}; larger values are not a usable delay.
+ * - an IMF-fixdate → the seconds until that date, measured against the response's own `Date`
+ *   header when it is a valid IMF-fixdate (so a skewed local clock cannot shorten or stretch the
+ *   wait), otherwise against `nowMs`. A date at or before the reference → 0.
+ * - anything else (empty, negative, fractional, malformed, another date format) → `undefined`, and
+ *   the caller keeps its own backoff.
+ *
+ * Pure: the caller supplies `nowMs` (wall-clock epoch milliseconds).
+ */
+export function parseRetryAfter(
+  headerValue: string | null | undefined,
+  responseDateHeader: string | null | undefined,
+  nowMs: number
+): number | undefined {
+  const value = headerValue?.trim()
+
+  if (!value) {
+    return undefined
+  }
+
+  if (/^\d+$/.test(value)) {
+    const seconds = Number(value)
+    return Number.isSafeInteger(seconds) && seconds <= MAX_RETRY_AFTER_SECONDS ? seconds : undefined
+  }
+
+  const retryAt = parseImfFixdate(value)
+
+  if (retryAt === null) {
+    return undefined
+  }
+
+  const reference = parseImfFixdate(responseDateHeader) ?? nowMs
+
+  if (!Number.isFinite(reference)) {
+    return undefined
+  }
+
+  const seconds = Math.ceil((retryAt - reference) / 1000)
+
+  if (seconds <= 0) {
+    return 0
+  }
+
+  return Number.isSafeInteger(seconds) && seconds <= MAX_RETRY_AFTER_SECONDS ? seconds : undefined
+}
+
+/**
+ * Attaches the HTTP status and, when the header was usable, the server's `Retry-After` delay to an
+ * error produced for a 429 or 503 response. Every other status is returned unchanged.
+ */
+export function withRetryAfterDetails(
+  error: PublicAppError,
+  httpStatus: number,
+  retryAfterSeconds: number | undefined
+): PublicAppError {
+  if (!RETRY_AFTER_STATUSES.has(httpStatus)) {
+    return error
+  }
+
+  return publicAppErrorSchema.parse({
+    ...error,
+    httpStatus,
+    ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds })
+  })
 }

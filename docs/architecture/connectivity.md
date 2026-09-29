@@ -34,7 +34,8 @@ keep one unambiguous meaning each.
 **There is no healthy polling loop.** A healthy device issues exactly one /up probe at startup and
 then goes quiet: with hundreds of installed devices, a periodic health poll is pure, permanently
 scaling backend load that buys nothing an actual request would not already reveal. A fresh verdict
-is produced only when something is about to depend on it.
+is produced only when something is about to depend on it. (The one deliberate periodic request, the
+signed-in [device heartbeat](#device-heartbeat), is presence reporting, not a health poll.)
 
 A probe is issued when:
 
@@ -84,6 +85,84 @@ A 5xx is not a health verdict — it proves a transport path exists, so it refre
 timestamp only, and leaves the decision to a throttled /up probe when the state is not already
 `online`. `checkedAt` still reflects only an actual /up probe; `request_observed` never writes it, so
 each field keeps one unambiguous meaning.
+
+## Device heartbeat
+
+`POST /api/v1/desktop/device/heartbeat` is **the deliberate, presence-only exception to "no
+polling"**. It exists so the company dashboard can show which workstations are running while the
+cashier is idle — something no demand-driven request can report, because by definition nothing is
+being demanded. It is owned by the main process (`src/main/services/deviceHeartbeat.service.ts`,
+wired in `src/main/app/deviceHeartbeatWiring.ts`); the renderer can neither trigger nor observe it.
+
+It grants, denies and refreshes nothing: no local authority, license, permission or connectivity
+verdict is derived from its outcome. Its responses pass through `DesktopApiClient`, so they are
+observed by connectivity exactly like any other desktop request, and a session-ending answer ends
+the session through the client's existing `onAuthenticatedFailure` hook.
+
+**Signed-in only.** The endpoint is authenticated with the per-login desktop token
+(`Authorization: Bearer` + `X-Device-UUID`). With no cashier session there is no credential, so a
+logged-out device sends nothing and the dashboard shows it as last seen at logout. This is a known,
+accepted limitation. Eligibility — authenticated session, device UUID and token all present — is
+re-proven immediately before every send, and no request is ever made without a token. Page and shift
+state are irrelevant.
+
+| Rule | Value |
+| --- | --- |
+| First beat | Immediately when a session becomes eligible (login, or app start with a persisted session) |
+| Interval after success | 120 seconds, plus or minus 10 percent |
+| Minimum gap between request starts | 30 seconds, on every path |
+| Failure backoff (transport, 5xx, 429/503 without a usable Retry-After) | 15 s × 2^(n−1), capped at 600 s, randomized to [0.5, 1] of that window |
+| 429 / 503 with a valid `Retry-After` | Honored **in full** — no upper clamp (a 3-hour instruction waits 3 hours) |
+| 403-class denial or `DESKTOP_TOKEN_DEVICE_MISMATCH` | Slow probe every 15 minutes, plus or minus 10 percent |
+| Session-ending code (`SESSION_REVOKED`, `UNAUTHENTICATED`, ...) | Nothing further; the session hook ends the session |
+| In flight | At most one request; at most one timer |
+
+Every path that can send is bounded below by
+
+```text
+notBefore = max(lastStart + 30 s, retryAfterUntil, backoffUntil (backoff only), deniedProbeAt (denied only))
+```
+
+and only a *verified* access change while denied may lift the `deniedProbeAt` term (never the
+others).
+
+**Retry-After.** The central client parses `Retry-After` on every 429 and 503
+(`parseRetryAfter` in `src/main/http/apiError.ts`) and exposes it as
+`PublicAppError.retryAfterSeconds` alongside `httpStatus`. Delta-seconds are honored in full up to
+`Number.MAX_SAFE_INTEGER / 1000`; an IMF-fixdate is measured against the response's own `Date` header
+when present (so a skewed local clock cannot shorten the wait), otherwise against local time; a past
+date means 0; anything malformed or negative is ignored and the normal backoff applies. A wait longer
+than `setTimeout` allows (~24.8 days) is chained, never truncated. `Retry-After` and the 30-second
+floor survive logout/login — a new session cannot bypass a server instruction.
+
+**Nudges.** Resume and a connectivity transition into `online` may pull the next beat earlier, but
+only in active mode, and never below `notBefore`. During backoff, Retry-After or denial they change
+nothing.
+
+**Access changes.** `CommercialAccessPublisher.onPublished` is a hint, not proof. While denied, an
+early probe is sent only if a SHA-256 access fingerprint — session epoch, user/company/device binding,
+registered device status, bootstrap permission list, and the current sell/sync decisions — differs
+from the one recorded when the denial arrived. A connectivity-only denial is normalized out of the
+fingerprint, so going online or offline is never mistaken for an access change. The fingerprint is
+compared in memory only; it is never sent, logged or persisted.
+
+**Suspend and resume.** Suspend drops the timer handle and keeps every deadline. Resume re-arms at
+the stored deadlines and, in active mode only, requests an early probe (still ≥ `notBefore`).
+Backoff, Retry-After and denied deadlines are unchanged by a sleep. A request that was on the wire
+when the machine slept and then fails at transport does not escalate the backoff; it is rescheduled
+at the current level. All timing uses a monotonic clock (`performance.now()`): where that clock does
+not advance during sleep, a pending window is extended by the sleep duration — conservative, never
+earlier.
+
+**Sessions.** A new session epoch, or a change in eligibility, starts a new generation with a fresh
+backoff and an immediate first beat (still subject to `notBefore`). A response that belongs to an
+earlier generation — for example one that was in flight across logout/login — is ignored entirely.
+Shutdown clears the timer, unsubscribes the power-monitor and access listeners, and ignores late
+responses.
+
+Logs are categorical only, never a token, UUID or fingerprint:
+`[pos-heartbeat] event=... mode=... level=... next_in_s=...`. A healthy device logs its first beat
+and each recovery, not every beat.
 
 ## IPC and renderer behavior
 

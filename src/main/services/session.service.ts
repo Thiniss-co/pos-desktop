@@ -29,6 +29,12 @@ export interface SessionLifecycleDependencies {
   readonly database?: SessionTransactionRunner
   readonly epoch?: Pick<SessionEpochRepository, 'increment'>
   readonly observations?: Pick<ShiftObservationRepository, 'clear'>
+  /**
+   * Fired after the session was started, ended, or successfully refreshed. A scheduling hint for
+   * main-owned observers (the device heartbeat); it carries no data and grants nothing. It can
+   * never break the session transition: a throwing listener is swallowed.
+   */
+  readonly onChanged?: () => void
 }
 
 export class SessionService {
@@ -52,6 +58,7 @@ export class SessionService {
       this.dependencies.epoch?.increment()
       this.dependencies.observations?.clear()
     })
+    this.notifyChanged()
   }
 
   refreshSession(input: SessionEstablishInput): void {
@@ -66,18 +73,26 @@ export class SessionService {
         this.dependencies.observations?.clear()
       }
     })
+    this.notifyChanged()
   }
 
   endSession(): void {
     const wasAuthenticated = this.repository.getSummary().isAuthenticated
-    this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
-    this.runTransaction(() => {
-      this.repository.clear()
-      if (wasAuthenticated) {
-        this.dependencies.epoch?.increment()
-      }
-      this.dependencies.observations?.clear()
-    })
+
+    try {
+      this.secureStorage.deleteSecret(DESKTOP_ACCESS_TOKEN_KEY)
+      this.runTransaction(() => {
+        this.repository.clear()
+        if (wasAuthenticated) {
+          this.dependencies.epoch?.increment()
+        }
+        this.dependencies.observations?.clear()
+      })
+    } finally {
+      // Even a partially failed teardown may already have deleted the token, so observers are told
+      // to re-read state either way; the original error still propagates.
+      this.notifyChanged()
+    }
   }
 
   applyApiFailure(error: PublicAppError): void {
@@ -88,6 +103,14 @@ export class SessionService {
 
     if (isDeviceTransitionError(error.backendCode)) {
       this.runTransaction(() => this.dependencies.observations?.clear())
+    }
+  }
+
+  private notifyChanged(): void {
+    try {
+      this.dependencies.onChanged?.()
+    } catch {
+      // An observer must never be able to fail a session transition.
     }
   }
 

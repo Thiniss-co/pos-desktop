@@ -27,6 +27,8 @@ export function bootstrapApp(): void {
 
       registerIpcHandlers(services)
       services.connectivity.start()
+      // Presence-only heartbeat. Sends nothing unless a cashier session is valid.
+      services.deviceHeartbeat.start()
 
       // Drain anything left queued by a previous run. Deliberately after registerIpcHandlers, so a
       // reclaim or a pause is already observable by the time the renderer can ask for status. The

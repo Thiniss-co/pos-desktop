@@ -123,4 +123,96 @@ describe('SessionService', () => {
     expect(service.getSummary().isAuthenticated).toBe(true)
     expect(deletedKeys).toEqual([])
   })
+
+  describe('onChanged', () => {
+    const input = {
+      userName: 'Cashier',
+      userEmail: 'cashier@example.test',
+      userUuid: '11111111-1111-4111-8111-111111111111',
+      userIsActive: true,
+      companyUuid: '22222222-2222-4222-8222-222222222222',
+      deviceUuid: '33333333-3333-4333-8333-333333333333',
+      serverDeviceId: '44444444-4444-4444-8444-444444444444'
+    }
+
+    function serviceWith(
+      onChanged: () => void,
+      overrides: { establish?: () => void; clear?: () => void } = {}
+    ): SessionService {
+      return new SessionService(
+        {
+          getSummary: () => ({ isAuthenticated: true, userName: null, userEmail: null }),
+          getContext: () => ({
+            isAuthenticated: true,
+            userUuid: input.userUuid,
+            userIsActive: true,
+            companyUuid: input.companyUuid,
+            deviceUuid: input.deviceUuid,
+            serverDeviceId: input.serverDeviceId
+          }),
+          establish: overrides.establish ?? (() => undefined),
+          clear: overrides.clear ?? (() => undefined)
+        },
+        { deleteSecret: () => undefined },
+        { onChanged }
+      )
+    }
+
+    it('fires after start, successful refresh and end', () => {
+      const onChanged = vi.fn()
+      const service = serviceWith(onChanged)
+
+      service.startSession(input)
+      expect(onChanged).toHaveBeenCalledTimes(1)
+      service.refreshSession(input)
+      expect(onChanged).toHaveBeenCalledTimes(2)
+      service.endSession()
+      expect(onChanged).toHaveBeenCalledTimes(3)
+    })
+
+    it('fires on applyApiFailure only when it ends the session', () => {
+      const onChanged = vi.fn()
+      const service = serviceWith(onChanged)
+
+      service.applyApiFailure(publicError('DESKTOP_TOKEN_DEVICE_MISMATCH'))
+      expect(onChanged).not.toHaveBeenCalled()
+      service.applyApiFailure(publicError('SESSION_REVOKED'))
+      expect(onChanged).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not fire for a refresh or start that failed', () => {
+      const onChanged = vi.fn()
+      const service = serviceWith(onChanged, {
+        establish: () => {
+          throw new Error('disk full')
+        }
+      })
+
+      expect(() => service.refreshSession(input)).toThrow('disk full')
+      expect(() => service.startSession(input)).toThrow('disk full')
+      expect(onChanged).not.toHaveBeenCalled()
+    })
+
+    it('still fires when ending the session fails part-way, and the error propagates', () => {
+      const onChanged = vi.fn()
+      const service = serviceWith(onChanged, {
+        clear: () => {
+          throw new Error('disk full')
+        }
+      })
+
+      expect(() => service.endSession()).toThrow('disk full')
+      expect(onChanged).toHaveBeenCalledTimes(1)
+    })
+
+    it('never lets a throwing listener break the transition', () => {
+      const service = serviceWith(() => {
+        throw new Error('listener exploded')
+      })
+
+      expect(() => service.startSession(input)).not.toThrow()
+      expect(() => service.refreshSession(input)).not.toThrow()
+      expect(() => service.endSession()).not.toThrow()
+    })
+  })
 })

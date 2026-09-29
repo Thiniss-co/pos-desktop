@@ -8,7 +8,10 @@ import {
   isPublicAppError,
   normalizeHttpError,
   normalizeTransportError,
-  responseBodyNotJsonError
+  parseRetryAfter,
+  responseBodyNotJsonError,
+  RETRY_AFTER_STATUSES,
+  withRetryAfterDetails
 } from './apiError'
 import { parseApiEnvelope, unwrapApiEnvelope } from './apiEnvelope'
 import { createApiTracer, type ApiTracer } from './apiTrace'
@@ -106,6 +109,12 @@ export class DesktopApiClient {
     this.abortControllers.add(controller)
     let responseTraced = false
     let receivedHttpResponse = false
+    // Set only for a 429/503: the status plus the server's parsed `Retry-After` (if usable), so the
+    // thrown error carries the server's own wait instead of leaving callers to guess.
+    let retryAfterContext: {
+      readonly status: number
+      readonly seconds: number | undefined
+    } | null = null
 
     try {
       const response = await this.fetchImplementation(url, {
@@ -116,6 +125,18 @@ export class DesktopApiClient {
       })
       receivedHttpResponse = true
       this.reportRequestOutcome({ kind: 'http_response', status: response.status })
+
+      if (RETRY_AFTER_STATUSES.has(response.status)) {
+        retryAfterContext = {
+          status: response.status,
+          seconds: parseRetryAfter(
+            response.headers?.get('retry-after') ?? null,
+            response.headers?.get('date') ?? null,
+            Date.now()
+          )
+        }
+      }
+
       let payload: unknown
 
       try {
@@ -157,7 +178,14 @@ export class DesktopApiClient {
         this.reportRequestOutcome({ kind: 'transport_failure' })
       }
 
-      const publicError = isPublicAppError(error) ? error : normalizeTransportError(error)
+      const normalizedError = isPublicAppError(error) ? error : normalizeTransportError(error)
+      const publicError = retryAfterContext
+        ? withRetryAfterDetails(
+            normalizedError,
+            retryAfterContext.status,
+            retryAfterContext.seconds
+          )
+        : normalizedError
 
       if (route.requiresAuth) {
         this.dependencies.onAuthenticatedFailure?.(publicError)

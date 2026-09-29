@@ -13,6 +13,13 @@ export const publicAppErrorCategorySchema = z.enum([
 
 export const fieldErrorsSchema = z.record(z.string(), z.array(z.string()))
 
+/**
+ * The largest `Retry-After` delay, in whole seconds, that is still exact once converted to
+ * milliseconds. A server may legitimately ask for hours; anything past this bound is not a usable
+ * delay and is treated as absent (the caller then falls back to its own backoff).
+ */
+export const MAX_RETRY_AFTER_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000)
+
 export const publicAppErrorSchema = z
   .object({
     category: publicAppErrorCategorySchema,
@@ -22,7 +29,12 @@ export const publicAppErrorSchema = z
     fieldErrors: fieldErrorsSchema.optional(),
     traceId: z.string().optional(),
     httpStatus: z.number().int().min(100).max(599).optional(),
-    contentType: z.string().trim().min(1).max(200).optional()
+    contentType: z.string().trim().min(1).max(200).optional(),
+    /**
+     * Present only on an HTTP 429 or 503 whose `Retry-After` header was valid: the whole number of
+     * seconds the server asked the client to wait. Absent means "no usable server hint".
+     */
+    retryAfterSeconds: z.number().int().min(0).max(MAX_RETRY_AFTER_SECONDS).optional()
   })
   .strict()
 

@@ -442,4 +442,98 @@ describe('DesktopApiClient connectivity outcome reporting', () => {
       message: 'The desktop service refused the connection'
     })
   })
+  describe('Retry-After on 429 and 503', () => {
+    const heartbeatRoute = {
+      path: '/device/heartbeat',
+      method: 'POST' as const,
+      requiresAuth: true,
+      requiresDeviceUuid: true
+    }
+
+    function errorResponse(
+      status: number,
+      code: string,
+      headers: Record<string, string>
+    ): Response {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Slow down.', code, errors: [], meta: {} }),
+        { status, headers: { 'content-type': 'application/json', ...headers } }
+      )
+    }
+
+    function authenticatedClient(response: () => Response): DesktopApiClient {
+      return createClient({
+        getAccessToken: () => 'desktop-token',
+        getDeviceUuid: () => '00000000-0000-4000-8000-000000000001',
+        fetchImplementation: async () => response()
+      })
+    }
+
+    it('surfaces retryAfterSeconds and httpStatus for a 429 with delta-seconds', async () => {
+      const client = authenticatedClient(() =>
+        errorResponse(429, 'TOO_MANY_REQUESTS', { 'retry-after': '10800' })
+      )
+
+      await expect(client.request(heartbeatRoute)).rejects.toMatchObject({
+        category: 'transport',
+        retryable: true,
+        backendCode: 'TOO_MANY_REQUESTS',
+        httpStatus: 429,
+        retryAfterSeconds: 10_800
+      })
+    })
+
+    it('measures a 503 HTTP-date Retry-After against the response Date header', async () => {
+      const client = authenticatedClient(() =>
+        errorResponse(503, 'SERVICE_UNAVAILABLE', {
+          'retry-after': 'Tue, 29 Sep 2026 11:00:00 GMT',
+          date: 'Tue, 29 Sep 2026 10:30:00 GMT'
+        })
+      )
+
+      await expect(client.request(heartbeatRoute)).rejects.toMatchObject({
+        httpStatus: 503,
+        retryAfterSeconds: 1_800
+      })
+    })
+
+    it('keeps the status but omits retryAfterSeconds when the header is malformed or absent', async () => {
+      const headerSets: Record<string, string>[] = [{ 'retry-after': 'soon' }, {}]
+
+      for (const headers of headerSets) {
+        const client = authenticatedClient(() => errorResponse(429, 'TOO_MANY_REQUESTS', headers))
+        const error = await client.request(heartbeatRoute).catch((caught: unknown) => caught)
+
+        expect(error).toMatchObject({ httpStatus: 429 })
+        expect(error).not.toHaveProperty('retryAfterSeconds')
+      }
+    })
+
+    it('carries Retry-After on a non-JSON 503 maintenance page too', async () => {
+      const client = authenticatedClient(
+        () =>
+          new Response('<html>maintenance</html>', {
+            status: 503,
+            headers: { 'content-type': 'text/html', 'retry-after': '120' }
+          })
+      )
+
+      await expect(client.request(heartbeatRoute)).rejects.toMatchObject({
+        backendCode: 'response_body_not_json',
+        httpStatus: 503,
+        retryAfterSeconds: 120
+      })
+    })
+
+    it('ignores Retry-After on any other status', async () => {
+      const client = authenticatedClient(() =>
+        errorResponse(500, 'SERVER_ERROR', { 'retry-after': '120' })
+      )
+      const error = await client.request(heartbeatRoute).catch((caught: unknown) => caught)
+
+      expect(error).toMatchObject({ category: 'transport', backendCode: 'SERVER_ERROR' })
+      expect(error).not.toHaveProperty('retryAfterSeconds')
+      expect(error).not.toHaveProperty('httpStatus')
+    })
+  })
 })

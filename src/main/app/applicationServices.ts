@@ -103,6 +103,7 @@ import { ConnectivityService } from '../services/connectivity.service'
 import { broadcastConnectivityChanged } from '../ipc/connectivity.ipc'
 import { CommercialAccessPublisher } from '../ipc/license.ipc'
 import { broadcastSyncChanged } from '../ipc/sync.ipc'
+import { createDeviceHeartbeat, type DeviceHeartbeatHandle } from './deviceHeartbeatWiring'
 
 export interface ApplicationServices {
   readonly runtimeConfig: RuntimeConfig
@@ -139,6 +140,8 @@ export interface ApplicationServices {
   readonly receiptProfileAdmin: ReceiptProfileAdminService
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
+  /** Presence-only heartbeat; runs only while a cashier session is valid. */
+  readonly deviceHeartbeat: DeviceHeartbeatHandle
   readonly invoiceUploads: InvoiceUploadWorker
   readonly allocationRecoveries: AllocationRecoveryService
   /** CP4: the main-owned readiness projection and preparation cycle. */
@@ -207,10 +210,15 @@ export function createApplicationServices(): ApplicationServices {
     appVersion: app.getVersion()
   })
   const secureStorage = new SecureStorageService(secureSecrets, safeStorage)
+  // Assigned once the API client and access publisher exist (below).
+  let deviceHeartbeat: DeviceHeartbeatHandle | null = null
   const session = new SessionService(sessionMetadata, secureStorage, {
     database,
     epoch: sessionEpoch,
-    observations: shiftObservations
+    observations: shiftObservations,
+    onChanged: () => {
+      deviceHeartbeat?.notifySessionChanged()
+    }
   })
   let commercialAccessPublisher: CommercialAccessPublisher | null = null
   // Assigned once the upload worker exists; the connectivity service is constructed before it.
@@ -226,6 +234,7 @@ export function createApplicationServices(): ApplicationServices {
     },
     onChange: (snapshot) => {
       broadcastConnectivityChanged(snapshot)
+      deviceHeartbeat?.notifyConnectivity(snapshot)
       commercialAccessPublisher?.publishCurrent()
 
       if (snapshot.status === 'online') {
@@ -276,6 +285,18 @@ export function createApplicationServices(): ApplicationServices {
     connectivity
   })
   commercialAccessPublisher = new CommercialAccessPublisher(commercialAccess)
+  const heartbeat = createDeviceHeartbeat({
+    apiClient,
+    session: sessionMetadata,
+    sessionEpoch,
+    secrets: secureStorage,
+    deviceIdentity: deviceIdentityRepository, // read-only get(); never getOrCreate()
+    permissions: bootstrapSnapshot,
+    deviceRegistration: deviceRegistrationRepository,
+    commercialAccess,
+    accessPublisher: commercialAccessPublisher
+  })
+  deviceHeartbeat = heartbeat
   const catalogReadAccess = new CatalogReadAccessService({
     identity: deviceIdentityRepository,
     deviceRegistration: deviceRegistrationRepository,
@@ -811,6 +832,7 @@ export function createApplicationServices(): ApplicationServices {
     receiptProfileAdmin,
     companyUsers,
     connectivity,
+    deviceHeartbeat: heartbeat,
     invoiceUploads,
     allocationRecoveries,
     preparation,
@@ -833,6 +855,7 @@ export function createApplicationServices(): ApplicationServices {
       unsubscribeAccessTrigger()
       unsubscribeRecoveryAccessTrigger()
       unsubscribePreparationTrigger()
+      heartbeat.dispose()
       invoiceUploads.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()

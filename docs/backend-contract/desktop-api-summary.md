@@ -38,7 +38,7 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 | `GET /api/v1/desktop/auth/me` | Protected | Current session/user |
 | `POST /api/v1/desktop/auth/logout` | Protected | End session |
 | `GET /api/v1/desktop/bootstrap` | Protected | Initial/refresh data snapshot — full shape confirmed from Laravel source during Phase 2, see [bootstrap-license-contract.md](bootstrap-license-contract.md) |
-| `POST /api/v1/desktop/device/heartbeat` | Protected | Liveness/connectivity check (exact payload/response `TODO` — not called until a later phase's heartbeat timer) |
+| `POST /api/v1/desktop/device/heartbeat` | Protected | Presence heartbeat — no body; success code `DEVICE_HEARTBEAT_RECORDED`, `data` is the device resource (parsed leniently; unknown fields never fail a beat). Called by the main process only while a cashier session is valid, every 120 s ± 10% with backoff, `Retry-After` honored in full — see [connectivity.md](../architecture/connectivity.md#device-heartbeat) |
 | `POST /api/v1/desktop/license/validate` | Protected | License/subscription check — confirmed shape, see [bootstrap-license-contract.md](bootstrap-license-contract.md) |
 | `POST /api/v1/desktop/invoices/upload` | Protected | Upload a completed local sale/invoice |
 | `POST /api/v1/desktop/refunds/upload` | Protected | Upload a refund (must follow its invoice — see sync contract) |

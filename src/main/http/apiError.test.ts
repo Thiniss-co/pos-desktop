@@ -5,8 +5,11 @@ import {
   normalizeApiEnvelopeError,
   normalizeHttpError,
   normalizeTransportError,
-  redactSensitiveText
+  parseRetryAfter,
+  redactSensitiveText,
+  withRetryAfterDetails
 } from './apiError'
+import { MAX_RETRY_AFTER_SECONDS } from '@shared/contracts/api.contract'
 
 describe('API error normalization', () => {
   it('classifies rate limits as retryable transport failures', () => {
@@ -240,5 +243,102 @@ describe('API error normalization', () => {
         fieldErrors: { shift_uuid: ['A cancelled shift cannot receive an invoice upload.'] }
       })
     })
+  })
+})
+
+describe('parseRetryAfter', () => {
+  const now = Date.parse('2026-09-29T10:00:00.000Z')
+
+  it('honors delta-seconds in full, with no clamp', () => {
+    expect(parseRetryAfter('0', null, now)).toBe(0)
+    expect(parseRetryAfter('120', null, now)).toBe(120)
+    expect(parseRetryAfter('10800', null, now)).toBe(10_800)
+    expect(parseRetryAfter(' 30 ', null, now)).toBe(30)
+    expect(parseRetryAfter(String(MAX_RETRY_AFTER_SECONDS), null, now)).toBe(
+      MAX_RETRY_AFTER_SECONDS
+    )
+  })
+
+  it('treats delta-seconds past the exact millisecond bound as unusable', () => {
+    expect(parseRetryAfter(String(MAX_RETRY_AFTER_SECONDS + 1), null, now)).toBeUndefined()
+    expect(parseRetryAfter('9'.repeat(40), null, now)).toBeUndefined()
+  })
+
+  it.each([
+    null,
+    undefined,
+    '',
+    '   ',
+    '-5',
+    '1.5',
+    '+10',
+    '10s',
+    'soon',
+    '0x10',
+    '2026-09-29T11:00:00Z',
+    'Tue, 29 Sep 2026 11:00:00 +0000',
+    'Tuesday, 29-Sep-26 11:00:00 GMT',
+    'Tue Sep 29 11:00:00 2026',
+    'Tue, 29 Sep 2026 25:00:00 GMT'
+  ])('returns undefined for malformed or negative value %j', (value) => {
+    expect(parseRetryAfter(value, null, now)).toBeUndefined()
+  })
+
+  it('measures an HTTP-date against the local clock when there is no Date header', () => {
+    expect(parseRetryAfter('Tue, 29 Sep 2026 11:00:00 GMT', null, now)).toBe(3_600)
+    // Sub-second remainder rounds up, so the client never retries early.
+    expect(parseRetryAfter('Tue, 29 Sep 2026 10:00:01 GMT', null, now + 500)).toBe(1)
+  })
+
+  it('measures an HTTP-date against the response Date header, ignoring local clock skew', () => {
+    const skewedLocalNow = Date.parse('2026-09-29T10:59:00.000Z')
+
+    expect(
+      parseRetryAfter(
+        'Tue, 29 Sep 2026 13:00:00 GMT',
+        'Tue, 29 Sep 2026 10:00:00 GMT',
+        skewedLocalNow
+      )
+    ).toBe(10_800)
+  })
+
+  it('falls back to the local clock when the Date header is malformed', () => {
+    expect(parseRetryAfter('Tue, 29 Sep 2026 11:00:00 GMT', 'yesterday', now)).toBe(3_600)
+  })
+
+  it('returns 0 for an HTTP-date at or before the reference time', () => {
+    expect(parseRetryAfter('Tue, 29 Sep 2026 09:00:00 GMT', null, now)).toBe(0)
+    expect(
+      parseRetryAfter('Tue, 29 Sep 2026 10:00:00 GMT', 'Tue, 29 Sep 2026 10:00:00 GMT', now)
+    ).toBe(0)
+  })
+})
+
+describe('withRetryAfterDetails', () => {
+  const transport = normalizeHttpError(429)
+
+  it('adds httpStatus and retryAfterSeconds for 429 and 503', () => {
+    expect(withRetryAfterDetails(transport, 429, 60)).toMatchObject({
+      category: 'transport',
+      httpStatus: 429,
+      retryAfterSeconds: 60
+    })
+    expect(withRetryAfterDetails(transport, 503, 0)).toMatchObject({
+      httpStatus: 503,
+      retryAfterSeconds: 0
+    })
+  })
+
+  it('adds only httpStatus when the header was unusable', () => {
+    const result = withRetryAfterDetails(transport, 503, undefined)
+
+    expect(result.httpStatus).toBe(503)
+    expect(result).not.toHaveProperty('retryAfterSeconds')
+  })
+
+  it('leaves every other status untouched', () => {
+    const error = normalizeHttpError(500)
+
+    expect(withRetryAfterDetails(error, 500, 60)).toBe(error)
   })
 })
