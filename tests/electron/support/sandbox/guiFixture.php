@@ -24,6 +24,12 @@ declare(strict_types=1);
  *   php guiFixture.php <backend-root> company-feature inventory:<0|1>
  *   php guiFixture.php <backend-root> stock-position <SKU>
  *   php guiFixture.php <backend-root> record-opening-stock <SKU>:<quantity>
+ *   php guiFixture.php <backend-root> product-image <SKU>:<1|2|3|remove>
+ *
+ * Product images (owner UX plan P8). `product-image` gives the product a generated image (variant
+ * 1–3: distinct colours and sizes) or removes it, through `StoreProductImageAction` and
+ * `ChangeProductImageAction` at the product's current image revision — the actions behind the owner
+ * image endpoints. It never touches the product row.
  *
  * Opening-stock journey support. `owner-permission` grants or revokes a permission on the
  * company_admin system role (as role management would) and clears the permission cache;
@@ -55,7 +61,10 @@ declare(strict_types=1);
 require __DIR__ . '/laravelSandboxGuard.php';
 
 use App\Models\User;
+use App\Modules\Catalog\Actions\ChangeProductImageAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
+use App\Modules\Catalog\Actions\StoreProductImageAction;
+use App\Modules\Catalog\Models\ProductImage;
 use App\Modules\Catalog\Actions\UpdateProductAction;
 use App\Modules\Catalog\Data\UpdateProductData;
 use App\Modules\Inventory\Actions\CreateInventoryAdjustmentAction;
@@ -90,7 +99,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -131,6 +140,9 @@ if ($operation === 'record-opening-stock' && preg_match('/^[A-Z0-9-]{1,40}:\d{1,
     sandboxRefuse('record-opening-stock needs <SKU>:<quantity>');
 }
 
+if ($operation === 'product-image' && preg_match('/^[A-Z0-9-]{1,40}:(1|2|3|remove)$/', $argument) !== 1) {
+    sandboxRefuse('product-image needs <SKU>:<1|2|3|remove>');
+}
 if (in_array($operation, ['assign-device', 'report', 'device', 'allocations', 'movements'], true)
     && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $argument) !== 1) {
     sandboxRefuse('a device uuid is required');
@@ -354,6 +366,25 @@ $result = match ($operation) {
             'stored_outcomes' => DB::table('owner_operation_requests')->where('company_id', $company->id)
                 ->orderBy('id')->get(['operation', 'response_status'])->map(fn ($row): array => (array) $row)->all(),
         ];
+    })(),
+    'product-image' => (function () use ($argument, $company, $actor): array {
+        [$sku, $variant] = explode(':', $argument);
+        $product = Product::query()->where('company_id', $company->id)->where('sku', $sku)->firstOrFail();
+        $revision = (int) (ProductImage::query()->where('product_id', $product->id)->value('revision') ?? 0);
+        $images = app(ChangeProductImageAction::class);
+        if ($variant === 'remove') {
+            return ['revision' => $images->remove($product, $revision)->revision, 'thumb_sha256' => null];
+        }
+        [$width, $height, $rgb] = ['1' => [480, 360, [200, 40, 40]], '2' => [360, 480, [40, 140, 60]], '3' => [400, 400, [40, 80, 200]]][$variant];
+        $image = imagecreatetruecolor($width, $height);
+        imagefill($image, 0, 0, imagecolorallocate($image, ...$rgb));
+        imagefilledellipse($image, intdiv($width, 2), intdiv($height, 2), intdiv($width, 2), intdiv($height, 2), imagecolorallocate($image, 250, 250, 250));
+        ob_start();
+        imagepng($image);
+        $assets = app(StoreProductImageAction::class)->execute($company->id, $actor->id, (string) ob_get_clean());
+        $saved = $images->set($product, $assets['display']->id, $assets['thumb']->id, $revision);
+
+        return ['revision' => $saved->revision, 'thumb_sha256' => $assets['thumb']->sha256, 'display_sha256' => $assets['display']->sha256];
     })(),
     'record-opening-stock' => (function () use ($argument, $company, $warehouse, $actor): array {
         [$sku, $quantity] = explode(':', $argument, 2);

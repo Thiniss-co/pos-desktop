@@ -418,3 +418,10 @@ test('the HTTP router never serves a .php path statically, even when refused', a
   assert.equal(result.response.status, 503)
   assert.equal(result.canary, false, 'public/index.php must never run around the guard')
 })
+
+refusalCase(
+  'the GUI fixture refuses a malformed product-image step',
+  'product-image needs <SKU>:<1|2|3|remove>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['product-image', 'COLA-CAN:9'] }
+)
