@@ -1,4 +1,14 @@
 import { ipcRenderer } from 'electron'
+import type {
+  AttemptsChanged,
+  DraftState,
+  InstallHoldReply,
+  InstallHoldRequest,
+  InstallHoldState,
+  InstallRelease,
+  WorkstationRefreshInput,
+  WorkstationRefreshResult
+} from '@shared/contracts/catalogInstall.contract'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type { OfflineSaleReadiness } from '@shared/contracts/offlineSaleReadiness.contract'
 import type { ActivationInput, ActivationResult } from '@shared/contracts/activation.contract'
@@ -150,6 +160,17 @@ export interface PosApi {
     ): Promise<IpcResult<CheckoutCompletionOutcome>>
     pendingAttempts(input: CheckoutPendingAttemptsInput): Promise<IpcResult<CheckoutRecoveryState>>
     attemptStatus(input: CheckoutAttemptStatusInput): Promise<IpcResult<CheckoutAttemptStatus>>
+    /** Rev 4 §9.1: main → renderer hint that claimed/committed attempts changed (no payload). */
+    onAttemptsChanged(listener: (change: AttemptsChanged) => void): () => void
+  }
+  /** Rev 4 §8 — the catalog-install lifecycle and the header "Refresh workstation". */
+  readonly catalogInstall: {
+    reportDraftState(state: DraftState): Promise<IpcResult<null>>
+    replyHold(reply: InstallHoldReply): Promise<IpcResult<null>>
+    holdStatus(input: { holdId: string }): Promise<IpcResult<{ state: InstallHoldState }>>
+    refreshWorkstation(input: WorkstationRefreshInput): Promise<IpcResult<WorkstationRefreshResult>>
+    onHold(listener: (request: InstallHoldRequest) => void): () => void
+    onRelease(listener: (release: InstallRelease) => void): () => void
   }
   readonly sync: {
     getStatus(): Promise<IpcResult<SyncStatus>>
@@ -380,7 +401,55 @@ export const posApi: PosApi = Object.freeze({
     pendingAttempts: (input: CheckoutPendingAttemptsInput) =>
       ipcRenderer.invoke(IPC_CHANNELS.checkoutPendingAttempts, input),
     attemptStatus: (input: CheckoutAttemptStatusInput) =>
-      ipcRenderer.invoke(IPC_CHANNELS.checkoutAttemptStatus, input)
+      ipcRenderer.invoke(IPC_CHANNELS.checkoutAttemptStatus, input),
+    onAttemptsChanged: (listener: (change: AttemptsChanged) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        const reason = (payload as { reason?: unknown } | null)?.reason
+        if (reason === 'settled' || reason === 'committed') {
+          listener({ reason })
+        }
+      }
+      ipcRenderer.on(IPC_CHANNELS.checkoutAttemptsChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.checkoutAttemptsChanged, subscription)
+    }
+  }),
+  catalogInstall: Object.freeze({
+    reportDraftState: (state: DraftState) => ipcRenderer.invoke(IPC_CHANNELS.posDraftState, state),
+    replyHold: (reply: InstallHoldReply) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogInstallHoldReply, reply),
+    holdStatus: (input: { holdId: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.catalogInstallHoldStatus, input),
+    refreshWorkstation: (input: WorkstationRefreshInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.workstationRefresh, input),
+    onHold: (listener: (request: InstallHoldRequest) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        const value = payload as Partial<InstallHoldRequest> | null
+        if (
+          value &&
+          typeof value.holdId === 'string' &&
+          (value.path === 'background' || value.path === 'manual' || value.path === 'stale') &&
+          (value.consentGeneration === null || typeof value.consentGeneration === 'number')
+        ) {
+          listener({
+            holdId: value.holdId,
+            path: value.path,
+            consentGeneration: value.consentGeneration
+          })
+        }
+      }
+      ipcRenderer.on(IPC_CHANNELS.catalogInstallHold, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.catalogInstallHold, subscription)
+    },
+    onRelease: (listener: (release: InstallRelease) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        const value = payload as Partial<InstallRelease> | null
+        if (value && typeof value.holdId === 'string' && typeof value.installed === 'boolean') {
+          listener({ holdId: value.holdId, installed: value.installed })
+        }
+      }
+      ipcRenderer.on(IPC_CHANNELS.catalogInstallRelease, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.catalogInstallRelease, subscription)
+    }
   }),
   sync: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.syncGetStatus),

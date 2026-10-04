@@ -67,6 +67,10 @@ const remainingLabel = computed<string | null>(() => {
     return t('offlineSale.remainingExpired')
   }
 
+  if (readiness.value?.noTimeLimit) {
+    return t('offlineSale.noTimeLimit')
+  }
+
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
@@ -77,7 +81,7 @@ const remainingLabel = computed<string | null>(() => {
 const limitingReasonLabel = computed<string | null>(() => {
   const reason = readiness.value?.limitingReason
 
-  if (!reason || reason === 'none') {
+  if (!reason || reason === 'none' || readiness.value?.noTimeLimit) {
     return null
   }
 

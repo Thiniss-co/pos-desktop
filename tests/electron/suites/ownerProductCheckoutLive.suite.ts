@@ -192,6 +192,7 @@ function noPhysicalPresenceAuthority(live: Live): void {
     live.harness.repositories.offlineSaleAuthorities.findUsable(
       live.context.company_uuid,
       live.context.device_uuid,
+      live.harness.repositories.bootstrapSnapshot.getWarehouse()?.warehouseUuid ?? null,
       new Date().toISOString()
     ),
     null,
@@ -415,9 +416,11 @@ liveTest(
 
     const staleKey = randomUUID()
     const stale = remember(await live.harness.completion.complete(staleKey, frozenIntent))
-    equal(stale.outcome, 'rejected')
-    equal((stale as { failureCode: string }).failureCode, 'catalog-superseded')
-    equal(attemptState(live, staleKey), 'rejected')
+    // Rev 4 §8.4: a cart built on a superseded revision is refused BEFORE any attempt is claimed
+    // (non-terminal `catalog-updated`, no row) — an install can never supersede a fresh payment.
+    equal(stale.outcome, 'failed')
+    equal((stale as { code: string }).code, 'catalog-updated')
+    equal(attemptState(live, staleKey), undefined)
     equal(localInvoice(live, staleKey).length, 0, 'never repriced or sold silently')
 
     const rebuiltKey = randomUUID()
@@ -432,7 +435,7 @@ liveTest(
     writeScenarioEvidence('C-catalog-change-rebuild', {
       outcome: 'passed',
       revisionChanged: true,
-      staleCart: { outcome: 'rejected', failureCode: 'catalog-superseded', localInvoices: 0 },
+      staleCart: { outcome: 'failed', code: 'catalog-updated', attemptRow: null, localInvoices: 0 },
       rebuiltCart: { outcome: 'committed', server: effects }
     })
   }
@@ -553,6 +556,7 @@ liveTest(
     await refresh(live)
     const authority = live.harness.repositories.offlineSaleAuthorities.findUsable(
       ...owner,
+      live.harness.repositories.bootstrapSnapshot.getWarehouse()?.warehouseUuid ?? null,
       new Date().toISOString()
     )
     ok(authority !== null, 'the server issued a physical-presence authority')
@@ -588,18 +592,23 @@ liveTest(
 )
 
 liveTest(
-  'E: a sale committed offline under physical presence while its reservation answer was lost reconciles in either order with one invoice and no duplicate grant',
+  'E: under a held physical-presence authority no reservation request is sent even when its answer would be lost; online and offline sales upload once with one movement each',
   'E-offline-before-reconciliation',
   async (live) => {
-    // One fresh product per order: a late grant from the first order legitimately stays spendable
-    // on this till, and would cover a second sale of the same product with no request at all.
+    // Rev 4 A1/P9/P13 changed this scenario. Before, a till HOLDING an authority still sent a
+    // foreground reservation request, and a lost answer blocked the sale (G0 "D1"). Now stock never
+    // authorizes a physical-presence sale, so no request is sent at all. The §14 transition — a claim
+    // stuck on a lost answer BEFORE the warehouse became physical presence, retried once the
+    // authority arrives, with the late grant ingested once — is staged live by the Playwright
+    // journey `stage9transition` (a fresh sandbox; this gate's register already holds an authority
+    // from scenario B, and the settled PP→allocation tail keeps it usable).
     const products = {
-      'upload-then-reconcile': ownerProduct(live, sku('OPE-1')),
-      'reconcile-then-upload': ownerProduct(live, sku('OPE-2'))
+      online: ownerProduct(live, sku('OPE-1')),
+      offline: ownerProduct(live, sku('OPE-2'))
     }
     fixtureOp(live.context, 'receive-stock', `${sku('OPE-1')}:10`)
     fixtureOp(live.context, 'receive-stock', `${sku('OPE-2')}:10`)
-    // Exposure (so a reservation is requested), then physical presence for the warehouse.
+    // Exposure (so a reservation COULD be requested), then physical presence for the warehouse.
     allocationMode(live, 'OPA-1', 'OPC-1', 'OPD-1', 'OPE-1', 'OPE-2')
     fixtureOp(live.context, 'mode-physical-presence')
     await signIn(live)
@@ -607,93 +616,51 @@ liveTest(
       live.harness.repositories.offlineSaleAuthorities.findUsable(
         live.context.company_uuid,
         live.context.device_uuid,
+        live.harness.repositories.bootstrapSnapshot.getWarehouse()?.warehouseUuid ?? null,
         new Date().toISOString()
       ) !== null
     )
 
     const results: Record<string, unknown> = {}
-    for (const order of ['upload-then-reconcile', 'reconcile-then-upload'] as const) {
-      const product = products[order]
+    for (const mode of ['online', 'offline'] as const) {
+      const product = products[mode]
       const stockBefore = liveBackendStock(product.uuid)?.quantityMilli ?? 0
       const attemptKey = randomUUID()
+      // The spy records every request that leaves the process; none may be a reservation.
       live.harness.spy.reset()
-      live.harness.spy.program({ kind: 'lose-acknowledgment' })
       equal(
         live.harness.repositories.stockAllocations.getCapability()?.state,
         'supported',
-        'precondition: the register can request reservations in physical-presence mode'
+        'precondition: the register could request reservations'
       )
-      const lost = await sell(live, product.uuid, 1, attemptKey)
-      equal(
-        topUpBodies(live.harness).length,
-        1,
-        'a reservation request was sent and its answer lost'
-      )
-      equal(lost.outcome, 'failed')
-      equal((lost as { code: string }).code, 'allocation-acquisition-unresolved')
-      const [recorded] = dispatchRows(live, attemptKey)
-      equal(recorded.state, 'dispatched')
-      const serverGrants = serverGrantsForKey(recorded.idempotency_key)
-      equal(serverGrants.length, 1, 'the server committed the reservation')
-
-      // Connectivity drops; the cashier retries. Existing authority permits the offline commit.
-      live.harness.setOnline(false)
-      const committed = remember(await live.harness.completion.retry(attemptKey))
-      equal(committed.outcome, 'committed')
+      live.harness.setOnline(mode === 'online')
+      const sold = await sell(live, product.uuid, 1, attemptKey)
+      equal(sold.outcome, 'committed')
+      equal(topUpBodies(live.harness).length, 0, 'no reservation request under a held authority')
+      equal(dispatchRows(live, attemptKey).length, 0, 'no dispatch evidence to reconcile')
       const [invoice] = localInvoice(live, attemptKey)
       equal(invoice.stock_authorization_policy, 'physical_presence')
-      equal(dispatchRows(live, attemptKey)[0].state, 'dispatched', 'still owned by the reconciler')
       const frozen = frozenFingerprint(live, invoice.local_uuid)
 
       live.harness.setOnline(true)
-      const runReconcile = async (): Promise<void> => {
-        live.harness.reconciler.requestRun()
-        await live.harness.reconciler.whenIdle()
-      }
-      if (order === 'upload-then-reconcile') {
-        await live.harness.uploads.run()
-        await runReconcile()
-      } else {
-        await runReconcile()
-        await live.harness.uploads.run()
-      }
-
+      await live.harness.uploads.run()
       equal(localInvoice(live, attemptKey)[0].sync_status, 'synced')
-      equal(dispatchRows(live, attemptKey)[0].state, 'granted')
       const effects = serverInvoiceEffects(invoice.local_uuid)
       equal(effects.invoices, 1, 'one server invoice')
       equal(effects.movements, 1, 'one stock movement')
       equal(effects.movedMilli, 1000)
       equal(liveBackendStock(product.uuid)?.quantityMilli, stockBefore - 1000)
-      equal(serverRequestsForKey(recorded.idempotency_key), 1)
-      deepEqual(serverGrantsForKey(recorded.idempotency_key), serverGrants, 'no duplicate grant')
-      equal(localGrantCount(live, serverGrants[0].uuid), 1, 'ingested exactly once')
       equal(frozenFingerprint(live, invoice.local_uuid), frozen, 'frozen payload unchanged')
-      const sends = topUpBodies(live.harness)
-      equal(sends.length, 2, 'the original send and one replay')
-      equal(sends[1], sends[0])
-      // The sale committed uncovered under physical presence before the grant arrived, so the late
-      // grant is an unconsumed reservation on this till, released later by the normal lifecycle.
-      const lateGrantSpendableMilli = live.harness.repositories.stockAllocations.spendableMilli(
-        serverGrants[0].uuid
-      )
-      equal(lateGrantSpendableMilli, serverGrants[0].granted_quantity_milli)
 
-      results[order] = {
-        lostAnswer: { outcome: 'failed', code: 'allocation-acquisition-unresolved' },
-        offlineRetry: { outcome: 'committed', stockAuthorizationPolicy: 'physical_presence' },
+      results[mode] = {
+        sale: { outcome: 'committed', stockAuthorizationPolicy: 'physical_presence' },
+        reservationRequests: 0,
+        dispatchRows: 0,
         after: {
           localSyncStatus: 'synced',
-          dispatchState: 'granted',
           server: effects,
           serverStockDeltaMilli: -1000,
-          serverRequests: 1,
-          serverGrants: 1,
-          localGrants: 1,
-          frozenPayloadUnchanged: true,
-          topUpSends: sends.length,
-          replayBodyIdentical: true,
-          lateGrantSpendableMilli
+          frozenPayloadUnchanged: true
         }
       }
     }

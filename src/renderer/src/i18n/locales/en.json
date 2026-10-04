@@ -329,7 +329,12 @@
           "policy-blocked": "This action is not currently authorized on this device or session.",
           "allocation-refused": "The server refused to reserve stock for an item in this sale (for example, it is no longer stock-tracked for this company). No sale was recorded. Retry, or cancel this payment and review the cart.",
           "allocation-integrity-blocked": "A stock reservation request for this sale is in a state that retrying cannot fix. No sale was recorded. Cancel this payment and contact support with the reference shown.",
-          "legacy-uncertainty-acknowledgement-required": "Cancelling this payment needs your explicit confirmation of the warning."
+          "legacy-uncertainty-acknowledgement-required": "Cancelling this payment needs your explicit confirmation of the warning.",
+          "clock-untrusted": "This computer's clock can't be trusted right now (it moved backwards or was never confirmed). No sale was recorded. Correct the date and time, reconnect, and retry this same sale.",
+          "offline-sale-authority-unavailable": "The offline selling window for this till has ended. No sale was recorded and your cart is kept. Reconnect so the till can renew automatically, then retry this same sale.",
+          "catalog-updating": "The catalog is being updated. Try again in a moment — nothing was recorded.",
+          "catalog-updated": "The catalog changed. Review the cart before paying — nothing was recorded.",
+          "legacy-uncertainty-unresolved": "This sale can't be completed, and it may have sent a stock reservation request that can't be identified. Cancel it with the confirmation below — its details are kept for support. No sale was recorded."
         }
       },
       "largeChange": "The change due is unusually large. Check the amount received."
@@ -408,8 +413,8 @@
       "asOf": "Warehouse figure as of {time}",
       "soldHere": "Sold here {count}",
       "reservedHere": "Reserved here {count}",
-      "notReservedOffline": "Not reserved on this till for offline sale",
-      "onlyReservedOffline": "Only {count} reserved on this till for offline sale"
+      "recorded": "Recorded {count}",
+      "noStockRecordYet": "No stock record yet"
     },
     "addToCart": "Add {name} to cart · {price}",
     "pagination": {
@@ -676,8 +681,13 @@
         "allocation-request-pending": {
           "title": "Stock reservation request awaiting the server's answer",
           "body": "The answer to this request was not received. It will be confirmed automatically; until then it is not treated as granted or refused."
+        },
+        "upload-held-by-predecessor": {
+          "title": "Completed sale held from upload",
+          "body": "This sale is saved on the workstation, but it cannot be uploaded yet: an earlier sale that used the same stock reservation was not accepted by the server. Sending it first would be refused, so it stays unchanged and is not sent. Other sales keep uploading. Give support both references."
         }
-      }
+      },
+      "heldBehind": "Waiting behind"
     }
   },
   "preparation": {
@@ -975,7 +985,14 @@
       "company-inactive": "the company account is inactive",
       "shift-not-open": "no shift is open",
       "unknown": "a restriction set by the server"
-    }
+    },
+    "notice": {
+      "clockTitle": "This computer's clock can't be trusted",
+      "clockBody": "It moved backwards or was never confirmed. You can keep adding items, but sales can't be completed until the date and time are corrected.",
+      "lapsedTitle": "Selling authorization needs renewing",
+      "lapsedBody": "Keep adding items — stock figures never stop a sale. Tracked items that no stock reservation covers can be completed once this till reconnects and renews its authorization."
+    },
+    "noTimeLimit": "No offline time limit"
   },
   "sales": {
     "title": "Sales",
@@ -1246,7 +1263,26 @@
       "openSync": "Open Sync",
       "dismiss": "Dismiss"
     },
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "workstationRefresh": {
+      "action": "Refresh workstation",
+      "pending": "Refreshing…",
+      "updating": "Updating catalog…",
+      "lastRefreshed": "Workstation data refreshed {time}",
+      "never": "Workstation data not refreshed yet",
+      "consentTitle": "Refresh with a sale in progress?",
+      "consentBody": "Workstation data will be updated. The current sale stays in the cart but must be reviewed before payment — prices on an open cart are never changed automatically.",
+      "consentConfirm": "Refresh and review",
+      "result": {
+        "installed": "Workstation data refreshed.",
+        "license-only": "License renewed; catalog unchanged.",
+        "payment-active": "Finish or cancel the current payment first.",
+        "draft-changed": "Your sale changed — refresh again.",
+        "busy": "The workstation is busy. Try again in a moment.",
+        "denied": "This workstation is not allowed to refresh right now.",
+        "failed": "Workstation data could not be refreshed. Check the connection and try again."
+      }
+    }
   },
   "receiptProfile": {
     "title": "Company receipt profile",

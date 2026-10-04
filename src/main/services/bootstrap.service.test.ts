@@ -149,6 +149,96 @@ describe('BootstrapService.refresh', () => {
     })
   })
 
+  it('refuses to install a snapshot for another company or device (Rev 4 §7.2 R8)', async () => {
+    const fixtureCompany = (desktopBootstrapFixture() as { company: { id: string } }).company.id
+    const owner = {
+      sessionEpoch: 1,
+      userUuid: '44444444-4444-4444-8444-444444444444',
+      userIsActive: true,
+      companyUuid: fixtureCompany,
+      deviceUuid: identity.deviceUuid,
+      serverDeviceId: '22222222-2222-4222-8222-222222222222',
+      branchUuid: null,
+      warehouseUuid: null
+    }
+    for (const current of [
+      { ...owner, companyUuid: '99999999-9999-4999-8999-999999999999' },
+      { ...owner, deviceUuid: '88888888-8888-4888-8888-888888888888' }
+    ]) {
+      let wrote = false
+      let published = false
+      const service = new BootstrapService(
+        createApiClient(bootstrapSuccessEnvelope()),
+        { get: () => identity },
+        syncAllowed,
+        {
+          persistSnapshot: (_resource, _fetchedAt, options) => {
+            options?.beforeWrite?.()
+            wrote = true
+            return { snapshotVersion: 'v', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+          }
+        },
+        () => {
+          published = true
+        },
+        undefined,
+        undefined,
+        undefined,
+        // The owner that was captured is the one still current: only the response is foreign.
+        { owner: () => current }
+      )
+
+      await expect(service.refresh()).rejects.toBeTruthy()
+      expect(wrote).toBe(false)
+      expect(published).toBe(false)
+    }
+  })
+
+  it('retries once past the second boundary when a same-second catalog conflicts', async () => {
+    let persists = 0
+    const service = new BootstrapService(
+      createApiClient(bootstrapSuccessEnvelope()),
+      { get: () => identity },
+      syncAllowed,
+      {
+        persistSnapshot: () => {
+          persists += 1
+          if (persists === 1) {
+            throw {
+              category: 'conflict',
+              backendCode: 'CATALOG_REVISION_CONFLICT',
+              retryable: false
+            }
+          }
+          return { snapshotVersion: 'v', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+        }
+      }
+    )
+
+    const result = await service.refresh()
+
+    expect(result.isComplete).toBe(true)
+    expect(persists).toBe(2)
+  })
+
+  it('does not retry any other persist failure', async () => {
+    let persists = 0
+    const service = new BootstrapService(
+      createApiClient(bootstrapSuccessEnvelope()),
+      { get: () => identity },
+      syncAllowed,
+      {
+        persistSnapshot: () => {
+          persists += 1
+          throw { category: 'rejected', backendCode: 'CATALOG_SNAPSHOT_OLDER', retryable: false }
+        }
+      }
+    )
+
+    await expect(service.refresh()).rejects.toMatchObject({ backendCode: 'CATALOG_SNAPSHOT_OLDER' })
+    expect(persists).toBe(1)
+  })
+
   it('completes bootstrap when loyalty points never expire', async () => {
     const service = new BootstrapService(
       createApiClient(bootstrapSuccessEnvelope({ loyalty: loyaltySettings(null) })),

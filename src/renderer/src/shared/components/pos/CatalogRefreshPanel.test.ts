@@ -181,4 +181,11 @@ describe('CatalogRefreshPanel', () => {
         .attributes('role')
     ).toBe('status')
   })
+
+  it('omits its own action when the host shows the header control (Rev 4 §13), keeping the notices', () => {
+    const wrapper = mountPanel({ showAction: false, stale: true, statusLabel: 'Catalog stale' })
+    expect(actions(wrapper)).toHaveLength(0)
+    expect(wrapper.text()).toContain('This catalog is stale')
+    expect(wrapper.text()).toContain('Catalog stale')
+  })
 })

@@ -48,7 +48,9 @@ const PHYSICAL_PRESENCE: OfflineSaleReadiness = {
   pendingUploadCount: 2,
   lastSuccessfulSyncAt: null,
   inventoryWarnings: [],
-  clockUntrusted: false
+  clockUntrusted: false,
+  physicalPresenceLapsed: false,
+  noTimeLimit: false
 }
 
 const ALLOCATION_ONLY: OfflineSaleReadiness = {

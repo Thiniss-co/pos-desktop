@@ -8,6 +8,7 @@
  * current shift once if nothing has yet — the shift pill must be truthful on every page, not only
  * after the POS page has mounted.
  */
+import WorkstationRefreshControl from '@renderer/app/shell/WorkstationRefreshControl.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -99,6 +100,7 @@ onBeforeUnmount(() => sync.dispose())
             syncPill.label
           }}</span>
         </div>
+        <WorkstationRefreshControl compact />
       </template>
     </NavDrawer>
     <ShiftDialogs />

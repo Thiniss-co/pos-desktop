@@ -1,4 +1,5 @@
 import type { ApplicationServices } from '../app/applicationServices'
+import { registerCatalogInstallIpcHandlers } from './catalogInstall.ipc'
 import { registerAuthIpcHandlers } from './auth.ipc'
 import { registerBootstrapIpcHandlers } from './bootstrap.ipc'
 import { registerCatalogIpcHandlers } from './catalog.ipc'
@@ -43,6 +44,7 @@ export function registerIpcHandlers(services: ApplicationServices): void {
   registerRefundsIpcHandlers(services)
   registerPrintingIpcHandlers(services)
   registerReceiptProfileIpcHandlers(services)
+  registerCatalogInstallIpcHandlers(services)
 
   hasRegisteredIpcHandlers = true
 }

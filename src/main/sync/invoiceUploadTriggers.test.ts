@@ -58,6 +58,7 @@ function buildWorker(options: { canSync: () => boolean }): {
     syncQueue: {
       reclaimExpiredUploadLeases: () => [],
       releaseDueRetries: () => {},
+      nextRetryDeadline: () => null,
       claimNextInvoiceUpload: () => {
         if (claimable.value <= 0) {
           return null

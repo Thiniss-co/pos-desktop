@@ -4,6 +4,11 @@ import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api
 import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import { licenseResourceSchema } from '../http/desktopResources.contract'
+import type {
+  OfflineSaleAuthorityRepository,
+  PublishedOfflineSaleAuthority
+} from '../repositories/offlineSaleAuthority.repository'
+import { OwnerChangedError, sameRenewalOwner, type RenewalOwner } from './renewalOwner'
 
 export const DESKTOP_LICENSE_JWT_KEY = 'desktop_license_jwt'
 
@@ -26,6 +31,38 @@ function licenseContractError(): PublicAppError {
   })
 }
 
+/** Rev 4 §10.1: one server-time sample, bracketed by monotonic readings taken around the request. */
+export interface ServerTimeSample {
+  readonly serverTime: string
+  readonly sentAtMono: number
+  readonly receivedAtMono: number
+}
+
+export interface LicenseServiceOptions {
+  /** The SQLite handle that owns the token, license metadata and authority tables. */
+  readonly database?: { transaction<T>(fn: () => T): () => T }
+  /** Rev 4 §7.1: reads the current owner; captured before the request, re-checked before writes. */
+  readonly owner?: () => RenewalOwner | null
+  readonly offlineSaleAuthorities?: Pick<OfflineSaleAuthorityRepository, 'observe'>
+  readonly monotonicNow?: () => number
+  readonly onServerTimeSample?: (sample: ServerTimeSample) => void
+}
+
+/** A 422 that names `offline_sale_contract_version`: an older backend that supports only v1. */
+export function isUnsupportedOfflineSaleVersion(error: unknown): boolean {
+  const candidate = error as { httpStatus?: number; fieldErrors?: Record<string, unknown> } | null
+  return Boolean(
+    candidate &&
+    typeof candidate === 'object' &&
+    candidate.fieldErrors &&
+    Object.hasOwn(candidate.fieldErrors, 'offline_sale_contract_version')
+  )
+}
+
+function ownerUnchanged(captured: RenewalOwner | null, current: RenewalOwner | null): boolean {
+  return captured === null && current === null ? true : sameRenewalOwner(captured, current)
+}
+
 function timestampValue(value: string): number {
   const timestamp = Date.parse(value)
 
@@ -37,15 +74,48 @@ function timestampValue(value: string): number {
 }
 
 export class LicenseService {
+  /**
+   * Rev 4 §6.3: negotiate the v2 authority representation. A backend that supports only v1 answers
+   * 422 on the field before any write; this client then retries once with v1 and remembers it for
+   * the rest of the process. A v1 authority carries no warehouse and is never selected for a sale.
+   */
+  private offlineSaleContractVersion: 1 | 2 = 2
+
   constructor(
     private readonly apiClient: DesktopApiClient,
     private readonly licenseMetadataRepository: LicenseMetadataWriter,
     private readonly secureStorage: LicenseSecureStorage,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    private readonly options: LicenseServiceOptions = {}
   ) {}
 
+  private async requestValidation(): Promise<{
+    response: unknown
+    sentAtMono: number
+    receivedAtMono: number
+  }> {
+    const monotonic = this.options.monotonicNow ?? (() => performance.now())
+
+    for (;;) {
+      const sentAtMono = monotonic()
+      try {
+        const response = await this.apiClient.request(DESKTOP_API_ROUTES.licenseValidate, {
+          offline_sale_contract_version: this.offlineSaleContractVersion
+        })
+        return { response, sentAtMono, receivedAtMono: monotonic() }
+      } catch (error) {
+        if (this.offlineSaleContractVersion === 2 && isUnsupportedOfflineSaleVersion(error)) {
+          this.offlineSaleContractVersion = 1
+          continue
+        }
+        throw error
+      }
+    }
+  }
+
   async validate(): Promise<LicenseStatus> {
-    const response = await this.apiClient.request(DESKTOP_API_ROUTES.licenseValidate)
+    const capturedOwner = this.options.owner?.() ?? null
+    const { response, sentAtMono, receivedAtMono } = await this.requestValidation()
     let resource: ReturnType<typeof licenseResourceSchema.parse>
     let status: LicenseStatus
 
@@ -93,8 +163,42 @@ export class LicenseService {
       )
     ).toISOString()
 
-    this.secureStorage.setSecret(DESKTOP_LICENSE_JWT_KEY, resource.token)
-    this.licenseMetadataRepository.setValidatedStatus(status, trustedTimeAnchor)
+    const published = (resource.offline_sale_authority ??
+      null) as PublishedOfflineSaleAuthority | null
+    const observedAtIso = currentTime.toISOString()
+
+    // Rev 4 §7.1: every write of this leg in ONE synchronous transaction whose first statement
+    // re-checks the owner. Logout, a different sign-in, a binding refresh or a reassignment that
+    // happened while the request was in flight discards the result; nothing is written.
+    const write = (): void => {
+      if (this.options.owner && !ownerUnchanged(capturedOwner, this.options.owner())) {
+        throw new OwnerChangedError()
+      }
+
+      this.secureStorage.setSecret(DESKTOP_LICENSE_JWT_KEY, resource.token)
+      this.licenseMetadataRepository.setValidatedStatus(status, trustedTimeAnchor)
+
+      if (published !== null && capturedOwner !== null && this.options.offlineSaleAuthorities) {
+        this.options.offlineSaleAuthorities.observe(
+          published,
+          capturedOwner.companyUuid,
+          capturedOwner.deviceUuid,
+          observedAtIso
+        )
+      }
+    }
+
+    if (this.options.database) {
+      this.options.database.transaction(write)()
+    } else {
+      write()
+    }
+
+    this.options.onServerTimeSample?.({
+      serverTime: status.serverTime,
+      sentAtMono,
+      receivedAtMono
+    })
 
     return status
   }

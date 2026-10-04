@@ -114,6 +114,41 @@ export const desktopUserContextResourceSchema = z
   })
   .passthrough()
 
+/**
+ * PS4 §6.2: one server-issued offline-sale authority, exactly as the backend published it.
+ *
+ * `.strict()` for the same reason every other bootstrap sub-schema is: a server field added without
+ * a desktop update must fail deliberately rather than be silently discarded. An authority is what
+ * permits selling without a stock quota, so a shape this client does not fully understand is
+ * precisely the thing it must not act on.
+ */
+export const offlineSaleAuthorityResourceSchema = z
+  .object({
+    id: z.uuid(),
+    mode: z.enum(['allocation_exclusive', 'physical_presence']),
+    policy_revision: z.number().int().positive(),
+    contract_version: z.number().int().positive(),
+    issued_at: z.string(),
+    not_before: z.string(),
+    not_after: z.string(),
+    authority_hash: z.string().length(64)
+  })
+  .strict()
+
+/**
+ * Rev 4 §6.3: the negotiated v2 representation adds the warehouse the authority was issued for.
+ * Still `.strict()`. A v1 block (an older backend answering the v1 fallback) parses with the v1
+ * schema and is stored without a warehouse, so it is never selected for a new sale.
+ */
+export const offlineSaleAuthorityV2ResourceSchema = offlineSaleAuthorityResourceSchema
+  .extend({ warehouse_uuid: z.uuid() })
+  .strict()
+
+export const publishedOfflineSaleAuthoritySchema = z.union([
+  offlineSaleAuthorityV2ResourceSchema,
+  offlineSaleAuthorityResourceSchema
+])
+
 export const licenseResourceSchema = z
   .object({
     token: z.string(),
@@ -130,7 +165,9 @@ export const licenseResourceSchema = z
         grace_ends_at: z.string().nullable()
       })
       .passthrough()
-      .nullable()
+      .nullable(),
+    // Rev 4 §7.2: present only when this client negotiated it on the license leg.
+    offline_sale_authority: publishedOfflineSaleAuthoritySchema.nullable().optional()
   })
   .passthrough()
 
@@ -271,27 +308,6 @@ const customerResourceSchema = z
     updated_at: z.string().nullable().optional()
   })
   .passthrough()
-
-/**
- * PS4 §6.2: one server-issued offline-sale authority, exactly as the backend published it.
- *
- * `.strict()` for the same reason every other bootstrap sub-schema is: a server field added without
- * a desktop update must fail deliberately rather than be silently discarded. An authority is what
- * permits selling without a stock quota, so a shape this client does not fully understand is
- * precisely the thing it must not act on.
- */
-export const offlineSaleAuthorityResourceSchema = z
-  .object({
-    id: z.uuid(),
-    mode: z.enum(['allocation_exclusive', 'physical_presence']),
-    policy_revision: z.number().int().positive(),
-    contract_version: z.number().int().positive(),
-    issued_at: z.string(),
-    not_before: z.string(),
-    not_after: z.string(),
-    authority_hash: z.string().length(64)
-  })
-  .strict()
 
 /**
  * One device-bound stock allocation envelope (backend `StockAllocationResource`). Bootstrap is
@@ -534,7 +550,7 @@ export const desktopBootstrapResourceSchema = z
     // key present and NULL means "you asked, and you currently hold none"; and a value means this
     // is the authority the server has issued. Collapsing absent and null would make an old backend
     // indistinguishable from an explicit revocation.
-    offline_sale_authority: offlineSaleAuthorityResourceSchema.nullable().optional(),
+    offline_sale_authority: publishedOfflineSaleAuthoritySchema.nullable().optional(),
     // r5 §0.1: present only when this request negotiated `refund_contract_version=1`. Its presence
     // is the ONLY evidence this app accepts that the backend enforces the confirmed refund
     // calculation on the write path -- never inferred from the invoice read model alone (see

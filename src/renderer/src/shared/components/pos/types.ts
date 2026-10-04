@@ -10,7 +10,12 @@
 
 import type { IconName } from '@renderer/shared/components/common/icons.generated'
 
-export type StockLevel = 'in-stock' | 'low-stock' | 'out-of-stock'
+/**
+ * `recorded` is a neutral, informational tone (Rev 4 §4.3): a zero, negative or missing warehouse
+ * figure, and every physical-presence figure. `out-of-stock` is reserved for the one stock rule that
+ * refuses a sale on this screen — a proven offline reservation shortfall in allocation mode.
+ */
+export type StockLevel = 'in-stock' | 'low-stock' | 'recorded' | 'out-of-stock'
 
 export interface DisplayProduct {
   id: string
@@ -30,11 +35,6 @@ export interface DisplayProduct {
   inCartQuantity?: string
   /** Full accessible name for the add action, e.g. "Add Cola Can to cart · EGP 15.00". */
   ariaLabel?: string
-  /**
-   * POS reliability rev 3: the only stock-based sale gate — set solely when the proven local
-   * spendable allocation cannot cover another unit while offline. The stock level is a tone only.
-   */
-  stockBlocked?: boolean
   /** Secondary, honestly labelled stock facts ("as of 14:05 · Sold here 2 · Reserved here 3"). */
   stockDetail?: string
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useWorkstationRefreshStore } from '@renderer/modules/catalogInstall/workstationRefresh.store'
+import { installHoldActive, waitForInstallHold } from '@renderer/modules/catalogInstall/installHold'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
@@ -41,6 +43,7 @@ import AppSegmented from '@renderer/shared/components/forms/AppSegmented.vue'
 import AppSelect from '@renderer/shared/components/forms/AppSelect.vue'
 import CartLineItem from '@renderer/shared/components/pos/CartLineItem.vue'
 import CatalogRefreshPanel from '@renderer/shared/components/pos/CatalogRefreshPanel.vue'
+import PhysicalPresenceNotice from '@renderer/modules/offlineSale/components/PhysicalPresenceNotice.vue'
 import CartPanel from '@renderer/shared/components/pos/CartPanel.vue'
 import CategorySelector from '@renderer/shared/components/pos/CategorySelector.vue'
 import OrderTotals from '@renderer/shared/components/pos/OrderTotals.vue'
@@ -73,6 +76,7 @@ type InvoiceDiscountSelection = 'none' | 'fixed' | 'percentage'
 const { t, te } = useI18n()
 const localeStore = useLocaleStore()
 const bootstrap = useBootstrapStore()
+const workstationRefresh = useWorkstationRefreshStore()
 const catalog = useCatalogStore()
 const cart = useCartStore()
 const shift = useShiftStore()
@@ -320,13 +324,12 @@ function displayProduct(product: CatalogProduct): DisplayProduct {
   const quantity = inCartQuantity.value.get(product.uuid)
   const stockInfo = stock(product)
   return {
-    stockBlocked: stockInfo.blocked,
-    stockDetail: stockInfo.blockedReason ?? stockInfo.detail ?? undefined,
+    stockDetail: stockInfo.detail ?? undefined,
     id: product.uuid,
     name: product.name,
     sku: product.sku ?? '—',
     price,
-    stock: stock(product).level,
+    stock: stockInfo.level,
     categoryId: product.categoryUuid,
     unit: product.unit ?? undefined,
     monogram: monogram(product.name),
@@ -917,6 +920,10 @@ function reportScan(
  * not-found, ambiguous, stale-catalog, and unavailable-catalog stay distinguishable.
  */
 async function addByCode(code: string, explicitMilli: number | null): Promise<void> {
+  // Rev 4 §8.2: a scan queued during a catalog install runs after the new contract is applied.
+  if (installHoldActive.value) {
+    await waitForInstallHold()
+  }
   const quantityMilli = explicitMilli ?? (pendingMultiplier.value ?? 1) * 1000
   const result = await catalog.findProductByBarcode(code)
 
@@ -940,14 +947,6 @@ async function addByCode(code: string, explicitMilli: number | null): Promise<vo
   }
 
   adoptInstalledContractForEmptyCart(result.revision)
-  if (!isOnline.value) {
-    const forSale = await catalog.getProductForSale(result.product.uuid)
-    const info = forSale ? stockFor(forSale.product, forSale.stock, quantityMilli) : null
-    if (info?.blocked) {
-      reportScan(code, 'warning', info.blockedReason ?? String(t('pos.stock.notReservedOffline')))
-      return
-    }
-  }
 
   if (!cart.addProduct(result.product, quantityMilli, result.revision)) {
     reportScan(code, 'error', cartError.value ?? String(t('pos.errors.CART_INVALID')))
@@ -1031,7 +1030,10 @@ function holdCurrentSale(): boolean {
   return true
 }
 
-function recallHeldSale(id: string): void {
+async function recallHeldSale(id: string): Promise<void> {
+  if (installHoldActive.value) {
+    await waitForInstallHold()
+  }
   if (!attemptSettled.value) {
     return
   }
@@ -1127,7 +1129,8 @@ function handleComplete(): void {
  * cashier the explicit rebuild-or-clear choice this page already implements.
  */
 function handleRefreshCatalog(): void {
-  void catalog.refresh()
+  // Rev 4 §8.3: every explicit refresh is the manual install path (consent with a sale in progress).
+  void workstationRefresh.request()
 }
 
 function recoveryKey(): string | null {
@@ -1136,7 +1139,7 @@ function recoveryKey(): string | null {
 
 function handleRetryAttempt(key: string | null = recoveryKey()): void {
   if (key) {
-    void payment.retryAttempt(key)
+    void payment.retryAttempt(key, undefined, () => cart.clear())
   }
 }
 
@@ -1349,13 +1352,10 @@ const isOnline = computed(() => connectivity.snapshot?.status === 'online')
 
 function stockFor(
   product: CatalogProduct,
-  view: (typeof stockViews.value)[string] | undefined,
-  requestedMilli?: number
+  view: (typeof stockViews.value)[string] | undefined
 ): ReturnType<typeof describeStock> {
   return describeStock(product.trackStock ? view : { kind: 'untracked' }, {
     online: isOnline.value,
-    inCartMilli: Math.round((inCartQuantity.value.get(product.uuid) ?? 0) * 1000),
-    requestedMilli,
     translate: (key, params) => String(t(key, params ?? {})),
     formatQuantity: (value) =>
       formatNumber(value, localeStore.locale as LocaleCode, { maximumFractionDigits: 3 }),
@@ -1370,6 +1370,9 @@ function stock(product: CatalogProduct): ReturnType<typeof describeStock> {
 }
 
 async function addSelectedProduct(uuid: string): Promise<void> {
+  if (installHoldActive.value) {
+    await waitForInstallHold()
+  }
   if (!canAddToCart.value) {
     return
   }
@@ -1378,9 +1381,6 @@ async function addSelectedProduct(uuid: string): Promise<void> {
     return
   }
   const quantityMilli = (pendingMultiplier.value ?? 1) * 1000
-  if (stockFor(forSale.product, forSale.stock, quantityMilli).blocked) {
-    return
-  }
   adoptInstalledContractForEmptyCart(forSale.revision)
   if (cart.addProduct(forSale.product, quantityMilli, forSale.revision)) {
     pendingMultiplier.value = null
@@ -1613,6 +1613,9 @@ watch(
   (saleId) => payment.bindSale(saleId),
   { immediate: true }
 )
+
+// Rev 4 §8: an open payment dialog is payment activity for the catalog-install gate.
+watch(paymentPanelOpen, (open) => payment.setPanelOpen(open), { immediate: true })
 watch(attemptProtected, (isProtected) => cart.setLocked(isProtected), { immediate: true })
 // Any cart change invalidates the preview synchronously: a stale "valid" can never enable Complete.
 watch(
@@ -1779,6 +1782,7 @@ onMounted(async () => {
           :status-label="catalogLine?.label ?? null"
           :status-tone="catalogLine?.tone ?? 'muted'"
           :refresh-note="t('pos.catalogLine.refreshNote')"
+          :show-action="false"
           @refresh="handleRefreshCatalog"
         >
           <template v-if="cartState.kind === 'invalid' && catalogUsableForDraft" #revision-action>
@@ -1787,6 +1791,7 @@ onMounted(async () => {
             </AppButton>
           </template>
         </CatalogRefreshPanel>
+        <PhysicalPresenceNotice />
 
         <!-- Shift state that limits selling (the lifecycle actions live in the top-bar menu). -->
         <template v-if="freshness !== 'loading'">

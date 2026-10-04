@@ -364,4 +364,30 @@ describe('ConnectivityService', () => {
     await vi.advanceTimersByTimeAsync(5_000)
     expect(fetchImplementation).toHaveBeenCalledTimes(5)
   })
+
+  it('offers the /up Date header as a server-time sample, never from a 5xx (Rev 4 §10.1)', async () => {
+    const samples: { serverTime: string; sentAtMono: number; receivedAtMono: number }[] = []
+    const dated = (status: number): Response =>
+      new Response(JSON.stringify({ status: 'up' }), {
+        status,
+        headers: { 'content-type': 'application/json', date: 'Wed, 30 Sep 2026 12:00:00 GMT' }
+      })
+    const healthy = createService({
+      fetchImplementation: vi.fn(async () => dated(200)) as typeof fetch,
+      onServerTimeSample: (sample) => samples.push(sample)
+    })
+    await healthy.checkNow()
+    expect(samples).toHaveLength(1)
+    expect(samples[0].serverTime).toBe('Wed, 30 Sep 2026 12:00:00 GMT')
+    expect(samples[0].receivedAtMono).toBeGreaterThanOrEqual(samples[0].sentAtMono)
+    healthy.shutdown()
+
+    const failing = createService({
+      fetchImplementation: vi.fn(async () => dated(503)) as typeof fetch,
+      onServerTimeSample: (sample) => samples.push(sample)
+    })
+    await failing.checkNow()
+    expect(samples).toHaveLength(1)
+    failing.shutdown()
+  })
 })

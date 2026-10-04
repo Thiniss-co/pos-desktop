@@ -287,3 +287,134 @@ refusalCase(
   },
   { script: GUI_FIXTURE, args: ['mode-physical-presence'] }
 )
+
+refusalCase(
+  'the GUI fixture refuses a permission outside the opening-stock allowlist',
+  'owner-permission needs <inventory.adjust|inventory.view|inventory.manage>:<0|1>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['owner-permission', 'catalog.manage:0'] }
+)
+
+refusalCase(
+  'the GUI fixture refuses switching any feature other than inventory',
+  'company-feature needs inventory:<0|1>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['company-feature', 'pos:0'] }
+)
+
+refusalCase(
+  'the GUI fixture refuses a malformed independent opening-stock write',
+  'record-opening-stock needs <SKU>:<quantity>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['record-opening-stock', 'cola;drop'] }
+)
+
+// ---------------------------------------------------------------------------------------------------
+// guardedHttpRouter.php: every HTTP request is refused (503) before Laravel loads when the serving
+// process's selection is not the approved sandbox; a `.php` path is never served as a static file.
+// ---------------------------------------------------------------------------------------------------
+
+const ROUTER = join(SANDBOX_DIR, 'guardedHttpRouter.php')
+
+async function freeRouterPort() {
+  const { createServer } = await import('node:net')
+
+  return await new Promise((resolvePort) => {
+    const server = createServer()
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address()
+      server.close(() => resolvePort(port))
+    })
+  })
+}
+
+async function routerRequest(prepare, path = '/api/v1/company-owner/opening-stock') {
+  const backend = createFakeBackend()
+  const sandbox = createSandbox()
+  const before = digest(sandbox.database)
+  mkdirSync(join(backend.root, 'public'))
+  writeFileSync(
+    join(backend.root, 'public/index.php'),
+    `<?php file_put_contents(${JSON.stringify(backend.canary)}, 'index');\n`
+  )
+  writeFileSync(join(backend.root, 'public/app.css'), 'body{}')
+  const environment = { ...approvedEnvironment(sandbox), POS_SANDBOX_BACKEND_ROOT: backend.root }
+  prepare(environment, sandbox)
+  for (const [name, value] of Object.entries(environment)) {
+    if (value === undefined) delete environment[name]
+  }
+
+  const port = await freeRouterPort()
+  const { spawn } = await import('node:child_process')
+  const server = spawn(
+    'php',
+    ['-S', `127.0.0.1:${port}`, '-t', join(backend.root, 'public'), ROUTER],
+    {
+      env: environment,
+      stdio: ['ignore', 'pipe', 'pipe']
+    }
+  )
+  let log = ''
+  server.stderr.on('data', (chunk) => (log += chunk))
+
+  try {
+    let response = null
+    for (let i = 0; i < 50 && response === null; i += 1) {
+      try {
+        response = await fetch(`http://127.0.0.1:${port}${path}`, {
+          method: path.endsWith('.css') ? 'GET' : 'POST'
+        })
+      } catch {
+        await new Promise((r) => setTimeout(r, 100))
+      }
+    }
+
+    return {
+      response,
+      log,
+      canary: existsSync(backend.canary),
+      databaseUnchanged: digest(sandbox.database) === before
+    }
+  } finally {
+    server.kill('SIGTERM')
+    rmSync(backend.root, { recursive: true, force: true })
+    rmSync(sandbox.root, { recursive: true, force: true })
+  }
+}
+
+test('the HTTP router refuses a business database name with 503 before Laravel loads', async () => {
+  const result = await routerRequest((environment) => {
+    environment.DB_DATABASE = 'thinis_pos'
+    environment.POS_SANDBOX_EXPECTED_DB = 'thinis_pos'
+  })
+  assert.equal(result.response.status, 503)
+  assert.equal(result.canary, false)
+  assert.equal(result.databaseUnchanged, true)
+  assert.match(result.log, /sandbox guard refused/)
+})
+
+test('the HTTP router refuses a mismatched database selection with 503', async () => {
+  const result = await routerRequest((environment) => {
+    environment.DB_DATABASE = '/tmp/does-not-matter.sqlite'
+  })
+  assert.equal(result.response.status, 503)
+  assert.equal(result.canary, false)
+  assert.match(result.log, /DB_DATABASE does not match the approved sandbox database/)
+})
+
+test('the HTTP router refuses when a configuration cache exists', async () => {
+  const result = await routerRequest((environment, sandbox) => {
+    writeFileSync(sandbox.configCache, '<?php return [];')
+  })
+  assert.equal(result.response.status, 503)
+  assert.equal(result.canary, false)
+  assert.match(result.log, /a Laravel configuration cache exists in the sandbox/)
+})
+
+test('the HTTP router never serves a .php path statically, even when refused', async () => {
+  const result = await routerRequest((environment) => {
+    environment.APP_ENV = 'local'
+  }, '/index.php')
+  assert.equal(result.response.status, 503)
+  assert.equal(result.canary, false, 'public/index.php must never run around the guard')
+})

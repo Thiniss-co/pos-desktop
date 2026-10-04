@@ -702,6 +702,48 @@ describe('usePaymentStore', () => {
     expect(store.completionPending).toBe(false)
   })
 
+  it("retryAttempt of the draft's own attempt clears the committed lines; another key never does", async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    let cleared = 0
+    const committedReplay: CheckoutCompletionOutcome = {
+      outcome: 'committed',
+      attemptKey: 'placeholder',
+      invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
+      items: [],
+      payments: [],
+      replay: false
+    }
+    const service = {
+      complete: async (key: string) => ({
+        outcome: 'failed' as const,
+        code: 'clock-untrusted' as const,
+        attemptKey: key
+      }),
+      attemptStatus: async (key: string) => ({
+        attemptKey: key,
+        state: 'claimed' as const,
+        failureCode: null
+      }),
+      retryAttempt: async (key: string) => ({ ...committedReplay, attemptKey: key })
+    }
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service as never
+    )
+    expect(store.completionOutcome?.outcome).toBe('failed')
+    expect(cleared).toBe(0)
+    const own = store.attemptKey as string
+
+    await store.retryAttempt('someone-elses-key', service, () => (cleared += 1))
+    expect(cleared).toBe(0)
+    await store.retryAttempt(own, service, () => (cleared += 1))
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(cleared).toBe(1)
+  })
+
   it('retryAttempt clears the blocking key on a successful commit', async () => {
     const store = usePaymentStore()
     const service: Pick<CheckoutRendererService, 'complete'> = {

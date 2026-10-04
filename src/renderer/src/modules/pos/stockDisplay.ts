@@ -5,21 +5,11 @@ export interface StockDisplay {
   readonly level: StockLevel
   readonly label: string
   readonly detail: string | null
-  /** True only when proven local spendability cannot cover another unit (offline allocation). */
-  readonly blocked: boolean
-  readonly blockedReason: string | null
 }
 
 export interface StockDisplayContext {
-  /** Main-reported connectivity is `online` (checkout can request a reservation). */
+  /** Main-reported connectivity is `online`; offline, "Reserved here" is shown even at zero. */
   readonly online: boolean
-  /** Quantity of this product already in the cart, in thousandths. */
-  readonly inCartMilli: number
-  /**
-   * The quantity about to be added (a scan with a multiplier), in thousandths. Without it the
-   * question is "can another sale of this product still be covered at all" (cards and rows).
-   */
-  readonly requestedMilli?: number
   readonly translate: (key: string, params?: Record<string, unknown>) => string
   readonly formatQuantity: (value: number) => string
   readonly formatTime: (iso: string) => string
@@ -35,14 +25,24 @@ function toMilli(value: string): number {
 }
 
 /**
+ * A negative figure keeps its minus sign on the left in RTL text ("-10", never "10-"): the number
+ * is wrapped in a left-to-right isolate, which is invisible and changes nothing in LTR text.
+ */
+function signedCount(milli: number, format: (value: number) => string): string {
+  const text = format(milli / 1000)
+  return milli < 0 ? `\u2066${text}\u2069` : text
+}
+
+/**
  * POS reliability rev 3 (Area 1) — pure presentation of the separated stock facts.
  *
  * - The warehouse figure is a dated snapshot ("as of"), never adjusted and never "in stock".
  * - "Sold here" and "Reserved here" are exact local facts, shown beside it, never subtracted.
- * - The only gate: allocation mode, not online, and the exact spendable allocation cannot cover
- *   what is already in the cart plus the requested quantity — the same rule the sale commit
- *   enforces (main remains authoritative; this only refuses earlier and explains why). Physical-presence and untracked
- *   products are never gated here; an unknown or stale snapshot is never a refusal rule.
+ * - Stock is information only: nothing here disables, dims or refuses a product, online or
+ *   offline, in any mode. Whether a sale may complete is decided once, by main, at commit.
+ * - Rev 4 §4.3: a warehouse quantity never dims, disables or turns a product red, in any mode. A
+ *   zero, negative or missing figure is the neutral `recorded` tone; physical presence is always
+ *   neutral ("Recorded 0 · Sold here 3 · as of 10:42", or "No stock record yet").
  */
 export function describeStock(
   view: ProductStockView | undefined,
@@ -53,33 +53,27 @@ export function describeStock(
     return {
       level: 'in-stock',
       label: t('pos.stock.notTracked'),
-      detail: null,
-      blocked: false,
-      blockedReason: null
+      detail: null
     }
   }
 
   const warehouseMilli = view.warehouse.quantity === null ? null : toMilli(view.warehouse.quantity)
-  // The warehouse figure is *unreserved* stock, so units reserved to this till are not in it. While
-  // a local reservation still covers another unit, a zero snapshot must not tone the card as "out".
-  const reservedAvailableMilli =
-    view.kind === 'allocation' && view.reservedHere !== null
-      ? toMilli(view.reservedHere) - context.inCartMilli
-      : 0
-  const level: StockLevel =
-    warehouseMilli === null
-      ? 'low-stock'
-      : warehouseMilli <= 0
-        ? reservedAvailableMilli > 0
-          ? 'low-stock'
-          : 'out-of-stock'
-        : warehouseMilli <= 5000
-          ? 'low-stock'
-          : 'in-stock'
-  const label =
-    warehouseMilli === null
+  const physicalPresence = view.kind === 'physical_presence'
+  const tone: StockLevel =
+    physicalPresence || warehouseMilli === null || warehouseMilli <= 0
+      ? 'recorded'
+      : warehouseMilli <= 5000
+        ? 'low-stock'
+        : 'in-stock'
+  const label = physicalPresence
+    ? warehouseMilli === null
+      ? t('pos.stock.noStockRecordYet')
+      : t('pos.stock.recorded', { count: signedCount(warehouseMilli, context.formatQuantity) })
+    : warehouseMilli === null
       ? t('pos.stock.noWarehouseRecord')
-      : t('pos.stock.warehouseSnapshot', { count: context.formatQuantity(warehouseMilli / 1000) })
+      : t('pos.stock.warehouseSnapshot', {
+          count: signedCount(warehouseMilli, context.formatQuantity)
+        })
 
   const details = [t('pos.stock.asOf', { time: context.formatTime(view.warehouse.asOf) })]
   const soldMilli = toMilli(view.soldHereUnderCatalog)
@@ -87,8 +81,6 @@ export function describeStock(
     details.push(t('pos.stock.soldHere', { count: context.formatQuantity(soldMilli / 1000) }))
   }
 
-  let blocked = false
-  let blockedReason: string | null = null
   if (view.kind === 'allocation' && view.reservedHere !== null) {
     const reservedMilli = toMilli(view.reservedHere)
     if (reservedMilli > 0 || !context.online) {
@@ -96,25 +88,7 @@ export function describeStock(
         t('pos.stock.reservedHere', { count: context.formatQuantity(reservedMilli / 1000) })
       )
     }
-    const available = reservedMilli - context.inCartMilli
-    blocked =
-      !context.online &&
-      (context.requestedMilli === undefined ? available <= 0 : available < context.requestedMilli)
-    if (blocked) {
-      blockedReason =
-        available > 0
-          ? t('pos.stock.onlyReservedOffline', {
-              count: context.formatQuantity(available / 1000)
-            })
-          : t('pos.stock.notReservedOffline')
-    }
   }
 
-  return {
-    level,
-    label,
-    detail: details.join(' · '),
-    blocked,
-    blockedReason
-  }
+  return { level: tone, label, detail: details.join(' · ') }
 }

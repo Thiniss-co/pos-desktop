@@ -132,6 +132,7 @@ export class StockViewService {
       this.dependencies.offlineSaleAuthorities.findUsable(
         owner.companyUuid,
         owner.deviceUuid,
+        warehouseUuid,
         trustedNow
       ) !== null
 

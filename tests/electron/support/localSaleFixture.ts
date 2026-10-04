@@ -20,7 +20,10 @@ import {
   originContextFingerprint,
   semanticIntentFingerprint
 } from '../../../src/main/services/localSale.fingerprint'
-import { LocalSaleService } from '../../../src/main/services/localSale.service'
+import {
+  LocalSaleService,
+  type LocalSaleDependencies
+} from '../../../src/main/services/localSale.service'
 import { SessionService } from '../../../src/main/services/session.service'
 import { ShiftAuthorityService } from '../../../src/main/services/shiftAuthority.service'
 import { StockAllocationService } from '../../../src/main/services/stockAllocation.service'
@@ -139,7 +142,9 @@ export function setUpAuthorizedContext(
   repositories: RealRepositories,
   now: () => Date = () => new Date('2026-01-01T02:00:00.000Z'),
   connectivityStatus: 'online' | 'offline' = 'online',
-  startNewSession = true
+  startNewSession = true,
+  /** Rev 4: extra production dependencies (authority store, trusted clock) for boundary suites. */
+  extraDependencies: Partial<LocalSaleDependencies> = {}
 ): AuthorizedFixture {
   // Guarded so a *second* process opening the same sandbox database rebuilds the same context
   // instead of colliding on the singleton identity row — a relaunched app reuses the device
@@ -279,7 +284,8 @@ export function setUpAuthorizedContext(
       },
       syncQueue: writeRepositories.syncQueue,
       allocationDispatches: writeRepositories.allocationDispatches,
-      now
+      now,
+      ...extraDependencies
     })
   }
 

@@ -17,6 +17,8 @@ function readiness(overrides: Partial<OfflineSaleReadiness> = {}): OfflineSaleRe
     lastSuccessfulSyncAt: null,
     inventoryWarnings: [],
     clockUntrusted: false,
+    physicalPresenceLapsed: false,
+    noTimeLimit: false,
     ...overrides
   }
 }

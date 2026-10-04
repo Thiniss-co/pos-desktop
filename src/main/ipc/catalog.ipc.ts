@@ -70,8 +70,10 @@ export function registerCatalogIpcHandlers(services: ApplicationServices): void 
       return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
     }
 
+    // Rev 4 §8.3: an explicit refresh is the manual install path. Without a consent generation the
+    // renderer admits the hold only for an empty draft; the header control supplies consent.
     return handleIpcRequest(input, catalogRefreshInputSchema, () =>
-      services.catalogRefresh.refresh()
+      services.installGate.withPath('manual', null, () => services.catalogRefresh.refresh())
     )
   })
 

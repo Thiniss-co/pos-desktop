@@ -78,6 +78,13 @@ export interface SyncQueueErrorDetails {
   readonly quarantineReasonContractError?: boolean
 }
 
+/** Rev 4 §10.2/§10.3: what the upload worker judges before a candidate may be leased. */
+export interface InvoiceUploadCandidate {
+  readonly localQueueUuid: string
+  readonly invoiceLocalUuid: string
+  readonly payloadJson: string
+}
+
 interface ClaimCandidateRow {
   readonly local_queue_uuid: string
   readonly local_aggregate_uuid: string
@@ -422,19 +429,25 @@ export class SyncQueueRepository {
    * Leases the next dispatchable invoice upload, or returns null when there is nothing due.
    *
    * One transaction does select-then-claim so two callers cannot lease the same row; the UPDATE is
-   * additionally guarded on `state = 'pending'`. Ordering is explicit and total
-   * (`created_at`, then `local_queue_uuid`) so the drain order is deterministic and a tie cannot
-   * depend on physical row order.
+   * additionally guarded on `state = 'pending'`. Ordering is explicit and total — the monotonic
+   * `queue_sequence` (commit order; Rev 4 §10.3 — never the wall-clock `created_at`), then
+   * `created_at` and `local_queue_uuid` for a row without one — so the drain order is deterministic
+   * and cannot depend on physical row order or a clock adjustment.
+   *
+   * `accept` (Rev 4 §10.2/§10.3) is judged synchronously inside the same transaction, in that order:
+   * a candidate it refuses is skipped **unchanged** (no lease, no attempt count, no timestamp), and
+   * the next one is considered, so an unrelated invoice is never blocked behind a held one.
    *
    * `local_invoices.sync_status` and `sync_attempts` move in the same transaction as the queue row:
    * the two must never disagree about whether an upload is in flight.
    */
   claimNextInvoiceUpload(
     owner: SyncQueueUploadOwner,
-    nowIso: string = this.now()
+    nowIso: string = this.now(),
+    accept: (candidate: InvoiceUploadCandidate) => boolean = () => true
   ): ClaimedInvoiceUpload | null {
     return this.database.transaction((): ClaimedInvoiceUpload | null => {
-      const candidate = this.database
+      const candidates = this.database
         .prepare(
           `
             SELECT q.local_queue_uuid, q.local_aggregate_uuid, q.payload_json, q.payload_hash,
@@ -447,11 +460,18 @@ export class SyncQueueRepository {
               AND (q.next_attempt_at IS NULL OR q.next_attempt_at <= ?)
               AND i.company_uuid = ?
               AND i.device_uuid = ?
-            ORDER BY q.created_at ASC, q.local_queue_uuid ASC
-            LIMIT 1
+            ORDER BY q.queue_sequence IS NULL, q.queue_sequence ASC, q.created_at ASC,
+                     q.local_queue_uuid ASC
           `
         )
-        .get(nowIso, owner.companyUuid, owner.deviceUuid) as ClaimCandidateRow | undefined
+        .all(nowIso, owner.companyUuid, owner.deviceUuid) as ClaimCandidateRow[]
+      const candidate = candidates.find((row) =>
+        accept({
+          localQueueUuid: row.local_queue_uuid,
+          invoiceLocalUuid: row.local_aggregate_uuid,
+          payloadJson: row.payload_json
+        })
+      )
 
       if (!candidate) {
         return null
@@ -636,6 +656,29 @@ export class SyncQueueRepository {
    * startup reconciliation, and moving a foreign row's state is a cross-owner mutation even though
    * nothing is dispatched. The predicate is carried inside the UPDATE as well as the read.
    */
+  /**
+   * Rev 4 §10.5: the earliest persisted retry deadline strictly after `nowIso` for this owner's
+   * invoice uploads, or null. A deadline already due contributes nothing here — the drain that is
+   * running releases it — so a caller arming a timer from this can never arm a zero-delay loop.
+   */
+  nextRetryDeadline(owner: SyncQueueUploadOwner, nowIso: string = this.now()): string | null {
+    const row = this.database
+      .prepare(
+        `
+          SELECT MIN(q.next_attempt_at) AS next_at
+          FROM sync_queue q
+          JOIN local_invoices i ON i.local_uuid = q.local_aggregate_uuid
+          WHERE q.aggregate_type = 'invoice' AND q.operation = 'upload'
+            AND q.state = 'retryable_error'
+            AND q.next_attempt_at IS NOT NULL AND q.next_attempt_at > ?
+            AND i.company_uuid = ? AND i.device_uuid = ?
+        `
+      )
+      .get(nowIso, owner.companyUuid, owner.deviceUuid) as { next_at: string | null } | undefined
+
+    return row?.next_at ?? null
+  }
+
   releaseDueRetries(owner: SyncQueueUploadOwner, nowIso: string = this.now()): readonly string[] {
     return this.database.transaction((): readonly string[] => {
       const rows = this.database

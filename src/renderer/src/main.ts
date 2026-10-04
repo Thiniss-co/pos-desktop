@@ -16,6 +16,7 @@ import { i18n } from './i18n'
 import { applyLocaleToDocument, useLocaleStore } from './modules/preferences/locale.store'
 import { applyThemeToDocument, useThemeStore } from './modules/preferences/theme.store'
 import { useCartLayoutStore } from './modules/preferences/cartLayout.store'
+import { startCatalogInstallClient } from './modules/catalogInstall/installHold'
 
 const pinia = createPinia()
 
@@ -57,6 +58,8 @@ async function bootstrapRenderer(): Promise<void> {
   void useCartLayoutStore(pinia).initialize() // layout-only; never rejects, never blocks mount
 
   createApp(App).use(pinia).use(i18n).use(router).mount('#app')
+  // Rev 4 §8: the catalog-install hold client (draft reports, hold arming, apply-before-release).
+  startCatalogInstallClient(pinia)
 }
 
 void bootstrapRenderer()

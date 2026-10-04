@@ -14,6 +14,8 @@ const chip = computed(() => {
       return { variant: 'success' as const, icon: 'check_circle' as const }
     case 'low-stock':
       return { variant: 'warning' as const, icon: 'warning' as const }
+    case 'recorded':
+      return { variant: 'neutral' as const, icon: 'inventory' as const }
     default:
       return { variant: 'error' as const, icon: 'block' as const }
   }

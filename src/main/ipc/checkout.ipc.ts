@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import type {
   CheckoutAttemptStatus,
@@ -171,4 +171,18 @@ export function registerCheckoutIpcHandlers(services: ApplicationServices): void
       }
     )
   })
+}
+
+/** Rev 4 §9.1: main → renderer hint that claimed/committed attempts changed (no business payload). */
+export function broadcastAttemptsChanged(reason: 'settled' | 'committed'): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) {
+      continue
+    }
+    try {
+      window.webContents.send(IPC_CHANNELS.checkoutAttemptsChanged, { reason })
+    } catch {
+      // A teardown race in one renderer must not stop delivery to the others.
+    }
+  }
 }

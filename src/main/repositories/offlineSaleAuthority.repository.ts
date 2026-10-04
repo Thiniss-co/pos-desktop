@@ -14,6 +14,8 @@ export interface PublishedOfflineSaleAuthority {
   readonly not_before: string
   readonly not_after: string
   readonly authority_hash: string
+  /** Rev 4 §6.3: present only on the negotiated v2 representation. */
+  readonly warehouse_uuid?: string
 }
 
 function mapRow(row: Record<string, unknown>): OfflineSaleAuthorityRow {
@@ -28,6 +30,7 @@ function mapRow(row: Record<string, unknown>): OfflineSaleAuthorityRow {
     notBefore: row.not_before as string,
     notAfter: row.not_after as string,
     authorityHash: row.authority_hash as string,
+    warehouseUuid: (row.warehouse_uuid as string | null) ?? null,
     observedAt: row.observed_at as string,
     createdAt: row.created_at as string
   }
@@ -67,11 +70,41 @@ export class OfflineSaleAuthorityRepository {
     observedAtIso: string
   ): OfflineSaleAuthorityRow {
     const existing = this.findByUuid(published.id)
+    const publishedWarehouse = published.warehouse_uuid ?? null
 
     if (existing) {
-      // Deliberately touches `observed_at` and nothing else. An authority is immutable once issued;
-      // if the server ever republished different bytes under the same UUID, silently overwriting
-      // them would erase the evidence that the two disagreed.
+      // An authority is immutable once issued. If the server ever republished different bytes under
+      // the same UUID, silently overwriting them would erase the evidence that the two disagreed,
+      // so the disagreement is recorded (append-only) and the stored row is left untouched.
+      const immutableMatches =
+        existing.mode === published.mode &&
+        existing.policyRevision === published.policy_revision &&
+        existing.contractVersion === published.contract_version &&
+        existing.issuedAt === published.issued_at &&
+        existing.notBefore === published.not_before &&
+        existing.notAfter === published.not_after &&
+        existing.authorityHash === published.authority_hash
+
+      if (!immutableMatches) {
+        this.recordConflict(published, 'immutable_field_mismatch', observedAtIso)
+      } else if (
+        publishedWarehouse !== null &&
+        existing.warehouseUuid !== null &&
+        existing.warehouseUuid !== publishedWarehouse
+      ) {
+        this.recordConflict(published, 'warehouse_mismatch', observedAtIso)
+      } else if (publishedWarehouse !== null && existing.warehouseUuid === null) {
+        // Rev 4 §6.4 fill-once: the SERVER now names the warehouse of an authority this device
+        // stored before v2 existed — same UUID, same window, same revision, same hash. That is
+        // the server's statement, never an inference from this device's current assignment.
+        this.database
+          .prepare(
+            'UPDATE offline_sale_authorities SET warehouse_uuid = ? WHERE authority_uuid = ? AND warehouse_uuid IS NULL'
+          )
+          .run(publishedWarehouse, published.id)
+      }
+
+      // `observed_at` is a diagnostic and never a renewal (§14.3).
       this.database
         .prepare('UPDATE offline_sale_authorities SET observed_at = ? WHERE authority_uuid = ?')
         .run(observedAtIso, published.id)
@@ -83,8 +116,8 @@ export class OfflineSaleAuthorityRepository {
       .prepare(
         `INSERT INTO offline_sale_authorities (
            authority_uuid, company_uuid, device_uuid, mode, policy_revision, contract_version,
-           issued_at, not_before, not_after, authority_hash, observed_at, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           issued_at, not_before, not_after, authority_hash, observed_at, created_at, warehouse_uuid
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         published.id,
@@ -98,10 +131,24 @@ export class OfflineSaleAuthorityRepository {
         published.not_after,
         published.authority_hash,
         observedAtIso,
-        observedAtIso
+        observedAtIso,
+        publishedWarehouse
       )
 
     return this.findByUuid(published.id) as OfflineSaleAuthorityRow
+  }
+
+  private recordConflict(
+    published: PublishedOfflineSaleAuthority,
+    reason: 'immutable_field_mismatch' | 'warehouse_mismatch',
+    recordedAtIso: string
+  ): void {
+    this.database
+      .prepare(
+        `INSERT INTO offline_sale_authority_conflicts (authority_uuid, reason, published_json, recorded_at)
+         VALUES (?, ?, ?, ?)`
+      )
+      .run(published.id, reason, JSON.stringify(published), recordedAtIso)
   }
 
   findByUuid(authorityUuid: string): OfflineSaleAuthorityRow | null {
@@ -113,39 +160,87 @@ export class OfflineSaleAuthorityRepository {
   }
 
   /**
-   * The authority that currently permits physical-presence selling for this owner, or null.
+   * The authority that currently permits physical-presence selling for this owner in THIS warehouse,
+   * or null.
    *
    * Every term is required and none is inferred:
    *
    *  - owner-scoped to this company AND this device — an authority is bound to a device, so another
    *    workstation's cannot be borrowed;
-   *  - `mode = 'physical_presence'` — an `allocation_exclusive` authority permits nothing new;
-   *  - `contract_version = 3` — it must license the payload version this build emits;
-   *  - the interval is HALF-OPEN, `not_before <= now < not_after`, matching the server's own
-   *    acceptance predicate exactly. At precisely `not_after` the authority has expired.
+   *  - Rev 4 §6.4: issued for `warehouseUuid` (the attempt's origin warehouse) as the SERVER named it.
+   *    A row stored before the v2 representation has no warehouse and is never selected;
+   *  - `mode = 'physical_presence'` and `contract_version = 3`;
+   *  - the interval is HALF-OPEN, `not_before <= at < not_after`, compared as parsed instants (not
+   *    strings: `…:00Z` vs `…:00.500Z` must not decide a boundary).
    *
-   * Returning null is the ordinary, expected case and is never an error: it simply means this device
-   * behaves in legacy mode.
+   * Deterministic when several rows qualify: latest `not_after`, then latest `not_before`, then UUID.
+   * Which qualifying row is chosen never changes acceptance — the server verifies any row whose
+   * window covers `sold_at`.
    */
   findUsable(
     companyUuid: string,
     deviceUuid: string,
-    nowIso: string
+    warehouseUuid: string | null,
+    at: Date | string
   ): OfflineSaleAuthorityRow | null {
-    const row = this.database
+    if (warehouseUuid === null) {
+      return null
+    }
+
+    const atMs = typeof at === 'string' ? Date.parse(at) : at.getTime()
+
+    if (!Number.isFinite(atMs)) {
+      return null
+    }
+
+    const rows = this.database
       .prepare(
         `SELECT * FROM offline_sale_authorities
           WHERE company_uuid = ?
             AND device_uuid = ?
+            AND warehouse_uuid = ?
             AND mode = 'physical_presence'
-            AND contract_version = 3
-            AND not_before <= ?
-            AND not_after > ?
-          ORDER BY not_after DESC
-          LIMIT 1`
+            AND contract_version = 3`
       )
-      .get(companyUuid, deviceUuid, nowIso, nowIso) as Record<string, unknown> | undefined
+      .all(companyUuid, deviceUuid, warehouseUuid) as Record<string, unknown>[]
 
-    return row ? mapRow(row) : null
+    const usable = rows
+      .map(mapRow)
+      .map((row) => ({ row, from: Date.parse(row.notBefore), until: Date.parse(row.notAfter) }))
+      .filter(
+        ({ from, until }) =>
+          Number.isFinite(from) && Number.isFinite(until) && from <= atMs && atMs < until
+      )
+      .sort(
+        (a, b) =>
+          b.until - a.until ||
+          b.from - a.from ||
+          a.row.authorityUuid.localeCompare(b.row.authorityUuid)
+      )
+
+    return usable[0]?.row ?? null
+  }
+
+  /** The latest stored authority for this warehouse, usable or not (drives renewal scheduling). */
+  latestForWarehouse(
+    companyUuid: string,
+    deviceUuid: string,
+    warehouseUuid: string | null
+  ): OfflineSaleAuthorityRow | null {
+    if (warehouseUuid === null) {
+      return null
+    }
+
+    const rows = (
+      this.database
+        .prepare(
+          `SELECT * FROM offline_sale_authorities
+            WHERE company_uuid = ? AND device_uuid = ? AND warehouse_uuid = ?
+              AND mode = 'physical_presence' AND contract_version = 3`
+        )
+        .all(companyUuid, deviceUuid, warehouseUuid) as Record<string, unknown>[]
+    ).map(mapRow)
+
+    return rows.sort((a, b) => Date.parse(b.notAfter) - Date.parse(a.notAfter))[0] ?? null
   }
 }

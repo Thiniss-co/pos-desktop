@@ -172,10 +172,13 @@ export class CatalogService {
    * same non-regressing trusted clock every other commit guard uses, so a wall-clock rollback cannot
    * make an expired contract sellable again.
    */
-  resolveForSale(input: CheckoutResolutionInput): CheckoutResolution | null {
-    this.assertReadable()
+  resolveForSale(
+    input: CheckoutResolutionInput,
+    options: { readonly at?: Date } = {}
+  ): CheckoutResolution | null {
+    this.assertReadable(options.at)
 
-    if (!this.statusForEligibleContext().catalogValid) {
+    if (!this.statusForEligibleContext(options.at).catalogValid) {
       return null
     }
 
@@ -233,9 +236,9 @@ export class CatalogService {
     return customer
   }
 
-  private assertReadable(): CatalogSnapshot {
+  private assertReadable(at?: Date): CatalogSnapshot {
     this.readAccess.assertAllowed()
-    const status = this.statusForEligibleContext()
+    const status = this.statusForEligibleContext(at)
 
     if (!status.isReadable) {
       throw catalogError(
@@ -252,13 +255,14 @@ export class CatalogService {
     return snapshot
   }
 
-  private statusForEligibleContext(): CatalogStatus {
+  /** `at`: Rev 4 §5.2 — the caller's single trusted commit instant, instead of a fresh clock read. */
+  private statusForEligibleContext(at?: Date): CatalogStatus {
     const snapshot = this.repository.getSnapshot()
     if (!snapshot || !this.repository.isSnapshotIntact(snapshot)) {
       return unavailableStatus()
     }
 
-    const trustedTime = this.clock.now()
+    const trustedTime = at ? { now: at } : this.clock.now()
     if (!trustedTime) {
       return unavailableStatus()
     }

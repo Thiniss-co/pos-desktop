@@ -103,6 +103,22 @@ describe('useCartStore', () => {
     )
   })
 
+  it('re-applying the same new contract (a page remount) never un-flags the frozen draft', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+    store.addProduct(product())
+    const next = {
+      ...contract,
+      revision: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    }
+    store.setContract(next)
+    store.setContract(next)
+
+    expect(store.catalogChanged).toBe(true)
+    expect(store.cartState.kind).toBe('invalid')
+    expect(store.lines).toHaveLength(1)
+  })
+
   it('clears the invoice discount when the final line is removed', () => {
     const store = useCartStore()
     store.setContract(contract)

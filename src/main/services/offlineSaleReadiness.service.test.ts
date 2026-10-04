@@ -24,6 +24,7 @@ function authority(overrides: Partial<OfflineSaleAuthorityRow> = {}): OfflineSal
     // 12 hours after NOW.
     notAfter: '2026-09-12T00:00:00.000Z',
     authorityHash: 'a'.repeat(64),
+    warehouseUuid: OWNER.warehouseUuid,
     observedAt: '2026-09-11T00:00:00.000Z',
     createdAt: '2026-09-11T00:00:00.000Z',
     ...overrides
@@ -209,5 +210,48 @@ describe('PS6 offline sale readiness', () => {
     expect(readiness.mode).toBe('allocation_exclusive')
     expect(readiness.pendingUploadCount).toBe(0)
     expect(readiness.inventoryWarnings).toEqual([])
+  })
+
+  describe('physicalPresenceLapsed (Rev 4 §4.3)', () => {
+    function lapsedService(
+      latest: OfflineSaleAuthorityRow | null,
+      validatedAt: string | null
+    ): OfflineSaleReadinessService {
+      return new OfflineSaleReadinessService({
+        database: database({}),
+        offlineSaleAuthorities: { findUsable: () => null, latestForWarehouse: () => latest },
+        lastLicenseValidationAt: () => validatedAt,
+        trustedClock: { now: () => ({ now: NOW, rollbackDetected: false }) },
+        resolveOwner: () => OWNER
+      })
+    }
+    const expired = authority({ notAfter: '2026-09-11T06:00:00.000Z' })
+
+    it('is true when the warehouse had an authority and the server was not reached since it ended', () => {
+      const readiness = lapsedService(expired, '2026-09-11T01:00:00.000Z').read()
+      expect(readiness).toMatchObject({
+        mode: 'allocation_exclusive',
+        physicalPresenceLapsed: true
+      })
+    })
+
+    it('is false after a later validation issued nothing (the policy changed)', () => {
+      expect(lapsedService(expired, '2026-09-11T07:00:00.000Z').read().physicalPresenceLapsed).toBe(
+        false
+      )
+    })
+
+    it('is false without any authority for this warehouse, and while one is usable', () => {
+      expect(lapsedService(null, null).read().physicalPresenceLapsed).toBe(false)
+      expect(service({ authority: authority() }).read().physicalPresenceLapsed).toBe(false)
+    })
+  })
+
+  it('reports no time limit when the authority runs to the backend no-deadline instant', () => {
+    const readiness = service({
+      authority: authority({ notAfter: '2038-01-19T00:00:00.000Z' })
+    }).read()
+    expect(readiness).toMatchObject({ mode: 'physical_presence', noTimeLimit: true })
+    expect(service({ authority: authority() }).read().noTimeLimit).toBe(false)
   })
 })

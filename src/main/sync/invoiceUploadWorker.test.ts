@@ -58,6 +58,7 @@ function harness(
     syncQueue: {
       reclaimExpiredUploadLeases: vi.fn(() => []),
       releaseDueRetries: vi.fn(() => []),
+      nextRetryDeadline: vi.fn(() => null),
       claimNextInvoiceUpload: claims,
       countForeignPendingUploads: vi.fn(() => 0),
       getStatus: vi.fn((pausedReason: string | null = null) => ({

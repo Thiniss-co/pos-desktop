@@ -4,9 +4,11 @@ import { isPublicAppError } from '../http/apiError'
 import { payloadHash } from '../services/localSale.fingerprint'
 import type {
   ClaimedInvoiceUpload,
+  InvoiceUploadCandidate,
   SyncQueueRepository,
   SyncQueueUploadOwner
 } from '../repositories/syncQueue.repository'
+import type { UploadDependencyRepository } from '../repositories/uploadDependency.repository'
 import type { InvoiceUploadAccepted } from './invoiceUpload.client'
 import type { InvoiceUploadOutcomeRecorder } from './invoiceUploadOutcome'
 import { mapUploadFailure, type SyncPauseReason } from './invoiceUploadMapping'
@@ -16,6 +18,12 @@ const UPLOAD_LEASE_DURATION_MS = 60_000
 /** A payload whose hash no longer matches is never sent; this is how long before it is re-examined. */
 const INTEGRITY_HOLD_MS = 3_600_000
 const CONTRACT_FAILURE_DIAGNOSTIC_ATTEMPTS = 5
+/** Rev 4 §10.2: the server refuses `sold_at > received_at + 60 s`; 5 s of margin is kept. */
+export const V3_SEND_MARGIN_MS = 55_000
+/** Rev 4 §10.5: no timer is armed further out than this; the deadline is recomputed when it fires. */
+export const MAX_WAKE_MS = 300_000
+const SAMPLE_RETRY_INITIAL_MS = 30_000
+const SAMPLE_RETRY_MAX_MS = 300_000
 
 export interface InvoiceUploadWorkerSessionReader {
   getContext(): {
@@ -34,6 +42,16 @@ export interface InvoiceUploadWorkerDependencies {
   /** Dispatches one frozen payload. Injected so the worker can be driven without HTTP. */
   readonly upload: (payloadJson: string) => Promise<InvoiceUploadAccepted>
   readonly now?: () => Date
+  /**
+   * Rev 4 §10.2 v3 send gate. `lowerBound()` is the server-time lower bound (epoch ms) or null when
+   * no usable sample exists; `requestSample()` asks for one single-flight probe. Absent → no gate.
+   */
+  readonly timeGate?: {
+    lowerBound(): number | null
+    requestSample(): void
+  }
+  /** Rev 4 §10.3 allocation-chain dependencies. Absent → every candidate is independent. */
+  readonly uploadDependencies?: Pick<UploadDependencyRepository, 'evaluate'>
   readonly schedule?: (callback: () => void, delayMs: number) => () => void
   readonly log?: (line: string) => void
   readonly onStatusChanged?: () => void
@@ -70,6 +88,10 @@ export class InvoiceUploadWorker {
   private cancelTimer: (() => void) | null = null
   private pausedReason: SyncPauseReason | null = null
   private stopped = false
+  /** Per-drain, in memory only: the earliest time-deferral wake and whether a sample is awaited. */
+  private deferredWakeMs: number | null = null
+  private awaitingSample = false
+  private sampleRetryMs = SAMPLE_RETRY_INITIAL_MS
 
   constructor(private readonly dependencies: InvoiceUploadWorkerDependencies) {
     this.now = dependencies.now ?? ((): Date => new Date())
@@ -155,6 +177,9 @@ export class InvoiceUploadWorker {
       this.dependencies.syncQueue.releaseDueRetries(reconciliationOwner, nowIso)
     }
 
+    this.deferredWakeMs = null
+    this.awaitingSample = false
+
     while (!this.stopped) {
       const owner = this.authorize()
 
@@ -166,7 +191,8 @@ export class InvoiceUploadWorker {
 
       const claimed = this.dependencies.syncQueue.claimNextInvoiceUpload(
         owner,
-        this.now().toISOString()
+        this.now().toISOString(),
+        (candidate) => this.accept(candidate)
       )
 
       if (claimed === null) {
@@ -189,9 +215,127 @@ export class InvoiceUploadWorker {
     }
 
     this.reportForeignRows()
+    this.rearm()
     this.dependencies.onStatusChanged?.()
 
     return { uploaded, duplicates, failed, pausedReason: this.pausedReason }
+  }
+
+  /**
+   * Judged inside the claim transaction. A refusal leaves the row untouched — payload, hash,
+   * idempotency key, attempt count and `next_attempt_at` are exactly as committed.
+   */
+  private accept(candidate: InvoiceUploadCandidate): boolean {
+    const dependencies = this.dependencies.uploadDependencies
+    if (dependencies) {
+      const decision = dependencies.evaluate(candidate.invoiceLocalUuid)
+      if (!decision.eligible) {
+        this.log(
+          `upload-held ${candidate.localQueueUuid} ${decision.block}` +
+            (decision.predecessor ? ` after=${decision.predecessor.invoiceLocalUuid}` : '')
+        )
+        return false
+      }
+    }
+
+    const gate = this.dependencies.timeGate
+    if (!gate) {
+      return true
+    }
+
+    let version: unknown
+    let soldAt: unknown
+    try {
+      const payload = JSON.parse(candidate.payloadJson) as Record<string, unknown>
+      version = payload.client_contract_version
+      soldAt = payload.sold_at
+    } catch {
+      // The integrity check in dispatch() owns an unreadable payload.
+      return true
+    }
+
+    if (version !== 3) {
+      return true
+    }
+
+    const soldAtMs = typeof soldAt === 'string' ? Date.parse(soldAt) : Number.NaN
+    if (!Number.isFinite(soldAtMs)) {
+      return true
+    }
+
+    const lowerBound = gate.lowerBound()
+    if (lowerBound === null) {
+      // No usable estimate never authorizes a v3 send.
+      this.awaitingSample = true
+      return false
+    }
+
+    const earliest = soldAtMs - V3_SEND_MARGIN_MS
+    if (earliest > lowerBound) {
+      const wake = Math.max(1_000, earliest - lowerBound)
+      this.deferredWakeMs =
+        this.deferredWakeMs === null ? wake : Math.min(this.deferredWakeMs, wake)
+      this.log(`upload-time-deferred ${candidate.localQueueUuid} ${Math.round(wake)}ms`)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Rev 4 §10.5 / §10.5a: after every drain, re-arm the single timer to the earliest FUTURE deadline
+   * — a persisted retry, an in-memory time deferral, or a sample-refresh retry — capped at five
+   * minutes and recomputed when it fires. A paused worker arms nothing: authority, session and
+   * connectivity changes resume it through events, so a retry already due during a pause can never
+   * spin. Held dependencies contribute no deadline; their release events call `requestRun()`.
+   */
+  private rearm(): void {
+    if (this.stopped) {
+      return
+    }
+
+    const owner = this.pausedReason === null ? this.currentUploadOwner() : null
+    if (owner === null) {
+      this.cancelWake()
+      return
+    }
+
+    const deadlines: number[] = []
+    const nowMs = this.now().getTime()
+    const persisted = this.dependencies.syncQueue.nextRetryDeadline(
+      owner,
+      new Date(nowMs).toISOString()
+    )
+    if (persisted !== null) {
+      const at = Date.parse(persisted)
+      if (Number.isFinite(at)) {
+        deadlines.push(Math.max(1, at - nowMs))
+      }
+    }
+
+    if (this.deferredWakeMs !== null) {
+      deadlines.push(this.deferredWakeMs)
+    }
+
+    if (this.awaitingSample && this.dependencies.timeGate) {
+      this.dependencies.timeGate.requestSample()
+      deadlines.push(this.sampleRetryMs)
+      this.sampleRetryMs = Math.min(this.sampleRetryMs * 2, SAMPLE_RETRY_MAX_MS)
+    } else {
+      this.sampleRetryMs = SAMPLE_RETRY_INITIAL_MS
+    }
+
+    if (deadlines.length === 0) {
+      this.cancelWake()
+      return
+    }
+
+    this.scheduleWake(Math.min(Math.min(...deadlines), MAX_WAKE_MS))
+  }
+
+  private cancelWake(): void {
+    this.cancelTimer?.()
+    this.cancelTimer = null
   }
 
   /**
@@ -312,10 +456,7 @@ export class InvoiceUploadWorker {
       return 'paused'
     }
 
-    if (disposition.outcome.kind === 'retryable') {
-      this.scheduleWake(disposition.outcome.retryDelayMs)
-    }
-
+    // The retry deadline is persisted by the recorder; the end-of-drain recompute arms the timer.
     return 'failed'
   }
 

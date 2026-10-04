@@ -336,7 +336,13 @@ export const checkoutFailureCodeSchema = z.enum([
   // POS reliability rev 3 (allocation dispatch lifecycle).
   'allocation-refused',
   'allocation-integrity-blocked',
-  'legacy-uncertainty-acknowledgement-required'
+  'legacy-uncertainty-acknowledgement-required',
+  // Rev 4 (physical-presence integration).
+  'clock-untrusted',
+  'offline-sale-authority-unavailable',
+  'catalog-updating',
+  'catalog-updated',
+  'legacy-uncertainty-unresolved'
 ])
 
 /**
@@ -382,7 +388,8 @@ export const checkoutCompletionOutcomeSchema = z.discriminatedUnion('outcome', [
       outcome: z.literal('failed'),
       code: checkoutFailureCodeSchema,
       attemptKey: z.string().nullable(),
-      blockingAttemptKey: z.string().optional()
+      blockingAttemptKey: z.string().optional(),
+      underlyingCode: z.string().max(64).optional()
     })
     .strict()
 ])

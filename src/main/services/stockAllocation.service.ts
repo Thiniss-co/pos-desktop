@@ -168,11 +168,17 @@ export class StockAllocationService {
   ): AllocationSplitResult {
     // A successful bootstrap from an older backend explicitly records `unavailable`. It is not
     // safe to reuse grants retained from an earlier compatible snapshot as current authority.
-    if (this.repository.getCapability()?.state === 'unavailable') {
+    const capabilityUnavailable = this.repository.getCapability()?.state === 'unavailable'
+    if (capabilityUnavailable && !allowUncoveredRemainder) {
       return { ok: false, code: 'allocation-data-unavailable' }
     }
 
-    const grants = this.repository.usableGrantsForProduct(owner, productUuid, nowIso)
+    // Rev 4 A6: under a usable physical-presence authority an unavailable allocation capability
+    // must not block the sale. Retained grants from an earlier snapshot are still NOT reused as
+    // current authority — the whole line is simply uncovered.
+    const grants = capabilityUnavailable
+      ? []
+      : this.repository.usableGrantsForProduct(owner, productUuid, nowIso)
     const remainingMilliByAllocation = new Map(
       grants.map((grant) => [
         grant.allocationUuid,

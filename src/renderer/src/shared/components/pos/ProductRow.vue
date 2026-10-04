@@ -19,11 +19,8 @@ const emit = defineEmits<{ select: [] }>()
   <AppListRow
     interactive
     class="product-row"
-    :class="{
-      'product-row--disabled cursor-not-allowed opacity-60':
-        disabled || product.stockBlocked === true
-    }"
-    @click="!(disabled || product.stockBlocked === true) && emit('select')"
+    :class="{ 'product-row--disabled cursor-not-allowed opacity-60': disabled }"
+    @click="!disabled && emit('select')"
   >
     <span class="product-row__name min-w-0 flex-1 font-medium">{{ product.name }}</span>
     <span class="product-row__sku code text-xs text-muted">{{ product.sku }}</span>

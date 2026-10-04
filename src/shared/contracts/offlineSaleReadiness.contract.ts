@@ -91,9 +91,27 @@ export const offlineSaleReadinessSchema = z
      * Distinct from "expired": refusing to display a number is the correct answer when the clock
      * cannot be trusted, and inventing one from the wall clock is exactly what §14.3 forbids.
      */
-    clockUntrusted: z.boolean()
+    clockUntrusted: z.boolean(),
+    /**
+     * Rev 4 §4.3: this warehouse sells under physical presence, but no authority is usable right
+     * now and the server has not been reached since the last one ended (so it is not a policy
+     * change). Cards stay enabled; only the commit refuses uncovered tracked lines until renewal.
+     */
+    physicalPresenceLapsed: z.boolean().default(false),
+    /**
+     * The backend's offline time limits are switched off: the effective deadline is its
+     * "no deadline" instant (`OFFLINE_NO_DEADLINE`), so there is no countdown to show.
+     */
+    noTimeLimit: z.boolean().default(false)
   })
   .strict()
+
+/**
+ * The backend's "no deadline" instant (`App\Shared\Support\OfflineLimits::NO_DEADLINE`): issued while
+ * offline time limits are switched off. Just inside the MySQL TIMESTAMP range, so no storable sale can
+ * reach it.
+ */
+export const OFFLINE_NO_DEADLINE_MS = Date.parse('2038-01-19T00:00:00Z')
 
 export type OfflineSaleReadiness = z.infer<typeof offlineSaleReadinessSchema>
 export type OfflineSaleInventoryWarning = z.infer<typeof offlineSaleInventoryWarningSchema>

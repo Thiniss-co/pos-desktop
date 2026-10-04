@@ -393,7 +393,8 @@ describe('useSyncStore', () => {
           ownedByCurrentUser: true,
           lines: [{ productName: 'Cola Can', quantity: '1' }],
           sendCount: null,
-          nextAttemptAfter: null
+          nextAttemptAfter: null,
+          relatedReference: null
         }
       ],
       automaticReconciliation: [],

@@ -3,14 +3,22 @@ import type {
   AllocationAcquisitionOutcome,
   AllocationAcquisitionService
 } from './allocationAcquisition.service'
+import { isPublicAppError } from '../http/apiError'
 import type { LocalSaleOutcome, LocalSaleService, PreparedSale } from './localSale.service'
 
 export interface SaleCompletionDependencies {
   readonly localSale: Pick<
     LocalSaleService,
     'prepareCompletion' | 'prepareRetry' | 'runPrepared' | 'trackedDemand'
-  >
+  > &
+    Partial<Pick<LocalSaleService, 'hasUsableAuthority' | 'preliminaryInstant'>>
   readonly acquisition: Pick<AllocationAcquisitionService, 'acquire'>
+  /**
+   * Rev 4 §5.1: one single-flight license leg, used only when this attempt has no usable
+   * physical-presence authority and the workstation is online. It never touches the catalog.
+   */
+  readonly renewal?: { licenseLeg(reason: 'checkout'): Promise<unknown> }
+  readonly isOnline?: () => boolean
   readonly now?: () => Date
   /**
    * Fired after a sale actually commits, so the upload worker can drain the row that was just
@@ -79,6 +87,11 @@ export class SaleCompletionService {
   }
 
   /** `checkout:attempt-status`: whether main is still working on this key right now. */
+  /** Rev 4 §8: whether ANY completion is in flight (the install gate waits for it to settle). */
+  hasAnyInFlight(): boolean {
+    return this.inFlight.size > 0
+  }
+
   isInFlight(attemptKey: string): boolean {
     return this.inFlight.has(attemptKey)
   }
@@ -117,6 +130,50 @@ export class SaleCompletionService {
     return started
   }
 
+  /**
+   * Rev 4 §5.1 — preliminary eligibility at `t0`, synchronous. It only decides whether foreground
+   * acquisition is skipped; the business transaction re-checks the authority at its own fresh `t1`.
+   *  - `skip`: a usable physical-presence authority (or no trusted instant, which the transaction
+   *    refuses as `clock-untrusted` anyway) — acquisition would only delay or block;
+   *  - `renew`: none, but online — one license leg first (`renewThenCheck`);
+   *  - `acquire`: the legacy allocation path decides.
+   */
+  private preliminaryEligibility(
+    prepared: Extract<PreparedSale, { kind: 'ready' }>
+  ): 'skip' | 'renew' | 'acquire' {
+    const localSale = this.dependencies.localSale
+    if (!localSale.hasUsableAuthority || !localSale.preliminaryInstant) {
+      return 'acquire'
+    }
+
+    const t0 = localSale.preliminaryInstant()
+    if (t0 === null || localSale.hasUsableAuthority(prepared, t0)) {
+      return 'skip'
+    }
+
+    return this.dependencies.renewal && (this.dependencies.isOnline?.() ?? false)
+      ? 'renew'
+      : 'acquire'
+  }
+
+  /**
+   * True → skip the foreground acquisition. That is the case when the renewal produced a usable
+   * authority, and also when the leg could not reach the server at all (a transport failure): the
+   * till is then effectively offline, and — exactly as the acquisition itself does offline — no
+   * reservation request is sent into a dead network; the commit decides from local grants.
+   */
+  private async renewThenCheck(
+    prepared: Extract<PreparedSale, { kind: 'ready' }>
+  ): Promise<boolean> {
+    const leg = await this.dependencies.renewal?.licenseLeg('checkout')
+    if (isUnreachable(leg)) {
+      return true
+    }
+    const localSale = this.dependencies.localSale
+    const t0Fresh = localSale.preliminaryInstant?.() ?? null
+    return t0Fresh === null || (localSale.hasUsableAuthority?.(prepared, t0Fresh) ?? false)
+  }
+
   private async run(prepared: PreparedSale): Promise<LocalSaleOutcome> {
     if (prepared.kind === 'settled') {
       return prepared.outcome
@@ -124,8 +181,15 @@ export class SaleCompletionService {
 
     const trackedLines = this.dependencies.localSale.trackedDemand(prepared)
 
-    // An untracked-only cart never reaches the allocation endpoint at all.
-    if (trackedLines.length > 0) {
+    // An untracked-only cart never reaches the allocation endpoint at all. Rev 4 §5.1: nor does a
+    // cart whose origin warehouse holds a usable physical-presence authority — stock authorizes
+    // nothing there, so a foreground reservation must never delay or block the sale. Held grants
+    // are still drained first inside the commit transaction.
+    const eligibility = trackedLines.length > 0 ? this.preliminaryEligibility(prepared) : 'skip'
+    const skipAcquisition =
+      eligibility === 'renew' ? await this.renewThenCheck(prepared) : eligibility === 'skip'
+
+    if (trackedLines.length > 0 && !skipAcquisition) {
       const acquisition: AllocationAcquisitionOutcome = await this.dependencies.acquisition.acquire(
         {
           attemptKey: prepared.claimed.attemptKey,
@@ -185,4 +249,14 @@ export class SaleCompletionService {
 
     return outcome
   }
+}
+
+/** A license-leg result whose failure never reached the server (connection refused, timeout). */
+function isUnreachable(leg: unknown): boolean {
+  if (typeof leg !== 'object' || leg === null || (leg as { kind?: unknown }).kind !== 'transient') {
+    return false
+  }
+  const error = (leg as { error?: unknown }).error
+  // No HTTP status at all: the request never got an answer (a 5xx did reach the server).
+  return isPublicAppError(error) && error.category === 'transport' && error.httpStatus === undefined
 }

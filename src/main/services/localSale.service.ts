@@ -77,6 +77,9 @@ const NON_TERMINAL_FAILURE_CODES: ReadonlySet<LocalSaleFailure> = new Set([
   // never accept). Retry is withheld; the attempt stays claimed until explicitly cancelled.
   'allocation-integrity-blocked',
   'context-changed',
+  // Rev 4 §5: both leave the frozen intent intact and the attempt claimed; retry once true again.
+  'clock-untrusted',
+  'offline-sale-authority-unavailable',
   // Only the defensive branch: the SAME valid revision is installed but a line no longer resolves.
   // A superseded or expired contract is `catalog-superseded`, a terminal rejection (see below).
   'refresh-required'
@@ -109,6 +112,16 @@ export type LocalSaleFailure =
   | 'allocation-refused'
   | 'allocation-integrity-blocked'
   | 'legacy-uncertainty-acknowledgement-required'
+  // Rev 4 §5: the trusted commit instant is unavailable or a clock rollback was detected.
+  | 'clock-untrusted'
+  // Rev 4 §5.3: the physical-presence authority for this warehouse is missing or expired at `t1`.
+  | 'offline-sale-authority-unavailable'
+  // Rev 4 §8.4 pre-claim backstops: nothing is claimed; the cart reviews the new contract.
+  | 'catalog-updating'
+  | 'catalog-updated'
+  // Rev 4 §9 Rule L: a legacy-evidence attempt that cannot commit stays claimed with its intent
+  // until the explicit acknowledgement-cancel records the uncertainty.
+  | 'legacy-uncertainty-unresolved'
 
 export interface LocalSaleRejected {
   readonly outcome: 'rejected'
@@ -145,6 +158,8 @@ export interface LocalSaleFailed {
   readonly code: LocalSaleFailure
   readonly attemptKey: string | null
   readonly blockingAttemptKey?: string
+  /** Rev 4 §9 Rule L: the terminal code a legacy-evidence attempt would otherwise have received. */
+  readonly underlyingCode?: string
 }
 
 export type LocalSaleOutcome =
@@ -232,7 +247,24 @@ export interface LocalSaleDependencies {
    * with no repository there is no authority, so the commit path takes the legacy branch exactly as
    * it does today. Absence must mean legacy, never "assume permitted".
    */
-  readonly offlineSaleAuthorities?: Pick<OfflineSaleAuthorityRepository, 'findUsable'>
+  readonly offlineSaleAuthorities?: Pick<
+    OfflineSaleAuthorityRepository,
+    'findUsable' | 'latestForWarehouse'
+  >
+  /**
+   * Rev 4 §5.2: the trusted (non-regressing) clock. When present, the business transaction reads ONE
+   * fresh instant `t1` from it as its first statement and uses that same instant for commercial
+   * access, catalog validity, authority validity, grant expiry and `sold_at`. A null reading or a
+   * detected rollback refuses the commit (`clock-untrusted`, non-terminal). Absent → the plain
+   * `now` (tests and older wiring).
+   */
+  readonly trustedClock?: {
+    now(): { readonly now: Date; readonly rollbackDetected: boolean } | null
+  }
+  /**
+   * Rev 4 §8.4: the catalog-install gate. While a hold is active no new attempt is claimed.
+   */
+  readonly installGate?: { isHoldActive(): boolean }
   /**
    * Receipt-printing plan §D-2: optional so every existing test/wiring that constructs
    * `LocalSaleDependencies` without it keeps compiling and behaving identically -- absence simply
@@ -682,12 +714,31 @@ export class LocalSaleService {
     intent: CheckoutIntent
   ): PreparedSale {
     const owner: OwnerTuple = context
-    if (!this.dependencies.commercialAccess.evaluate('sell').allowed) {
-      return this.settledFailure('context-changed')
+    const access = this.dependencies.commercialAccess.evaluate('sell')
+    if (!access.allowed) {
+      // A detected clock rollback is its own non-terminal reason (Rev 4 C11), never `context-changed`.
+      return this.settledFailure(
+        access.reason === 'clock-untrusted' ? 'clock-untrusted' : 'context-changed'
+      )
     }
 
     if (!this.dependencies.permissions.hasPermission('pos.sell')) {
       return this.settledFailure('permission-denied')
+    }
+
+    // Rev 4 §8.4 pre-claim backstops (no row is written): a catalog install in progress, or an
+    // intent built on a revision other than the installed one. A new claim can therefore never be
+    // superseded by an install that happened after the cashier started paying.
+    if (this.dependencies.installGate?.isHoldActive()) {
+      return this.settledFailure('catalog-updating')
+    }
+    const installed = this.dependencies.catalog.getStatus?.()
+    if (
+      installed?.isReadable === true &&
+      installed.contract !== null &&
+      installed.contract.revision !== intent.catalogRevision
+    ) {
+      return this.settledFailure('catalog-updated')
     }
 
     const blocking = this.dependencies.saleAttempts.findBlockingForOwner(owner)
@@ -868,6 +919,11 @@ export class LocalSaleService {
         throw error
       }
 
+      // Rev 4 §9 Rule L: never reject (which erases `intent_json`) an attempt whose dispatch
+      // evidence is unknown; it stays claimed until the acknowledgement-cancel records it.
+      if (claimed.dispatchEvidence === 'unknown') {
+        return this.legacyUnresolved(claimed.attemptKey, 'invariant')
+      }
       // Plan §2.4: a post-write invariant/constraint violation inside the business transaction is
       // a definite (if unexpected) rejection, recorded as T3 with failure_code='invariant' — never
       // left dangling as an ordinary thrown error.
@@ -880,6 +936,9 @@ export class LocalSaleService {
         // Plan §1.8: precondition failures never rewrite the row — it stays `claimed`, retryable
         // once true again, or explicitly abandonable under D1-A. Zero writes, no T3.
         return { outcome: 'failed', code: result.code, attemptKey: claimed.attemptKey }
+      }
+      if (claimed.dispatchEvidence === 'unknown') {
+        return this.legacyUnresolved(claimed.attemptKey, result.code)
       }
       this.recordRejection(claimed.attemptKey, result.code, this.now().toISOString())
       return {
@@ -898,6 +957,39 @@ export class LocalSaleService {
       payments: result.payments,
       replay: false
     }
+  }
+
+  /**
+   * Rev 4 §5.2: the commit instant. With a trusted clock: its reading, or null when there is none or
+   * a rollback was detected (the caller refuses with `clock-untrusted`). Without one: plain `now`.
+   */
+  private commitInstant(): Date | null {
+    if (!this.dependencies.trustedClock) {
+      return this.now()
+    }
+    const reading = this.dependencies.trustedClock.now()
+    return reading === null || reading.rollbackDetected ? null : reading.now
+  }
+
+  /**
+   * Rev 4 §5.1: the PRELIMINARY eligibility check — whether this attempt's origin warehouse holds a
+   * usable physical-presence authority at `at`. It only decides whether foreground allocation
+   * acquisition is skipped; it never authorizes the commit, which re-checks at its own fresh `t1`.
+   */
+  hasUsableAuthority(prepared: Extract<PreparedSale, { kind: 'ready' }>, at: Date): boolean {
+    return (
+      (this.dependencies.offlineSaleAuthorities?.findUsable(
+        prepared.claimed.companyUuid,
+        prepared.claimed.deviceUuid,
+        prepared.claimed.originWarehouseUuid,
+        at
+      ) ?? null) !== null
+    )
+  }
+
+  /** Rev 4 §5.1: a trusted preliminary instant, or null (no clock reading, or a rollback). */
+  preliminaryInstant(): Date | null {
+    return this.commitInstant()
   }
 
   /**
@@ -954,13 +1046,28 @@ export class LocalSaleService {
    * (`stale`). An unavailable or unreadable catalog (missing trusted clock, access denied, missing
    * snapshot) proves nothing and stays the retryable `refresh-required`.
    */
-  private isCatalogSuperseded(intentRevision: string): boolean {
+  private isCatalogSuperseded(intentRevision: string, at?: Date): boolean {
     const status = this.dependencies.catalog.getStatus?.()
     if (!status || !status.isReadable || status.contract === null) {
       return false
     }
 
-    return status.contract.revision !== intentRevision || status.status === 'stale'
+    // Rev 4 §5.2: staleness is judged at the SAME instant the transaction checked the window at.
+    const staleAt =
+      at !== undefined &&
+      Number.isFinite(Date.parse(status.contract.validUntil)) &&
+      at.getTime() >= Date.parse(status.contract.validUntil)
+
+    return status.contract.revision !== intentRevision || status.status === 'stale' || staleAt
+  }
+
+  private legacyUnresolved(attemptKey: string, underlyingCode: string): LocalSaleOutcome {
+    return {
+      outcome: 'failed',
+      code: 'legacy-uncertainty-unresolved',
+      attemptKey,
+      underlyingCode
+    }
   }
 
   private recordRejection(attemptKey: string, failureCode: string, rejectedAt: string): void {
@@ -988,6 +1095,15 @@ export class LocalSaleService {
         readonly code: LocalSaleFailure
         readonly affectedLineIds?: readonly string[]
       } {
+    // Rev 4 §5.2: ONE fresh trusted instant, read as the first statement of the serialized
+    // transaction. Nothing read before this transaction (the preliminary eligibility time, a
+    // renewal, an acquisition round trip) may authorize the commit.
+    const t1 = this.commitInstant()
+    if (t1 === null) {
+      return { ok: false, code: 'clock-untrusted' }
+    }
+    const t1Iso = t1.toISOString()
+
     // Capture the authoritative current session at the business boundary. The claim epoch is
     // immutable audit evidence; only this main-owned current epoch may describe the actual commit.
     // `captureContext()` also repeats authenticated/active user, company, and bound-device guards.
@@ -1006,8 +1122,12 @@ export class LocalSaleService {
     }
 
     // 2. commercialAccess.assertAllowed('sell'); require pos.sell.
-    if (!this.dependencies.commercialAccess.evaluate('sell').allowed) {
-      return { ok: false, code: 'context-changed' }
+    const access = this.dependencies.commercialAccess.evaluate('sell', { at: t1 })
+    if (!access.allowed) {
+      return {
+        ok: false,
+        code: access.reason === 'clock-untrusted' ? 'clock-untrusted' : 'context-changed'
+      }
     }
     if (!this.dependencies.permissions.hasPermission('pos.sell')) {
       return { ok: false, code: 'permission-denied' }
@@ -1048,7 +1168,7 @@ export class LocalSaleService {
       paymentMethodUuids: intent.payments.map((payment) => payment.paymentMethodUuid),
       customerUuid: intent.customerUuid
     }
-    const resolution = this.dependencies.catalog.resolveForSale(resolutionInput)
+    const resolution = this.dependencies.catalog.resolveForSale(resolutionInput, { at: t1 })
     if (!resolution || resolution.contract.revision !== intent.catalogRevision) {
       // POS reliability rev 3: a frozen intent whose catalog was superseded or whose window closed
       // can never commit — installed revisions only move forward (bootstrapSnapshot
@@ -1059,7 +1179,7 @@ export class LocalSaleService {
       // `refresh-required`.
       return {
         ok: false,
-        code: this.isCatalogSuperseded(intent.catalogRevision)
+        code: this.isCatalogSuperseded(intent.catalogRevision, t1)
           ? 'catalog-superseded'
           : 'refresh-required'
       }
@@ -1154,7 +1274,8 @@ export class LocalSaleService {
       this.dependencies.offlineSaleAuthorities?.findUsable(
         owner.companyUuid,
         owner.deviceUuid,
-        this.now().toISOString()
+        claimed.originWarehouseUuid,
+        t1
       ) ?? null
 
     const uncoveredMilliByIndex = new Map<number, number>()
@@ -1181,14 +1302,27 @@ export class LocalSaleService {
         },
         productUuid,
         demands,
-        this.now().toISOString(),
+        t1Iso,
         offlineSaleAuthority !== null
       )
 
       if (!split.ok) {
+        // Rev 4 §5.3: in a physical-presence warehouse (an authority was issued for it) whose
+        // authority is missing or expired at `t1`, an uncovered remainder is the non-terminal
+        // `offline-sale-authority-unavailable` — the frozen intent stays claimed and a renewal can
+        // make it committable. A warehouse that never had an authority keeps the legacy terminal
+        // allocation rejection unchanged.
+        const physicalPresenceWarehouse =
+          split.code === 'stock-allocation-unavailable' &&
+          offlineSaleAuthority === null &&
+          (this.dependencies.offlineSaleAuthorities?.latestForWarehouse?.(
+            owner.companyUuid,
+            owner.deviceUuid,
+            claimed.originWarehouseUuid
+          ) ?? null) !== null
         return {
           ok: false,
-          code: split.code,
+          code: physicalPresenceWarehouse ? 'offline-sale-authority-unavailable' : split.code,
           affectedLineIds: linesForProduct.map(({ item }) => item.id)
         }
       }
@@ -1206,8 +1340,8 @@ export class LocalSaleService {
       }
     }
 
-    // 10. one commit timestamp; D4-A local number.
-    const committedAt = this.now().toISOString()
+    // 10. one commit timestamp — the same `t1` every window above was checked at; D4-A local number.
+    const committedAt = t1Iso
     const devicePrefix = owner.deviceUuid.replace(/-/g, '').slice(0, 6)
     const datePart = committedAt.slice(0, 10).replace(/-/g, '')
     const sequence = this.dependencies.localSale.nextOfflineSequenceForDay(devicePrefix, datePart)

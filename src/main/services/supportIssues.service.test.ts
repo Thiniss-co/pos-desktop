@@ -59,6 +59,11 @@ function build(options: {
   legacyRows?: LegacyDispatchUncertaintyRow[]
   blocking?: SaleAttemptRow | null
   needsSupport?: boolean
+  held?: ReturnType<
+    NonNullable<
+      ConstructorParameters<typeof SupportIssuesService>[0]['uploadDependencies']
+    >['listHeld']
+  >
   session?: { isAuthenticated: boolean; companyUuid: string | null; userUuid: string | null }
 }): {
   service: SupportIssuesService
@@ -97,7 +102,13 @@ function build(options: {
       needsSupport: options.needsSupport ?? false,
       supportReference: options.needsSupport ? 'trace-abc' : null
     }),
-    productName: (uuid) => (uuid === PRODUCT ? 'Cola Can' : null)
+    productName: (uuid) => (uuid === PRODUCT ? 'Cola Can' : null),
+    uploadDependencies: {
+      listHeld: (owner) => {
+        calls.push({ owner, states: ['held'] })
+        return options.held ?? []
+      }
+    }
   })
   return { service, calls }
 }
@@ -208,5 +219,42 @@ describe('SupportIssuesService', () => {
       (name) => name !== 'constructor' && !name.startsWith('from') && name !== 'lines'
     )
     expect(methods.sort()).toEqual(['blockingPayment', 'list'])
+  })
+
+  it('lists an upload held behind a terminal predecessor with both references (Rev 4 §10.4)', () => {
+    const invoice = 'e2000000-0000-4000-8000-00000000e002'
+    const predecessor = 'e1000000-0000-4000-8000-00000000e001'
+    const { service, calls } = build({
+      held: [
+        {
+          invoiceLocalUuid: invoice,
+          userUuid: OTHER,
+          localQueueUuid: 'q',
+          createdAt: '2026-09-29T08:00:00.000Z',
+          block: 'predecessor-terminal',
+          predecessor: {
+            allocationUuid: 'a',
+            rightsGeneration: 1,
+            sequence: 1,
+            invoiceLocalUuid: predecessor,
+            queueState: 'rejected'
+          }
+        }
+      ]
+    })
+    const result = syncSupportIssuesSchema.parse(service.list())
+    expect(result.needsSupport).toEqual([
+      expect.objectContaining({
+        kind: 'upload-held-by-predecessor',
+        reference: supportReference('IN', invoice),
+        relatedReference: supportReference('IN', predecessor),
+        ownedByCurrentUser: false,
+        lines: null
+      })
+    ])
+    expect(calls.find((call) => call.states[0] === 'held')?.owner).toEqual({
+      companyUuid: COMPANY,
+      deviceUuid: DEVICE
+    })
   })
 })

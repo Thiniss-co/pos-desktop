@@ -368,8 +368,9 @@ databaseTest('claims are owner-scoped in SQL and ordered deterministically', (sa
   const database = openTestDatabase(sandbox)
   const repositories = realRepositories(database)
 
-  // Seeded out of chronological order on purpose: the drain order must come from created_at, not
-  // from insertion or physical row order.
+  // Rev 4 §10.3: the drain order is the monotonic commit order (`queue_sequence`), never the
+  // wall-clock `created_at` — the invoice committed first is drained first even when a clock
+  // adjustment gave it the LATER timestamp (seeded that way on purpose).
   seedQueuedInvoice(database, repositories, { n: '2', createdAt: '2026-09-02T12:00:00.000Z' })
   seedQueuedInvoice(database, repositories, { n: '1', createdAt: '2026-09-02T09:00:00.000Z' })
   const foreign = seedQueuedInvoice(database, repositories, {
@@ -380,7 +381,7 @@ databaseTest('claims are owner-scoped in SQL and ordered deterministically', (sa
 
   const first = repositories.syncQueue.claimNextInvoiceUpload(OWNER, '2026-09-02T13:00:00.000Z')
   ok(first !== null)
-  equal(first.invoiceLocalUuid, uuid('11'))
+  equal(first.invoiceLocalUuid, uuid('12'))
 
   // The foreign row is older than both, and is still never selected.
   ok(first.localQueueUuid !== foreign.queueUuid)

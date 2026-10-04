@@ -29,6 +29,11 @@ export function bootstrapApp(): void {
       services.connectivity.start()
       // Presence-only heartbeat. Sends nothing unless a cashier session is valid.
       services.deviceHeartbeat.start()
+      // Rev 4 §7.3: proactive, bounded license renewal (and catalog install when the catalog is
+      // missing or stale). Sends nothing without a signed-in owner.
+      services.renewal.start()
+      // Rev 4 §9.1: settle an attempt a previous run left claimed on a superseded catalog.
+      services.attemptSettlement.settleSuperseded()
       // Rev 3: a restart discovers and re-sends every outstanding recorded allocation request.
       services.allocationDispatchReconciler.requestRun()
 

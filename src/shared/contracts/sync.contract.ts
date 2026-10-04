@@ -108,7 +108,10 @@ export const supportIssueKindSchema = z.enum([
   'allocation-identity-conflict',
   'allocation-request-invalid',
   'legacy-dispatch-uncertainty',
-  'allocation-request-pending'
+  'allocation-request-pending',
+  // Rev 4 §10.4: a completed sale held from upload because an earlier sale on the same stock
+  // reservation was not accepted (or its sequence is broken). Nothing is re-sent or rewritten.
+  'upload-held-by-predecessor'
 ])
 
 export const supportIssueLineSchema = z
@@ -136,7 +139,13 @@ export const supportIssueSchema = z
     /** Pending requests only: how many times the exact same request has been sent. */
     sendCount: z.number().int().nonnegative().nullable(),
     /** Pending requests only: the server asked the workstation to wait until then. */
-    nextAttemptAfter: isoDateTimeSchema.nullable()
+    nextAttemptAfter: isoDateTimeSchema.nullable(),
+    /** Held uploads only: the support reference of the earlier sale it waits behind. */
+    relatedReference: z
+      .string()
+      .regex(/^[A-Z]{2}-[0-9A-F]{12}$/)
+      .nullable()
+      .default(null)
   })
   .strict()
 

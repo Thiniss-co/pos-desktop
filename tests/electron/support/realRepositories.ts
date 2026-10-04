@@ -24,6 +24,7 @@ import { StockAllocationRepository } from '../../../src/main/repositories/stockA
 import { OfflineSaleAuthorityRepository } from '../../../src/main/repositories/offlineSaleAuthority.repository'
 import { SyncConflictRepository } from '../../../src/main/repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../../../src/main/repositories/syncQueue.repository'
+import { UploadDependencyRepository } from '../../../src/main/repositories/uploadDependency.repository'
 import { AllocationReconciliationService } from '../../../src/main/services/allocationReconciliation.service'
 
 export interface RealRepositories {
@@ -55,6 +56,8 @@ export interface RealRepositories {
   readonly stockAllocations: StockAllocationRepository
   readonly syncQueue: SyncQueueRepository
   readonly syncConflicts: SyncConflictRepository
+  /** Rev 4 §10.3: allocation-chain upload dependencies. */
+  readonly uploadDependencies: UploadDependencyRepository
   /** BH-04B-3: wired exactly as production wires it, so suites exercise the real reconciliation. */
   readonly allocationReconciliation: AllocationReconciliationService
 }
@@ -102,6 +105,7 @@ export function realRepositories(
     stockAllocations,
     syncQueue: new SyncQueueRepository(database),
     syncConflicts: new SyncConflictRepository(database),
+    uploadDependencies: new UploadDependencyRepository(database),
     allocationReconciliation
   }
 
@@ -126,6 +130,7 @@ export function realRepositories(
   assert.ok(repositories.receiptContext instanceof ReceiptContextRepository)
   assert.ok(repositories.stockAllocations instanceof StockAllocationRepository)
   assert.ok(repositories.syncQueue instanceof SyncQueueRepository)
+  assert.ok(repositories.uploadDependencies instanceof UploadDependencyRepository)
 
   return repositories
 }

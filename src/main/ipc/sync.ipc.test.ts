@@ -54,7 +54,8 @@ const CONFLICT_ISSUE = {
   ownedByCurrentUser: false,
   lines: null,
   sendCount: null,
-  nextAttemptAfter: null
+  nextAttemptAfter: null,
+  relatedReference: null
 }
 
 /** A frame the allow-list accepts: no dev renderer URL is set, so `file:` is the trusted origin. */

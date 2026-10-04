@@ -91,7 +91,8 @@ export function registerLicenseIpcHandlers(services: ApplicationServices): void 
   ipcMain.handle(IPC_CHANNELS.licenseValidate, (_event, input: unknown) =>
     handleIpcRequest(input, licenseValidateInputSchema, async () => {
       const revision = services.commercialAccessPublisher.begin()
-      await services.license.validate()
+      // Rev 4 §7: every validation goes through the renewal coordinator (single-flight, owner-checked).
+      await services.renewal.validateLicense('ipc')
       services.commercialAccessPublisher.publish(revision)
       return commercialAccessSnapshotSchema.parse(services.commercialAccess.describe())
     })

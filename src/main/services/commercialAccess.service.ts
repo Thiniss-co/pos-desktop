@@ -123,8 +123,16 @@ export class CommercialAccessService {
     this.now = options.now ?? (() => new Date())
   }
 
-  evaluate(action: CommercialAccessAction): CommercialAccessDecision {
-    const evaluatedAt = this.now()
+  /**
+   * `options.at` (Rev 4 §5.2): evaluate at the caller's single trusted commit instant. The caller has
+   * already refused a detected rollback against the trusted clock's floor (which is at least the
+   * license anchor), so the anchor-rollback check below stays satisfied by construction.
+   */
+  evaluate(
+    action: CommercialAccessAction,
+    options: { readonly at?: Date } = {}
+  ): CommercialAccessDecision {
+    const evaluatedAt = options.at ?? this.now()
     const evaluatedAtIso = evaluatedAt.toISOString()
     const now = evaluatedAt.getTime()
     const device = this.options.devices.get()

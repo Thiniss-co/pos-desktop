@@ -2,9 +2,9 @@
 /**
  * V3 product card: pastel band with the monogram (and an in-cart quantity badge), then name
  * (2 lines), unit · SKU, price and the stock pill. There are no product photos — the catalog
- * contract has no image (IMPLEMENTATION.md D-05). The stock level is a tone only; the card is
- * disabled solely by `product.stockBlocked` (proven offline allocation shortfall), never by a dated
- * warehouse snapshot.
+ * contract has no image (IMPLEMENTATION.md D-05). Stock is information only: no stock figure or
+ * reservation ever disables or dims the card, in any mode, online or offline. Only `disabled` (a
+ * non-stock reason, e.g. no open shift) does.
  */
 import { computed } from 'vue'
 import StockStatus from './StockStatus.vue'
@@ -30,7 +30,6 @@ const TONE_INK = [
   'text-cat-ink-4',
   'text-cat-ink-5'
 ]
-const outOfStock = computed(() => props.product.stock === 'out-of-stock')
 const tone = computed(() => (props.product.tone ?? 0) % 6)
 </script>
 
@@ -39,11 +38,7 @@ const tone = computed(() => (props.product.tone ?? 0) % 6)
     class="product-card-frame relative flex min-w-0 flex-col overflow-hidden rounded-lg border bg-surf"
     :class="product.inCartQuantity ? 'border-pri' : 'border-line'"
   >
-    <div
-      class="relative h-22 short:h-16"
-      :class="[TONE_BG[tone], { 'opacity-60': outOfStock }]"
-      aria-hidden="true"
-    >
+    <div class="relative h-22 short:h-16" :class="TONE_BG[tone]" aria-hidden="true">
       <span
         class="absolute inset-0 flex items-center justify-center text-2xl font-bold"
         :class="TONE_INK[tone]"
@@ -52,9 +47,8 @@ const tone = computed(() => (props.product.tone ?? 0) % 6)
     </div>
     <button
       type="button"
-      class="product-card flex flex-1 flex-col text-start disabled:cursor-not-allowed"
-      :class="outOfStock ? 'text-muted' : 'text-ink'"
-      :disabled="disabled || product.stockBlocked === true"
+      class="product-card flex flex-1 flex-col text-start text-ink disabled:cursor-not-allowed"
+      :disabled="disabled"
       :aria-label="product.ariaLabel"
       @click="emit('select')"
     >

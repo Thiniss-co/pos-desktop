@@ -1,3 +1,4 @@
+import { createPublicError } from '../http/apiError'
 import { describe, expect, it, vi } from 'vitest'
 import type { CheckoutIntent } from '@shared/contracts/checkout.contract'
 import type { SaleAttemptRow } from '@shared/contracts/sale.contract'
@@ -164,5 +165,121 @@ describe('SaleCompletionService', () => {
     await service.retry(ATTEMPT_KEY)
 
     expect(acquire).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('SaleCompletionService — Rev 4 physical-presence checkout (§5.1)', () => {
+  function ppBuild(options: {
+    usable: (at: Date) => boolean
+    online?: boolean
+    t0?: Array<Date | null>
+    licenseLeg?: AnyMock
+  }): {
+    service: SaleCompletionService
+    acquire: AnyMock
+    runPrepared: AnyMock
+    licenseLeg: AnyMock
+  } {
+    const acquire = vi.fn().mockResolvedValue({ kind: 'blocked', code: 'allocation-refused' })
+    const runPrepared = vi.fn().mockReturnValue(committed)
+    const instants = [...(options.t0 ?? [new Date('2026-01-01T00:00:00Z')])]
+    const licenseLeg = options.licenseLeg ?? vi.fn().mockResolvedValue({ kind: 'renewed' })
+    const localSale = {
+      prepareCompletion: vi.fn().mockReturnValue(ready),
+      prepareRetry: vi.fn().mockReturnValue(ready),
+      trackedDemand: vi.fn().mockReturnValue([trackedLine]),
+      runPrepared,
+      hasUsableAuthority: vi.fn((_prepared: unknown, at: Date) => options.usable(at)),
+      preliminaryInstant: vi.fn(() => (instants.length > 1 ? instants.shift()! : instants[0]))
+    }
+    const service = new SaleCompletionService({
+      localSale,
+      acquisition: { acquire },
+      renewal: { licenseLeg },
+      isOnline: () => options.online ?? true
+    } as unknown as ConstructorParameters<typeof SaleCompletionService>[0])
+    return { service, acquire, runPrepared, licenseLeg }
+  }
+
+  it('never awaits foreground acquisition while a usable authority is held (online)', async () => {
+    const h = ppBuild({ usable: () => true, online: true })
+    const outcome = await h.service.complete(ATTEMPT_KEY, intent)
+    expect(outcome).toEqual(committed)
+    expect(h.acquire).not.toHaveBeenCalled()
+    expect(h.licenseLeg).not.toHaveBeenCalled()
+    expect(h.runPrepared).toHaveBeenCalledTimes(1)
+  })
+
+  it('never awaits foreground acquisition while a usable authority is held (offline)', async () => {
+    const h = ppBuild({ usable: () => true, online: false })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.acquire).not.toHaveBeenCalled()
+  })
+
+  it('online without an authority: exactly one license leg, then skips acquisition if one arrived', async () => {
+    let renewed = false
+    const licenseLeg = vi.fn(async () => {
+      renewed = true
+      return { kind: 'renewed' }
+    })
+    const h = ppBuild({ usable: () => renewed, online: true, licenseLeg })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(licenseLeg).toHaveBeenCalledTimes(1)
+    expect(h.acquire).not.toHaveBeenCalled()
+    expect(h.runPrepared).toHaveBeenCalledTimes(1)
+  })
+
+  it('online, but the checkout leg cannot reach the server: no reservation request is sent', async () => {
+    const licenseLeg = vi.fn().mockResolvedValue({
+      kind: 'transient',
+      error: createPublicError('transport', 'connection refused', true)
+    })
+    const h = ppBuild({ usable: () => false, online: true, licenseLeg })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.acquire).not.toHaveBeenCalled()
+    expect(h.runPrepared).toHaveBeenCalledTimes(1)
+  })
+
+  it('a 5xx from the checkout leg reached the server: the legacy acquisition still decides', async () => {
+    const licenseLeg = vi.fn().mockResolvedValue({
+      kind: 'transient',
+      error: createPublicError('transport', 'unavailable', true, { httpStatus: 503 })
+    })
+    const h = ppBuild({ usable: () => false, online: true, licenseLeg })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.acquire).toHaveBeenCalledTimes(1)
+  })
+
+  it('online, renewal yields no authority (allocation-mode scope): the legacy acquisition decides', async () => {
+    const h = ppBuild({ usable: () => false, online: true })
+    const outcome = await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.licenseLeg).toHaveBeenCalledTimes(1)
+    expect(h.acquire).toHaveBeenCalledTimes(1)
+    expect(outcome).toMatchObject({ outcome: 'failed', code: 'allocation-refused' })
+  })
+
+  it('offline without an authority: no network, the legacy path decides', async () => {
+    const h = ppBuild({ usable: () => false, online: false })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.licenseLeg).not.toHaveBeenCalled()
+    expect(h.acquire).toHaveBeenCalledTimes(1)
+  })
+
+  it('a renewal failure never blocks: the still-valid authority is re-checked at a fresh t0', async () => {
+    const licenseLeg = vi.fn().mockResolvedValue({ kind: 'transient' })
+    const h = ppBuild({
+      usable: (at) => at.getTime() >= Date.parse('2026-01-01T00:00:01Z'),
+      t0: [new Date('2026-01-01T00:00:00Z'), new Date('2026-01-01T00:00:01Z')],
+      licenseLeg
+    })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.acquire).not.toHaveBeenCalled()
+  })
+
+  it('no trusted preliminary instant: acquisition is skipped (the transaction refuses clock-untrusted)', async () => {
+    const h = ppBuild({ usable: () => false, t0: [null] })
+    await h.service.complete(ATTEMPT_KEY, intent)
+    expect(h.acquire).not.toHaveBeenCalled()
+    expect(h.runPrepared).toHaveBeenCalledTimes(1)
   })
 })

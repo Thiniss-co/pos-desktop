@@ -152,6 +152,8 @@ export interface OfflineSaleAuthorityRow {
   readonly notBefore: string
   readonly notAfter: string
   readonly authorityHash: string
+  /** Rev 4 §6.4: the issuing warehouse as the server published it; null for pre-v2 rows. */
+  readonly warehouseUuid: string | null
   readonly observedAt: string
   readonly createdAt: string
 }

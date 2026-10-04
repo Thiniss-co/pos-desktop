@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { requestBootstrap } from './bootstrap.service'
 import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api.contract'
 import type {
   RefundableInvoice,
@@ -8,7 +9,7 @@ import type {
   RefundR4LineInput
 } from '@shared/contracts/refund.contract'
 import { calculateRefund } from '@shared/pos/refundCalculator'
-import { DESKTOP_API_ROUTES, invoiceShowRoute } from '@shared/constants/apiRoutes'
+import { invoiceShowRoute } from '@shared/constants/apiRoutes'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import {
   desktopBootstrapResourceSchema,
@@ -160,9 +161,7 @@ export class RefundService {
 
     // Capability negotiation (plan §5): the ONLY evidence accepted that the backend enforces the
     // confirmed-calculation contract. Never inferred from the invoice read model's field presence.
-    const bootstrapResponse = await this.dependencies.apiClient.request(
-      DESKTOP_API_ROUTES.bootstrap
-    )
+    const bootstrapResponse = await requestBootstrap(this.dependencies.apiClient)
     const bootstrap = desktopBootstrapResourceSchema.parse(bootstrapResponse)
 
     if (!bootstrap.refund_contract) {

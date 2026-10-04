@@ -323,6 +323,7 @@ describe('catalog:refresh IPC security', () => {
     handlers.clear()
     assertTrustedSender.mockReset()
     registerCatalogIpcHandlers({
+      installGate: { withPath: (_path: unknown, _consent: unknown, fn: () => unknown) => fn() },
       catalogRefresh: { refresh }
     } as unknown as ApplicationServices)
 

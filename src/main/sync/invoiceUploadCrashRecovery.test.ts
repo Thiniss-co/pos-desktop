@@ -146,6 +146,8 @@ describe('CP-3G-6 — crash-recovery contracts', () => {
     const timers: { callback: () => void; delayMs: number; cancelled: boolean }[] = []
     const payloadJson = JSON.stringify({ idempotency_key: INVOICE, local_invoice_uuid: INVOICE })
     const hash = payloadHash(JSON.parse(payloadJson))
+    // Mirrors the repository: the recorder persists the retry deadline the worker re-arms from.
+    let nextDeadline: string | null = null
 
     const worker = new InvoiceUploadWorker({
       syncQueue: {
@@ -173,6 +175,7 @@ describe('CP-3G-6 — crash-recovery contracts', () => {
             attemptCount: 1
           }
         },
+        nextRetryDeadline: () => nextDeadline,
         countForeignPendingUploads: () => 0,
         getStatus: () => ({
           state: 'idle',
@@ -180,7 +183,13 @@ describe('CP-3G-6 — crash-recovery contracts', () => {
           counts: { pending: 0, uploading: 0, retryableError: 0, conflict: 0, rejected: 0 }
         })
       } as never,
-      recorder: { record: () => undefined } as never,
+      recorder: {
+        record: (_claimed: unknown, outcome: { kind: string; retryDelayMs?: number }) => {
+          if (outcome.kind === 'retryable') {
+            nextDeadline = new Date(Date.now() + (outcome.retryDelayMs ?? 0) + 1).toISOString()
+          }
+        }
+      } as never,
       commercialAccess: { assertAllowed: () => undefined },
       permissions: { hasPermission: () => true },
       session: {

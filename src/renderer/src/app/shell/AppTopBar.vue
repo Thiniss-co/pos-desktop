@@ -11,6 +11,7 @@ import AppPill from '@renderer/shared/components/common/AppPill.vue'
 import { PILL_TONE_CLASS } from '@renderer/shared/components/common/types'
 import ShiftMenu from '@renderer/modules/pos/components/ShiftMenu.vue'
 import UserMenu from './UserMenu.vue'
+import WorkstationRefreshControl from './WorkstationRefreshControl.vue'
 import type { ShellNavItem } from './useShellNavigation'
 import { useShellStatus } from './useShellStatus'
 
@@ -88,6 +89,7 @@ const { network, syncPill } = useShellStatus()
         <AppIcon :name="syncPill.icon" :size="18" />
         <span class="hidden pills:inline" aria-hidden="true">{{ syncPill.label }}</span>
       </RouterLink>
+      <WorkstationRefreshControl />
       <ShiftMenu />
     </div>
     <UserMenu @sign-out="emit('signOut')" />

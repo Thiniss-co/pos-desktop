@@ -48,6 +48,7 @@ function issue(overrides: Partial<SupportIssue> = {}): SupportIssue {
     lines: [{ productName: 'Cola Can', quantity: '2.000' }],
     sendCount: null,
     nextAttemptAfter: null,
+    relatedReference: null,
     ...overrides
   }
 }

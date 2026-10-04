@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { installHoldActive, waitForInstallHold } from '../catalogInstall/installHold'
 import { defineStore } from 'pinia'
 import type {
   CheckoutAttemptStatus,
@@ -41,7 +42,10 @@ const CLAIMED_FAILURE_CODES = new Set([
   'allocation-refused',
   'allocation-integrity-blocked',
   'context-changed',
-  'refresh-required'
+  'refresh-required',
+  'clock-untrusted',
+  'offline-sale-authority-unavailable',
+  'legacy-uncertainty-unresolved'
 ])
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -84,6 +88,11 @@ export const usePaymentStore = defineStore('payment', () => {
   // durable state for `attemptKey` as last learned. A late result is always recorded against its
   // ORIGINAL key and applied to the draft only when {generation, saleId, key} still match.
   const boundSaleId = ref<string | null>(null)
+  /** Rev 4 §8: the payment dialog is open (mirrored by the POS page); counts as payment activity. */
+  const panelOpen = ref(false)
+  function setPanelOpen(open: boolean): void {
+    panelOpen.value = open
+  }
   const attemptState = ref<CheckoutAttemptStatus['state'] | null>(null)
   /** Main's recovery summary for the claimed attempt (legacy / support / outstanding requests). */
   const attemptRecovery = ref<RecoveryAttemptSummary | null>(null)
@@ -361,6 +370,10 @@ export const usePaymentStore = defineStore('payment', () => {
         Pick<CheckoutRendererService, 'attemptStatus' | 'retryAttempt'>
       > = new CheckoutRendererService()
   ): Promise<void> {
+    // Rev 4 §8.2: a claim never starts while a catalog install is being applied.
+    if (installHoldActive.value) {
+      await waitForInstallHold()
+    }
     if (
       activeCompletionRequest !== null ||
       reconciling.value ||
@@ -604,7 +617,8 @@ export const usePaymentStore = defineStore('payment', () => {
    */
   async function retryAttempt(
     key: string,
-    service: Pick<CheckoutRendererService, 'retryAttempt'> = new CheckoutRendererService()
+    service: Pick<CheckoutRendererService, 'retryAttempt'> = new CheckoutRendererService(),
+    onCommitted: () => void = () => undefined
   ): Promise<CheckoutCompletionOutcome | null> {
     const issuedGeneration = contextGeneration.value
     let outcome: CheckoutCompletionOutcome
@@ -629,9 +643,10 @@ export const usePaymentStore = defineStore('payment', () => {
     }
 
     if (key === attemptKey.value) {
-      // This draft's own attempt: apply exactly like a completion result (no cart clear needed —
-      // the cart is locked to this attempt and cleared on acknowledge).
-      applyOutcome(key, outcome, () => undefined)
+      // This draft's own attempt: apply exactly like a completion result, including clearing the
+      // committed lines (`onCommitted`) — otherwise "New sale" would leave the sold lines in the
+      // cart, ready to be sold a second time.
+      applyOutcome(key, outcome, onCommitted)
     } else if (outcome.outcome === 'committed') {
       // A different (recovery-banner) attempt: recorded against its own key only — it never
       // replaces this draft's completion state or tender rows.
@@ -802,6 +817,8 @@ export const usePaymentStore = defineStore('payment', () => {
     completionOutcome,
     completionError,
     blockingAttemptKey,
+    panelOpen,
+    setPanelOpen,
     pendingResults,
     isBlocked,
     complete,

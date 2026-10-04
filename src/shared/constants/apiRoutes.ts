@@ -64,7 +64,18 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * discipline -- a backend that predates it ignores the parameter and answers without
    * `receipt_profile`, and this app mirrors nothing and hides the branding editor.
    */
+  /**
+   * Rev 4 §6.3: `offline_sale_contract_version=2` asks for the warehouse-bound authority
+   * representation. A backend that supports only v1 answers 422 on that field before any work, and
+   * the client then uses `bootstrapOfflineSaleV1` (identical except for the version).
+   */
   bootstrap: {
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=1',
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  bootstrapOfflineSaleV1: {
     path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1',
     method: 'GET',
     requiresAuth: true,

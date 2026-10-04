@@ -7,7 +7,7 @@ declare(strict_types=1);
  * `DesktopMvpSmokeSeeder` (see docs/design/claude-v3/verification/README.md, "GUI sandbox").
  *
  *   php guiFixture.php <backend-root> assign-device <device-uuid>
- *   php guiFixture.php <backend-root> mode-physical-presence
+ *   php guiFixture.php <backend-root> mode-physical-presence [<window hours 1-72>]
  *   php guiFixture.php <backend-root> mode-allocation <SKU>[,<SKU>...]
  *   php guiFixture.php <backend-root> report <device-uuid>
  *   php guiFixture.php <backend-root> create-owner-product <SKU>
@@ -15,6 +15,23 @@ declare(strict_types=1);
  *   php guiFixture.php <backend-root> stock <SKU>
  *   php guiFixture.php <backend-root> device <device-uuid>
  *   php guiFixture.php <backend-root> allocations <device-uuid>
+ *   php guiFixture.php <backend-root> devices
+ *   php guiFixture.php <backend-root> authorities
+ *   php guiFixture.php <backend-root> movements <device-uuid>
+ *   php guiFixture.php <backend-root> set-tracking <SKU>:<0|1>
+ *   php guiFixture.php <backend-root> adjust-stock <SKU>:<quantity-to-remove>
+ *   php guiFixture.php <backend-root> owner-permission <inventory.adjust|inventory.view|inventory.manage>:<0|1>
+ *   php guiFixture.php <backend-root> company-feature inventory:<0|1>
+ *   php guiFixture.php <backend-root> stock-position <SKU>
+ *   php guiFixture.php <backend-root> record-opening-stock <SKU>:<quantity>
+ *
+ * Opening-stock journey support. `owner-permission` grants or revokes a permission on the
+ * company_admin system role (as role management would) and clears the permission cache;
+ * `company-feature` switches a plan feature in the company's active subscription snapshot — both are
+ * INJECTED preconditions, reported as simulated. `stock-position` is read-only: the Main Warehouse
+ * stock row of a SKU plus every effect an opening-stock request can have (opening adjustments,
+ * movements, journals, position events, products with that SKU, stored request outcomes).
+ * `record-opening-stock` is an independent writer through `RecordOpeningStockAction`.
  *
  * `create-owner-product` runs the company-owner create path in-process: the owner FormRequest
  * (`OwnerStoreProductRequest`: authorization, uuid reference translation, every product rule), then
@@ -39,6 +56,10 @@ require __DIR__ . '/laravelSandboxGuard.php';
 
 use App\Models\User;
 use App\Modules\Catalog\Actions\CreateProductAction;
+use App\Modules\Catalog\Actions\UpdateProductAction;
+use App\Modules\Catalog\Data\UpdateProductData;
+use App\Modules\Inventory\Actions\CreateInventoryAdjustmentAction;
+use App\Modules\Inventory\Enums\InventoryAdjustmentType;
 use App\Modules\Catalog\Data\CreateProductData;
 use App\Modules\Catalog\Http\Requests\CompanyOwner\OwnerStoreProductRequest;
 use App\Modules\Catalog\Models\Category;
@@ -69,7 +90,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -77,11 +98,40 @@ if (in_array($operation, ['create-owner-product', 'stock'], true) && preg_match(
     sandboxRefuse('a SKU is required');
 }
 
+if ($operation === 'mode-physical-presence' && $argument !== ''
+    && (preg_match('/^\d{1,2}$/', $argument) !== 1 || (int) $argument < 1 || (int) $argument > 72)) {
+    sandboxRefuse('mode-physical-presence takes an optional window in hours (1-72)');
+}
+
+if ($operation === 'set-tracking' && preg_match('/^[A-Z0-9-]{1,40}:[01]$/', $argument) !== 1) {
+    sandboxRefuse('set-tracking needs <SKU>:<0|1>');
+}
+
+if ($operation === 'adjust-stock' && preg_match('/^[A-Z0-9-]{1,40}:\d{1,6}(\.\d{1,3})?$/', $argument) !== 1) {
+    sandboxRefuse('adjust-stock needs <SKU>:<quantity>');
+}
+
 if ($operation === 'receive-stock' && preg_match('/^[A-Z0-9-]{1,40}:\d{1,6}(\.\d{1,3})?$/', $argument) !== 1) {
     sandboxRefuse('receive-stock needs <SKU>:<quantity>');
 }
 
-if (in_array($operation, ['assign-device', 'report', 'device', 'allocations'], true)
+if ($operation === 'owner-permission' && preg_match('/^inventory\.(adjust|view|manage):[01]$/', $argument) !== 1) {
+    sandboxRefuse('owner-permission needs <inventory.adjust|inventory.view|inventory.manage>:<0|1>');
+}
+
+if ($operation === 'company-feature' && preg_match('/^inventory:[01]$/', $argument) !== 1) {
+    sandboxRefuse('company-feature needs inventory:<0|1>');
+}
+
+if ($operation === 'stock-position' && preg_match('/^[A-Z0-9-]{1,40}$/', $argument) !== 1) {
+    sandboxRefuse('a SKU is required');
+}
+
+if ($operation === 'record-opening-stock' && preg_match('/^[A-Z0-9-]{1,40}:\d{1,6}(\.\d{1,3})?$/', $argument) !== 1) {
+    sandboxRefuse('record-opening-stock needs <SKU>:<quantity>');
+}
+
+if (in_array($operation, ['assign-device', 'report', 'device', 'allocations', 'movements'], true)
     && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $argument) !== 1) {
     sandboxRefuse('a device uuid is required');
 }
@@ -110,7 +160,7 @@ $result = match ($operation) {
             actorUserId: $actor->id,
             warehouseUuid: $warehouse->uuid,
             mode: PosOfflineSaleMode::PhysicalPresence,
-            maxOfflineHours: 72,
+            maxOfflineHours: $argument === '' ? 72 : (int) $argument,
             isEnabled: true,
         ))->revision ?? null,
     ],
@@ -227,6 +277,111 @@ $result = match ($operation) {
             'server_now' => now()->toIso8601String(),
         ];
     })(),
+    // The owner/admin update path (UpdateProductAction), which also records the tracking timeline.
+    'set-tracking' => (function () use ($argument, $company): array {
+        [$sku, $flag] = explode(':', $argument, 2);
+        $product = Product::query()->where('company_id', $company->id)->where('sku', $sku)->firstOrFail();
+        $updated = app(UpdateProductAction::class)->execute($product, new UpdateProductData(
+            categoryId: null, name: null, sku: null, barcode: null, description: null, status: null,
+            isActive: null, trackStock: $flag === '1', unit: null, taxMode: null, taxId: null,
+            taxIdProvided: false, price: null,
+        ));
+
+        return ['sku' => $sku, 'track_stock' => (bool) $updated->track_stock];
+    })(),
+    // A posted decrease adjustment (CreateInventoryAdjustmentAction), the inventory module's own path.
+    'adjust-stock' => (function () use ($argument, $company, $warehouse, $actor): array {
+        [$sku, $quantity] = explode(':', $argument, 2);
+        $product = Product::query()->where('company_id', $company->id)->where('sku', $sku)->firstOrFail();
+        $adjustment = app(CreateInventoryAdjustmentAction::class)->execute(
+            $company->id, $warehouse->id, $actor->id, InventoryAdjustmentType::Decrease,
+            'GUI sandbox stock level', null,
+            [['product_id' => $product->id, 'direction' => 'out', 'quantity' => $quantity, 'unit_cost_amount' => null, 'notes' => null]],
+        );
+
+        return ['adjustment' => $adjustment->uuid ?? $adjustment->id, 'sku' => $sku, 'removed' => $quantity];
+    })(),
+    'movements' => (function () use ($argument, $company): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+        $invoiceIds = DB::table('pos_invoices')->where('desktop_device_id', $device->id)->pluck('id');
+
+        return [
+            'movements' => DB::table('stock_movements')
+                ->join('products', 'products.id', '=', 'stock_movements.product_id')
+                ->whereIn('stock_movements.pos_invoice_id', $invoiceIds)
+                ->orderBy('stock_movements.id')
+                ->get([
+                    'products.sku', 'stock_movements.quantity', 'stock_movements.quantity_before',
+                    'stock_movements.quantity_after', 'stock_movements.stock_authorization',
+                    'stock_movements.is_oversold', 'stock_movements.allocation_covered_milli',
+                    'stock_movements.uncovered_milli', 'stock_movements.pos_invoice_id',
+                ])->map(fn ($row): array => (array) $row)->all(),
+            'invoices' => DB::table('pos_invoices')->where('desktop_device_id', $device->id)
+                ->orderBy('id')->get(['id', 'sold_while_offline'])->map(fn ($row): array => (array) $row)->all(),
+        ];
+    })(),
+    'owner-permission' => (function () use ($argument): array {
+        [$permission, $flag] = explode(':', $argument, 2);
+        $role = \Spatie\Permission\Models\Role::findByName('company_admin', 'web');
+        $flag === '1' ? $role->givePermissionTo($permission) : $role->revokePermissionTo($permission);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return ['permission' => $permission, 'granted' => $flag === '1', 'injected' => true];
+    })(),
+    'company-feature' => (function () use ($argument, $company): array {
+        [$feature, $flag] = explode(':', $argument, 2);
+        $subscription = \App\Modules\Subscriptions\Models\CompanySubscription::query()->where('company_id', $company->id)->orderByDesc('id')->firstOrFail();
+        $subscription->update(['features_snapshot' => array_merge((array) $subscription->features_snapshot, [$feature => $flag === '1'])]);
+
+        return ['feature' => $feature, 'enabled' => $flag === '1', 'injected' => true];
+    })(),
+    'stock-position' => (function () use ($argument, $company, $warehouse): array {
+        $products = Product::query()->where('company_id', $company->id)->where('sku', $argument)->pluck('id');
+        $productId = $products->first();
+        $at = fn (string $table) => $productId === null ? 0 : DB::table($table)->where('product_id', $productId)->where('warehouse_id', $warehouse->id)->count();
+
+        return [
+            'sku' => $argument,
+            'products_with_sku' => $products->count(),
+            'stock_row' => $productId === null ? null : DB::table('stock_items')->where('product_id', $productId)->where('warehouse_id', $warehouse->id)
+                ->first(['quantity', 'available_quantity', 'average_unit_cost_amount', 'inventory_value_amount']),
+            'opening_adjustments' => $productId === null ? 0 : DB::table('inventory_adjustment_items')
+                ->join('inventory_adjustments', 'inventory_adjustments.id', '=', 'inventory_adjustment_items.inventory_adjustment_id')
+                ->where('inventory_adjustments.type', 'opening_balance')->where('inventory_adjustment_items.product_id', $productId)->count(),
+            'movements' => $at('stock_movements'),
+            'position_events' => $at('stock_item_position_events'),
+            'journals' => DB::table('accounting_journals')->where('company_id', $company->id)->count(),
+            'stored_outcomes' => DB::table('owner_operation_requests')->where('company_id', $company->id)
+                ->orderBy('id')->get(['operation', 'response_status'])->map(fn ($row): array => (array) $row)->all(),
+        ];
+    })(),
+    'record-opening-stock' => (function () use ($argument, $company, $warehouse, $actor): array {
+        [$sku, $quantity] = explode(':', $argument, 2);
+        $product = Product::query()->where('company_id', $company->id)->where('sku', $sku)->firstOrFail();
+
+        try {
+            $row = app(\App\Modules\Inventory\Actions\RecordOpeningStockAction::class)->execute(
+                $company->id, $product->id, new \App\Modules\Inventory\Data\OpeningStockData($warehouse->id, $quantity), $actor->id,
+            );
+
+            return ['result' => 'recorded', 'quantity' => $row->quantity];
+        } catch (\App\Shared\Exceptions\ApiException $refusal) {
+            return ['result' => 'refused', 'code' => $refusal->errorCode->value];
+        }
+    })(),
+    'authorities' => [
+        'authorities' => DB::table('pos_offline_sale_authorities')->orderBy('id')
+            ->get(['uuid', 'warehouse_id', 'issued_at', 'not_after', 'superseded_at'])
+            ->map(fn ($row): array => (array) $row)->all(),
+    ],
+    'devices' => [
+        'devices' => DesktopDevice::query()->where('company_id', $company->id)->orderBy('id')->get()
+            ->map(fn (DesktopDevice $device): array => [
+                'device_uuid' => $device->device_uuid,
+                'server_uuid' => $device->uuid,
+                'warehouse_assigned' => $device->warehouse_id !== null,
+            ])->all(),
+    ],
     'allocations' => (function () use ($argument, $company): array {
         $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
 

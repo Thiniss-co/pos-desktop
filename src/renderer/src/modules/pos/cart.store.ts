@@ -209,7 +209,13 @@ export const useCartStore = defineStore('cart', () => {
       catalogGeneration.value += 1
     }
 
-    if (revisionChanged && lines.value.length > 0) {
+    // A line frozen under another revision keeps the draft flagged however often the same contract
+    // is re-applied (Rev 4 §13 H2: the refresh may happen on another page, and returning to the POS
+    // page re-applies the contract it already holds — that must never un-flag the draft).
+    const frozenUnderOther = lines.value.some(
+      (line) => line.catalogRevision !== nextContract.revision
+    )
+    if ((revisionChanged || frozenUnderOther) && lines.value.length > 0) {
       // Frozen snapshots remain visible until the cashier explicitly clears, removes, or rebuilds.
       // Repricing a draft on catalog refresh would silently change a commercial transaction.
       catalogChanged.value = true

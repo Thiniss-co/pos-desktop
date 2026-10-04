@@ -169,3 +169,176 @@ describe('LicenseService', () => {
     expect(secrets.has(DESKTOP_LICENSE_JWT_KEY)).toBe(false)
   })
 })
+
+describe('LicenseService — Rev 4 renewal leg', () => {
+  const OWNER = {
+    sessionEpoch: 3,
+    userUuid: '11111111-1111-4111-8111-111111111111',
+    userIsActive: true,
+    companyUuid: '22222222-2222-4222-8222-222222222222',
+    deviceUuid: '33333333-3333-4333-8333-333333333333',
+    serverDeviceId: '44444444-4444-4444-8444-444444444444',
+    branchUuid: '55555555-5555-4555-8555-555555555555',
+    warehouseUuid: '66666666-6666-4666-8666-666666666666'
+  }
+  const AUTHORITY_V2 = {
+    id: '77777777-7777-4777-8777-777777777777',
+    mode: 'physical_presence',
+    policy_revision: 1,
+    contract_version: 3,
+    issued_at: '2026-01-01T00:00:00+00:00',
+    not_before: '2026-01-01T00:00:00+00:00',
+    not_after: '2026-01-04T00:00:00+00:00',
+    authority_hash: 'a'.repeat(64),
+    warehouse_uuid: OWNER.warehouseUuid
+  }
+
+  function harness(options: {
+    readonly responses: Array<{ status: number; body: Record<string, unknown> }>
+    readonly ownerDuringWrite?: () => typeof OWNER | null
+  }): {
+    service: LicenseService
+    bodies: unknown[]
+    secrets: Map<string, string>
+    statuses: unknown[]
+    observed: unknown[]
+    transactions: () => number
+  } {
+    const bodies: unknown[] = []
+    let call = 0
+    const apiClient = new DesktopApiClient({
+      apiOrigin: new URL('https://api.example.test'),
+      getAccessToken: () => 'token',
+      getDeviceUuid: () => 'device-uuid',
+      fetchImplementation: (async (_url: unknown, init: { body?: string }) => {
+        bodies.push(init.body ? JSON.parse(init.body) : undefined)
+        const response = options.responses[Math.min(call, options.responses.length - 1)]
+        call += 1
+        return {
+          ok: response.status < 400,
+          status: response.status,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => response.body
+        }
+      }) as unknown as typeof fetch
+    })
+    const secrets = new Map<string, string>()
+    const statuses: unknown[] = []
+    const observed: unknown[] = []
+    let transactions = 0
+    let ownerReads = 0
+    const service = new LicenseService(
+      apiClient,
+      {
+        getTrustedTimeAnchor: () => null,
+        setValidatedStatus: (status) => {
+          statuses.push(status)
+        }
+      },
+      { setSecret: (key, value) => secrets.set(key, value) },
+      () => new Date('2026-01-01T00:00:00Z'),
+      {
+        database: {
+          transaction:
+            <T>(fn: () => T) =>
+            () => {
+              transactions += 1
+              return fn()
+            }
+        },
+        owner: () => {
+          ownerReads += 1
+          if (ownerReads === 1 || !options.ownerDuringWrite) {
+            return OWNER
+          }
+          return options.ownerDuringWrite()
+        },
+        offlineSaleAuthorities: {
+          observe: (published, companyUuid, deviceUuid) => {
+            observed.push({ published, companyUuid, deviceUuid })
+            return {} as never
+          }
+        }
+      }
+    )
+    return { service, bodies, secrets, statuses, observed, transactions: () => transactions }
+  }
+
+  function withAuthority(authority: Record<string, unknown>): Record<string, unknown> {
+    const envelope = licenseSuccessEnvelope()
+    return {
+      ...envelope,
+      data: { ...(envelope.data as object), offline_sale_authority: authority }
+    }
+  }
+
+  it('negotiates v2 and stores the published authority for the captured owner in one transaction', async () => {
+    const h = harness({ responses: [{ status: 200, body: withAuthority(AUTHORITY_V2) }] })
+
+    await h.service.validate()
+
+    expect(h.bodies).toEqual([{ offline_sale_contract_version: 2 }])
+    expect(h.transactions()).toBe(1)
+    expect(h.secrets.get(DESKTOP_LICENSE_JWT_KEY)).toBeTruthy()
+    expect(h.statuses).toHaveLength(1)
+    expect(h.observed).toEqual([
+      { published: AUTHORITY_V2, companyUuid: OWNER.companyUuid, deviceUuid: OWNER.deviceUuid }
+    ])
+  })
+
+  it.each([
+    ['sign-out', () => null],
+    [
+      'another user',
+      () => ({ ...OWNER, userUuid: '99999999-9999-4999-8999-999999999999', sessionEpoch: 4 })
+    ],
+    [
+      'a binding refresh without an epoch bump',
+      () => ({ ...OWNER, serverDeviceId: '88888888-8888-4888-8888-888888888888' })
+    ],
+    ['a reassignment', () => ({ ...OWNER, warehouseUuid: '12121212-1212-4121-8121-121212121212' })]
+  ])('discards the whole result when the owner changed in flight (%s)', async (_label, during) => {
+    const h = harness({
+      responses: [{ status: 200, body: withAuthority(AUTHORITY_V2) }],
+      ownerDuringWrite: during as () => typeof OWNER | null
+    })
+
+    await expect(h.service.validate()).rejects.toMatchObject({ code: 'owner-changed' })
+
+    expect(h.secrets.size).toBe(0)
+    expect(h.statuses).toHaveLength(0)
+    expect(h.observed).toHaveLength(0)
+  })
+
+  it('falls back to v1 once when an older backend rejects the negotiated version', async () => {
+    const { warehouse_uuid: _dropped, ...v1 } = AUTHORITY_V2
+    void _dropped
+    const h = harness({
+      responses: [
+        {
+          status: 422,
+          body: {
+            success: false,
+            message: 'The given data was invalid.',
+            code: 'VALIDATION_ERROR',
+            errors: { offline_sale_contract_version: ['The selected version is invalid.'] },
+            meta: { trace_id: 'trace' }
+          }
+        },
+        { status: 200, body: withAuthority(v1) }
+      ]
+    })
+
+    await h.service.validate()
+    await h.service.validate()
+
+    expect(h.bodies).toEqual([
+      { offline_sale_contract_version: 2 },
+      { offline_sale_contract_version: 1 },
+      { offline_sale_contract_version: 1 }
+    ])
+    expect((h.observed[0] as { published: Record<string, unknown> }).published).not.toHaveProperty(
+      'warehouse_uuid'
+    )
+  })
+})

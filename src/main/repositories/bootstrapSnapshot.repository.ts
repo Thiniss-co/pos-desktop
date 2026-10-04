@@ -349,7 +349,11 @@ export class BootstrapSnapshotRepository {
     >
   ) {}
 
-  persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult {
+  persistSnapshot(
+    resource: DesktopBootstrapResource,
+    fetchedAt: string,
+    options: { readonly beforeWrite?: () => void } = {}
+  ): BootstrapPersistResult {
     const manifest = assertCatalogSemantics(resource)
     const allocationSnapshot = resolveAllocationSnapshot(resource)
     const counts: Record<string, number> = {}
@@ -382,6 +386,7 @@ export class BootstrapSnapshotRepository {
         }
 
         const commitIdempotent = this.database.transaction(() => {
+          options.beforeWrite?.()
           this.persistBootstrapContext(resource, fetchedAt)
           this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
           this.persistOfflineSaleAuthority(resource, fetchedAt)
@@ -403,6 +408,7 @@ export class BootstrapSnapshotRepository {
     }
 
     const commit = this.database.transaction(() => {
+      options.beforeWrite?.()
       this.persistBootstrapContext(resource, fetchedAt)
 
       // The Phase 3 sellable catalogue is isolated from the legacy Phase 2 numeric-ID tables.

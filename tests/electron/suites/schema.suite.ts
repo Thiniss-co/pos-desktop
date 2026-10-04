@@ -86,7 +86,9 @@ const expectedTables = [
   // POS reliability rev 3 (migration 0016): allocation-dispatch evidence and validation marks.
   'attempt_allocation_dispatches',
   'legacy_dispatch_uncertainties',
-  'stock_allocation_validation_marks'
+  'stock_allocation_validation_marks',
+  // Physical-presence selling integration (migration 0017): append-only authority conflicts.
+  'offline_sale_authority_conflicts'
 ]
 
 databaseTest(
@@ -145,6 +147,7 @@ databaseTest(
       'idx_local_refunds_state',
       'idx_local_stock_movements_invoice',
       'idx_local_stock_movements_projection',
+      'idx_offline_sale_authorities_warehouse',
       'idx_offline_sale_authorities_window',
       'idx_prepare_cycles_owner',
       'idx_prepare_operations_owner',

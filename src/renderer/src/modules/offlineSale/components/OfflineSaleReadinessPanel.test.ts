@@ -26,6 +26,8 @@ function readiness(overrides: Partial<OfflineSaleReadiness> = {}): OfflineSaleRe
     lastSuccessfulSyncAt: null,
     inventoryWarnings: [],
     clockUntrusted: false,
+    physicalPresenceLapsed: false,
+    noTimeLimit: false,
     ...overrides
   }
 }
@@ -138,5 +140,14 @@ describe('OfflineSaleReadinessPanel status rendering', () => {
     expect(calls).toBe(2)
     expect(wrapper.find('[data-testid="offline-sale-readiness-error"]').exists()).toBe(false)
     expect(wrapper.get('.app-status-chip').classes()).toContain('app-status-chip--success')
+  })
+
+  it('shows "no offline time limit" instead of a multi-year countdown', async () => {
+    wrapper = await renderPanel(async () => ({
+      ok: true,
+      data: readiness({ noTimeLimit: true, remainingSeconds: 360_000_000 })
+    }))
+    expect(wrapper.text()).toContain(String(i18n.global.t('offlineSale.noTimeLimit')))
+    expect(wrapper.text()).not.toContain('100000h')
   })
 })

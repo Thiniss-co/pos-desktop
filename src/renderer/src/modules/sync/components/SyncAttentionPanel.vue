@@ -40,7 +40,8 @@ const KIND_ICON: Record<SupportIssueKind, IconName> = {
   'allocation-identity-conflict': 'gpp_bad',
   'allocation-request-invalid': 'sync_problem',
   'legacy-dispatch-uncertainty': 'help',
-  'allocation-request-pending': 'hourglass_top'
+  'allocation-request-pending': 'hourglass_top',
+  'upload-held-by-predecessor': 'pause_circle'
 }
 
 function when(iso: string | null): string {
@@ -192,6 +193,12 @@ function issueKey(issue: SupportIssue): string {
               <dd class="sync-attention__reference code justify-self-start">
                 {{ issue.reference }}
               </dd>
+              <template v-if="issue.relatedReference">
+                <dt class="text-muted">{{ t('sync.attention.heldBehind') }}</dt>
+                <dd class="sync-attention__related code justify-self-start">
+                  {{ issue.relatedReference }}
+                </dd>
+              </template>
               <template v-if="issue.traceId">
                 <dt class="text-muted">{{ t('sync.attention.traceId') }}</dt>
                 <dd class="sync-attention__trace code justify-self-start break-all">

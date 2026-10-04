@@ -12,6 +12,11 @@ import {
 import type { BootstrapPersistResult } from '../repositories/bootstrapSnapshot.repository'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 import type { SessionContext } from '../repositories/sessionMetadata.repository'
+import { isUnsupportedOfflineSaleVersion } from './license.service'
+import { OwnerChangedError, sameRenewalOwner, type RenewalOwner } from './renewalOwner'
+
+/** Just past the server's one-second `generated_at` resolution. */
+const SAME_SECOND_RETRY_MS = 1_100
 
 export interface BootstrapDeviceIdentityRepository {
   get(): StoredDeviceIdentity | null
@@ -21,8 +26,57 @@ export interface BootstrapCommercialAccessChecker {
   assertCanSync(): void
 }
 
+export interface BootstrapPersistOptions {
+  /** Runs as the FIRST statement inside the persist transaction; a throw discards the snapshot. */
+  readonly beforeWrite?: () => void
+}
+
 export interface BootstrapSnapshotWriter {
-  persistSnapshot(resource: DesktopBootstrapResource, fetchedAt: string): BootstrapPersistResult
+  persistSnapshot(
+    resource: DesktopBootstrapResource,
+    fetchedAt: string,
+    options?: BootstrapPersistOptions
+  ): BootstrapPersistResult
+}
+
+export interface BootstrapServiceOptions {
+  /** Rev 4 §7.1: the renewal owner, captured before the request and re-checked inside the write. */
+  readonly owner?: () => RenewalOwner | null
+  /**
+   * Rev 4 §8: the catalog-install lifecycle. `acquire()` runs after the fetch and before any write
+   * (the renderer hold handshake); `beforeWrite()` is the synchronous final check inside the
+   * persist transaction; `settle()` records the outcome and releases the hold.
+   */
+  readonly installGate?: {
+    acquire(): Promise<void>
+    beforeWrite(): void
+    settle(installed: boolean, reason?: string): void
+  }
+}
+
+let bootstrapOfflineSaleVersion: 1 | 2 = 2
+
+/**
+ * Rev 4 §6.3: request bootstrap negotiating the v2 authority representation, falling back once to
+ * v1 against a backend that rejects the field (422, before any work). Shared by every caller that
+ * reads bootstrap so the negotiation cannot diverge.
+ */
+export async function requestBootstrap(apiClient: DesktopApiClient): Promise<unknown> {
+  for (;;) {
+    try {
+      return await apiClient.request(
+        bootstrapOfflineSaleVersion === 2
+          ? DESKTOP_API_ROUTES.bootstrap
+          : DESKTOP_API_ROUTES.bootstrapOfflineSaleV1
+      )
+    } catch (error) {
+      if (bootstrapOfflineSaleVersion === 2 && isUnsupportedOfflineSaleVersion(error)) {
+        bootstrapOfflineSaleVersion = 1
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 /**
@@ -93,7 +147,8 @@ export class BootstrapService {
     private readonly onSnapshotPersisted?: (result: BootstrapPersistResult) => void,
     private readonly now: () => Date = () => new Date(),
     private readonly sessionMetadata?: { getContext(): SessionContext },
-    private readonly receiptProfileSync?: BootstrapReceiptProfileSync
+    private readonly receiptProfileSync?: BootstrapReceiptProfileSync,
+    private readonly options: BootstrapServiceOptions = {}
   ) {}
 
   refresh(): Promise<BootstrapResult> {
@@ -101,7 +156,19 @@ export class BootstrapService {
       return this.refreshInFlight
     }
 
-    const refresh = this.refreshOnce()
+    const refresh = this.refreshOnce().catch(async (error: unknown) => {
+      // The server stamps `generated_at` to the second. Two snapshots with different content in the
+      // SAME second (e.g. a refresh straight after a device assignment, while a session install of
+      // the previous content landed in that second) are refused as a conflict; nothing was written.
+      // Once the server's second has moved on, a fresh fetch carries a later `generated_at`.
+      if (
+        (error as { backendCode?: unknown } | null)?.backendCode !== 'CATALOG_REVISION_CONFLICT'
+      ) {
+        throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, SAME_SECOND_RETRY_MS))
+      return this.refreshOnce()
+    })
     this.refreshInFlight = refresh
     void refresh.then(
       () => this.clearRefresh(refresh),
@@ -118,6 +185,35 @@ export class BootstrapService {
     }
   }
 
+  private persistGuarded(
+    resource: DesktopBootstrapResource,
+    fetchedAt: string,
+    capturedOwner: RenewalOwner | null
+  ): BootstrapPersistResult {
+    return this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt, {
+      beforeWrite: () => {
+        if (this.options.owner) {
+          const current = this.options.owner()
+          const unchanged =
+            capturedOwner === null && current === null
+              ? true
+              : sameRenewalOwner(capturedOwner, current)
+          if (!unchanged) {
+            throw new OwnerChangedError()
+          }
+          if (
+            current !== null &&
+            (resource.company.id !== current.companyUuid ||
+              resource.device.device_uuid !== current.deviceUuid)
+          ) {
+            throw new OwnerChangedError()
+          }
+        }
+        this.options.installGate?.beforeWrite()
+      }
+    })
+  }
+
   private async refreshOnce(): Promise<BootstrapResult> {
     const identity = this.deviceIdentityRepository.get()
 
@@ -127,7 +223,8 @@ export class BootstrapService {
 
     this.commercialAccess.assertCanSync()
 
-    const response = await this.apiClient.request(DESKTOP_API_ROUTES.bootstrap)
+    const capturedOwner = this.options.owner?.() ?? null
+    const response = await requestBootstrap(this.apiClient)
     let resource: DesktopBootstrapResource
 
     try {
@@ -143,7 +240,27 @@ export class BootstrapService {
 
     const fetchedAt = this.now().toISOString()
 
-    const persisted = this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt)
+    // Rev 4 §8: hold the renderer (adds, scans, recalls, claims wait) before anything is written.
+    // A deferral throws here with nothing persisted; the downloaded payload is discarded.
+    const gate = this.options.installGate
+    if (gate) {
+      await gate.acquire()
+    }
+
+    // Rev 4 §7.1/§7.2: the first statements of the persist transaction re-check that the owner is
+    // unchanged since the request was sent, and that the response describes THIS session's company
+    // and device; then the install gate's final synchronous check. Anything else discards the
+    // snapshot; nothing is written.
+    let persisted: BootstrapPersistResult
+    try {
+      persisted = this.persistGuarded(resource, fetchedAt, capturedOwner)
+      gate?.settle(true)
+    } catch (error) {
+      // The code only (never a message or payload): it names why the install was discarded.
+      const code = (error as { code?: unknown; backendCode?: unknown } | null) ?? null
+      gate?.settle(false, String(code?.code ?? code?.backendCode ?? 'error').slice(0, 64))
+      throw error
+    }
     this.onSnapshotPersisted?.(persisted)
 
     if (this.receiptProfileSync) {

@@ -84,6 +84,7 @@ describe('CP-3G-5D — dispatch cardinality through the production trigger', () 
       syncQueue: {
         reclaimExpiredUploadLeases: () => [],
         releaseDueRetries: () => [],
+        nextRetryDeadline: () => null,
         claimNextInvoiceUpload: () => {
           if (claimable.value <= 0) {
             return null

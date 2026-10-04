@@ -14,6 +14,7 @@ import type {
   LegacyDispatchUncertaintyRow,
   SaleAttemptRepository
 } from '../repositories/saleAttempt.repository'
+import type { UploadDependencyRepository } from '../repositories/uploadDependency.repository'
 import type { LocalSaleService } from './localSale.service'
 
 export interface SupportIssuesSessionReader {
@@ -35,6 +36,8 @@ export interface SupportIssuesDependencies {
   readonly recoverySummary: Pick<LocalSaleService, 'recoverySummary'>['recoverySummary']
   /** Display name from the installed catalog, or `null` when the product is no longer in it. */
   readonly productName: (productUuid: string) => string | null
+  /** Rev 4 §10.4: uploads held behind a terminal predecessor. Absent → none are listed. */
+  readonly uploadDependencies?: Pick<UploadDependencyRepository, 'listHeld'>
 }
 
 const EMPTY: SyncSupportIssues = {
@@ -49,7 +52,7 @@ const QUANTITY = /^\d{1,9}(\.\d{1,3})?$/
  * A stable, non-secret reference a cashier can read to support: a two-letter source prefix and the
  * first twelve hex digits of the request/attempt identity. Neither identity is a credential.
  */
-export function supportReference(prefix: 'AD' | 'SA', identity: string): string {
+export function supportReference(prefix: 'AD' | 'SA' | 'IN', identity: string): string {
   const hex = identity.replace(/[^0-9a-f]/gi, '').toUpperCase()
   return `${prefix}-${hex.slice(0, 12).padEnd(12, '0')}`
 }
@@ -88,12 +91,15 @@ export class SupportIssuesService {
     const legacy = this.dependencies.saleAttempts
       .listOpenLegacyUncertainties(owner, SUPPORT_ISSUE_LIST_LIMIT)
       .map((row) => this.fromLegacy(row, userUuid))
+    const held = (
+      this.dependencies.uploadDependencies?.listHeld(owner, SUPPORT_ISSUE_LIST_LIMIT) ?? []
+    ).map((row) => this.fromHeldUpload(row, userUuid))
     const pending = this.dependencies.allocationDispatches
       .listForOwnerByStates(owner, ['dispatched'], SUPPORT_ISSUE_LIST_LIMIT)
       .map((row) => this.fromDispatch(row, userUuid))
 
     return {
-      needsSupport: [...integrity, ...legacy].sort((left, right) =>
+      needsSupport: [...integrity, ...legacy, ...held].sort((left, right) =>
         right.occurredAt.localeCompare(left.occurredAt)
       ),
       automaticReconciliation: pending,
@@ -151,7 +157,28 @@ export class SupportIssuesService {
           )
         : null,
       sendCount: pending ? row.sendCount : null,
-      nextAttemptAfter: pending ? row.retryNotBefore : null
+      nextAttemptAfter: pending ? row.retryNotBefore : null,
+      relatedReference: null
+    }
+  }
+
+  private fromHeldUpload(
+    row: ReturnType<UploadDependencyRepository['listHeld']>[number],
+    userUuid: string
+  ): SupportIssue {
+    return {
+      kind: 'upload-held-by-predecessor',
+      reference: supportReference('IN', row.invoiceLocalUuid),
+      traceId: null,
+      occurredAt: row.createdAt,
+      updatedAt: null,
+      ownedByCurrentUser: row.userUuid === userUuid,
+      lines: null,
+      sendCount: null,
+      nextAttemptAfter: null,
+      relatedReference: row.predecessor
+        ? supportReference('IN', row.predecessor.invoiceLocalUuid)
+        : null
     }
   }
 
@@ -167,7 +194,8 @@ export class SupportIssuesService {
       ownedByCurrentUser: owned,
       lines: owned ? this.lines(row.productQuantities) : null,
       sendCount: null,
-      nextAttemptAfter: null
+      nextAttemptAfter: null,
+      relatedReference: null
     }
   }
 

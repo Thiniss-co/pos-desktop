@@ -34,6 +34,15 @@ export interface ConnectivityServiceDependencies {
   readonly onChange?: (snapshot: ConnectivitySnapshot) => void
   readonly onResume?: (listener: () => void) => () => void
   readonly tracer?: ApiTracer
+  /**
+   * Rev 4 §10.1: the unauthenticated `/up` response's HTTP `Date` header (second precision) with
+   * the monotonic readings bracketing the request. A sample only; it never affects the verdict.
+   */
+  readonly onServerTimeSample?: (sample: {
+    readonly serverTime: string
+    readonly sentAtMono: number
+    readonly receivedAtMono: number
+  }) => void
 }
 
 function nowIsoSecond(): string {
@@ -266,6 +275,19 @@ export class ConnectivityService {
         redirect: 'manual',
         signal: controller.signal
       })
+      const receivedAt = performance.now()
+      const dateHeader = response.headers.get('date')
+      if (dateHeader !== null && response.status < SERVER_ERROR_STATUS_FLOOR) {
+        try {
+          this.dependencies.onServerTimeSample?.({
+            serverTime: dateHeader,
+            sentAtMono: startedAt,
+            receivedAtMono: receivedAt
+          })
+        } catch {
+          // A time sample must never affect the connectivity verdict.
+        }
+      }
       const payload = await response.json().catch(() => null)
       const isHealthy =
         response.ok &&

@@ -37,6 +37,17 @@ export const IPC_CHANNELS = Object.freeze({
   checkoutAbandonAttempt: 'checkout:abandon-attempt',
   checkoutAcknowledgeAttempt: 'checkout:acknowledge-attempt',
   checkoutAttemptStatus: 'checkout:attempt-status',
+  /** Main → renderer only (Rev 4 §9.1): claimed/committed attempts changed; carries no payload. */
+  checkoutAttemptsChanged: 'checkout:attempts-changed',
+  /** Rev 4 §8 — the catalog-install lifecycle. */
+  posDraftState: 'pos:draft-state',
+  /** Main → renderer only: arm the install hold and reply. */
+  catalogInstallHold: 'catalog:install-hold',
+  catalogInstallHoldReply: 'catalog:install-hold-reply',
+  catalogInstallHoldStatus: 'catalog:install-hold-status',
+  /** Main → renderer only: the hold reached a terminal state. */
+  catalogInstallRelease: 'catalog:install-release',
+  workstationRefresh: 'workstation:refresh',
   /**
    * CP4: the narrow preparation surface (plan §10 CP4 — "no broad database/network IPC").
    *

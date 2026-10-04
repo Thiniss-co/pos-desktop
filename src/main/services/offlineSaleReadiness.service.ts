@@ -1,7 +1,8 @@
-import type {
-  OfflineSaleInventoryWarning,
-  OfflineSaleLimitingReason,
-  OfflineSaleReadiness
+import {
+  OFFLINE_NO_DEADLINE_MS,
+  type OfflineSaleInventoryWarning,
+  type OfflineSaleLimitingReason,
+  type OfflineSaleReadiness
 } from '@shared/contracts/offlineSaleReadiness.contract'
 import type { SqliteDatabase } from '../database/connection'
 import type { OfflineSaleAuthorityRepository } from '../repositories/offlineSaleAuthority.repository'
@@ -16,7 +17,10 @@ export interface OfflineSaleReadinessOwner {
 
 export interface OfflineSaleReadinessDependencies {
   readonly database: SqliteDatabase
-  readonly offlineSaleAuthorities: Pick<OfflineSaleAuthorityRepository, 'findUsable'>
+  readonly offlineSaleAuthorities: Pick<OfflineSaleAuthorityRepository, 'findUsable'> &
+    Partial<Pick<OfflineSaleAuthorityRepository, 'latestForWarehouse'>>
+  /** The last successful license validation (trusted anchor), or null before the first one. */
+  readonly lastLicenseValidationAt?: () => string | null
   readonly trustedClock: CatalogTrustedClock
   /** Resolved from main's own session/bootstrap state. Null before login or bootstrap. */
   readonly resolveOwner: () => OfflineSaleReadinessOwner | null
@@ -99,10 +103,24 @@ export class OfflineSaleReadinessService {
       )
     }
 
+    if (trusted.rollbackDetected) {
+      // Rev 4 A8/B4: the commit refuses a rolled-back clock (`clock-untrusted`), so the panel must
+      // not show a countdown that the commit would contradict.
+      return this.legacy(
+        categoricalBlocks,
+        true,
+        pendingUploadCount,
+        lastSuccessfulSyncAt,
+        inventoryWarnings,
+        this.physicalPresenceLapsed(owner)
+      )
+    }
+
     const nowIso = trusted.now.toISOString()
     const authority = this.dependencies.offlineSaleAuthorities.findUsable(
       owner.companyUuid,
       owner.deviceUuid,
+      owner.warehouseUuid ?? null,
       nowIso
     )
 
@@ -112,7 +130,8 @@ export class OfflineSaleReadinessService {
         false,
         pendingUploadCount,
         lastSuccessfulSyncAt,
-        inventoryWarnings
+        inventoryWarnings,
+        this.physicalPresenceLapsed(owner)
       )
     }
 
@@ -138,7 +157,9 @@ export class OfflineSaleReadinessService {
       pendingUploadCount,
       lastSuccessfulSyncAt,
       inventoryWarnings: [...inventoryWarnings],
-      clockUntrusted: false
+      clockUntrusted: false,
+      physicalPresenceLapsed: false,
+      noTimeLimit: Date.parse(effectiveUntil) >= OFFLINE_NO_DEADLINE_MS
     }
   }
 
@@ -181,12 +202,33 @@ export class OfflineSaleReadinessService {
     return { effectiveUntil, limitingReason }
   }
 
+  /**
+   * A physical-presence authority was held for this warehouse, none is usable now, and the last
+   * successful validation happened while it was still valid — i.e. renewal simply has not reached
+   * the server yet. A validation AFTER it ended that issued nothing means the policy changed, and
+   * the till is then honestly an allocation-mode till, not a lapsed one.
+   */
+  private physicalPresenceLapsed(owner: OfflineSaleReadinessOwner): boolean {
+    const latest = this.dependencies.offlineSaleAuthorities.latestForWarehouse?.(
+      owner.companyUuid,
+      owner.deviceUuid,
+      owner.warehouseUuid ?? null
+    )
+    if (!latest) {
+      return false
+    }
+    const validatedAt = this.dependencies.lastLicenseValidationAt?.() ?? null
+    const validatedMs = validatedAt === null ? Number.NaN : Date.parse(validatedAt)
+    return !Number.isFinite(validatedMs) || validatedMs < Date.parse(latest.notAfter)
+  }
+
   private legacy(
     categoricalBlocks: readonly string[],
     clockUntrusted: boolean,
     pendingUploadCount: number,
     lastSuccessfulSyncAt: string | null,
-    inventoryWarnings: readonly OfflineSaleInventoryWarning[]
+    inventoryWarnings: readonly OfflineSaleInventoryWarning[],
+    physicalPresenceLapsed = false
   ): OfflineSaleReadiness {
     return {
       mode: 'allocation_exclusive',
@@ -201,7 +243,9 @@ export class OfflineSaleReadinessService {
       pendingUploadCount,
       lastSuccessfulSyncAt,
       inventoryWarnings: [...inventoryWarnings],
-      clockUntrusted
+      clockUntrusted,
+      physicalPresenceLapsed,
+      noTimeLimit: false
     }
   }
 

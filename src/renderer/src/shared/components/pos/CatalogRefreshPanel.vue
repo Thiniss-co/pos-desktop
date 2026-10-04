@@ -11,7 +11,9 @@ import type { IconName } from '@renderer/shared/components/common/icons.generate
  * the parent page. This component performs no IPC, reads no store, and decides nothing about the
  * cart — it renders the current state and emits one intent.
  *
- * The refresh action is ALWAYS rendered, in every state. A locally "fresh" catalog only means this
+ * The refresh action is ALWAYS available, in every state — rendered here unless the host sets
+ * `showAction: false` because the same action is already permanently visible elsewhere (Rev 4 §13:
+ * the header "Refresh workstation" control on every page). A locally "fresh" catalog only means this
  * workstation's last known snapshot looked current when it was fetched — the server can gain new
  * products at any time, and a cashier must always be able to force a resync to check, not only
  * when something already looks wrong. Hiding the action whenever nothing looked wrong is the exact
@@ -50,6 +52,8 @@ withDefaults(
     /** Explains what refreshing does (tooltip on the action). */
     refreshNote?: string
     dismissLabel?: string
+    /** False when the host already shows the one refresh action (the header control). */
+    showAction?: boolean
   }>(),
   {
     lastRefreshedLabel: null,
@@ -58,7 +62,8 @@ withDefaults(
     statusLabel: null,
     statusTone: 'muted',
     refreshNote: undefined,
-    dismissLabel: undefined
+    dismissLabel: undefined,
+    showAction: true
   }
 )
 
@@ -90,6 +95,7 @@ const STATUS_TEXT = { ok: 'text-ok', muted: 'text-muted', info: 'text-info', war
         refresh; the label itself communicates progress.
       -->
       <AppButton
+        v-if="showAction"
         variant="ghost"
         size="sm"
         icon="refresh"

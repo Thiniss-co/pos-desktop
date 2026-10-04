@@ -161,10 +161,14 @@ export function mapUploadFailure(
 ): UploadFailureDisposition {
   const code = error.backendCode
   const errorCode = code ?? error.category
+  // Rev 4 §10.5a: bounded exponential backoff that never retries sooner than the server's
+  // `Retry-After` (itself bounded by the envelope schema).
+  const backoffMs = calculateRetryDelayMs(attemptCount, random)
+  const retryAfterMs = error.retryAfterSeconds === undefined ? 0 : error.retryAfterSeconds * 1_000
   const retryable = {
     kind: 'retryable' as const,
     errorCode,
-    retryDelayMs: calculateRetryDelayMs(attemptCount, random),
+    retryDelayMs: Math.max(backoffMs, retryAfterMs),
     details: details(error)
   }
 

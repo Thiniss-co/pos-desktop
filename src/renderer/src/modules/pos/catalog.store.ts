@@ -348,6 +348,12 @@ export const useCatalogStore = defineStore('catalog', () => {
    * It deliberately does not touch the cart. `revisionChanged` is recorded for the page, which
    * routes it into the existing explicit rebuild-or-clear flow — a refresh never reprices a draft.
    */
+  /** Rev 4 §8: a catalog install applied through the hold (header refresh or renewal). */
+  function recordInstall(revisionChanged = false): void {
+    lastRefreshedAt.value = new Date().toISOString()
+    lastRefreshRevisionChanged.value = revisionChanged
+  }
+
   async function refresh(
     service = new CatalogRendererService()
   ): Promise<CatalogRefreshResult | null> {
@@ -454,6 +460,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     lastRefreshRevisionChanged,
     refreshError,
     refresh,
+    recordInstall,
     resetCatalog,
     initialize,
     search,
