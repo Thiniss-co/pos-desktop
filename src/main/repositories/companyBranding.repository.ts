@@ -1,4 +1,5 @@
 import type { SqliteDatabase } from '../database/connection'
+import { ASSET_RETRY_MAX_ATTEMPTS, isAssetRetryDue } from '../sync/assetRetryPolicy'
 
 /**
  * Owner UX plan P9 — the register's copy of the company identity the server delivered.
@@ -38,7 +39,8 @@ export interface PendingCompanyLogo {
   readonly heightPx: number
 }
 
-export const MAX_COMPANY_LOGO_ATTEMPTS = 3
+/** The same bounded, spaced retries as product images (`assetRetryPolicy`). */
+export const MAX_COMPANY_LOGO_ATTEMPTS = ASSET_RETRY_MAX_ATTEMPTS
 
 export class CompanyBrandingRepository {
   constructor(private readonly database: SqliteDatabase) {}
@@ -119,17 +121,25 @@ export class CompanyBrandingRepository {
     return row ?? null
   }
 
-  findPendingLogo(companyUuid: string): PendingCompanyLogo | null {
+  /** The current logo when it is due for a fetch at `now` (never tried, or past its retry delay). */
+  findPendingLogo(companyUuid: string, now: Date): PendingCompanyLogo | null {
     const row = this.database
       .prepare(
-        `SELECT a.sha256, a.byte_length AS byteLength, a.width_px AS widthPx, a.height_px AS heightPx
+        `SELECT a.sha256, a.byte_length AS byteLength, a.width_px AS widthPx, a.height_px AS heightPx,
+                a.attempts, a.last_attempt_at AS lastAttemptAt
          FROM company_brand_assets a JOIN company_branding b
            ON b.company_uuid = a.company_uuid AND b.logo_sha256 = a.sha256
          WHERE a.company_uuid = ? AND a.status = 'pending' AND a.attempts < ?`
       )
-      .get(companyUuid, MAX_COMPANY_LOGO_ATTEMPTS) as PendingCompanyLogo | undefined
+      .get(companyUuid, MAX_COMPANY_LOGO_ATTEMPTS) as
+      (PendingCompanyLogo & { attempts: number; lastAttemptAt: string | null }) | undefined
 
-    return row ?? null
+    if (row === undefined || !isAssetRetryDue(row.attempts, row.lastAttemptAt, now)) {
+      return null
+    }
+    const { sha256, byteLength, widthPx, heightPx } = row
+
+    return { sha256, byteLength, widthPx, heightPx }
   }
 
   markAvailable(companyUuid: string, sha256: string, content: Buffer, fetchedAt: string): boolean {

@@ -15,6 +15,8 @@ const COMPANY = '11111111-1111-4111-8111-111111111111'
 const OTHER_COMPANY = '22222222-2222-4222-8222-222222222222'
 const PRODUCT = '55555555-5555-4555-8555-555555555555'
 const GONE = '66666666-6666-4666-8666-666666666666'
+/** A clock reading after every bootstrap below, for assets never tried. */
+const NOW = new Date('2026-01-01T00:05:00.000Z')
 
 function asset(
   seed: string,
@@ -81,7 +83,7 @@ databaseTest(
       '2026-01-01T00:01:00+00:00'
     )
     equal(reference(database)?.revision, 1)
-    equal(repositories.productImages.findPendingAssets(COMPANY, 200).length, 2)
+    equal(repositories.productImages.findPendingAssets(COMPANY, 200, NOW).length, 2)
 
     // Same catalog contract (fast path): only the image changed, and it is still applied.
     repositories.bootstrapSnapshot.persistSnapshot(
@@ -93,7 +95,7 @@ databaseTest(
     // The old image's bytes are no longer referenced and were dropped.
     deepEqual(
       repositories.productImages
-        .findPendingAssets(COMPANY, 200)
+        .findPendingAssets(COMPANY, 200, NOW)
         .map((row) => row.sha256)
         .sort(),
       ['3'.repeat(64), '4'.repeat(64)]
@@ -206,7 +208,7 @@ databaseTest(
 )
 
 databaseTest(
-  'verified bytes become thumbnails; failed assets stop being retried after three attempts until a newer reference names them',
+  'verified bytes become thumbnails; a failed asset waits 1 then 5 minutes (across a restart) and stops after three attempts until a newer reference names it',
   (sandbox) => {
     const database = openTestDatabase(sandbox)
     const repositories = realRepositories(database)
@@ -225,10 +227,54 @@ databaseTest(
       false
     )
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      images.markFailed(COMPANY, '2'.repeat(64), '2026-01-01T00:03:00Z')
-    }
-    equal(images.findPendingAssets(COMPANY, 200).length, 0)
+    const failing = '2'.repeat(64)
+    const due = (at: string, db = images): boolean =>
+      db.findPendingAssets(COMPANY, 200, new Date(at)).some((row) => row.sha256 === failing)
+
+    // First failure: not again within the minute, then due.
+    images.markFailed(COMPANY, failing, '2026-01-01T00:03:00.000Z')
+    equal(due('2026-01-01T00:03:59.999Z'), false)
+    equal(due('2026-01-01T00:04:00.000Z'), true)
+    // Second failure: five minutes, and the wait survives a restart (a fresh connection and repository).
+    images.markFailed(COMPANY, failing, '2026-01-01T00:04:00.000Z')
+    closeDatabase(database)
+    const restarted = openTestDatabase(sandbox)
+    const reopened = realRepositories(restarted).productImages
+    equal(due('2026-01-01T00:08:59.999Z', reopened), false)
+    // A clock moved back an hour keeps waiting rather than retrying at once.
+    equal(due('2026-01-01T00:03:00.000Z', reopened), false)
+    equal(due('2026-01-01T00:09:00.000Z', reopened), true)
+    // Third failure: never again, however late, until a newer reference names it.
+    reopened.markFailed(COMPANY, failing, '2026-01-01T00:09:00.000Z')
+    equal(due('2027-01-01T00:00:00.000Z', reopened), false)
+    closeDatabase(restarted)
+  }
+)
+
+databaseTest(
+  'a retry stamp far ahead of the clock (a clock reset) is not trusted, and the attempt bound still holds',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const repositories = realRepositories(database)
+    repositories.bootstrapSnapshot.persistSnapshot(
+      desktopBootstrapFixture({ product_images: block(1, 'a') }),
+      '2026-01-01T00:01:00+00:00'
+    )
+    const images = repositories.productImages
+    const failing = '2'.repeat(64)
+    images.markFailed(COMPANY, failing, '2026-06-01T00:00:00.000Z')
+    const pending = (at: string): string[] =>
+      images.findPendingAssets(COMPANY, 200, new Date(at)).map((row) => row.sha256)
+
+    // The clock now reads months earlier than the stamp: waiting for it would hide the image for months.
+    ok(pending('2026-01-01T00:02:00.000Z').includes(failing))
+    // Within a day ahead, the stamp is respected.
+    equal(pending('2026-05-31T12:00:00.000Z').includes(failing), false)
+    images.markFailed(COMPANY, failing, '2026-06-01T00:00:00.000Z')
+    images.markFailed(COMPANY, failing, '2026-06-01T00:00:00.000Z')
+    equal(pending('2026-01-01T00:02:00.000Z').includes(failing), false)
+    // The limit is applied after the delay: a not-yet-due asset never takes a due one's place.
+    equal(images.findPendingAssets(COMPANY, 1, new Date('2026-01-01T00:02:00.000Z')).length, 1)
     closeDatabase(database)
   }
 )

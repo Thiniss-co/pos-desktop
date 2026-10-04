@@ -1,5 +1,6 @@
 import { t } from '../support/app.mjs'
 import {
+  launchAgain,
   openSandboxAndApp,
   payExactCash,
   refreshWorkstation,
@@ -9,13 +10,14 @@ import {
   signIn,
   waitForRoute
 } from '../support/journey.mjs'
-import { queryLocal } from '../support/localDb.mjs'
+import { ageAssetRetryStamps, queryLocal } from '../support/localDb.mjs'
 
 /**
  * Owner UX plan P9 — the company identity on the register, against the real app and a disposable backend:
  *  1. the owner's logo, name and colour are applied after a bootstrap;
  *  2. they survive an offline restart;
- *  3. a logo fetch that fails leaves the name and the default mark, never the till offline;
+ *  3. a logo fetch that fails leaves the name and the default mark, never the till offline; it is
+ *     not fetched again within its delay, and arrives after it (aged with the app closed), across a restart;
  *  4. a changed colour is applied after the next bootstrap; 5. a removed logo falls back to the mark;
  *  6. a device re-registered to another company carries nothing of the first company over;
  *  7. a low-contrast colour gets adjusted or default text tokens;
@@ -110,9 +112,33 @@ export async function run(ctx) {
     if (failed.name !== 'Desktop MVP Demo Company') throw new Error('3: the company name was lost')
     if (connectivity !== 'online') throw new Error(`3: connectivity moved to ${connectivity}`)
     proxy.clear('brand-404')
+
+    // The failed logo waits a minute: a bootstrap inside the delay fetches nothing.
+    const requestsAfter404 = proxy.requests(BRAND_ASSETS).length
     await refreshWorkstation(ctx, page)
-    await waitTopBar(page, (s) => s.logo, '3: the new logo did not arrive on a later bootstrap')
-    ctx.step('3: the new logo arrived on a later bootstrap')
+    await page.waitForTimeout(2500)
+    const withinDelay = {
+      logo: (await topBar(page)).logo,
+      logoRequests: proxy.requests(BRAND_ASSETS).length - requestsAfter404
+    }
+    ctx.step('3: not retried within the delay', withinDelay)
+    if (withinDelay.logo || withinDelay.logoRequests !== 0) {
+      throw new Error('3: the failed logo was retried within its delay')
+    }
+
+    // A minute later (the stamp aged while the app is closed), across a restart: retried and shown.
+    await session.app.close()
+    ctx.step('logo retry stamp aged 61s with the app closed', {
+      aged: ageAssetRetryStamps(session.profileDir, 'company_brand_assets', 61)
+    })
+    await launchAgain(ctx, session)
+    page = session.page
+    await waitForRoute(page, 'pos')
+    await refreshWorkstation(ctx, page)
+    await waitTopBar(page, (s) => s.logo, '3: the new logo did not arrive after its delay')
+    ctx.step('3: the new logo arrived on a bootstrap after its delay, across a restart', {
+      logoRequests: proxy.requests(BRAND_ASSETS).length - requestsAfter404
+    })
 
     // 4. A changed colour.
     sandbox.fixture('brand', '#2563eb:keep')

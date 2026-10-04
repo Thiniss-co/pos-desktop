@@ -1,5 +1,6 @@
 import { t } from '../support/app.mjs'
 import {
+  launchAgain,
   MANAGER,
   openSandboxAndApp,
   payExactCash,
@@ -11,14 +12,15 @@ import {
   waitForRoute,
   waitForServerInvoices
 } from '../support/journey.mjs'
-import { queryLocal } from '../support/localDb.mjs'
+import { ageAssetRetryStamps, queryLocal } from '../support/localDb.mjs'
 
 /**
  * Owner UX plan P8 — product images on the register, against the real app and a disposable backend:
  *  1. an image set by the owner is shown after a bootstrap;
  *  2. it is shown again from the local cache after an offline restart;
  *  3. asset fetches that fail (404, timeout) leave the monogram, never the till offline, and a sale
- *     still completes; the image arrives on a later bootstrap;
+ *     still completes; a failed asset is not fetched again within its delay (1 then 5 minutes, aged
+ *     with the app closed), and arrives on a bootstrap after it, across restarts;
  *  4. a replaced image is shown after the next bootstrap; 5. a removed one falls back to the monogram;
  *  7. signing out during a sweep stops it and nothing fetched after that is stored;
  *  8. a checkout during a sweep completes and uploads unchanged.
@@ -61,6 +63,17 @@ async function connectivity(page) {
         .querySelector('#app')
         .__vue_app__.config.globalProperties.$pinia._s.get('connectivity')?.snapshot?.status ?? null
   )
+}
+
+/** Closes the app, ages the image retry stamps by `seconds`, and launches it again on the same profile. */
+async function restartAfter(ctx, session, seconds) {
+  await session.app.close()
+  const aged = ageAssetRetryStamps(session.profileDir, 'product_image_assets', seconds)
+  ctx.step(`retry stamps aged ${seconds}s with the app closed`, { aged })
+  await launchAgain(ctx, session)
+  await waitForRoute(session.page, 'pos')
+
+  return session.page
 }
 
 function localAssets(profileDir) {
@@ -115,13 +128,32 @@ export async function run(ctx) {
     ctx.step('3: a sale completed and uploaded while images failed')
     proxy.clear('assets-404')
 
+    // The failed assets wait (1 minute after a first failure): a bootstrap inside the delay fetches nothing.
+    const requestsAfter404 = proxy.requests(ASSETS).length
+    await refreshWorkstation(ctx, page)
+    await page.waitForTimeout(3000)
+    const withinDelay = { assetRequests: proxy.requests(ASSETS).length - requestsAfter404 }
+    ctx.step('3: not retried within the delay', withinDelay)
+    if (withinDelay.assetRequests !== 0)
+      throw new Error('3: a failed asset was retried within its delay')
+
+    // A minute later (the stamps aged while the app is closed), across a restart: retried, one asset times out.
+    page = await restartAfter(ctx, session, 61)
     proxy.rule('assets-timeout', ASSETS, { delayMs: 12_000, times: 1 })
     await refreshWorkstation(ctx, page)
-    await page.waitForTimeout(1000)
-    ctx.step('3: one asset delayed past the client timeout', {
-      connectivity: await connectivity(page)
-    })
+    await page.waitForTimeout(14_000)
+    ctx.step(
+      '3: retried after the delay and a restart; one asset delayed past the client timeout',
+      {
+        connectivity: await connectivity(page),
+        assetRequests: proxy.requests(ASSETS).length - requestsAfter404,
+        local: localAssets(session.profileDir)
+      }
+    )
     proxy.clear('assets-timeout')
+
+    // After a second failure the wait is five minutes.
+    page = await restartAfter(ctx, session, 301)
     await refreshWorkstation(ctx, page)
     const water = await waitCard(
       page,

@@ -15,6 +15,7 @@ import { realRepositories } from '../support/realRepositories'
 const COMPANY_A = '11111111-1111-4111-8111-111111111111'
 const COMPANY_B = '22222222-2222-4222-8222-222222222222'
 const LOGO = '7'.repeat(64)
+const NOW = new Date('2026-01-01T00:05:00.000Z')
 
 function brand(revision: number, color: string | null, logo = false): CompanyBrandingBlock {
   return {
@@ -37,7 +38,7 @@ databaseTest(
       '2026-01-01T00:01:00+00:00'
     )
     equal(companyBranding.current(COMPANY_A)?.primaryColor, '#0e9f8e')
-    equal(companyBranding.findPendingLogo(COMPANY_A)?.sha256, LOGO)
+    equal(companyBranding.findPendingLogo(COMPANY_A, NOW)?.sha256, LOGO)
 
     // Same catalog (fast path): a newer brand still applies; logo removed with it.
     bootstrapSnapshot.persistSnapshot(
@@ -46,7 +47,7 @@ databaseTest(
     )
     equal(companyBranding.current(COMPANY_A)?.primaryColor, '#2563eb')
     equal(companyBranding.current(COMPANY_A)?.logoSha256, null)
-    equal(companyBranding.findPendingLogo(COMPANY_A), null)
+    equal(companyBranding.findPendingLogo(COMPANY_A, NOW), null)
 
     // Stale and conflicting blocks never change it; an absent block says nothing.
     equal(
@@ -85,6 +86,33 @@ databaseTest(
     ok(companyBranding.markAvailable(COMPANY_A, LOGO, Buffer.alloc(64, 1), 'x'))
     equal(companyBranding.current(COMPANY_A)?.logo?.length, 64)
     closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'a failed logo waits 1 then 5 minutes (across a restart) and stops after three attempts',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const { bootstrapSnapshot, companyBranding } = realRepositories(database)
+    bootstrapSnapshot.persistSnapshot(
+      desktopBootstrapFixture({ company_branding: brand(1, null, true) }),
+      '2026-01-01T00:01:00+00:00'
+    )
+    const due = (at: string, repository = companyBranding): boolean =>
+      repository.findPendingLogo(COMPANY_A, new Date(at))?.sha256 === LOGO
+
+    companyBranding.markFailed(COMPANY_A, LOGO, '2026-01-01T00:03:00.000Z')
+    equal(due('2026-01-01T00:03:59.999Z'), false)
+    equal(due('2026-01-01T00:04:00.000Z'), true)
+    companyBranding.markFailed(COMPANY_A, LOGO, '2026-01-01T00:04:00.000Z')
+    closeDatabase(database)
+    const restarted = openTestDatabase(sandbox)
+    const reopened = realRepositories(restarted).companyBranding
+    equal(due('2026-01-01T00:08:59.999Z', reopened), false)
+    equal(due('2026-01-01T00:09:00.000Z', reopened), true)
+    reopened.markFailed(COMPANY_A, LOGO, '2026-01-01T00:09:00.000Z')
+    equal(due('2027-01-01T00:00:00.000Z', reopened), false)
+    closeDatabase(restarted)
   }
 )
 

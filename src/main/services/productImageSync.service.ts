@@ -22,8 +22,9 @@ import type {
  * - Captures a context token (company, device, user, session epoch) and re-checks it before every
  *   request and again right before every write; any change stops the sweep and discards the result.
  * - Bytes are trusted only when the base64 length, decoded length, sha256, WebP signature and the
- *   bitstream's declared size all agree with what the server declared. A failed asset is retried on a later bootstrap only
- *   (the repository skips it after three failures until a newer reference names it).
+ *   bitstream's declared size all agree with what the server declared. A failed asset is retried on a later bootstrap only,
+ *   once its delay has passed (1 min, then 5 min; `assetRetryPolicy`), and skipped after three failures
+ *   until a newer reference names it.
  * - Asset requests do not report connectivity outcomes (an image failure never flips the till
  *   offline), but authentication and revocation answers still go through the client's normal
  *   session/security handling, and stop the sweep.
@@ -166,7 +167,8 @@ export class ProductImageSyncService {
       let bytes = 0
       const pending = this.dependencies.repository.findPendingAssets(
         companyUuid,
-        MAX_ASSETS_PER_SWEEP
+        MAX_ASSETS_PER_SWEEP,
+        this.now()
       )
       for (const asset of pending) {
         if (bytes + asset.byteLength > MAX_BYTES_PER_SWEEP || !this.current(token)) {

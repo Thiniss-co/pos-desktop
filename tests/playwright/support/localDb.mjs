@@ -1,7 +1,8 @@
 /**
  * Read-only access to the running app's LOCAL SQLite (inside the isolated profile), for asserting
  * durable effects. Opened with `mode=ro` through Python's sqlite3 (the app's better-sqlite3 build
- * targets Electron's ABI, not this Node). Never writes; refuses any path outside the run directory.
+ * targets Electron's ABI, not this Node). The only write is `ageAssetRetryStamps`, made while the app is
+ * closed; every path outside the run directory is refused.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -34,4 +35,39 @@ print(json.dumps(rows))
     throw new Error(`local query failed: ${result.stderr}`)
   }
   return JSON.parse(result.stdout)
+}
+
+const RETRY_STAMP_TABLES = new Set(['product_image_assets', 'company_brand_assets'])
+
+/**
+ * Test clock for downloaded-asset retries: moves the stored `last_attempt_at` of failed, still-pending
+ * assets back by `seconds`, as if that much time had passed. Only call it while the app is CLOSED (the
+ * one write this module makes, like stage6legacy's precondition), on an isolated profile
+ * (`localDatabasePath` refuses a real one), for one of the two asset tables.
+ */
+export function ageAssetRetryStamps(profileDir, table, seconds) {
+  if (!RETRY_STAMP_TABLES.has(table) || !Number.isInteger(seconds) || seconds <= 0) {
+    throw new Error(`refusing to age retry stamps of ${table} by ${seconds}`)
+  }
+  const script = `
+import sqlite3, sys
+con = sqlite3.connect(sys.argv[1])
+cur = con.execute(
+  "UPDATE ${table} SET last_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ', last_attempt_at, ?) "
+  "WHERE status = 'pending' AND attempts > 0 AND last_attempt_at IS NOT NULL",
+  ('-' + sys.argv[2] + ' seconds',))
+con.commit()
+print(cur.rowcount)
+`
+  const result = spawnSync(
+    'python3',
+    ['-c', script, localDatabasePath(profileDir), String(seconds)],
+    {
+      encoding: 'utf8'
+    }
+  )
+  if (result.status !== 0) {
+    throw new Error(`aging retry stamps failed: ${result.stderr}`)
+  }
+  return Number(result.stdout.trim())
 }
