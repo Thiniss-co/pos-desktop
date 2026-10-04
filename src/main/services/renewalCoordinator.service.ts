@@ -115,6 +115,8 @@ export class RenewalCoordinator {
   private catalogPending = false
   private catalogInFlight = false
   private catalogFailures = 0
+  /** Retries a pending (deferred or failed) install on its own, so it never depends on another idle report. */
+  private catalogRetryTimer: unknown = null
   private lastCatalogAttemptMono = Number.NEGATIVE_INFINITY
 
   constructor(private readonly dependencies: RenewalCoordinatorDependencies) {}
@@ -258,8 +260,8 @@ export class RenewalCoordinator {
 
   /**
    * Rev 4 §8.3: one catalog leg. A deferral (the draft is not idle, a payment is active) leaves the
-   * install PENDING; it is retried on the next idle draft report, never sooner than the bounded
-   * catalog backoff (30 s → 5 min), and the payload is always fetched again.
+   * install PENDING; it is retried on the next idle draft report or when the bounded catalog backoff
+   * (30 s → 5 min) elapses, whichever comes first, and the payload is always fetched again.
    */
   private async runCatalogLeg(reason: RenewalReason): Promise<void> {
     if (!this.dependencies.catalogLeg) {
@@ -270,23 +272,58 @@ export class RenewalCoordinator {
       await this.dependencies.catalogLeg(reason)
       this.catalogPending = false
       this.catalogFailures = 0
+      this.clearCatalogRetry()
     } catch (error) {
       const code = (error as { code?: string } | null)?.code
       this.catalogPending = true
       this.catalogFailures += 1
+      this.armCatalogRetry()
       this.log(
         `catalog leg (${reason}): ${code === 'install-deferred' ? 'deferred' : ((error as Error)?.message ?? 'failed')}`
       )
     }
   }
 
-  /** The POS draft became idle: retry a pending background install (bounded). */
+  private catalogBackoffMs(): number {
+    return Math.min(300_000, 30_000 * 2 ** Math.max(0, this.catalogFailures - 1))
+  }
+
+  private armCatalogRetry(): void {
+    this.clearCatalogRetry()
+    if (this.stopped || this.dependencies.owner() === null) {
+      return
+    }
+    this.catalogRetryTimer = this.scheduler().set(() => {
+      this.catalogRetryTimer = null
+      this.onDraftIdle()
+    }, this.catalogBackoffMs())
+  }
+
+  private clearCatalogRetry(): void {
+    if (this.catalogRetryTimer !== null) {
+      this.scheduler().clear(this.catalogRetryTimer)
+      this.catalogRetryTimer = null
+    }
+  }
+
+  private scheduler(): {
+    set: (callback: () => void, ms: number) => unknown
+    clear: (handle: unknown) => void
+  } {
+    return (
+      this.dependencies.scheduler ?? {
+        set: (callback: () => void, ms: number) => setTimeout(callback, ms),
+        clear: (handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+      }
+    )
+  }
+
+  /** The POS draft became idle (or the pending retry fired): retry a pending install (bounded). */
   onDraftIdle(): void {
     if (!this.catalogPending || this.catalogInFlight) {
       return
     }
-    const backoff = Math.min(300_000, 30_000 * 2 ** Math.max(0, this.catalogFailures - 1))
-    if (this.mono() - this.lastCatalogAttemptMono < backoff) {
+    if (this.mono() - this.lastCatalogAttemptMono < this.catalogBackoffMs()) {
       return
     }
     this.catalogInFlight = true
@@ -329,6 +366,7 @@ export class RenewalCoordinator {
 
     if (owner === null) {
       this.clearTimer()
+      this.clearCatalogRetry()
       return
     }
     void this.renew('session')
@@ -352,6 +390,7 @@ export class RenewalCoordinator {
   stop(): void {
     this.stopped = true
     this.clearTimer()
+    this.clearCatalogRetry()
   }
 
   /** Diagnostic snapshot for tests and support. */

@@ -294,6 +294,53 @@ describe('RenewalCoordinator — single-flight and ownership (Rev 4 §7.1)', () 
     expect(coordinator.hasPendingCatalog()).toBe(false)
   })
 
+  it('a deferred install with no window and no further idle report is retried by its own backoff timer', async () => {
+    let mono = 1_000_000
+    let catalogAttempts = 0
+    const timers: Array<{ at: number; fn: () => void; id: number }> = []
+    let nextId = 1
+    const coordinator = new RenewalCoordinator({
+      license: { validate: async () => status() },
+      owner: () => OWNER,
+      authorityWindow: () => null,
+      catalogWindow: () => null,
+      catalogLeg: async () => {
+        catalogAttempts += 1
+        if (catalogAttempts === 1)
+          throw Object.assign(new Error('deferred'), { code: 'install-deferred' })
+      },
+      wallNow: () => mono,
+      monotonicNow: () => mono,
+      random: () => 0.5,
+      scheduler: {
+        set: (fn, delay) => {
+          const id = nextId++
+          timers.push({ at: mono + delay, fn, id })
+          return id
+        },
+        clear: (id) => {
+          const i = timers.findIndex((t) => t.id === id)
+          if (i >= 0) timers.splice(i, 1)
+        }
+      }
+    })
+
+    await coordinator.renew('manual')
+    expect(coordinator.hasPendingCatalog()).toBe(true)
+    // No authority or catalog window: the proactive schedule arms nothing; only the retry timer exists.
+    expect(timers).toHaveLength(1)
+    expect(timers[0].at - mono).toBe(30_000)
+
+    mono = timers[0].at
+    timers.shift()?.fn()
+    for (let i = 0; i < 5; i += 1) await Promise.resolve()
+    expect(catalogAttempts).toBe(2)
+    expect(coordinator.hasPendingCatalog()).toBe(false)
+    expect(timers).toHaveLength(0)
+
+    coordinator.stop()
+  })
+
   it('with a distant (no-limit) deadline, an online till still refreshes its catalog about daily', async () => {
     const NO_DEADLINE = '2038-01-19T00:00:00.000Z'
     let now = Date.parse('2026-10-01T00:00:00Z')
