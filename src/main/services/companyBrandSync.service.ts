@@ -84,7 +84,7 @@ export class CompanyBrandSyncService {
     if (token === null || !token.startsWith(`${companyUuid}|`)) {
       return
     }
-    const pending = this.dependencies.repository.findPendingLogo(companyUuid)
+    const pending = this.dependencies.repository.findPendingLogo(companyUuid, this.now())
     if (pending === null) {
       return
     }

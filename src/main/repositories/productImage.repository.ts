@@ -1,4 +1,5 @@
 import type { SqliteDatabase } from '../database/connection'
+import { ASSET_RETRY_MAX_ATTEMPTS, isAssetRetryDue } from '../sync/assetRetryPolicy'
 
 /**
  * Owner UX plan P8 — the register's product image references and their verified bytes.
@@ -45,8 +46,11 @@ export interface PendingProductImageAsset {
   readonly heightPx: number
 }
 
-/** A failed asset is retried on later bootstraps only, and skipped after this many failures until a newer reference names it. */
-export const MAX_PRODUCT_IMAGE_ATTEMPTS = 3
+/**
+ * A failed asset is retried on later bootstraps only, once its delay has passed (`assetRetryPolicy`), and
+ * skipped after this many failures until a newer reference names it.
+ */
+export const MAX_PRODUCT_IMAGE_ATTEMPTS = ASSET_RETRY_MAX_ATTEMPTS
 
 interface StoredReference {
   readonly revision: number
@@ -169,16 +173,37 @@ export class ProductImageRepository {
       .run(companyUuid, companyUuid, companyUuid)
   }
 
-  /** Assets still to fetch for the company, in a stable order, skipping those that failed too often. */
-  findPendingAssets(companyUuid: string, limit: number): readonly PendingProductImageAsset[] {
-    return this.database
+  /**
+   * Assets due for a fetch at `now`, in a stable order: never tried, or failed fewer than the allowed
+   * times and past their retry delay.
+   */
+  findPendingAssets(
+    companyUuid: string,
+    limit: number,
+    now: Date
+  ): readonly PendingProductImageAsset[] {
+    const rows = this.database
       .prepare(
-        `SELECT sha256, byte_length AS byteLength, width_px AS widthPx, height_px AS heightPx
+        `SELECT sha256, byte_length AS byteLength, width_px AS widthPx, height_px AS heightPx,
+                attempts, last_attempt_at AS lastAttemptAt
          FROM product_image_assets
          WHERE company_uuid = ? AND status = 'pending' AND attempts < ?
-         ORDER BY sha256 LIMIT ?`
+         ORDER BY sha256`
       )
-      .all(companyUuid, MAX_PRODUCT_IMAGE_ATTEMPTS, limit) as PendingProductImageAsset[]
+      .all(companyUuid, MAX_PRODUCT_IMAGE_ATTEMPTS) as (PendingProductImageAsset & {
+      attempts: number
+      lastAttemptAt: string | null
+    })[]
+
+    return rows
+      .filter((row) => isAssetRetryDue(row.attempts, row.lastAttemptAt, now))
+      .slice(0, limit)
+      .map(({ sha256, byteLength, widthPx, heightPx }) => ({
+        sha256,
+        byteLength,
+        widthPx,
+        heightPx
+      }))
   }
 
   /** Stores verified bytes; false when the asset is no longer pending for this company (dropped meanwhile). */

@@ -68,6 +68,29 @@ describe('company logo worker (P9)', () => {
     expect(repository.markAvailable).toHaveBeenCalledTimes(1)
   })
 
+  it('asks for the logo due at its own clock, and fetches nothing when it is not due yet', async () => {
+    const repository = {
+      findPendingLogo: vi.fn(() => null),
+      markAvailable: vi.fn(),
+      markFailed: vi.fn()
+    }
+    const apiClient = { request: vi.fn() }
+    const service = new CompanyBrandSyncService({
+      repository,
+      apiClient: apiClient as never,
+      contextKey: () => `${COMPANY}|d|u|1`,
+      decodePng: decode,
+      now: () => new Date('2026-10-04T10:00:00Z')
+    })
+
+    await service.sweep(COMPANY)
+    expect(repository.findPendingLogo).toHaveBeenCalledWith(
+      COMPANY,
+      new Date('2026-10-04T10:00:00Z')
+    )
+    expect(apiClient.request).not.toHaveBeenCalled()
+  })
+
   it('queues one more sweep when asked during a fetch, so a newer logo is not left pending', async () => {
     let release: () => void = () => undefined
     const gate = new Promise<void>((resolve) => (release = resolve))

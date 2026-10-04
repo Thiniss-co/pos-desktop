@@ -5,6 +5,7 @@ import type { ProductImageAssetResponse } from '../http/desktopResources.contrac
 import type { PendingProductImageAsset } from '../repositories/productImage.repository'
 import {
   MAX_BYTES_PER_SWEEP,
+  MAX_ASSETS_PER_SWEEP,
   ProductImageSyncService,
   readWebpDimensions,
   verifyProductImageAssetBytes
@@ -115,6 +116,17 @@ function worker(options: {
 }
 
 describe('product image worker', () => {
+  it('asks the repository for assets due at its own clock (the retry delay is decided there)', async () => {
+    const { service, repository } = worker({ assets: [], responses: {} })
+
+    await service.sweep(COMPANY)
+    expect(repository.findPendingAssets).toHaveBeenCalledWith(
+      COMPANY,
+      MAX_ASSETS_PER_SWEEP,
+      new Date('2026-10-04T10:00:00Z')
+    )
+  })
+
   it('stores verified bytes and records failures for later bootstraps, without reporting connectivity', async () => {
     const bad = Buffer.concat([LOSSLESS])
     const { service, repository } = worker({
