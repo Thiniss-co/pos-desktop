@@ -127,7 +127,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'receipt-snapshots'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -265,6 +265,29 @@ $result = match ($operation) {
             'invoices' => $invoices,
             'device_invoice_count' => DB::table('pos_invoices')->where('desktop_device_id', $device->id)->count(),
         ];
+    })(),
+    // Owner receipt copies: the server's stored receipt snapshots of a register, each with the txn-ref-v1
+    // reference recomputed from the stored invoice (read-only; a backend without the table reports none).
+    'receipt-snapshots' => (function () use ($argument, $company): array {
+        if (! Illuminate\Support\Facades\Schema::hasTable('pos_invoice_receipt_snapshots')) {
+            return ['supported' => false, 'snapshots' => []];
+        }
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+        $rows = DB::table('pos_invoice_receipt_snapshots as s')
+            ->join('pos_invoices as i', 'i.id', '=', 's.pos_invoice_id')
+            ->leftJoin('shifts as sh', 'sh.id', '=', 'i.shift_id')
+            ->where('s.desktop_device_id', $device->id)
+            ->orderBy('s.id')
+            ->get(['s.local_invoice_uuid', 's.qr_payload', 's.content_sha256', 's.snapshot_version', 'i.sold_at', 'i.grand_total_amount', 'i.currency', 'sh.currency_exponent']);
+        $currencyExponent = fn (string $code): ?int => DB::table('currencies')->where('company_id', $company->id)->where('code', $code)->value('exponent');
+
+        return ['supported' => true, 'snapshots' => $rows->map(fn ($row): array => [
+            'local_invoice_uuid' => $row->local_invoice_uuid,
+            'content_sha256' => $row->content_sha256,
+            'snapshot_version' => (int) $row->snapshot_version,
+            'qr_payload' => $row->qr_payload,
+            'expected_qr' => App\Modules\POS\Support\TransactionReferenceQr::encode(strtolower($company->uuid), 'sale', $row->local_invoice_uuid, Carbon\CarbonImmutable::parse($row->sold_at, 'UTC'), (int) $row->grand_total_amount, (int) ($row->currency_exponent ?? $currencyExponent($row->currency)), $row->currency),
+        ])->all()];
     })(),
     'create-owner-product' => (function () use ($argument, $company, $actor): array {
         $context = app(CurrentCompanyResolver::class)->resolve($actor);

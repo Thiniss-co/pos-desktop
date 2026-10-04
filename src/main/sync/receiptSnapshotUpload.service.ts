@@ -166,7 +166,11 @@ export class ReceiptSnapshotUploadService {
       return 'rejected'
     }
     // The server answered (sale not accepted for this register yet, a server error): counted.
-    const answered = typeof error.httpStatus === 'number'
+    // An answer carries an HTTP status, a backend code or a trace id (envelope errors carry no status).
+    const answered =
+      typeof error.httpStatus === 'number' ||
+      error.backendCode !== undefined ||
+      error.traceId !== undefined
     this.dependencies.repository.recordUnsettledAttempt(
       invoiceLocalUuid,
       error.backendCode ?? (answered ? `http_${error.httpStatus}` : 'no_answer'),
