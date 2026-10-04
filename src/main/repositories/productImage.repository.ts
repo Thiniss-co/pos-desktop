@@ -126,6 +126,13 @@ export class ProductImageRepository {
       applied += 1
     }
 
+    if (conflicts.length > 0) {
+      // A protocol error from the server: the stored references are kept until a newer revision.
+      console.warn(
+        `[pos-images] ${conflicts.length} product image entr${conflicts.length === 1 ? 'y' : 'ies'} rejected: same revision, different content`
+      )
+    }
+
     if (persistedProductUuids === null) {
       this.dropUnreferencedAssets(companyUuid)
 

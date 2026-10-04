@@ -182,4 +182,26 @@ describe('product image worker', () => {
     await big.service.sweep(COMPANY)
     expect(big.apiClient.request).toHaveBeenCalledTimes(1)
   })
+
+  it("a sweep requested while one runs is queued once, so a newer bootstrap's images are not left pending", async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const { service, repository, apiClient } = worker({
+      assets: [pending(LOSSY)],
+      responses: { [sha(LOSSY)]: answer(LOSSY) }
+    })
+    apiClient.request.mockImplementationOnce(async () => {
+      await gate
+      return answer(LOSSY)
+    })
+
+    const first = service.sweep(COMPANY)
+    await service.sweep(COMPANY)
+    await service.sweep(COMPANY)
+    release()
+    await first
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(repository.findPendingAssets).toHaveBeenCalledTimes(2)
+  })
 })

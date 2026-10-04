@@ -123,6 +123,8 @@ export function readWebpDimensions(buffer: Buffer): { widthPx: number; heightPx:
 export class ProductImageSyncService {
   private running = false
   private stopped = false
+  /** A sweep requested while one was running (a newer bootstrap): run once more when it ends. */
+  private rerunFor: string | null = null
   private readonly now: () => Date
   private readonly decodeWebp: (buffer: Buffer) => { widthPx: number; heightPx: number } | null
 
@@ -143,7 +145,12 @@ export class ProductImageSyncService {
 
   /** One bounded sweep of the company's pending assets. Never throws. */
   async sweep(companyUuid: string): Promise<void> {
-    if (this.running || this.stopped) {
+    if (this.stopped) {
+      return
+    }
+    if (this.running) {
+      // The running sweep read its pending list before this bootstrap persisted: queue one more.
+      this.rerunFor = companyUuid
       return
     }
     const token = this.dependencies.contextKey()
@@ -153,6 +160,7 @@ export class ProductImageSyncService {
     this.running = true
 
     let stored = 0
+    let refused = false
 
     try {
       let bytes = 0
@@ -166,6 +174,7 @@ export class ProductImageSyncService {
         }
         const outcome = await this.fetchOne(companyUuid, asset, token)
         if (outcome === 'stop') {
+          refused = true
           return
         }
         stored += outcome === 'ok' ? 1 : 0
@@ -181,6 +190,12 @@ export class ProductImageSyncService {
         } catch {
           // A notification failure never affects stored images.
         }
+      }
+      const rerun = this.rerunFor
+      this.rerunFor = null
+      // A refusal (sign-out, revocation) ends the work; anything else queued runs once more.
+      if (rerun !== null && !refused) {
+        void this.sweep(rerun)
       }
     }
   }
