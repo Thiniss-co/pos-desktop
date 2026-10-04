@@ -1,4 +1,8 @@
 import type { SqliteDatabase } from '../database/connection'
+import {
+  receiptDisplayOptionsSchema,
+  type ReceiptDisplayOptions
+} from '../http/desktopResources.contract'
 import { runSerializedWrite } from '../database/serializedWrite'
 import { canonicalJson, sha256Hex } from '../services/localSale.fingerprint'
 
@@ -27,6 +31,8 @@ export interface IncomingReceiptProfileLogo {
 export interface IncomingReceiptProfileVersion extends ReceiptProfileFields {
   readonly versionUuid: string
   readonly revision: number
+  /** Stage 6 (profile v2): null/absent for a v1 version or a v1 negotiation. */
+  readonly displayOptions?: ReceiptDisplayOptions | null
   readonly logo: IncomingReceiptProfileLogo | null
 }
 
@@ -34,6 +40,8 @@ export interface ReceiptProfileVersionRow extends ReceiptProfileFields {
   readonly versionUuid: string
   readonly companyUuid: string
   readonly revision: number
+  /** Stage 6 (profile v2): null = everything shown (a v1 version). */
+  readonly displayOptions?: ReceiptDisplayOptions | null
   readonly logoSha256: string | null
   readonly logoAvailable: boolean
   readonly receivedAt: string
@@ -121,6 +129,17 @@ function parseFields(fieldsJson: string): ReceiptProfileFields {
   }
 }
 
+function parseDisplayOptions(json: string | null): ReceiptDisplayOptions | null {
+  if (json === null) {
+    return null
+  }
+  try {
+    return receiptDisplayOptionsSchema.safeParse(JSON.parse(json)).data ?? null
+  } catch {
+    return null
+  }
+}
+
 export class ReceiptProfileRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
@@ -137,14 +156,16 @@ export class ReceiptProfileRepository {
     const row = this.database
       .prepare(
         `SELECT v.version_uuid, v.company_uuid, v.revision, v.fields_json, v.fields_sha256,
-                v.logo_sha256, v.received_at,
+                v.logo_sha256, v.received_at,${this.hasDisplayColumn() ? ' v.display_options_json,' : ''}
                 a.status AS logo_status
          FROM receipt_profile_versions v
          LEFT JOIN receipt_profile_assets a
            ON a.company_uuid = v.company_uuid AND a.sha256 = v.logo_sha256
          WHERE v.version_uuid = ? AND v.company_uuid = ?`
       )
-      .get(versionUuid, companyUuid) as (VersionRow & { logo_status: string | null }) | undefined
+      .get(versionUuid, companyUuid) as
+      | (VersionRow & { logo_status: string | null; display_options_json?: string | null })
+      | undefined
 
     if (!row) {
       return null
@@ -157,8 +178,25 @@ export class ReceiptProfileRepository {
       ...parseFields(row.fields_json),
       logoSha256: row.logo_sha256,
       logoAvailable: row.logo_status === 'available',
-      receivedAt: row.received_at
+      receivedAt: row.received_at,
+      displayOptions: parseDisplayOptions(row.display_options_json ?? null)
     }
+  }
+
+  private displayColumn: boolean | null = null
+
+  /** The 0024 column; absent on older schemas that migration suites read through. */
+  private hasDisplayColumn(): boolean {
+    if (this.displayColumn === null) {
+      this.displayColumn =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM pragma_table_info('receipt_profile_versions') WHERE name = 'display_options_json'"
+          )
+          .pluck()
+          .get() === 1
+    }
+    return this.displayColumn
   }
 
   /** Fail-closed: an unknown (company, user) pair reads as `false`. Never the sole security
@@ -340,11 +378,14 @@ export class ReceiptProfileRepository {
             )
         }
 
+        // Stage 6 (profile v2): the display choices are written WITH the row — versions are insert-only
+        // (trigger). A version first mirrored under a v1 negotiation keeps none; the next one carries them.
+        const withDisplay = this.hasDisplayColumn()
         this.database
           .prepare(
             `INSERT INTO receipt_profile_versions
-               (version_uuid, company_uuid, revision, fields_json, fields_sha256, logo_sha256, received_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
+               (version_uuid, company_uuid, revision, fields_json, fields_sha256, logo_sha256, received_at${withDisplay ? ', display_options_json' : ''})
+             VALUES (?, ?, ?, ?, ?, ?, ?${withDisplay ? ', ?' : ''})`
           )
           .run(
             profile.versionUuid,
@@ -353,7 +394,14 @@ export class ReceiptProfileRepository {
             fieldsJson,
             fieldsSha256,
             profile.logo?.sha256 ?? null,
-            now
+            now,
+            ...(withDisplay
+              ? [
+                  (profile.displayOptions ?? null) === null
+                    ? null
+                    : JSON.stringify(profile.displayOptions)
+                ]
+              : [])
           )
         versionUuid = profile.versionUuid
       }

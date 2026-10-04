@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const desktopFixturesDir = resolve(projectRoot, 'tests', 'fixtures')
-const backendFixturesDir = resolve(projectRoot, '..', 'pos-backend', 'tests', 'Fixtures')
+// POS_BACKEND_ROOT compares against another backend tree (e.g. a feature worktree); the sibling
+// ../pos-backend checkout is the default.
+const backendRoot = process.env.POS_BACKEND_ROOT
+  ? resolve(process.env.POS_BACKEND_ROOT)
+  : resolve(projectRoot, '..', 'pos-backend')
+const backendFixturesDir = resolve(backendRoot, 'tests', 'Fixtures')
 
 const ARTIFACTS = [
   'pos-calculator-golden.json',
@@ -28,7 +33,9 @@ const CP5A_ARTIFACT = 'desktop-committed-invoice-payload.json'
 // helpers above hash, so they are checked for byte identity plus their own structural invariants.
 const BYTE_PARITY_ARTIFACTS = [
   'stock-allocation-journal-v1.json',
-  'desktop-invoice-request-hash-golden.json'
+  'desktop-invoice-request-hash-golden.json',
+  // POS improvements, Stage 6: the ZATCA Phase 1 QR payload (PHP ZatcaPhase1Qr ↔ shared fiscalQr.ts).
+  'zatca-phase1-qr-golden.json'
 ]
 const ALLOCATION_ARTIFACT = 'stock-allocation-envelope-golden.json'
 const ALLOCATION_RAW_SHA256 = '7e97d81588eaad60c25e196a613b067a58811560abcc107f84038d73f45be365'

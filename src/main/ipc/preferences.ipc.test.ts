@@ -302,3 +302,86 @@ describe('preferences IPC — POS cart width (layout-only preference)', () => {
     expect(assertTrustedSender).not.toHaveBeenCalled()
   })
 })
+
+describe('POS improvements Stage 5: per-user preferences IPC', () => {
+  function call(channel: string, input: unknown): Promise<unknown> {
+    const registered = handlers.get(channel)
+    if (!registered) {
+      throw new Error(`no handler for ${channel}`)
+    }
+    return Promise.resolve(registered({ sender: {} } as IpcMainInvokeEvent, input))
+  }
+
+  let session: { isAuthenticated: boolean; companyUuid: string | null; userUuid: string | null }
+  let rows: Map<string, boolean>
+
+  beforeEach(async () => {
+    const { UserPreferencesService } = await import('../services/userPreferences.service')
+    session = { isAuthenticated: true, companyUuid: 'c-1', userUuid: 'u-1' }
+    rows = new Map()
+    const userPreferences = new UserPreferencesService({
+      session: { getContext: () => session },
+      repository: {
+        get: (owner, key) => rows.get(`${owner.companyUuid}|${owner.userUuid}|${key}`) ?? null,
+        set: (owner, key, value) => {
+          rows.set(`${owner.companyUuid}|${owner.userUuid}|${key}`, value)
+        }
+      }
+    })
+    assertTrustedSender.mockReset()
+    assertTrustedSender.mockImplementation(() => undefined)
+    handlers.clear()
+    registerPreferencesIpcHandlers({
+      appSettings: { get: () => null, set: () => undefined } as unknown as AppSettingsRepository,
+      userPreferences
+    } as unknown as ApplicationServices)
+  })
+
+  it('defaults to touch off and automatic printing ON (D3) for a user who never chose', async () => {
+    await expect(call(IPC_CHANNELS.preferencesGetUser, undefined)).resolves.toEqual({
+      ok: true,
+      data: { touchMode: false, autoPrint: true }
+    })
+  })
+
+  it('stores each user separately and never takes an identity from the renderer', async () => {
+    await call(IPC_CHANNELS.preferencesSetUser, { key: 'ui.touchMode', value: true })
+    session = { isAuthenticated: true, companyUuid: 'c-1', userUuid: 'u-2' }
+
+    await expect(call(IPC_CHANNELS.preferencesGetUser, undefined)).resolves.toEqual({
+      ok: true,
+      data: { touchMode: false, autoPrint: true }
+    })
+    await expect(
+      call(IPC_CHANNELS.preferencesSetUser, {
+        key: 'ui.touchMode',
+        value: true,
+        userUuid: 'u-1'
+      })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'validation' } })
+  })
+
+  it('refuses an unknown key, a non-boolean value and a write before sign-in', async () => {
+    await expect(
+      call(IPC_CHANNELS.preferencesSetUser, { key: 'ui.theme', value: true })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'validation' } })
+    await expect(
+      call(IPC_CHANNELS.preferencesSetUser, { key: 'ui.touchMode', value: 'yes' })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'validation' } })
+    session = { isAuthenticated: false, companyUuid: null, userUuid: null }
+    await expect(
+      call(IPC_CHANNELS.preferencesSetUser, { key: 'ui.touchMode', value: true })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authentication' } })
+    expect(rows.size).toBe(0)
+  })
+
+  it('refuses an untrusted sender before parsing the payload', async () => {
+    assertTrustedSender.mockImplementation(() => {
+      throw { category: 'authorization', message: 'untrusted', retryable: false }
+    })
+    await expect(
+      call(IPC_CHANNELS.preferencesSetUser, { key: 'ui.touchMode', value: true })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authorization' } })
+    expect(rows.size).toBe(0)
+  })
+})

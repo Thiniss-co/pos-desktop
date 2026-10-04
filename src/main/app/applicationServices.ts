@@ -1,4 +1,3 @@
-import { BootstrapCapabilityRepository } from '../repositories/bootstrapCapability.repository'
 import { ReceiptSnapshotRepository } from '../repositories/receiptSnapshot.repository'
 import { ReceiptSnapshotUploadService } from '../sync/receiptSnapshotUpload.service'
 import { app, BrowserWindow, dialog, net, powerMonitor, safeStorage, webContents } from 'electron'
@@ -25,6 +24,10 @@ import { databaseMigrations } from '../database/migrations'
 import { runMigrations } from '../database/migrator'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import { AppSettingsRepository } from '../repositories/appSettings.repository'
+import { UserPreferencesRepository } from '../repositories/userPreferences.repository'
+import { FiscalContextRepository } from '../repositories/fiscalContext.repository'
+import { FiscalContextService } from '../receipt/fiscalContext.service'
+import { UserPreferencesService } from '../services/userPreferences.service'
 import { BootstrapStateRepository } from '../repositories/bootstrapState.repository'
 import { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import { CatalogRepository } from '../repositories/catalog.repository'
@@ -77,6 +80,7 @@ import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { LocalSaleService } from '../services/localSale.service'
 import { ReceiptContextCaptureService } from '../receipt/receiptContextCapture.service'
+import { ReceiptSnapshotCaptureService } from '../receipt/receiptSnapshotCapture.service'
 import { ReceiptAccessService } from '../receipt/receiptAccess.service'
 import { ReceiptDocumentService } from '../receipt/receiptDocument.service'
 import { PrinterSettingsService } from '../receipt/printerSettings.service'
@@ -86,11 +90,22 @@ import { ReceiptProfileRepository } from '../repositories/receiptProfile.reposit
 import { ReceiptProfileSyncService } from '../receipt/receiptProfileSync.service'
 import { ReceiptProfileAdminService } from '../receipt/receiptProfileAdmin.service'
 import {
+  autoPrintAdmissionHeld,
   destroySharedReceiptRenderWindow,
-  getSharedReceiptRenderWindow
+  getSharedReceiptRenderWindow,
+  sharedReceiptRenderContentsId
 } from '../receipt/receiptRenderer'
+import { AutoPrintAdmissionService, AutoPrintIntentService } from '../receipt/autoPrint.service'
+import { AutoPrintRepository } from '../repositories/autoPrint.repository'
+import { localeCodeSchema } from '@shared/contracts/preferences.contract'
 import { SaleCompletionService } from '../services/saleCompletion.service'
 import { RefundAccessService } from '../services/refundAccess.service'
+import { QuickCreateAccessService } from '../services/quickCreateAccess.service'
+import { QuickCreateService } from '../services/quickCreate.service'
+import { QuickCreateRepository } from '../repositories/quickCreate.repository'
+import { EntityCreateWorker } from '../sync/entityCreateWorker'
+import { dispatchQuickCreate } from '../sync/quickCreate.client'
+import { broadcastQuickCreateChanged } from '../ipc/quickCreate.ipc'
 import { RefundService } from '../services/refund.service'
 import { uploadRefund } from '../sync/refundUpload.client'
 import { SecureStorageService } from '../services/secureStorage.service'
@@ -133,6 +148,7 @@ export interface ApplicationServices {
   readonly runtimeConfig: RuntimeConfig
   readonly database: SqliteDatabase
   readonly appSettings: AppSettingsRepository
+  readonly userPreferences: UserPreferencesService
   readonly deviceIdentity: DeviceIdentityService
   readonly deviceRegistration: DeviceRegistrationRepository
   readonly session: SessionService
@@ -164,9 +180,17 @@ export interface ApplicationServices {
   readonly receiptAccess: ReceiptAccessService
   readonly printerSettings: PrinterSettingsService
   readonly receiptPrinting: ReceiptPrintingService
+  readonly autoPrint: AutoPrintAdmissionService
   readonly receiptProfileAdmin: ReceiptProfileAdminService
   /** Owner UX plan P9: the company identity for the renderer (name, colour, verified logo). */
   readonly branding: { current(): CompanyBrandingView }
+  /** POS improvements, Stage 1: main's quick-create gate (capability, feature, permission, snapshot owner). */
+  readonly quickCreateAccess: QuickCreateAccessService
+  /** POS improvements, Stage 3: the refund gate, for showing the POS Return / Refund action. */
+  readonly refundAccess: RefundAccessService
+  /** POS improvements, Stage 2: durable register quick-create and its outbox worker. */
+  readonly quickCreate: QuickCreateService
+  readonly entityCreates: EntityCreateWorker
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   /** POS reliability rev 3: separated, read-only stock information for POS catalog reads. */
@@ -214,6 +238,10 @@ export function createApplicationServices(): ApplicationServices {
   const deviceRegistrationRepository = new DeviceRegistrationRepository(database)
   const secureSecrets = new SecureSecretsRepository(database)
   const sessionMetadata = new SqliteSessionMetadataRepository(database)
+  const userPreferences = new UserPreferencesService({
+    session: sessionMetadata,
+    repository: new UserPreferencesRepository(database)
+  })
   const sessionEpoch = new SessionEpochRepository(database)
   const shiftObservations = new ShiftObservationRepository(database)
   const licenseMetadata = new LicenseMetadataRepository(database)
@@ -263,13 +291,18 @@ export function createApplicationServices(): ApplicationServices {
       deviceHeartbeat?.notifySessionChanged()
       allocationDispatchTrigger?.()
       renewalTrigger?.onSessionChanged()
+      autoPrintTrigger?.('session')
     }
   })
+  // POS improvements, Stage 7: assigned once automatic-print admission exists (below).
+  let autoPrintTrigger: ((trigger: 'commit' | 'session' | 'startup') => void) | null = null
   // Assigned once the renewal coordinator exists (below).
   let renewalTrigger: RenewalCoordinator | null = null
   let commercialAccessPublisher: CommercialAccessPublisher | null = null
   // Assigned once the upload worker exists; the connectivity service is constructed before it.
   let invoiceUploadTrigger: (() => void) | null = null
+  // POS improvements, Stage 2: the quick-create outbox worker, started with every invoice trigger.
+  let entityCreateTrigger: (() => void) | null = null
   let allocationRecoveryTrigger: (() => void) | null = null
   // Rev 4 §10.1: memory-only server-time samples (license `server_time`, `/up` `Date`). Suspend and
   // resume invalidate them, because monotonic time may not have tracked real time across a sleep.
@@ -419,7 +452,7 @@ export function createApplicationServices(): ApplicationServices {
   const receiptSnapshots = new ReceiptSnapshotRepository(database)
   const receiptSnapshotUploads = new ReceiptSnapshotUploadService({
     repository: receiptSnapshots,
-    capabilities: new BootstrapCapabilityRepository(database),
+    capabilities: bootstrapSnapshot,
     apiClient,
     contextKey: ownerContextKey,
     log: (line) => console.log(line)
@@ -489,7 +522,12 @@ export function createApplicationServices(): ApplicationServices {
   const installGate = new CatalogInstallGate({
     appWindowIds: () =>
       BrowserWindow.getAllWindows()
-        .filter((w) => !w.isDestroyed() && !w.webContents.getURL().startsWith('data:'))
+        .filter(
+          (w) =>
+            !w.isDestroyed() &&
+            !w.webContents.getURL().startsWith('data:') &&
+            w.webContents.id !== sharedReceiptRenderContentsId()
+        )
         .map((w) => w.webContents.id),
     send: (id, channel, payload) => {
       const contents = webContents.fromId(id)
@@ -525,6 +563,10 @@ export function createApplicationServices(): ApplicationServices {
       broadcastBrandingChanged()
       // Rev 4 §9.1: an install may have superseded a claimed attempt that can no longer commit.
       settleAfterInstall()
+      // POS improvements, Stage 2: a fresh bootstrap may restore a permission blocked requests wait
+      // for, and may deliver a quick-created product's issued revision (Ready to sell).
+      entityCreateTrigger?.()
+      broadcastQuickCreateChanged()
     },
     undefined,
     // Mirrors the negotiated `receipt_profile` block for the responding company and the current
@@ -603,11 +645,18 @@ export function createApplicationServices(): ApplicationServices {
     },
     stockAllocations
   })
+  // POS improvements, Stage 6: fiscal identity mirror, frozen fiscal contexts and receipt QR facts.
+  const fiscalContextRepository = new FiscalContextRepository(database)
+  const fiscalContext = new FiscalContextService(fiscalContextRepository)
   const checkoutPreview = new CheckoutPreviewService({
     commercialAccess,
     permissions: bootstrapSnapshot,
     shiftAuthority,
-    catalog
+    catalog,
+    fiscalReady: () => {
+      const companyUuid = sessionMetadata.getContext().companyUuid
+      return companyUuid === null || fiscalContext.readiness(companyUuid).ok
+    }
   })
   const allocationService = new StockAllocationService(stockAllocations)
   // Receipt-printing plan §D-2: additive to the existing sale/refund commit paths -- absence of
@@ -617,8 +666,6 @@ export function createApplicationServices(): ApplicationServices {
   const receiptContextRepository = new ReceiptContextRepository(database)
   const receiptContextCapture = new ReceiptContextCaptureService({
     receiptContext: receiptContextRepository,
-    receiptSnapshots,
-    log: (line) => console.log(line),
     bootstrapSnapshot,
     sessionMetadata,
     customers: {
@@ -632,6 +679,19 @@ export function createApplicationServices(): ApplicationServices {
   })
   // POS reliability rev 3: durable top-up request identities (migration 0016).
   const allocationDispatches = new AllocationDispatchRepository(database)
+  // POS improvements, Stage 7: the per-user automatic-print intent, frozen in the commit transaction.
+  const printerSettings = new PrinterSettingsService(appSettings)
+  const autoPrintRepository = new AutoPrintRepository(database)
+  const autoPrintIntent = new AutoPrintIntentService({
+    repository: autoPrintRepository,
+    preferences: userPreferences,
+    printerSettings,
+    locale: () => localeCodeSchema.safeParse(appSettings.get('ui.locale')).data ?? 'en'
+  })
+  const receiptSnapshotCapture = new ReceiptSnapshotCaptureService({
+    repository: receiptSnapshots,
+    log: (line) => console.log(line)
+  })
   const localSale = new LocalSaleService({
     database,
     saleAttempts,
@@ -651,13 +711,21 @@ export function createApplicationServices(): ApplicationServices {
     // Rev 4 §5.2: the single trusted commit instant t1.
     trustedClock: catalogClock,
     installGate,
-    receiptContext: receiptContextCapture
+    receiptContext: receiptContextCapture,
+    fiscalContext,
+    receiptSnapshot: receiptSnapshotCapture,
+    autoPrintIntent
   })
   const localRefundRepository = new LocalRefundRepository(database)
   const refundAccess = new RefundAccessService({
     permissions: bootstrapSnapshot,
     commercialAccess
   })
+  const quickCreateAccess = new QuickCreateAccessService({
+    snapshot: bootstrapSnapshot,
+    session: sessionMetadata
+  })
+  const quickCreateRepository = new QuickCreateRepository(database)
   const refunds = new RefundService({
     apiClient,
     localSale: localSaleRepository,
@@ -666,6 +734,7 @@ export function createApplicationServices(): ApplicationServices {
     shiftAuthority,
     catalog,
     uploadRefund,
+    fiscalContext,
     receiptContext: receiptContextCapture
   })
   // Startup crash recovery (plan §3b): every `dispatched` row this device owns becomes
@@ -685,9 +754,9 @@ export function createApplicationServices(): ApplicationServices {
     localRefunds: localRefundRepository,
     receiptContext: receiptContextRepository,
     bootstrapSnapshot,
-    receiptProfile: receiptProfileRepository
+    receiptProfile: receiptProfileRepository,
+    fiscalContexts: fiscalContextRepository
   })
-  const printerSettings = new PrinterSettingsService(appSettings)
   const receiptPrintJobs = new ReceiptPrintJobRepository(database)
   const receiptPrinting = new ReceiptPrintingService({
     jobs: receiptPrintJobs,
@@ -698,11 +767,30 @@ export function createApplicationServices(): ApplicationServices {
     localRefunds: localRefundRepository,
     getPrinters: () => getSharedReceiptRenderWindow().listPrinters(),
     getRenderWindow: () => getSharedReceiptRenderWindow(),
-    receiptProfile: receiptProfileRepository
+    receiptProfile: receiptProfileRepository,
+    fiscalQr: fiscalContext
   })
   // Plan §D-5 E T17: every job left `queued`/`preparing`/`dispatching` by a prior process becomes
   // terminal before anything else can claim a reservation. Runs before IPC registration.
   receiptPrinting.reconcileStartup()
+  // POS improvements, Stage 7: admission of pending automatic-print intents -- after a commit, at
+  // sign-in and at startup. Each decision is made once; a printing failure never touches the sale.
+  const autoPrint = new AutoPrintAdmissionService({
+    repository: autoPrintRepository,
+    access: receiptAccess,
+    printing: receiptPrinting,
+    printerSettings,
+    preferences: userPreferences,
+    localSale: localSaleRepository,
+    jobs: receiptPrintJobs,
+    admissionHeld: autoPrintAdmissionHeld
+  })
+  autoPrintTrigger = (trigger) => {
+    setImmediate(() => {
+      void autoPrint.admitPending(trigger)
+    })
+  }
+  autoPrintTrigger('startup')
 
   // CP-5D: the only production caller of `POST /api/v1/desktop/stock-allocations/top-up`. It is
   // main-only and reachable exclusively through `checkout:complete` / `checkout:retry-attempt`;
@@ -1034,7 +1122,44 @@ export function createApplicationServices(): ApplicationServices {
     }
   }
 
-  invoiceUploadTrigger = () => invoiceUploads.requestRun()
+  const entityCreates = new EntityCreateWorker({
+    repository: quickCreateRepository,
+    access: quickCreateAccess,
+    session: sessionMetadata,
+    dispatch: (row) => dispatchQuickCreate(apiClient, row),
+    isOnline: () => connectivity.getSnapshot().status === 'online',
+    onEntityResolved: (row, outcome) => {
+      // A held sale may now upload (customer accepted) or need support (customer refused).
+      invoiceUploads.requestRun()
+      if (row.entityType === 'product' && outcome === 'accepted') {
+        // Acquire the server-issued catalog evidence through the existing safe install protocol;
+        // a busy cart defers it (the product stays "Awaiting catalog" until a later refresh).
+        void bootstrap.refresh().catch(() => undefined)
+      }
+    },
+    onChanged: () => {
+      broadcastQuickCreateChanged()
+      broadcastSyncChanged(invoiceUploads.getStatus())
+    },
+    log: (line) => {
+      if (isApiTraceEnabled()) {
+        console.log(line)
+      }
+    }
+  })
+  const quickCreate = new QuickCreateService({
+    database,
+    repository: quickCreateRepository,
+    access: quickCreateAccess,
+    session: sessionMetadata,
+    requestSync: () => entityCreates.requestRun(),
+    refreshAccess: () => bootstrap.refresh()
+  })
+  entityCreateTrigger = () => entityCreates.requestRun()
+  invoiceUploadTrigger = () => {
+    entityCreates.requestRun()
+    invoiceUploads.requestRun()
+  }
   // A fresh server-time sample may make a deferred v3 item sendable.
   const unsubscribeServerTimeTrigger = serverTime.onSample(() => invoiceUploads.requestRun())
   allocationRecoveryTrigger = () => {
@@ -1094,22 +1219,11 @@ export function createApplicationServices(): ApplicationServices {
     },
     // Rev 3: the renderer re-reads the visible stock figures locally (no network request).
     onStockMayHaveChanged: () => broadcastCatalogChanged({ reason: 'stock', revision: null }),
-    // Receipt-printing plan §D-5 D: main-owned auto-print, scheduled after this tick (never inside
-    // the commit's own call stack) and fully isolated from the sale outcome by both this catch and
-    // the try/catch already wrapping every `onSaleCommittedForPrint` call in
-    // `SaleCompletionService` itself.
-    onSaleCommittedForPrint: ({ invoiceLocalUuid, companyUuid, deviceUuid, userUuid }) => {
-      setImmediate(() => {
-        receiptPrinting
-          .runAutoPrintForSale(
-            { companyUuid, deviceUuid, userUuid, sessionEpoch: sessionEpoch.current() },
-            invoiceLocalUuid
-          )
-          .catch(() => {
-            // Best-effort. A failed auto-print attempt is recorded in receipt_print_jobs (when it
-            // got that far) and is never retried automatically; it never revisits the sale.
-          })
-      })
+    // POS improvements, Stage 7: the sale's automatic-print intent was written in its commit
+    // transaction; admission decides it on the next tick, never inside the commit's call stack, and
+    // a printing failure can never turn the completed sale into a failed one.
+    onSaleCommittedForPrint: () => {
+      autoPrintTrigger?.('commit')
     }
   })
   completionInFlight = () => saleCompletion.hasAnyInFlight()
@@ -1151,6 +1265,7 @@ export function createApplicationServices(): ApplicationServices {
     runtimeConfig,
     database,
     appSettings,
+    userPreferences,
     deviceIdentity,
     deviceRegistration: deviceRegistrationRepository,
     session,
@@ -1182,8 +1297,13 @@ export function createApplicationServices(): ApplicationServices {
     receiptAccess,
     printerSettings,
     receiptPrinting,
+    autoPrint,
     receiptProfileAdmin,
     branding,
+    quickCreateAccess,
+    refundAccess,
+    quickCreate,
+    entityCreates,
     companyUsers,
     connectivity,
     stockView,
@@ -1219,6 +1339,7 @@ export function createApplicationServices(): ApplicationServices {
       renewal.stop()
       allocationDispatchReconciler.stop()
       invoiceUploads.shutdown()
+      entityCreates.shutdown()
       connectivity.shutdown()
       apiClient.shutdown()
       destroySharedReceiptRenderWindow()

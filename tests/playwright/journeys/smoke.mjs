@@ -45,6 +45,14 @@ export async function run(ctx) {
       throw new Error(`expected COLA-CAN stock 99, got ${stock.stock_items[0].quantity}`)
     }
     ctx.step('route', { route: await currentRoute(page) })
+    // Print safety (pos-improvements Stage 0): the harness build lists only the virtual destination,
+    // so no journey can reach an OS spooler.
+    const printers = await page.evaluate(() => window.posApi.printing.listPrinters())
+    const names = printers.ok ? printers.data.map((p) => p.name) : []
+    ctx.step('printers visible to the harness build', { names })
+    if (names.length === 0 || names.some((name) => !name.startsWith('PW-Virtual-'))) {
+      throw new Error(`expected only virtual printers, got ${JSON.stringify(printers)}`)
+    }
   } finally {
     ctx.facts.mainLogTail = session.logs
       .join('')

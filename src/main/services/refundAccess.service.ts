@@ -13,6 +13,16 @@ export interface RefundAccessDependencies {
 export class RefundAccessService {
   constructor(private readonly dependencies: RefundAccessDependencies) {}
 
+  /** Whether a refund may start in this session (advisory; the backend stays the authority). */
+  canRefund(): boolean {
+    try {
+      this.assertCanRefund()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   assertCanRefund(): void {
     this.dependencies.commercialAccess.assertAllowed('sell')
 

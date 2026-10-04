@@ -4,8 +4,6 @@ import type {
   BootstrapWarehouse
 } from '../repositories/bootstrapSnapshot.repository'
 import type { ReceiptContextRepository } from '../repositories/receiptContext.repository'
-import type { ReceiptSnapshotRepository } from '../repositories/receiptSnapshot.repository'
-import { RECEIPT_TEMPLATE_VERSION } from './receiptDocument.service'
 
 /**
  * Receipt-printing plan §D-2 — resolves the issuer/cashier/customer names, the workstation time
@@ -33,9 +31,6 @@ export interface ReceiptContextCaptureDependencies {
     findNameAndTaxNumber(customerUuid: string): { name: string; taxNumber: string | null } | null
   }
   readonly now?: () => Date
-  /** Owner receipt copies: freezes the sale's receipt snapshot next to its context. Absent → none. */
-  readonly receiptSnapshots?: Pick<ReceiptSnapshotRepository, 'captureForSale'>
-  readonly log?: (line: string) => void
 }
 
 function resolveTimeZone(): string {
@@ -91,20 +86,6 @@ export class ReceiptContextCaptureService {
       ),
       createdAt
     })
-
-    // Owner receipt copies: the snapshot never decides whether the sale commits. If it cannot be
-    // frozen, the sale keeps no snapshot (the owner portal then says the original is unavailable).
-    try {
-      this.dependencies.receiptSnapshots?.captureForSale({
-        invoiceLocalUuid: params.invoiceLocalUuid,
-        templateVersion: RECEIPT_TEMPLATE_VERSION,
-        createdAt
-      })
-    } catch (error) {
-      this.dependencies.log?.(
-        `[receipt-snapshot] not frozen for a sale: ${error instanceof Error ? error.message : 'unknown error'}`
-      )
-    }
   }
 
   captureForRefund(params: {

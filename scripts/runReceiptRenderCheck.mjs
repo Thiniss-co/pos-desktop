@@ -33,6 +33,8 @@ try {
       '--format=cjs',
       '--target=node22',
       '--alias:@shared=./src/shared',
+      // Test bundles never reach an OS spooler (src/main/receipt/printBoundary.types.ts).
+      '--alias:@printBoundary=./src/main/receipt/printBoundary.virtual.ts',
       '--external:electron',
       `--outfile=${bundlePath}`
     ],

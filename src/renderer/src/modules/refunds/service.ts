@@ -16,6 +16,11 @@ import { toIpcPayload } from '@renderer/shared/utils/ipcPayload'
 export class RefundsService {
   constructor(private readonly gateway: Window['posApi']['refunds'] = window.posApi.refunds) {}
 
+  /** POS improvements, Stage 3: whether this session may start a refund (advisory for the UI). */
+  async getAccess(): Promise<boolean> {
+    return unwrapIpcResult(await this.gateway.getAccess()).allowed
+  }
+
   async getRefundable(invoiceLocalUuid: string): Promise<RefundableInvoice> {
     return unwrapIpcResult(await this.gateway.getRefundable({ invoiceLocalUuid }))
   }

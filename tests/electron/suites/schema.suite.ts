@@ -95,8 +95,19 @@ const expectedTables = [
   // Owner UX plan P9 (migration 0019): the company identity and its logo bytes.
   'company_branding',
   'company_brand_assets',
-  // Owner receipt copies (migration 0030): capabilities, frozen sale receipt snapshots, upload state.
+  // POS improvements, Stage 1 (migration 0020): negotiated capabilities and the permission-cache owner.
   'bootstrap_capabilities',
+  'bootstrap_snapshot_owner',
+  // POS improvements, Stage 2 (migration 0021): register quick-create.
+  'local_customers',
+  'local_suppliers',
+  'local_products',
+  'entity_create_outbox',
+  'entity_create_audit',
+  // POS improvements, Stage 7 (migration 0025): automatic-print intents and admissions.
+  'auto_print_intents',
+  'auto_print_admissions',
+  // Owner receipt copies (migration 0030): frozen sale receipt snapshots and their upload state.
   'local_invoice_receipt_snapshot',
   'receipt_snapshot_uploads'
 ]
@@ -125,6 +136,7 @@ databaseTest(
     deepEqual(indexes, [
       'idx_attempt_allocation_dispatches_attempt',
       'idx_attempt_allocation_dispatches_owner_state',
+      'idx_auto_print_intents_owner',
       'idx_catalog_categories_active_name',
       'idx_catalog_customers_active_name',
       'idx_catalog_customers_search_name',
@@ -138,10 +150,14 @@ databaseTest(
       'idx_catalog_stock_items_warehouse',
       'idx_disposition_conflicts_invoice',
       'idx_disposition_holds_invoice',
+      'idx_entity_create_audit_request',
+      'idx_entity_create_outbox_live',
+      'idx_entity_create_outbox_worker',
       'idx_legacy_dispatch_uncertainties_owner',
       'idx_local_allocation_consumptions_grant',
       'idx_local_allocation_consumptions_invoice',
       'idx_local_allocation_consumptions_journal',
+      'idx_local_customers_search',
       'idx_local_invoice_items_invoice',
       'idx_local_invoice_payments_invoice',
       'idx_local_invoices_owner',

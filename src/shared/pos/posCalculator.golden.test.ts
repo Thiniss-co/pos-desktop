@@ -47,10 +47,30 @@ const contract: CatalogContract = {
 describe('backend POS calculator golden fixture', () => {
   const cartOnlyCases = fixture.cases.filter((case_) => case_.input.payments === undefined)
 
+  it('a mixed-mode vector is refused under the single-mode contract', () => {
+    const mixed = cartOnlyCases.find((case_) => case_.name.startsWith('mixed-'))
+
+    expect(mixed).toBeDefined()
+    expect(
+      calculateCart(
+        (mixed?.input.items ?? []).map((item, index) => ({
+          id: `line-${index}`,
+          ...item,
+          currency: 'EGP'
+        })),
+        contract,
+        mixed?.input.invoiceDiscountType ?? null,
+        mixed?.input.invoiceDiscountValue ?? 0
+      )
+    ).toEqual({ ok: false, code: 'CART_MIXED_TAX_MODE' })
+  })
+
   it.each(cartOnlyCases)('$name matches byte-for-byte committed backend expectations', (case_) => {
+    // POS improvements, Stage 4: the mixed-mode vectors are issued under a per-line contract; every
+    // other vector keeps the single-mode contract it always ran under.
     const result = calculateCart(
       case_.input.items.map((item, index) => ({ id: `line-${index}`, ...item, currency: 'EGP' })),
-      contract,
+      case_.name.startsWith('mixed-') ? { ...contract, mixedTaxModePolicy: 'per_line' } : contract,
       case_.input.invoiceDiscountType,
       case_.input.invoiceDiscountValue
     )

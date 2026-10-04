@@ -294,4 +294,58 @@ describe('buildUploadPayload', () => {
 
     expect(payload.invoice_discount).toStrictEqual({ type: 'percentage', value: 500 })
   })
+
+  describe('POS improvements Stage 4: mixed-tax contract versions', () => {
+    const lines = [
+      item({ localUuid: 'line-a', lineIndex: 0, taxMode: 'exclusive' }),
+      item({ localUuid: 'line-b', lineIndex: 1, taxMode: 'inclusive' })
+    ]
+
+    it('a mixed header without an authority is v4: the v2 shape, no authority, no stock declaration', () => {
+      const payload = buildUploadPayload(
+        invoice({ taxMode: 'mixed' }),
+        lines,
+        [payment()],
+        new Map(),
+        new Map()
+      )
+
+      expect(payload.client_contract_version).toBe(4)
+      expect(payload.tax_mode).toBe('mixed')
+      expect(payload).not.toHaveProperty('offline_sale_authority_uuid')
+      expect(
+        (payload.items as Array<Record<string, unknown>>).map((line) => line.tax_mode)
+      ).toEqual(['exclusive', 'inclusive'])
+    })
+
+    it('a mixed header with an authority is v5: the v3 shape with the authority appended', () => {
+      const authority = '99999999-9999-4999-8999-999999999999'
+      const payload = buildUploadPayload(
+        invoice({ taxMode: 'mixed', offlineSaleAuthorityUuid: authority }),
+        lines,
+        [payment()],
+        new Map(),
+        new Map()
+      )
+
+      expect(payload.client_contract_version).toBe(5)
+      expect(payload.offline_sale_authority_uuid).toBe(authority)
+    })
+
+    it('a uniform header keeps v2 / v3 exactly', () => {
+      expect(
+        buildUploadPayload(invoice(), [item()], [payment()], new Map(), new Map())
+          .client_contract_version
+      ).toBe(2)
+      expect(
+        buildUploadPayload(
+          invoice({ offlineSaleAuthorityUuid: '99999999-9999-4999-8999-999999999999' }),
+          [item()],
+          [payment()],
+          new Map(),
+          new Map()
+        ).client_contract_version
+      ).toBe(3)
+    })
+  })
 })

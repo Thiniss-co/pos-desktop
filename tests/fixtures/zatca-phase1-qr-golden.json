@@ -1,0 +1,172 @@
+{
+    "schemaVersion": 1,
+    "description": "ZATCA Phase 1 simplified-invoice QR (TLV tags 1–5, Base64 ≤ 500) cross-language vector",
+    "source": "ZATCA QR code guide; credit-note amount sign is an interpretation (positive), unverified",
+    "cases": [
+        {
+            "name": "official-zatca-example",
+            "input": {
+                "sellerName": "Bobs Records",
+                "vatNumber": "310122393500003",
+                "timestamp": "2022-04-25T15:30:00Z",
+                "totalMinor": 100000,
+                "vatMinor": 15000,
+                "currencyExponent": 2
+            },
+            "amounts": {
+                "total": "1000.00",
+                "vatTotal": "150.00"
+            },
+            "tlvHex": "010c426f6273205265636f726473020f3331303132323339333530303030330314323032322d30342d32355431353a33303a30305a0407313030302e303005063135302e3030",
+            "base64": "AQxCb2JzIFJlY29yZHMCDzMxMDEyMjM5MzUwMDAwMwMUMjAyMi0wNC0yNVQxNTozMDowMFoEBzEwMDAuMDAFBjE1MC4wMA=="
+        },
+        {
+            "name": "arabic-seller-name",
+            "input": {
+                "sellerName": "شركة المثال التجارية",
+                "vatNumber": "300000000000003",
+                "timestamp": "2026-10-04T17:05:09Z",
+                "totalMinor": 4075,
+                "vatMinor": 375,
+                "currencyExponent": 2
+            },
+            "amounts": {
+                "total": "40.75",
+                "vatTotal": "3.75"
+            },
+            "tlvHex": "0126d8b4d8b1d983d8a920d8a7d984d985d8abd8a7d98420d8a7d984d8aad8acd8a7d8b1d98ad8a9020f3330303030303030303030303030330314323032362d31302d30345431373a30353a30395a040534302e37350504332e3735",
+            "base64": "ASbYtNix2YPYqSDYp9mE2YXYq9in2YQg2KfZhNiq2KzYp9ix2YrYqQIPMzAwMDAwMDAwMDAwMDAzAxQyMDI2LTEwLTA0VDE3OjA1OjA5WgQFNDAuNzUFBDMuNzU="
+        },
+        {
+            "name": "mixed-tax-sale-vat-sum",
+            "input": {
+                "sellerName": "Qc4 Trading LLC",
+                "vatNumber": "311111111111113",
+                "timestamp": "2026-10-04T16:36:00Z",
+                "totalMinor": 3575,
+                "vatMinor": 375,
+                "currencyExponent": 2
+            },
+            "amounts": {
+                "total": "35.75",
+                "vatTotal": "3.75"
+            },
+            "tlvHex": "010f5163342054726164696e67204c4c43020f3331313131313131313131313131330314323032362d31302d30345431363a33363a30305a040533352e37350504332e3735",
+            "base64": "AQ9RYzQgVHJhZGluZyBMTEMCDzMxMTExMTExMTExMTExMwMUMjAyNi0xMC0wNFQxNjozNjowMFoEBTM1Ljc1BQQzLjc1"
+        },
+        {
+            "name": "zero-vat-sale",
+            "input": {
+                "sellerName": "Exempt Store",
+                "vatNumber": "322222222222223",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "totalMinor": 700,
+                "vatMinor": 0,
+                "currencyExponent": 2
+            },
+            "amounts": {
+                "total": "7.00",
+                "vatTotal": "0.00"
+            },
+            "tlvHex": "010c4578656d70742053746f7265020f3332323232323232323232323232330314323032362d30312d30315430303a30303a30305a0404372e30300504302e3030",
+            "base64": "AQxFeGVtcHQgU3RvcmUCDzMyMjIyMjIyMjIyMjIyMwMUMjAyNi0wMS0wMVQwMDowMDowMFoEBDcuMDAFBDAuMDA="
+        },
+        {
+            "name": "three-decimal-currency",
+            "input": {
+                "sellerName": "Kuwait Branch",
+                "vatNumber": "333333333333333",
+                "timestamp": "2026-02-28T23:59:59Z",
+                "totalMinor": 1234567,
+                "vatMinor": 160987,
+                "currencyExponent": 3
+            },
+            "amounts": {
+                "total": "1234.567",
+                "vatTotal": "160.987"
+            },
+            "tlvHex": "010d4b7577616974204272616e6368020f3333333333333333333333333333330314323032362d30322d32385432333a35393a35395a0408313233342e35363705073136302e393837",
+            "base64": "AQ1LdXdhaXQgQnJhbmNoAg8zMzMzMzMzMzMzMzMzMzMDFDIwMjYtMDItMjhUMjM6NTk6NTlaBAgxMjM0LjU2NwUHMTYwLjk4Nw=="
+        },
+        {
+            "name": "credit-note-positive-amounts",
+            "input": {
+                "sellerName": "Bobs Records",
+                "vatNumber": "310122393500003",
+                "timestamp": "2022-04-26T09:00:00Z",
+                "totalMinor": 23000,
+                "vatMinor": 3000,
+                "currencyExponent": 2
+            },
+            "amounts": {
+                "total": "230.00",
+                "vatTotal": "30.00"
+            },
+            "tlvHex": "010c426f6273205265636f726473020f3331303132323339333530303030330314323032322d30342d32365430393a30303a30305a04063233302e3030050533302e3030",
+            "base64": "AQxCb2JzIFJlY29yZHMCDzMxMDEyMjM5MzUwMDAwMwMUMjAyMi0wNC0yNlQwOTowMDowMFoEBjIzMC4wMAUFMzAuMDA="
+        },
+        {
+            "name": "longest-seller-name",
+            "input": {
+                "sellerName": "ممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممم",
+                "vatNumber": "310122393500003",
+                "timestamp": "2026-10-04T00:00:00Z",
+                "totalMinor": 1,
+                "vatMinor": 0,
+                "currencyExponent": 2
+            },
+            "amounts": {
+                "total": "0.01",
+                "vatTotal": "0.00"
+            },
+            "tlvHex": "01fed985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985d985020f3331303132323339333530303030330314323032362d31302d30345430303a30303a30305a0404302e30310504302e3030",
+            "base64": "Af7ZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhdmF2YXZhQIPMzEwMTIyMzkzNTAwMDAzAxQyMDI2LTEwLTA0VDAwOjAwOjAwWgQEMC4wMQUEMC4wMA=="
+        }
+    ],
+    "rejects": [
+        {
+            "name": "seller-name-over-255-bytes",
+            "input": {
+                "sellerName": "مممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممممم",
+                "vatNumber": "310122393500003",
+                "timestamp": "2026-10-04T00:00:00Z",
+                "total": "1.00",
+                "vatTotal": "0.00"
+            },
+            "error": "TLV field 1 must be 1–255 UTF-8 bytes."
+        },
+        {
+            "name": "empty-seller-name",
+            "input": {
+                "sellerName": "",
+                "vatNumber": "310122393500003",
+                "timestamp": "2026-10-04T00:00:00Z",
+                "total": "1.00",
+                "vatTotal": "0.00"
+            },
+            "error": "TLV field 1 must be 1–255 UTF-8 bytes."
+        },
+        {
+            "name": "timestamp-with-offset",
+            "input": {
+                "sellerName": "Shop",
+                "vatNumber": "310122393500003",
+                "timestamp": "2026-10-04T00:00:00+03:00",
+                "total": "1.00",
+                "vatTotal": "0.00"
+            },
+            "error": "The time stamp must be UTC YYYY-MM-DDTHH:MM:SSZ."
+        },
+        {
+            "name": "negative-amount",
+            "input": {
+                "sellerName": "Shop",
+                "vatNumber": "310122393500003",
+                "timestamp": "2026-10-04T00:00:00Z",
+                "total": "-1.00",
+                "vatTotal": "0.00"
+            },
+            "error": "Amounts must be non-negative decimals with a \".\" separator."
+        }
+    ]
+}

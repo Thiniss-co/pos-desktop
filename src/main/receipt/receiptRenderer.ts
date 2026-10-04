@@ -1,5 +1,6 @@
 import { BrowserWindow, session } from 'electron'
 import { pxToUm, roundUpToQuantum } from '@shared/receipt/receiptLayout'
+import { printBoundary } from '@printBoundary'
 
 /**
  * Receipt-printing plan §D-4/§D-5 — renders receipt documents in a hidden, locked-down window and
@@ -240,12 +241,81 @@ export class ReceiptRenderWindow {
     return `data:image/png;base64,${image.toPNG().toString('base64')}`
   }
 
+  /**
+   * POS improvements, Stage 6 — the rendered receipt QR as an RGBA bitmap, for the pre-dispatch decode.
+   *
+   * The QR is printed at ~0.4–0.5 mm per module, about 2 px at 96 dpi: too small to decode reliably. So
+   * the hidden window is zoomed (`scale`), the `#receipt-qr` element scrolled into view and only its
+   * box captured; zoom and size are then restored. Print and PDF output use page sizes, not the window
+   * zoom, and the layout plan was already measured and recorded before this runs.
+   */
+  async captureQrBitmap(
+    scale = 4
+  ): Promise<{ data: Uint8ClampedArray; width: number; height: number } | null> {
+    // Test builds only: lets a journey hold preparation open (undefined in the production boundary).
+    await printBoundary.beforeQrCapture?.()
+    const contents = this.window.webContents
+    const [baseWidth, baseHeight] = this.window.getContentSize()
+    const frame = (): Promise<unknown> =>
+      contents.executeJavaScript(
+        'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))'
+      )
+    try {
+      contents.setZoomFactor(scale)
+      this.window.setContentSize(
+        Math.ceil((baseWidth ?? 280) * scale) + 16,
+        Math.min(Math.ceil((baseHeight ?? 400) * scale) + 16, 2400)
+      )
+      await frame()
+      const rect = (await contents.executeJavaScript(
+        `(() => {
+          const block = document.getElementById('receipt-qr')
+          const svg = block ? block.querySelector('svg') : null
+          if (!svg) return null
+          svg.scrollIntoView({ block: 'center', inline: 'center' })
+          const box = svg.getBoundingClientRect()
+          return { x: box.x, y: box.y, width: box.width, height: box.height }
+        })()`
+      )) as { x: number; y: number; width: number; height: number } | null
+      if (!rect || rect.width <= 0 || rect.height <= 0) {
+        return null
+      }
+      await frame()
+      const settled = (await contents.executeJavaScript(
+        `(() => { const svg = document.querySelector('#receipt-qr svg'); if (!svg) return null; const b = svg.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height } })()`
+      )) as { x: number; y: number; width: number; height: number } | null
+      const box = settled ?? rect
+      const image = await contents.capturePage({
+        x: Math.max(0, Math.floor(box.x * scale)),
+        y: Math.max(0, Math.floor(box.y * scale)),
+        width: Math.ceil(box.width * scale),
+        height: Math.ceil(box.height * scale)
+      })
+      const { width, height } = image.getSize()
+      const bgra = image.toBitmap()
+      if (width === 0 || height === 0 || bgra.length < width * height * 4) {
+        return null
+      }
+      const data = new Uint8ClampedArray(width * height * 4)
+      for (let index = 0; index < width * height * 4; index += 4) {
+        data[index] = bgra[index + 2] ?? 0
+        data[index + 1] = bgra[index + 1] ?? 0
+        data[index + 2] = bgra[index] ?? 0
+        data[index + 3] = 255
+      }
+      return { data, width, height }
+    } finally {
+      contents.setZoomFactor(1)
+      this.window.setContentSize(baseWidth ?? 280, baseHeight ?? 400)
+      await frame().catch(() => undefined)
+    }
+  }
+
   /** Plan §D-6/electron-security.md "Safe Printing Bridge": only `name`/`displayName` (and a
    *  coarse status when the OS exposes one) ever cross the IPC boundary -- never `options` or any
    *  device URI/handle. */
   async listPrinters(): Promise<Array<{ name: string; displayName: string }>> {
-    const printers = await this.window.webContents.getPrintersAsync()
-    return printers.map((printer) => ({ name: printer.name, displayName: printer.displayName }))
+    return printBoundary.listPrinters(this.window.webContents)
   }
 
   async verifyWithPdf(): Promise<{ pageCount: number; matches: boolean; pdf: Buffer }> {
@@ -264,35 +334,35 @@ export class ReceiptRenderWindow {
     return { pageCount, matches: pageCount === plan.pageCount, pdf }
   }
 
+  /**
+   * The OS print call, through the build-selected boundary. The boundary invokes the destination
+   * synchronously, so a caller's synchronous authorization fence directly precedes the dispatch.
+   */
   dispatchPrint(
     options: PrintDispatchOptions
   ): Promise<{ success: boolean; failureReason: string }> {
     const plan = this.requirePlan()
-    return new Promise((resolve, reject) => {
-      try {
-        this.window.webContents.print(
-          {
-            silent: options.silent,
-            deviceName: options.deviceName ?? undefined,
-            copies: options.copies,
-            printBackground: true,
-            scaleFactor: 100,
-            margins: { marginType: 'none' },
-            pageSize: {
-              width: Math.max(353, plan.pageWidthUm),
-              height: Math.max(353, plan.pageHeightUm)
-            }
-          },
-          (success, failureReason) => resolve({ success, failureReason })
-        )
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error(String(error)))
-      }
+    return printBoundary.dispatch(this.window.webContents, {
+      silent: options.silent,
+      deviceName: options.deviceName ?? null,
+      copies: options.copies,
+      pageWidthUm: Math.max(353, plan.pageWidthUm),
+      pageHeightUm: Math.max(353, plan.pageHeightUm)
     })
+  }
+
+  /** Which print boundary this build contains: 'os' in production, 'virtual' in test builds. */
+  printBoundaryKind(): 'os' | 'virtual' {
+    return printBoundary.kind
   }
 
   getPlan(): PagePlan {
     return this.requirePlan()
+  }
+
+  /** The hidden window's contents id (never an app window: it holds no catalog draft). */
+  contentsId(): number | null {
+    return this.window.isDestroyed() ? null : this.window.webContents.id
   }
 
   destroy(): void {
@@ -307,6 +377,20 @@ export class ReceiptRenderWindow {
 }
 
 let sharedWindow: ReceiptRenderWindow | null = null
+
+/** Test builds only: whether automatic-print admission is held (always false in production). */
+export function autoPrintAdmissionHeld(): boolean {
+  return printBoundary.holdsAutoAdmission?.() ?? false
+}
+
+/**
+ * POS improvements, Stage 7: the contents id of the shared render window, if it exists. The catalog
+ * install gate must never wait for this window: automatic printing can create it (to list printers)
+ * before it has rendered anything, when its URL is still empty rather than `data:`.
+ */
+export function sharedReceiptRenderContentsId(): number | null {
+  return sharedWindow?.contentsId() ?? null
+}
 
 /** The process-wide shared render window (plan §D-5: at most one live render window). Created
  *  lazily on first use. */

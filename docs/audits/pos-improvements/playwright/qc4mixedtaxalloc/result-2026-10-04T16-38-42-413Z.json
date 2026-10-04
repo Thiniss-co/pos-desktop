@@ -1,0 +1,197 @@
+{
+  "journey": "qc4mixedtaxalloc",
+  "startedAt": "2026-10-04T16:38:42.413Z",
+  "runDir": "/tmp/pos-pw-v3E4E7",
+  "steps": [
+    {
+      "at": "2026-10-04T16:38:44.923Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:46369",
+      "database": "/tmp/pos-pw-v3E4E7/qc4mixedtaxalloc/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T16:38:49.330Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T16:38:50.033Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-v3E4E7/qc4mixedtaxalloc/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T16:38:50.531Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T16:38:50.586Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T16:38:51.424Z",
+      "label": "precondition: allocation-mode warehouse (fixture)",
+      "policy_revision": null,
+      "exposures": {
+        "COLA-CAN": true
+      }
+    },
+    {
+      "at": "2026-10-04T16:38:51.582Z",
+      "label": "precondition: categorized taxes and mixed-mode products (fixture)",
+      "products": {
+        "MIX-INC": {
+          "uuid": "7c62f44d-1889-457a-81e6-7b027832a0fb",
+          "barcode": "7780000000011",
+          "tax_mode": "inclusive",
+          "tax_category": "standard"
+        },
+        "MIX-ZERO": {
+          "uuid": "b08c06ae-32e3-4409-909a-09e244e91eca",
+          "barcode": "7780000000028",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated"
+        },
+        "MIX-EXEMPT": {
+          "uuid": "726654f4-d0cf-471d-9c19-47f80c019c73",
+          "barcode": "7780000000035",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt"
+        }
+      },
+      "precondition": true
+    },
+    {
+      "at": "2026-10-04T16:38:54.028Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T16:38:57.019Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T16:38:57.071Z",
+      "label": "1: installed contract",
+      "policy": "per_line",
+      "physicalPresenceAuthorities": 0
+    },
+    {
+      "at": "2026-10-04T16:38:58.250Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T16:38:59.219Z",
+      "label": "scanned",
+      "code": "7780000000011"
+    },
+    {
+      "at": "2026-10-04T16:39:01.233Z",
+      "label": "scanned",
+      "code": "7780000000035"
+    },
+    {
+      "at": "2026-10-04T16:39:07.107Z",
+      "screenshot": "02a-mixed-cart-allocation.png"
+    },
+    {
+      "at": "2026-10-04T16:39:07.107Z",
+      "label": "2: mixed cart summary",
+      "showsTotalExclVat": true
+    },
+    {
+      "at": "2026-10-04T16:39:07.666Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T16:39:13.115Z",
+      "screenshot": "02b-sale-complete.png"
+    },
+    {
+      "at": "2026-10-04T16:39:14.156Z",
+      "label": "3: local invoice",
+      "header": "mixed",
+      "version": 4,
+      "authority": null,
+      "allocationConsumptions": 1,
+      "totals": {
+        "local_uuid": "8ada8006-f118-4666-8f3a-d1c4b9f077d5",
+        "tax_mode": "mixed",
+        "subtotal_amount": 3350,
+        "discount_total_amount": 0,
+        "tax_total_amount": 375,
+        "grand_total_amount": 3575
+      },
+      "lines": [
+        {
+          "product_uuid": "4e1f5315-4a82-4b48-84d9-b42efbc7202c",
+          "tax_mode": "exclusive",
+          "tax_category": null,
+          "tax_amount": 225,
+          "total_amount": 1725
+        },
+        {
+          "product_uuid": "7c62f44d-1889-457a-81e6-7b027832a0fb",
+          "tax_mode": "inclusive",
+          "tax_category": "standard",
+          "tax_amount": 150,
+          "total_amount": 1150
+        },
+        {
+          "product_uuid": "726654f4-d0cf-471d-9c19-47f80c019c73",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt",
+          "tax_amount": 0,
+          "total_amount": 700
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T16:39:14.424Z",
+      "label": "4: server invoice",
+      "server": {
+        "idempotency_key": "8ada8006-f118-4666-8f3a-d1c4b9f077d5",
+        "tax_mode": "mixed",
+        "contract_version": 4,
+        "offline_sale_authority": false,
+        "subtotal": 3350,
+        "discount": 0,
+        "tax": 375,
+        "grand": 3575,
+        "items": [
+          {
+            "product_uuid": "4e1f5315-4a82-4b48-84d9-b42efbc7202c",
+            "tax_mode": "exclusive",
+            "tax_category": null,
+            "tax_amount": 225,
+            "total_amount": 1725,
+            "discount_amount": 0,
+            "subtotal_amount": 1500
+          },
+          {
+            "product_uuid": "7c62f44d-1889-457a-81e6-7b027832a0fb",
+            "tax_mode": "inclusive",
+            "tax_category": "standard",
+            "tax_amount": 150,
+            "total_amount": 1150,
+            "discount_amount": 0,
+            "subtotal_amount": 1150
+          },
+          {
+            "product_uuid": "726654f4-d0cf-471d-9c19-47f80c019c73",
+            "tax_mode": "inclusive",
+            "tax_category": "exempt",
+            "tax_amount": 0,
+            "total_amount": 700,
+            "discount_amount": 0,
+            "subtotal_amount": 700
+          }
+        ],
+        "refunds": []
+      }
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T16:39:16.091Z"
+}

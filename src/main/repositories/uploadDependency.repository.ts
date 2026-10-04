@@ -31,6 +31,24 @@ export type UploadDependencyBlock =
   | 'predecessor-terminal'
   /** The invoice's own sequences on a chain are not contiguous (local integrity). */
   | 'non-contiguous'
+  /**
+   * POS improvements, Stage 2: the sale's customer was created on this register and its create
+   * request has not been accepted yet (pending, sending, or awaiting a replay): released automatically.
+   */
+  | 'entity-pending'
+  /**
+   * The register-created customer's request was refused, conflicted, or is blocked by permissions,
+   * with no live replacement: the sale waits (frozen, never dropped) until it is corrected.
+   */
+  | 'entity-terminal'
+
+/** The register-created entity an invoice waits for. */
+export interface UploadDependencyEntity {
+  readonly type: 'customer'
+  readonly uuid: string
+  readonly requestKey: string | null
+  readonly state: string | null
+}
 
 export interface UploadDependencyPredecessor {
   readonly allocationUuid: string
@@ -46,6 +64,7 @@ export type UploadDependencyDecision =
       readonly eligible: false
       readonly block: UploadDependencyBlock
       readonly predecessor: UploadDependencyPredecessor | null
+      readonly entity?: UploadDependencyEntity
     }
 
 export interface HeldUpload {
@@ -55,6 +74,7 @@ export interface HeldUpload {
   readonly createdAt: string
   readonly block: UploadDependencyBlock
   readonly predecessor: UploadDependencyPredecessor | null
+  readonly entity?: UploadDependencyEntity
 }
 
 interface ConsumptionRow {
@@ -76,6 +96,11 @@ export class UploadDependencyRepository {
   constructor(private readonly database: SqliteDatabase) {}
 
   evaluate(invoiceLocalUuid: string): UploadDependencyDecision {
+    const entity = this.entityDependency(invoiceLocalUuid)
+    if (entity !== null) {
+      return entity
+    }
+
     const consumptions = this.database
       .prepare(
         `SELECT allocation_uuid, rights_generation, consumption_sequence
@@ -129,9 +154,12 @@ export class UploadDependencyRepository {
           WHERE q.aggregate_type = 'invoice' AND q.operation = 'upload'
             AND q.state IN ('pending', 'retryable_error')
             AND i.company_uuid = ? AND i.device_uuid = ?
-            AND EXISTS (
-              SELECT 1 FROM local_stock_allocation_consumptions c
-               WHERE c.invoice_local_uuid = q.local_aggregate_uuid
+            AND (
+              EXISTS (
+                SELECT 1 FROM local_stock_allocation_consumptions c
+                 WHERE c.invoice_local_uuid = q.local_aggregate_uuid
+              )
+              ${this.hasQuickCreateTables() ? 'OR i.customer_uuid IN (SELECT uuid FROM local_customers)' : ''}
             )
           ORDER BY q.queue_sequence IS NULL, q.queue_sequence ASC, q.created_at ASC,
                    q.local_queue_uuid ASC`
@@ -146,14 +174,19 @@ export class UploadDependencyRepository {
     const held: HeldUpload[] = []
     for (const row of rows) {
       const decision = this.evaluate(row.local_aggregate_uuid)
-      if (!decision.eligible && decision.block !== 'predecessor-pending') {
+      if (
+        !decision.eligible &&
+        decision.block !== 'predecessor-pending' &&
+        decision.block !== 'entity-pending'
+      ) {
         held.push({
           invoiceLocalUuid: row.local_aggregate_uuid,
           userUuid: row.user_uuid,
           localQueueUuid: row.local_queue_uuid,
           createdAt: row.created_at,
           block: decision.block,
-          predecessor: decision.predecessor
+          predecessor: decision.predecessor,
+          ...(decision.entity ? { entity: decision.entity } : {})
         })
         if (held.length >= limit) {
           break
@@ -161,6 +194,74 @@ export class UploadDependencyRepository {
       }
     }
     return held
+  }
+
+  private quickCreateTables: boolean | null = null
+
+  /** Migration 0021 exists (older schemas exist only in migration suites). */
+  private hasQuickCreateTables(): boolean {
+    if (this.quickCreateTables === null) {
+      this.quickCreateTables =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('local_customers', 'entity_create_outbox')"
+          )
+          .pluck()
+          .get() === 2
+    }
+    return this.quickCreateTables
+  }
+
+  /**
+   * POS improvements, Stage 2: a sale whose customer was created on this register waits until the
+   * server ACCEPTED that customer (the frozen invoice references the register's own entity id, which
+   * the server adopts). The live request decides — after a corrected resubmission, the replacement
+   * request for the same entity id. The invoice itself is never rewritten.
+   */
+  private entityDependency(invoiceLocalUuid: string): UploadDependencyDecision | null {
+    if (!this.hasQuickCreateTables()) {
+      return null
+    }
+    const customer = this.database
+      .prepare(
+        `SELECT lc.uuid FROM local_invoices i JOIN local_customers lc ON lc.uuid = i.customer_uuid
+          WHERE i.local_uuid = ?`
+      )
+      .get(invoiceLocalUuid) as { uuid: string } | undefined
+    if (!customer) {
+      return null
+    }
+    const live = this.database
+      .prepare(
+        `SELECT request_key, state FROM entity_create_outbox
+          WHERE entity_type = 'customer' AND client_entity_uuid = ?
+            AND state NOT IN ('superseded', 'refused', 'conflict')`
+      )
+      .get(customer.uuid) as { request_key: string; state: string } | undefined
+    if (live?.state === 'accepted') {
+      return null
+    }
+    const latest =
+      live ??
+      (this.database
+        .prepare(
+          `SELECT request_key, state FROM entity_create_outbox
+            WHERE entity_type = 'customer' AND client_entity_uuid = ? AND state <> 'superseded'
+            ORDER BY created_at DESC, request_key DESC LIMIT 1`
+        )
+        .get(customer.uuid) as { request_key: string; state: string } | undefined)
+    const pending = live !== undefined && live.state !== 'blocked_permission'
+    return {
+      eligible: false,
+      block: pending ? 'entity-pending' : 'entity-terminal',
+      predecessor: null,
+      entity: {
+        type: 'customer',
+        uuid: customer.uuid,
+        requestKey: latest?.request_key ?? null,
+        state: latest?.state ?? null
+      }
+    }
   }
 
   private externalPredecessor(

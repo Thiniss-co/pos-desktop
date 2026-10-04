@@ -17,7 +17,6 @@ import { ProductImageRepository } from '../../../src/main/repositories/productIm
 import { CompanyBrandingRepository } from '../../../src/main/repositories/companyBranding.repository'
 import { ReceiptContextRepository } from '../../../src/main/repositories/receiptContext.repository'
 import { ReceiptSnapshotRepository } from '../../../src/main/repositories/receiptSnapshot.repository'
-import { BootstrapCapabilityRepository } from '../../../src/main/repositories/bootstrapCapability.repository'
 import { ReceiptProfileRepository } from '../../../src/main/repositories/receiptProfile.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../../../src/main/repositories/secureSecrets.repository'
@@ -29,6 +28,11 @@ import { OfflineSaleAuthorityRepository } from '../../../src/main/repositories/o
 import { SyncConflictRepository } from '../../../src/main/repositories/syncConflict.repository'
 import { SyncQueueRepository } from '../../../src/main/repositories/syncQueue.repository'
 import { UploadDependencyRepository } from '../../../src/main/repositories/uploadDependency.repository'
+import { QuickCreateRepository } from '../../../src/main/repositories/quickCreate.repository'
+import { UserPreferencesRepository } from '../../../src/main/repositories/userPreferences.repository'
+import { FiscalContextRepository } from '../../../src/main/repositories/fiscalContext.repository'
+import { AutoPrintRepository } from '../../../src/main/repositories/autoPrint.repository'
+import { ReceiptPrintJobRepository } from '../../../src/main/repositories/receiptPrintJob.repository'
 import { AllocationReconciliationService } from '../../../src/main/services/allocationReconciliation.service'
 
 export interface RealRepositories {
@@ -58,7 +62,6 @@ export interface RealRepositories {
   readonly receiptContext: ReceiptContextRepository
   /** Owner receipt copies (migration 0030): frozen sale receipt snapshots and their upload state. */
   readonly receiptSnapshots: ReceiptSnapshotRepository
-  readonly bootstrapCapabilities: BootstrapCapabilityRepository
   readonly saleAttempts: SaleAttemptRepository
   readonly secureSecrets: SecureSecretsRepository
   readonly sessionEpoch: SessionEpochRepository
@@ -69,6 +72,11 @@ export interface RealRepositories {
   readonly syncConflicts: SyncConflictRepository
   /** Rev 4 §10.3: allocation-chain upload dependencies. */
   readonly uploadDependencies: UploadDependencyRepository
+  readonly quickCreate: QuickCreateRepository
+  readonly userPreferences: UserPreferencesRepository
+  readonly fiscalContexts: FiscalContextRepository
+  readonly autoPrint: AutoPrintRepository
+  readonly receiptPrintJobs: ReceiptPrintJobRepository
   /** BH-04B-3: wired exactly as production wires it, so suites exercise the real reconciliation. */
   readonly allocationReconciliation: AllocationReconciliationService
 }
@@ -115,7 +123,6 @@ export function realRepositories(
     receiptProfile: new ReceiptProfileRepository(database),
     receiptContext: new ReceiptContextRepository(database),
     receiptSnapshots: new ReceiptSnapshotRepository(database),
-    bootstrapCapabilities: new BootstrapCapabilityRepository(database),
     saleAttempts: new SaleAttemptRepository(database),
     secureSecrets: new SecureSecretsRepository(database),
     sessionEpoch: new SessionEpochRepository(database),
@@ -125,6 +132,11 @@ export function realRepositories(
     syncQueue: new SyncQueueRepository(database),
     syncConflicts: new SyncConflictRepository(database),
     uploadDependencies: new UploadDependencyRepository(database),
+    quickCreate: new QuickCreateRepository(database),
+    userPreferences: new UserPreferencesRepository(database),
+    fiscalContexts: new FiscalContextRepository(database),
+    autoPrint: new AutoPrintRepository(database),
+    receiptPrintJobs: new ReceiptPrintJobRepository(database),
     allocationReconciliation
   }
 
@@ -148,10 +160,14 @@ export function realRepositories(
   assert.ok(repositories.receiptProfile instanceof ReceiptProfileRepository)
   assert.ok(repositories.receiptContext instanceof ReceiptContextRepository)
   assert.ok(repositories.receiptSnapshots instanceof ReceiptSnapshotRepository)
-  assert.ok(repositories.bootstrapCapabilities instanceof BootstrapCapabilityRepository)
   assert.ok(repositories.stockAllocations instanceof StockAllocationRepository)
   assert.ok(repositories.syncQueue instanceof SyncQueueRepository)
   assert.ok(repositories.uploadDependencies instanceof UploadDependencyRepository)
+  assert.ok(repositories.quickCreate instanceof QuickCreateRepository)
+  assert.ok(repositories.userPreferences instanceof UserPreferencesRepository)
+  assert.ok(repositories.fiscalContexts instanceof FiscalContextRepository)
+  assert.ok(repositories.autoPrint instanceof AutoPrintRepository)
+  assert.ok(repositories.receiptPrintJobs instanceof ReceiptPrintJobRepository)
 
   return repositories
 }

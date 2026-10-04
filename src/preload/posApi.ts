@@ -1,6 +1,15 @@
 import { ipcRenderer } from 'electron'
 import type { CompanyBrandingView } from '@shared/contracts/branding.contract'
 import type {
+  QuickCreateAccess,
+  QuickCreateCustomerInput,
+  QuickCreateProductInput,
+  QuickCreateProductOptions,
+  QuickCreateRecord,
+  QuickCreateResubmitInput,
+  QuickCreateSupplierInput
+} from '@shared/contracts/quickCreate.contract'
+import type {
   AttemptsChanged,
   DraftState,
   InstallHoldReply,
@@ -37,6 +46,9 @@ import type {
   SalesInvoiceList
 } from '@shared/contracts/refund.contract'
 import type {
+  AutoPrintNotice,
+  AutoPrintSetup,
+  AutoPrintStatus,
   PrinterInfo,
   PrinterSettings,
   PrintingDispatchInput,
@@ -84,7 +96,9 @@ import type { CommercialAccessSnapshot } from '@shared/contracts/license.contrac
 import type {
   LocaleCode,
   PosCartWidthPreference,
-  ThemePreference
+  SetUserPreferenceInput,
+  ThemePreference,
+  UserPreferences
 } from '@shared/contracts/preferences.contract'
 import type {
   SyncFailureCursor,
@@ -128,6 +142,19 @@ export interface PosApi {
   /** Owner UX plan P9: the company identity shown in the top bar and its brand colour. */
   readonly branding: {
     get(): Promise<IpcResult<CompanyBrandingView>>
+    onChanged(listener: () => void): () => void
+  }
+  /** POS improvements, Stage 1: what the signed-in user may create from the register. */
+  readonly quickCreate: {
+    getAccess(): Promise<IpcResult<QuickCreateAccess>>
+    createCustomer(input: QuickCreateCustomerInput): Promise<IpcResult<QuickCreateRecord>>
+    createSupplier(input: QuickCreateSupplierInput): Promise<IpcResult<QuickCreateRecord>>
+    createProduct(input: QuickCreateProductInput): Promise<IpcResult<QuickCreateRecord>>
+    productOptions(): Promise<IpcResult<QuickCreateProductOptions>>
+    list(): Promise<IpcResult<QuickCreateRecord[]>>
+    retry(input: { requestKey: string }): Promise<IpcResult<QuickCreateRecord>>
+    reassign(input: { requestKey: string }): Promise<IpcResult<QuickCreateRecord>>
+    resubmit(input: QuickCreateResubmitInput): Promise<IpcResult<QuickCreateRecord>>
     onChanged(listener: () => void): () => void
   }
   readonly catalog: {
@@ -217,6 +244,9 @@ export interface PosApi {
     /** Layout-only: POS cart column width in px, or `null` for the design default. */
     getPosCartWidth(): Promise<IpcResult<PosCartWidthPreference>>
     setPosCartWidth(width: number | null): Promise<IpcResult<PosCartWidthPreference>>
+    /** Stage 5: the signed-in user's own preferences on this workstation. */
+    getUser(): Promise<IpcResult<UserPreferences>>
+    setUser(input: SetUserPreferenceInput): Promise<IpcResult<UserPreferences>>
   }
   readonly companyUsers: {
     getAccess(): Promise<IpcResult<CompanyUserAccess>>
@@ -237,6 +267,8 @@ export interface PosApi {
     getInvoice(input: { invoiceLocalUuid: string }): Promise<IpcResult<SaleDetail>>
   }
   readonly refunds: {
+    /** POS improvements, Stage 3: whether this session may start a refund. */
+    getAccess(): Promise<IpcResult<{ allowed: boolean }>>
     getRefundable(input: { invoiceLocalUuid: string }): Promise<IpcResult<RefundableInvoice>>
     preview(input: {
       invoiceLocalUuid: string
@@ -267,6 +299,10 @@ export interface PosApi {
     latestForDocument(input: {
       document: ReceiptDocumentRef
     }): Promise<IpcResult<PrintJobView | null>>
+    autoPrintStatus(input: { invoiceLocalUuid: string }): Promise<IpcResult<AutoPrintStatus>>
+    autoPrintSetup(): Promise<IpcResult<AutoPrintSetup>>
+    autoPrintNotices(): Promise<IpcResult<AutoPrintNotice[]>>
+    dismissAutoPrintNotices(): Promise<IpcResult<{ dismissed: boolean }>>
   }
   /** Receipt-printing plan §D-11: the CompanyAdmin receipt-profile editor. No method accepts a
    *  file path; the logo file is chosen in main through the native dialog. */
@@ -364,6 +400,29 @@ export const posApi: PosApi = Object.freeze({
       const subscription = (): void => listener()
       ipcRenderer.on(IPC_CHANNELS.brandingChanged, subscription)
       return () => ipcRenderer.off(IPC_CHANNELS.brandingChanged, subscription)
+    }
+  }),
+  quickCreate: Object.freeze({
+    getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.quickCreateGetAccess),
+    createCustomer: (input: QuickCreateCustomerInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.quickCreateCustomer, input),
+    createSupplier: (input: QuickCreateSupplierInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.quickCreateSupplier, input),
+    createProduct: (input: QuickCreateProductInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.quickCreateProduct, input),
+    productOptions: () => ipcRenderer.invoke(IPC_CHANNELS.quickCreateProductOptions),
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.quickCreateList),
+    retry: (input: { requestKey: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.quickCreateRetry, input),
+    reassign: (input: { requestKey: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.quickCreateReassign, input),
+    resubmit: (input: QuickCreateResubmitInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.quickCreateResubmit, input),
+    onChanged: (listener: () => void) => {
+      // No payload: the renderer re-reads through `list`; the Electron event is never handed over.
+      const subscription = (): void => listener()
+      ipcRenderer.on(IPC_CHANNELS.quickCreateChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.quickCreateChanged, subscription)
     }
   }),
   catalog: Object.freeze({
@@ -536,7 +595,10 @@ export const posApi: PosApi = Object.freeze({
     // main Zod-validates the input, and the renderer's PreferencesService validates the result.
     getPosCartWidth: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetPosCartWidth),
     setPosCartWidth: (width: number | null) =>
-      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetPosCartWidth, width)
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetPosCartWidth, width),
+    getUser: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetUser),
+    setUser: (input: SetUserPreferenceInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetUser, input)
   }),
   companyUsers: Object.freeze({
     getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGetAccess),
@@ -559,6 +621,7 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.salesGetInvoice, input)
   }),
   refunds: Object.freeze({
+    getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.refundsGetAccess),
     getRefundable: (input: { invoiceLocalUuid: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.refundsGetRefundable, input),
     preview: (input: {
@@ -595,7 +658,12 @@ export const posApi: PosApi = Object.freeze({
     cancelJob: (input: { requestId: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.printingCancelJob, input),
     latestForDocument: (input: { document: ReceiptDocumentRef }) =>
-      ipcRenderer.invoke(IPC_CHANNELS.printingLatestForDocument, input)
+      ipcRenderer.invoke(IPC_CHANNELS.printingLatestForDocument, input),
+    autoPrintStatus: (input: { invoiceLocalUuid: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.printingAutoPrintStatus, input),
+    autoPrintSetup: () => ipcRenderer.invoke(IPC_CHANNELS.printingAutoPrintSetup),
+    autoPrintNotices: () => ipcRenderer.invoke(IPC_CHANNELS.printingAutoPrintNotices),
+    dismissAutoPrintNotices: () => ipcRenderer.invoke(IPC_CHANNELS.printingAutoPrintDismissNotices)
   }),
   receiptProfile: Object.freeze({
     get: () => ipcRenderer.invoke(IPC_CHANNELS.receiptProfileGet),

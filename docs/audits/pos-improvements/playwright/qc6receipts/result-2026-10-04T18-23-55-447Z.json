@@ -1,0 +1,238 @@
+{
+  "journey": "qc6receipts",
+  "startedAt": "2026-10-04T18:23:55.448Z",
+  "runDir": "/tmp/pos-pw-VQRiUj",
+  "steps": [
+    {
+      "at": "2026-10-04T18:23:57.963Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:39697",
+      "database": "/tmp/pos-pw-VQRiUj/qc6receipts/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T18:23:57.966Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:40231"
+    },
+    {
+      "at": "2026-10-04T18:24:02.486Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T18:24:03.232Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-VQRiUj/qc6receipts/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T18:24:04.403Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T18:24:04.456Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T18:24:06.245Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T18:24:08.806Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T18:24:11.808Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T18:24:11.825Z",
+      "label": "workstation printer: PW-Virtual-80 (virtual adapter)"
+    },
+    {
+      "at": "2026-10-04T18:24:13.973Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T18:24:14.442Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T18:24:16.381Z",
+      "label": "1: non-fiscal sale context",
+      "regime": "none",
+      "qrType": "txn-ref-v1"
+    },
+    {
+      "at": "2026-10-04T18:24:20.562Z",
+      "label": "1: printed",
+      "job": "submitted",
+      "pdf": "job-1791138260074-1.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-04T18:24:22.888Z",
+      "screenshot": "02a-owner-fiscal-zatca.png"
+    },
+    {
+      "at": "2026-10-04T18:24:23.246Z",
+      "screenshot": "02b-owner-receipt-display.png"
+    },
+    {
+      "at": "2026-10-04T18:24:23.328Z",
+      "label": "2: owner saved the fiscal identity, switched ZATCA on and published receipt display choices",
+      "publish": 201
+    },
+    {
+      "at": "2026-10-04T18:24:23.498Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T18:24:23.524Z",
+      "label": "3: mirrored identity",
+      "regime": "sa_zatca_phase1",
+      "seller_name": "Desktop MVP Trading LLC",
+      "vat_number": "310122393500003",
+      "street": "1 Corniche Road",
+      "postal_code": "23511",
+      "revision": 3
+    },
+    {
+      "at": "2026-10-04T18:24:24.170Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T18:24:24.372Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T18:24:24.833Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T18:24:31.134Z",
+      "label": "3 (80 mm): printed",
+      "job": "submitted",
+      "pdf": "job-1791138270552-2.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-04T18:24:31.135Z",
+      "label": "3: decoded ZATCA QR",
+      "sellerName": "Desktop MVP Trading LLC",
+      "vatNumber": "310122393500003",
+      "timestamp": "2026-10-04T18:24:24Z",
+      "total": "25.88",
+      "vatTotal": "3.38"
+    },
+    {
+      "at": "2026-10-04T18:24:33.036Z",
+      "label": "3 (58 mm): printed",
+      "job": "submitted",
+      "pdf": "job-1791138272459-3.pdf",
+      "widthMm": 58,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-04T18:24:33.245Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T18:24:33.701Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T18:24:36.172Z",
+      "label": "4 (offline): printed",
+      "job": "submitted",
+      "pdf": "job-1791138275655-4.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-04T18:24:38.172Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T18:24:40.094Z",
+      "label": "5 (reprint of sale 3): printed",
+      "job": "submitted",
+      "pdf": "job-1791138279518-5.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-04T18:24:40.277Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T18:24:40.740Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T18:24:43.171Z",
+      "label": "5 (new sale): printed",
+      "job": "submitted",
+      "pdf": "job-1791138282654-6.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-04T18:24:43.171Z",
+      "label": "5: frozen versus current address",
+      "reprintKeepsOld": true,
+      "newSaleShowsNew": true
+    },
+    {
+      "at": "2026-10-04T18:24:45.600Z",
+      "label": "6: credit note",
+      "regime": "sa_zatca_phase1",
+      "serverIssuedAt": "2026-10-04T18:24:43Z",
+      "originalInvoice": {
+        "number": "POS-20261004-000002",
+        "issued_at": "2026-10-04T18:24:24Z"
+      },
+      "qr": {
+        "sellerName": "Desktop MVP Trading LLC",
+        "vatNumber": "310122393500003",
+        "timestamp": "2026-10-04T18:24:43Z",
+        "total": "17.25",
+        "vatTotal": "2.25"
+      },
+      "titled": true,
+      "referenced": true
+    },
+    {
+      "at": "2026-10-04T18:24:47.519Z",
+      "label": "7: FAULT INJECTION — corrupted the stored QR payload of one sale (app closed, disposable profile)",
+      "changes": "1",
+      "error": null
+    },
+    {
+      "at": "2026-10-04T18:24:48.186Z",
+      "label": "electron launched again on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T18:24:48.662Z",
+      "label": "7: corrupted payload refused before dispatch",
+      "status": "failed_before_dispatch",
+      "failureCode": "RECEIPT_QR_INVALID",
+      "dispatchesBefore": 7,
+      "dispatchesAfter": 7,
+      "saleSyncStatus": "synced"
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T18:24:48.758Z"
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Cashier menu (V3): identity, Language, Theme and Sign out. */
+/** Cashier menu (V3): identity, Language, Theme, Touch mode (Stage 5) and Sign out. */
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
@@ -8,6 +8,7 @@ import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
 import AppMenuItem from '@renderer/shared/components/common/AppMenuItem.vue'
 import ThemeSwitcher from '@renderer/shared/components/common/ThemeSwitcher.vue'
 import LocaleSwitcher from '@renderer/shared/components/LocaleSwitcher.vue'
+import TouchModeSwitch from '@renderer/modules/preferences/components/TouchModeSwitch.vue'
 import { useAuthStore } from '@renderer/modules/auth/store'
 
 const emit = defineEmits<{ signOut: [] }>()
@@ -39,7 +40,7 @@ const initials = computed(() =>
         class="flex size-8.5 items-center justify-center rounded-full bg-ink text-xs font-bold text-surf"
         >{{ initials }}</span
       >
-      <span class="hidden max-w-40 truncate text-base font-semibold pills:inline">{{
+      <span class="hidden max-w-40 truncate text-base font-semibold navlabels:inline">{{
         displayName
       }}</span>
       <AppIcon name="expand_more" :size="20" class="text-muted" />
@@ -61,6 +62,7 @@ const initials = computed(() =>
         </div>
         <LocaleSwitcher show-label />
         <ThemeSwitcher show-label />
+        <TouchModeSwitch />
         <AppMenuItem
           icon="logout"
           mirror-icon

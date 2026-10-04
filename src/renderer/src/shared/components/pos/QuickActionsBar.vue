@@ -7,8 +7,10 @@ withDefaults(
   defineProps<{
     actions: readonly DisplayQuickAction[]
     label: string
+    /** POS improvements, Stage 5: `wrap` lays tiles out at ≥ 84px each over as many rows as needed. */
+    layout?: 'row' | 'wrap'
   }>(),
-  {}
+  { layout: 'row' }
 )
 
 const emit = defineEmits<{ action: [string] }>()
@@ -17,7 +19,12 @@ const emit = defineEmits<{ action: [string] }>()
 <template>
   <div
     class="quick-actions mx-4 grid flex-none gap-2"
-    :style="{ gridTemplateColumns: `repeat(${Math.max(actions.length, 1)}, minmax(0, 1fr))` }"
+    :style="{
+      gridTemplateColumns:
+        layout === 'wrap'
+          ? 'repeat(auto-fill, minmax(5.25rem, 1fr))'
+          : `repeat(${Math.max(actions.length, 1)}, minmax(0, 1fr))`
+    }"
     role="toolbar"
     :aria-label="label"
   >
@@ -39,7 +46,9 @@ const emit = defineEmits<{ action: [string] }>()
         :size="22"
         :class="action.tone === 'danger' ? 'text-err' : 'text-pri-text'"
       />
-      <span class="quick-actions__label leading-tight">{{ action.label }}</span>
+      <span class="quick-actions__label leading-tight text-balance [overflow-wrap:anywhere]">{{
+        action.label
+      }}</span>
       <span v-if="action.shortcut" class="text-[0.6875rem] font-normal text-muted" dir="ltr">{{
         action.shortcut
       }}</span>

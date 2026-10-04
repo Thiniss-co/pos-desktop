@@ -84,6 +84,13 @@ describe('posApi surface', () => {
     expect(source).toContain('IPC_CHANNELS.checkoutAttemptStatus')
   })
 
+  it('exposes quick-create access as one narrow named read (POS improvements, Stage 1)', () => {
+    expect(source).toContain('getAccess(): Promise<IpcResult<QuickCreateAccess>>')
+    expect(source).toContain(
+      'getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.quickCreateGetAccess)'
+    )
+  })
+
   it('does not expose tokens, SQL, filesystem access, HTTP, or a caller-provided channel', () => {
     expect(source).not.toMatch(/token|sqlite|sql|fs|fetch|axios/i)
     expect(source).not.toMatch(/invoke\(channel|invoke\(.*unknown/i)
@@ -188,6 +195,10 @@ describe('posApi surface', () => {
     expect(source).toContain('IPC_CHANNELS.printingGetWorkstationSettings')
     expect(source).toContain('IPC_CHANNELS.printingSaveWorkstationSettings')
     expect(source).toContain('IPC_CHANNELS.printingListPrinters')
+    expect(source).toContain('IPC_CHANNELS.printingAutoPrintStatus')
+    expect(source).toContain('IPC_CHANNELS.printingAutoPrintSetup')
+    expect(source).toContain('IPC_CHANNELS.printingAutoPrintNotices')
+    expect(source).toContain('IPC_CHANNELS.printingAutoPrintDismissNotices')
   })
 
   it('exposes the receipt-profile editor channels without any file-path argument', () => {

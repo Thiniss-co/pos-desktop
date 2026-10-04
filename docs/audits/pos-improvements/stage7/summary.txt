@@ -1,0 +1,9 @@
+typecheck=0
+lint=14 problems (2 errors, 12 warnings) - baseline only
+vitest=1779/1779
+sqlite=# tests 512 # pass 450 # fail 0 # skipped 62 (incl. autoPrint.suite 5/5)
+harness=# pass 69 # fail 0
+verify:fixture=all fixtures byte-identical with the backend worktree
+verify:print-boundary=production build = OS boundary only; harness build = virtual destination only (seam markers hold-auto-admission, qr-capture-delay-ms added)
+qc7autoprint=pass (A,1-10)
+backend=no Stage 7 backend change

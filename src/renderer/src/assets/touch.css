@@ -1,0 +1,66 @@
+/*
+ * POS improvements, Stage 5 — touch mode (`html[data-touch='on']`, set per signed-in user).
+ *
+ * Unlayered on purpose: unlayered rules outrank the layered Tailwind utilities, so a control whose
+ * utilities pin it at 32–40px still grows to the 44×44 minimum target. Nothing here hides an action or
+ * changes behaviour; scanning and the function keys work exactly as without touch mode.
+ */
+html[data-touch='on'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html[data-touch='on']
+  :is(
+    button,
+    [role='button'],
+    [role='switch'],
+    [role='menuitem'],
+    [role='tab'],
+    a[href],
+    select,
+    summary
+  ),
+html[data-touch='on'] input:not([type='checkbox'], [type='radio'], [type='hidden']) {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+html[data-touch='on']
+  :is(button, [role='button'], [role='switch'], [role='menuitem'], [role='tab'], a[href]) {
+  min-width: 44px;
+}
+
+html[data-touch='on'] input:is([type='checkbox'], [type='radio']) {
+  width: 24px;
+  height: 24px;
+}
+
+/* Status pills and the refresh control: 44px tall, still one row. */
+html[data-touch='on'] :is(.app-pill, .workstation-refresh__button) {
+  height: 44px;
+}
+
+/* The cart quantity stepper: 48px tall, wider buttons. */
+html[data-touch='on'] .quantity-control {
+  height: 48px;
+  width: 9.5rem;
+}
+
+html[data-touch='on'] .quantity-control__button {
+  width: 48px;
+}
+
+/* Quick-action and touch-bar tiles: a little taller for thumbs. */
+html[data-touch='on'] .quick-actions__tile {
+  min-height: 4.25rem;
+}
+
+/* No hover-only affordance may be required in touch mode: anything revealed on hover is shown. */
+html[data-touch='on'] .hover-reveal {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.pos-page__touch-bar .quick-actions {
+  margin-top: 0.5rem;
+}

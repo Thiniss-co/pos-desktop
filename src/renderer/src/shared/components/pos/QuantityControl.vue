@@ -10,11 +10,13 @@ withDefaults(
     groupLabel?: string
     disabled?: boolean
     min?: number
+    /** POS improvements, Stage 5: touch mode — the value opens a keypad (`edit`). */
+    editLabel?: string | null
   }>(),
-  { groupLabel: undefined, disabled: false, min: 1 }
+  { groupLabel: undefined, disabled: false, min: 1, editLabel: null }
 )
 
-const emit = defineEmits<{ decrease: []; increase: [] }>()
+const emit = defineEmits<{ decrease: []; increase: []; edit: [] }>()
 </script>
 
 <template>
@@ -32,7 +34,18 @@ const emit = defineEmits<{ decrease: []; increase: [] }>()
     >
       <AppIcon name="remove" :size="20" />
     </button>
+    <button
+      v-if="editLabel"
+      type="button"
+      class="quantity-control__value numeric h-full flex-1 text-center text-base font-bold underline decoration-dotted underline-offset-4"
+      :aria-label="editLabel"
+      :disabled="disabled"
+      @click="emit('edit')"
+    >
+      {{ quantity }}
+    </button>
     <span
+      v-else
       class="quantity-control__value numeric flex-1 text-center text-base font-bold"
       aria-live="polite"
       >{{ quantity }}</span

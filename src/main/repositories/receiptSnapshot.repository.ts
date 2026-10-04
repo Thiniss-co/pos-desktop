@@ -5,13 +5,17 @@ import type { SqliteDatabase } from '../database/connection'
 /**
  * Owner receipt copies — the sale's frozen receipt snapshot (v1) and its upload state (migration 0030).
  *
- * `captureForSale` runs INSIDE the sale-commit transaction, right after the receipt context row: it
- * freezes exactly that row, the receipt template version and the `txn-ref-v1` QR of the invoice row as
- * canonical JSON, with its sha256. The uploader later sends those exact bytes; nothing re-derives them.
+ * `captureForSale` runs INSIDE the sale-commit transaction, after the receipt context and the fiscal
+ * context rows: it freezes exactly the receipt context row, the receipt template version, the fiscal
+ * context (v2) and the QR the receipt carries as canonical JSON, with its sha256. The uploader later
+ * sends those exact bytes; nothing re-derives them.
  */
 
-export const RECEIPT_SNAPSHOT_VERSION = 1
-export const RECEIPT_SNAPSHOT_QR_TYPE = 'txn-ref-v1'
+/** v1: no frozen fiscal context; the `txn-ref-v1` reference of the invoice row, computed at the sale. */
+export const RECEIPT_SNAPSHOT_LEGACY_VERSION = 1
+/** v2: the frozen fiscal context (POS improvements) and its exact QR, `txn-ref-v1` or `zatca-p1`. */
+export const RECEIPT_SNAPSHOT_FISCAL_VERSION = 2
+const REFERENCE_QR_TYPE = 'txn-ref-v1'
 
 /**
  * Bounded, spaced retries for answers that may change (the sale not accepted yet, a server error):
@@ -67,6 +71,16 @@ interface ContextRow {
   readonly created_at: string
 }
 
+interface FiscalContextRow {
+  readonly regime: string
+  readonly seller_name: string | null
+  readonly vat_number: string | null
+  readonly seller_address_json: string | null
+  readonly fiscal_revision: number | null
+  readonly qr_type: 'txn-ref-v1' | 'zatca-p1'
+  readonly qr_payload: string
+}
+
 interface InvoiceFacts {
   readonly sold_at: string
   readonly grand_total_amount: number
@@ -83,6 +97,7 @@ export interface StoredReceiptSnapshot {
 }
 
 export interface DueReceiptSnapshotUpload extends StoredReceiptSnapshot {
+  readonly snapshotVersion: number
   readonly attempts: number
 }
 
@@ -120,20 +135,46 @@ export class ReceiptSnapshotRepository {
       return false
     }
 
-    const qrPayload = encodeTransactionReferenceQr({
-      companyUuid: context.company_uuid,
-      documentKind: 'sale',
-      documentUuid: context.invoice_local_uuid,
-      instant: invoice.sold_at,
-      totalMinor: invoice.grand_total_amount,
-      currencyExponent: invoice.currency_exponent,
-      currency: invoice.currency
-    })
+    // The QR printed on this sale is the one frozen in its fiscal context, when the sale has one (it
+    // is written earlier in this same transaction); it is copied, never recomputed. A sale without one
+    // keeps the v1 reference of its own invoice row.
+    const fiscal = this.fiscalContext(params.invoiceLocalUuid)
+    const snapshotVersion =
+      fiscal === null ? RECEIPT_SNAPSHOT_LEGACY_VERSION : RECEIPT_SNAPSHOT_FISCAL_VERSION
+    const qr =
+      fiscal === null
+        ? {
+            type: REFERENCE_QR_TYPE,
+            payload: encodeTransactionReferenceQr({
+              companyUuid: context.company_uuid,
+              documentKind: 'sale',
+              documentUuid: context.invoice_local_uuid,
+              instant: invoice.sold_at,
+              totalMinor: invoice.grand_total_amount,
+              currencyExponent: invoice.currency_exponent,
+              currency: invoice.currency
+            })
+          }
+        : { type: fiscal.qr_type, payload: fiscal.qr_payload }
     const canonicalContent = canonicalJson({
-      snapshot_version: RECEIPT_SNAPSHOT_VERSION,
+      snapshot_version: snapshotVersion,
       template_version: params.templateVersion,
       context: { ...context },
-      qr: { type: RECEIPT_SNAPSHOT_QR_TYPE, payload: qrPayload }
+      ...(fiscal === null
+        ? {}
+        : {
+            fiscal: {
+              regime: fiscal.regime,
+              seller_name: fiscal.seller_name,
+              vat_number: fiscal.vat_number,
+              seller_address:
+                fiscal.seller_address_json === null
+                  ? null
+                  : (JSON.parse(fiscal.seller_address_json) as unknown),
+              fiscal_revision: fiscal.fiscal_revision
+            }
+          }),
+      qr
     })
     const contentSha256 = createHash('sha256').update(canonicalContent, 'utf8').digest('hex')
 
@@ -149,9 +190,9 @@ export class ReceiptSnapshotRepository {
         .run(
           params.invoiceLocalUuid,
           context.company_uuid,
-          RECEIPT_SNAPSHOT_VERSION,
-          RECEIPT_SNAPSHOT_QR_TYPE,
-          qrPayload,
+          snapshotVersion,
+          qr.type,
+          qr.payload,
           canonicalContent,
           contentSha256,
           params.createdAt
@@ -165,6 +206,25 @@ export class ReceiptSnapshotRepository {
     })()
 
     return true
+  }
+
+  /** The sale's frozen fiscal context (POS improvements 0024), or null when it has none. */
+  private fiscalContext(invoiceLocalUuid: string): FiscalContextRow | null {
+    const table = this.database
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'local_invoice_fiscal_context'"
+      )
+      .get()
+    if (table === undefined) {
+      return null
+    }
+    const row = this.database
+      .prepare(
+        `SELECT regime, seller_name, vat_number, seller_address_json, fiscal_revision, qr_type, qr_payload
+         FROM local_invoice_fiscal_context WHERE invoice_local_uuid = ?`
+      )
+      .get(invoiceLocalUuid) as FiscalContextRow | undefined
+    return row ?? null
   }
 
   find(invoiceLocalUuid: string): StoredReceiptSnapshot | null {
@@ -195,26 +255,32 @@ export class ReceiptSnapshotRepository {
 
   /**
    * Pending snapshots of the company's sales that the server has accepted (`sync_status = 'synced'`),
-   * due at `now`, oldest sale first.
+   * of a version the server stores (`maxVersion`, from the negotiated capability), due at `now`, oldest
+   * sale first. A snapshot of a newer version simply waits; it is never rewritten as an older one.
    */
   findDueUploads(
     companyUuid: string,
     now: Date,
-    limit: number
+    limit: number,
+    maxVersion: number
   ): readonly DueReceiptSnapshotUpload[] {
     const rows = this.database
       .prepare(
         `SELECT s.invoice_local_uuid AS invoiceLocalUuid, s.company_uuid AS companyUuid,
                 s.qr_payload AS qrPayload, s.canonical_content AS canonicalContent,
-                s.content_sha256 AS contentSha256, u.attempts AS attempts,
+                s.content_sha256 AS contentSha256, s.snapshot_version AS snapshotVersion,
+                u.attempts AS attempts,
                 u.last_attempt_at AS lastAttemptAt
          FROM receipt_snapshot_uploads u
          JOIN local_invoice_receipt_snapshot s ON s.invoice_local_uuid = u.invoice_local_uuid
          JOIN local_invoices i ON i.local_uuid = u.invoice_local_uuid
          WHERE u.state = 'pending' AND s.company_uuid = ? AND i.sync_status = 'synced'
+           AND s.snapshot_version <= ?
          ORDER BY i.sold_at, u.invoice_local_uuid`
       )
-      .all(companyUuid) as (DueReceiptSnapshotUpload & { lastAttemptAt: string | null })[]
+      .all(companyUuid, maxVersion) as (DueReceiptSnapshotUpload & {
+      lastAttemptAt: string | null
+    })[]
 
     return rows
       .filter((row) => isReceiptSnapshotUploadDue(row.attempts, row.lastAttemptAt, now))
@@ -225,6 +291,7 @@ export class ReceiptSnapshotRepository {
         qrPayload: row.qrPayload,
         canonicalContent: row.canonicalContent,
         contentSha256: row.contentSha256,
+        snapshotVersion: row.snapshotVersion,
         attempts: row.attempts
       }))
   }

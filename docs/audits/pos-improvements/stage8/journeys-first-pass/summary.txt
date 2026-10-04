@@ -1,0 +1,7 @@
+smoke exit=0
+qc1permissions exit=0
+qc2offline exit=1
+qc3actions exit=1
+qc4mixedtax exit=1
+qc4mixedtaxalloc exit=1
+qc5touch exit=0

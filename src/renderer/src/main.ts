@@ -18,6 +18,8 @@ import { applyThemeToDocument, useThemeStore } from './modules/preferences/theme
 import { useCartLayoutStore } from './modules/preferences/cartLayout.store'
 import { startCatalogInstallClient } from './modules/catalogInstall/installHold'
 import { startBrandingClient } from './modules/branding/store'
+import { startQuickCreateClient } from './modules/quickCreate/store'
+import { startUserPreferencesClient } from './modules/preferences/userPreferences.store'
 
 const pinia = createPinia()
 
@@ -63,6 +65,9 @@ async function bootstrapRenderer(): Promise<void> {
   startCatalogInstallClient(pinia)
   // Owner UX plan P9: the company logo, name and brand colour (default brand when none).
   startBrandingClient(pinia)
+  startQuickCreateClient(pinia)
+  // POS improvements, Stage 5: per-user touch layout (and auto-print, Stage 7).
+  startUserPreferencesClient(pinia)
 }
 
 void bootstrapRenderer()

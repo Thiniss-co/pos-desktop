@@ -20,7 +20,9 @@ export function buildApp(origin) {
   if (builtFor.get(outDir) === origin && existsSync(join(outDir, 'main', 'index.js'))) {
     return outDir
   }
-  const env = { ...process.env, MAIN_VITE_POS_API_ORIGIN: origin }
+  // POS_PRINT_BOUNDARY=virtual compiles the controlled print destination instead of the OS spooler
+  // boundary (src/main/receipt/printBoundary.types.ts): no journey can reach a physical printer.
+  const env = { ...process.env, MAIN_VITE_POS_API_ORIGIN: origin, POS_PRINT_BOUNDARY: 'virtual' }
   delete env.ELECTRON_RUN_AS_NODE
   const result = spawnSync('npx', ['electron-vite', 'build', '--outDir', outDir], {
     cwd: DESKTOP_ROOT,
@@ -49,6 +51,8 @@ export async function launchApp({ outDir, profileDir, trace = true, extraEnv = {
     XDG_DATA_HOME: process.env.XDG_DATA_HOME,
     DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS,
     LANG: 'en_US.UTF-8',
+    // The virtual print destination of the harness build: PDFs land next to the isolated profile.
+    POS_VIRTUAL_PRINT_DIR: virtualPrintDir(profileDir),
     ...(trace ? { POS_API_TRACE: '1' } : {}),
     ...extraEnv
   }
@@ -69,6 +73,11 @@ export async function launchApp({ outDir, profileDir, trace = true, extraEnv = {
   child.stderr?.on('data', (chunk) => logs.push(String(chunk)))
   const page = await mainWindow(app)
   return { app, page, logs }
+}
+
+/** Where the harness build's virtual printer writes its jobs for a given isolated profile. */
+export function virtualPrintDir(profileDir) {
+  return join(profileDir, 'virtual-printer')
 }
 
 export async function mainWindow(app) {

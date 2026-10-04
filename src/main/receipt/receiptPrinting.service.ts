@@ -6,14 +6,22 @@ import {
   type PrintingDispatchInput,
   type PrintingPreviewInput,
   type PrintPreviewOutput,
-  type PrinterSettingsOverrides
+  type PrinterSettings,
+  type PrinterSettingsOverrides,
+  MAX_PRINTABLE_WIDTH_MM
 } from '@shared/contracts/printing.contract'
 import { canonicalJson, sha256Hex } from '../services/localSale.fingerprint'
 import type { ReceiptAccessService, ReceiptOwner } from './receiptAccess.service'
 import type { ReceiptDocumentService } from './receiptDocument.service'
 import type { PrinterSettingsService } from './printerSettings.service'
 import type { ReceiptRenderWindow } from './receiptRenderer'
+import jsQR from 'jsqr'
+import type { ReceiptDocument } from '@shared/receipt/receiptDocument'
+import { decodeZatcaPhase1Qr } from '@shared/receipt/fiscalQr'
+import { decodeTransactionReferenceQr } from '@shared/receipt/transactionQr'
+import type { FiscalContextService, ReceiptQr } from './fiscalContext.service'
 import type {
+  NewPrintJob,
   PrintJobRow,
   PrintJobStatus,
   ReceiptPrintJobRepository
@@ -61,9 +69,37 @@ export interface ReceiptPrintingDependencies {
   readonly receiptProfile?: Pick<ReceiptProfileRepository, 'getAsset'>
   readonly getPrinters: () => Promise<Array<{ name: string; displayName: string }>>
   readonly getRenderWindow: () => ReceiptRenderWindow
+  /**
+   * POS improvements, Stage 6: the QR each sale/refund receipt must carry, recomputed from its frozen
+   * facts. Without it (narrow unit fakes) a sale or refund job can never pass the QR gate.
+   */
+  readonly fiscalQr?: Pick<FiscalContextService, 'expectedSaleQr' | 'expectedRefundQr'>
   readonly now?: () => Date
   readonly createUuid?: () => string
   readonly unknownTimeoutMs?: number
+}
+
+/** The final print options of one job, resolved from settings plus the job's own overrides. */
+export interface ResolvedPrintOptions {
+  readonly json: string
+  readonly sha256: string
+  readonly printerName: string | null
+  readonly copies: number
+  readonly silent: boolean
+  readonly paperWidthMm: number
+  readonly printableWidthMm: number
+  readonly marginTopMm: number
+  readonly marginBottomMm: number
+  readonly pageLengthProfile: 'content_sized' | 'fixed_page'
+  readonly maxContinuousLengthMm: number
+  readonly fixedPageHeightMm: number
+}
+
+/** POS improvements, Stage 7: an AUTO job ready to be claimed inside an admission transaction. */
+export interface PreparedAutoJob {
+  readonly document: { readonly kind: 'sale'; readonly invoiceLocalUuid: string }
+  readonly options: ResolvedPrintOptions
+  readonly job: NewPrintJob
 }
 
 function apiError(
@@ -74,7 +110,7 @@ function apiError(
   return publicAppErrorSchema.parse({ category, message, backendCode, retryable: false })
 }
 
-function toView(row: PrintJobRow): PrintJobView {
+export function toView(row: PrintJobRow): PrintJobView {
   const phase: PrintJobView['phase'] =
     row.status === 'queued' || row.status === 'preparing' || row.status === 'dispatching'
       ? (row.status as 'queued' | 'preparing' | 'dispatching')
@@ -141,25 +177,22 @@ export class ReceiptPrintingService {
     return this.dependencies.getPrinters()
   }
 
-  private resolveOptions(overrides: PrinterSettingsOverrides): {
-    json: string
-    sha256: string
-    printerName: string | null
-    copies: number
-    silent: boolean
-    paperWidthMm: number
-    printableWidthMm: number
-    marginTopMm: number
-    marginBottomMm: number
-    pageLengthProfile: 'content_sized' | 'fixed_page'
-    maxContinuousLengthMm: number
-    fixedPageHeightMm: number
-  } {
-    const base = this.dependencies.printerSettings.get()
+  private resolveOptions(overrides: PrinterSettingsOverrides): ResolvedPrintOptions {
+    return this.resolveOptionsFrom(this.dependencies.printerSettings.get(), overrides)
+  }
+
+  private resolveOptionsFrom(
+    base: PrinterSettings,
+    overrides: PrinterSettingsOverrides
+  ): ResolvedPrintOptions {
+    const paperWidthMm = overrides.paperWidthMm ?? base.paperWidthMm
     const merged = printerSettingsSchema.parse({
       ...base,
       printerName: overrides.printerName ?? base.printerName,
-      paperWidthMm: overrides.paperWidthMm ?? base.paperWidthMm,
+      paperWidthMm,
+      // Stage 6: never wider than the paper actually is (the 72 mm default on a 58 mm roll printed
+      // past the paper edge).
+      printableWidthMm: Math.min(base.printableWidthMm, MAX_PRINTABLE_WIDTH_MM[paperWidthMm]),
       defaultCopies: overrides.copies ?? base.defaultCopies
     })
     const json = canonicalJson(merged)
@@ -233,7 +266,20 @@ export class ReceiptPrintingService {
     return `data:${asset.mediaType};base64,${asset.content.toString('base64')}`
   }
 
-  async preview(owner: ReceiptOwner, input: PrintingPreviewInput): Promise<PrintPreviewOutput> {
+  /**
+   * POS improvements, Stage 7: a preview renders on the same shared window as print jobs, so it
+   * joins the same one-at-a-time chain. With automatic printing on by default, a cashier opening the
+   * preview while the sale's AUTO job is preparing otherwise interleaved two renders on one window,
+   * and both waited forever.
+   */
+  preview(owner: ReceiptOwner, input: PrintingPreviewInput): Promise<PrintPreviewOutput> {
+    return this.enqueue(() => this.previewInternal(owner, input))
+  }
+
+  private async previewInternal(
+    owner: ReceiptOwner,
+    input: PrintingPreviewInput
+  ): Promise<PrintPreviewOutput> {
     const document = input.document
     const documentLocalUuid =
       document.kind === 'test'
@@ -330,7 +376,12 @@ export class ReceiptPrintingService {
 
   /** Serializes dispatch calls onto one queue (the "one render window at a time" worker). */
   dispatch(owner: ReceiptOwner, input: PrintingDispatchInput): Promise<PrintJobView> {
-    const result = this.queue.then(() => this.dispatchInternal(owner, input))
+    return this.enqueue(() => this.dispatchInternal(owner, input))
+  }
+
+  /** Runs `work` after everything already on the shared render window's chain. */
+  private enqueue<T>(work: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(work)
     // Swallow the rejection on the queue chain itself so one failed job never wedges the next.
     this.queue = result.then(
       () => undefined,
@@ -455,33 +506,20 @@ export class ReceiptPrintingService {
   }
 
   /**
-   * Receipt-printing plan §D-5 D — main-owned auto-print. Called by `SaleCompletionService` (via
-   * `setImmediate`, wrapped so a printing failure can never affect the sale result) ONLY for a
-   * fresh, non-replay commit. Builds its own snapshot rather than depending on a renderer preview
-   * that may never exist; queued onto the same one-job-at-a-time chain as manual dispatches.
+   * POS improvements, Stage 7 — everything one AUTO job needs, built synchronously from the intent's
+   * FROZEN printer snapshot (never today's settings). Automatic printing is always silent to the
+   * snapshot's printer, whatever the manual dispatch mode. Nothing is written here.
    */
-  runAutoPrintForSale(owner: ReceiptOwner, invoiceLocalUuid: string): Promise<PrintJobView | null> {
-    const result = this.queue.then(() => this.autoPrintInternal(owner, invoiceLocalUuid))
-    this.queue = result.then(
-      () => undefined,
-      () => undefined
-    )
-    return result
-  }
-
-  private async autoPrintInternal(
+  prepareAutoJob(
     owner: ReceiptOwner,
-    invoiceLocalUuid: string
-  ): Promise<PrintJobView | null> {
-    const settings = this.dependencies.printerSettings.get()
-    if (!settings.autoPrintAfterSale) {
-      return null // auto_not_attempted(disabled) -- no row is written
+    input: {
+      readonly invoiceLocalUuid: string
+      readonly locale: 'en' | 'ar'
+      readonly settings: PrinterSettings
     }
-
-    const document = { kind: 'sale' as const, invoiceLocalUuid }
-    const requestId = `auto-sale:${invoiceLocalUuid}`
-    const locale: 'en' | 'ar' = 'en' // main has no renderer locale context here; the reprint (if any) can be requested in the cashier's language
-
+  ): PreparedAutoJob {
+    const document = { kind: 'sale' as const, invoiceLocalUuid: input.invoiceLocalUuid }
+    const requestId = `auto-sale:${input.invoiceLocalUuid}`
     const clientIntent = {
       v: 1,
       requestId,
@@ -492,55 +530,72 @@ export class ReceiptPrintingService {
       },
       trigger: 'auto' as const,
       document,
-      locale,
+      locale: input.locale,
       overrides: {},
       preview: undefined
     }
     const clientIntentJson = canonicalJson(clientIntent)
-    const clientIntentSha256 = sha256Hex(clientIntentJson)
+    const built = this.buildDocumentJson(owner, 'sale', input.invoiceLocalUuid, input.locale)
+    const options = this.resolveOptionsFrom({ ...input.settings, dispatchMode: 'direct' }, {})
+    const facts = buildFacts(this.dependencies, 'sale', input.invoiceLocalUuid)
 
-    const built = this.buildDocumentJson(owner, 'sale', invoiceLocalUuid, locale)
-    const options = this.resolveOptions({})
-    const facts = buildFacts(this.dependencies, 'sale', invoiceLocalUuid)
-
-    const jobUuid = this.createUuid()
-    const claimed = this.dependencies.jobs.claim({
-      jobUuid,
-      requestId,
-      clientIntentJson,
-      clientIntentSha256,
-      trigger: 'auto',
-      ownerCompanyUuid: owner.companyUuid,
-      ownerDeviceUuid: owner.deviceUuid,
-      requestedByUserUuid: owner.userUuid,
-      sessionEpochAtClaim: owner.sessionEpoch,
-      documentKind: 'sale',
-      documentLocalUuid: invoiceLocalUuid,
-      documentJson: built.json,
-      documentSha256: built.sha256,
-      templateVersion: built.templateVersion,
-      locale,
-      isReprint: built.isReprint,
-      factsProjection: facts?.projection ?? null,
-      transactionFactsSha256: facts?.sha256 ?? null,
-      resolvedOptionsJson: options.json,
-      optionsSha256: options.sha256,
-      createdAt: this.now().toISOString()
-    })
-
-    if (!claimed) {
-      // The auto partial-unique index already has a row for this sale -- suppressed, never a
-      // second automatic attempt. This is "already_attempted", never "already printed".
-      return null
+    return {
+      document,
+      options,
+      job: {
+        jobUuid: this.createUuid(),
+        requestId,
+        clientIntentJson,
+        clientIntentSha256: sha256Hex(clientIntentJson),
+        trigger: 'auto',
+        ownerCompanyUuid: owner.companyUuid,
+        ownerDeviceUuid: owner.deviceUuid,
+        requestedByUserUuid: owner.userUuid,
+        // The CURRENT session epoch: the fence before dispatch compares against it.
+        sessionEpochAtClaim: owner.sessionEpoch,
+        documentKind: 'sale',
+        documentLocalUuid: input.invoiceLocalUuid,
+        documentJson: built.json,
+        documentSha256: built.sha256,
+        templateVersion: built.templateVersion,
+        locale: input.locale,
+        isReprint: built.isReprint,
+        factsProjection: facts?.projection ?? null,
+        transactionFactsSha256: facts?.sha256 ?? null,
+        resolvedOptionsJson: options.json,
+        optionsSha256: options.sha256,
+        createdAt: this.now().toISOString()
+      }
     }
+  }
 
-    return this.processClaimedJob(claimed, owner, options, document)
+  /**
+   * Inserts the prepared AUTO job. The caller's admission transaction owns it: `null` (the AUTO
+   * partial-unique index already holds a job for this sale) must roll the admission back.
+   */
+  claimAutoJob(prepared: PreparedAutoJob): PrintJobRow | null {
+    return this.dependencies.jobs.claim(prepared.job)
+  }
+
+  /**
+   * Runs an admitted AUTO job on the one-job chain: preparation (render, layout, rendered-QR check)
+   * and then the synchronous fence and dispatch, exactly as for a manual print. A job that fails
+   * before dispatch is never re-admitted (its admission row exists); `outcome_unknown` is never resent.
+   */
+  runAdmittedAutoJob(
+    job: PrintJobRow,
+    owner: ReceiptOwner,
+    prepared: PreparedAutoJob
+  ): Promise<PrintJobView> {
+    return this.enqueue(() =>
+      this.processClaimedJob(job, owner, prepared.options, prepared.document)
+    )
   }
 
   private async processClaimedJob(
     job: PrintJobRow,
     owner: ReceiptOwner,
-    options: ReturnType<typeof this.resolveOptions>,
+    options: ResolvedPrintOptions,
     document: PrintingDispatchInput['document']
   ): Promise<PrintJobView> {
     const leaseId = this.createUuid()
@@ -623,6 +678,23 @@ export class ReceiptPrintingService {
       const layoutJson = canonicalJson(plan)
       this.dependencies.jobs.recordLayout(job.jobUuid, leaseId, layoutJson, sha256Hex(layoutJson))
 
+      // POS improvements, Stage 6 (Phase P): the RENDERED QR must decode to exactly the payload the
+      // frozen facts produce, and parse as that type. Done here, before the fence below, so the fence
+      // stays synchronous. A failure is positively never dispatched; the sale/refund is untouched.
+      if (job.documentKind !== 'test') {
+        const verifiedSha = await this.verifyRenderedQr(job, doc, renderWindow)
+        if (verifiedSha === null) {
+          this.dependencies.jobs.markFailedBeforeDispatch(
+            job.jobUuid,
+            leaseId,
+            'RECEIPT_QR_INVALID',
+            this.now().toISOString()
+          )
+          return toView(this.dependencies.jobs.findByJobUuid(job.jobUuid)!)
+        }
+        this.dependencies.jobs.recordQrVerified(job.jobUuid, leaseId, verifiedSha)
+      }
+
       // Final gate (plan §D-5 C step 8): re-check owner, permission and document state/facts.
       const gateFailure = this.finalGate(owner, document, job)
       if (gateFailure) {
@@ -656,6 +728,83 @@ export class ReceiptPrintingService {
       )
       return toView(this.dependencies.jobs.findByJobUuid(job.jobUuid)!)
     }
+  }
+
+  /** The sha256 of the decoded QR when it is exactly the expected payload and type, else `null`. */
+  private async verifyRenderedQr(
+    job: PrintJobRow,
+    doc: ReceiptDocument,
+    renderWindow: ReceiptRenderWindow
+  ): Promise<string | null> {
+    const expected = this.expectedQr(job)
+    const embedded = doc.fiscal?.qr ?? null
+    if (
+      expected === null ||
+      embedded === null ||
+      embedded.type !== expected.type ||
+      embedded.payload !== expected.payload
+    ) {
+      return null
+    }
+    const bitmap = await renderWindow.captureQrBitmap()
+    if (bitmap === null) {
+      return null
+    }
+    const decoded = jsQR(bitmap.data, bitmap.width, bitmap.height)?.data ?? null
+    if (decoded === null || decoded !== expected.payload) {
+      return null
+    }
+    if (expected.type === 'zatca-p1') {
+      if (decodeZatcaPhase1Qr(decoded) === null) {
+        return null
+      }
+    } else {
+      const reference = decodeTransactionReferenceQr(decoded)
+      if (
+        reference === null ||
+        reference.id !== job.documentLocalUuid ||
+        reference.doc !== job.documentKind
+      ) {
+        return null
+      }
+    }
+    return sha256Hex(decoded)
+  }
+
+  private expectedQr(job: PrintJobRow): ReceiptQr | null {
+    const fiscalQr = this.dependencies.fiscalQr
+    if (!fiscalQr) {
+      return null
+    }
+    if (job.documentKind === 'sale') {
+      const invoice = this.dependencies.localSale.findInvoiceByLocalUuid(job.documentLocalUuid)
+      return invoice
+        ? fiscalQr.expectedSaleQr({
+            invoiceLocalUuid: invoice.localUuid,
+            companyUuid: invoice.companyUuid,
+            soldAt: invoice.soldAt,
+            grandTotalAmount: invoice.grandTotalAmount,
+            taxTotalAmount: invoice.taxTotalAmount,
+            currency: invoice.currency,
+            currencyExponent: invoice.currencyExponent
+          })
+        : null
+    }
+    if (job.documentKind === 'refund') {
+      const refund = this.dependencies.localRefunds.findByLocalUuid(job.documentLocalUuid)
+      return refund
+        ? fiscalQr.expectedRefundQr({
+            refundLocalUuid: refund.localUuid,
+            companyUuid: refund.companyUuid,
+            refundedAt: refund.refundedAt,
+            grandTotalAmount: refund.grandTotalAmount,
+            taxTotalAmount: refund.taxTotalAmount,
+            currency: refund.currency,
+            currencyExponent: refund.currencyExponent
+          })
+        : null
+    }
+    return null
   }
 
   private finalGate(
@@ -703,7 +852,7 @@ export class ReceiptPrintingService {
     jobUuid: string,
     dispatchToken: string,
     renderWindow: ReceiptRenderWindow,
-    options: ReturnType<typeof this.resolveOptions>
+    options: ResolvedPrintOptions
   ): Promise<PrintJobView> {
     let settled = false
 

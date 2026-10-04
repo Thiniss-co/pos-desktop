@@ -19,6 +19,17 @@ import { parsePublicAppError } from '@renderer/shared/utils/parsePublicAppError'
  * exists so the UI never even offers a second click.
  */
 export const useRefundsStore = defineStore('refunds', () => {
+  /** POS improvements, Stage 3: drives the POS "Return / Refund" action. */
+  const accessAllowed = ref(false)
+
+  async function loadAccess(service = new RefundsService()): Promise<void> {
+    try {
+      accessAllowed.value = await service.getAccess()
+    } catch {
+      accessAllowed.value = false
+    }
+  }
+
   const invoiceLocalUuid = ref<string | null>(null)
   const refundable = ref<RefundableInvoice | null>(null)
   const isLoadingRefundable = ref(false)
@@ -188,6 +199,8 @@ export const useRefundsStore = defineStore('refunds', () => {
   }
 
   return {
+    accessAllowed,
+    loadAccess,
     invoiceLocalUuid,
     refundable,
     isLoadingRefundable,

@@ -64,6 +64,7 @@ interface CatalogProductRow {
   readonly tax_mode: string
   readonly tax_rate_basis_points: number
   readonly tax_revision: string
+  readonly tax_category?: string | null
 }
 
 interface PaymentMethodRow {
@@ -413,38 +414,32 @@ export class CatalogRepository {
     if (query) {
       const upperBound = catalogPrefixUpperBound(query)
       match = `
-        AND customer.id IN (
-          SELECT id FROM customers WHERE is_active = 1 AND search_name >= ? AND search_name < ?
-          UNION
-          SELECT id FROM customers WHERE is_active = 1 AND search_phone >= ? AND search_phone < ?
+        AND (
+          (customer.search_name >= ? AND customer.search_name < ?)
+          OR (customer.search_phone >= ? AND customer.search_phone < ?)
         )
       `
       values.push(query, upperBound, query, upperBound)
     }
 
+    const source = this.customerSource()
     const total = this.database
-      .prepare(
-        `SELECT COUNT(*) AS total FROM customers AS customer WHERE customer.is_active = 1 ${match}`
-      )
+      .prepare(`SELECT COUNT(*) AS total FROM (${source}) AS customer WHERE 1 = 1 ${match}`)
       .get(...values) as { readonly total: number }
     const rows = this.database
       .prepare(
         `
-          SELECT id AS uuid, name, phone
-          FROM customers AS customer
-          WHERE customer.is_active = 1 ${match}
-          ORDER BY customer.search_name ASC, customer.id ASC
+          SELECT uuid, name, phone, pending_sync
+          FROM (${source}) AS customer
+          WHERE 1 = 1 ${match}
+          ORDER BY customer.search_name ASC, customer.uuid ASC
           LIMIT ? OFFSET ?
         `
       )
-      .all(...values, input.limit, input.offset) as Array<{
-      readonly uuid: string
-      readonly name: string
-      readonly phone: string | null
-    }>
+      .all(...values, input.limit, input.offset) as CustomerRow[]
 
     return catalogCustomerPageSchema.parse({
-      items: rows.map((row) => catalogCustomerSchema.parse(row)),
+      items: rows.map(toCatalogCustomer),
       total: total.total,
       limit: input.limit,
       offset: input.offset
@@ -453,11 +448,54 @@ export class CatalogRepository {
 
   getCustomer(uuid: string): CatalogCustomer | null {
     const row = this.database
-      .prepare('SELECT id AS uuid, name, phone FROM customers WHERE id = ? AND is_active = 1')
-      .get(uuid) as
-      { readonly uuid: string; readonly name: string; readonly phone: string | null } | undefined
+      .prepare(
+        `SELECT uuid, name, phone, pending_sync FROM (${this.customerSource()}) WHERE uuid = ?`
+      )
+      .get(uuid) as CustomerRow | undefined
 
-    return row ? catalogCustomerSchema.parse(row) : null
+    return row ? toCatalogCustomer(row) : null
+  }
+
+  private quickCreateTables: boolean | null = null
+
+  /**
+   * Active installed customers, plus (POS improvements, Stage 2) customers created on this register
+   * for the CURRENT company that the installed catalog does not hold yet and whose create request is
+   * still live (not refused, conflicted or superseded). Merged by uuid: once a catalog install
+   * delivers the customer, the installed row is the one read.
+   */
+  private customerSource(): string {
+    const installed =
+      'SELECT id AS uuid, name, phone, search_name, search_phone, 0 AS pending_sync FROM customers WHERE is_active = 1'
+    if (this.quickCreateTables === null) {
+      this.quickCreateTables =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('local_customers', 'entity_create_outbox')"
+          )
+          .pluck()
+          .get() === 2
+    }
+    if (!this.quickCreateTables) {
+      return installed
+    }
+    return `
+      ${installed}
+      UNION ALL
+      SELECT lc.uuid, lc.name, lc.phone, lc.search_name, lc.search_phone,
+             CASE WHEN EXISTS (
+               SELECT 1 FROM entity_create_outbox o
+                WHERE o.entity_type = 'customer' AND o.client_entity_uuid = lc.uuid AND o.state = 'accepted'
+             ) THEN 0 ELSE 1 END AS pending_sync
+        FROM local_customers lc
+       WHERE lc.company_uuid = (SELECT company_uuid FROM bootstrap_company WHERE id = 1)
+         AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.id = lc.uuid)
+         AND EXISTS (
+           SELECT 1 FROM entity_create_outbox o
+            WHERE o.entity_type = 'customer' AND o.client_entity_uuid = lc.uuid
+              AND o.state NOT IN ('superseded', 'refused', 'conflict')
+         )
+    `
   }
 
   private productSelect(): string {
@@ -472,7 +510,9 @@ export class CatalogRepository {
         ) AS available_quantity,
         product.price_amount, product.price_currency, product.price_source,
         product.price_revision, product.price_valid_from, product.price_valid_until,
-        product.tax_uuid, product.tax_mode, product.tax_rate_basis_points, product.tax_revision
+        product.tax_uuid, product.tax_mode, product.tax_rate_basis_points, product.tax_revision${
+          this.hasProductTaxCategory() ? ', product.tax_category' : ''
+        }
       FROM catalog_products AS product
       INNER JOIN catalog_categories AS category ON category.uuid = product.category_uuid
     `
@@ -514,8 +554,41 @@ export class CatalogRepository {
         id: row.tax_uuid,
         mode: row.tax_mode,
         rateBasisPoints: row.tax_rate_basis_points,
-        revision: row.tax_revision
+        revision: row.tax_revision,
+        ...(row.tax_category ? { category: row.tax_category } : {})
       }
     })
   }
+
+  private productTaxCategory: boolean | null = null
+
+  /** Stage 4 column; absent on a pre-0022 schema (migration suites read through older schemas). */
+  private hasProductTaxCategory(): boolean {
+    if (this.productTaxCategory === null) {
+      this.productTaxCategory =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM pragma_table_info('catalog_products') WHERE name = 'tax_category'"
+          )
+          .pluck()
+          .get() === 1
+    }
+    return this.productTaxCategory
+  }
+}
+
+interface CustomerRow {
+  readonly uuid: string
+  readonly name: string
+  readonly phone: string | null
+  readonly pending_sync: number
+}
+
+function toCatalogCustomer(row: CustomerRow): CatalogCustomer {
+  return catalogCustomerSchema.parse({
+    uuid: row.uuid,
+    name: row.name,
+    phone: row.phone,
+    ...(row.pending_sync === 1 ? { pendingSync: true } : {})
+  })
 }

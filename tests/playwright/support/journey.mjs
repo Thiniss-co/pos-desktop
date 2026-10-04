@@ -111,6 +111,12 @@ export async function refreshWorkstation(ctx, page) {
     { timeout: 60_000 }
   )
   const outcome = await store('s.lastMessage')
+  // A refresh can leave a background catalog install running ("Updating catalog…"); sales and scans
+  // are held until it finishes, which takes longer on a loaded machine.
+  const updating = await t(page, 'shell.workstationRefresh.updating')
+  await page.waitForFunction((text) => !document.body.innerText.includes(text), updating, {
+    timeout: 90_000
+  })
   ctx.step('workstation data refreshed', { outcome })
   return outcome
 }
@@ -291,4 +297,26 @@ export async function launchAgain(ctx, session) {
   Object.assign(session, launched)
   ctx.step('electron launched again on the same isolated profile')
   return session
+}
+
+/**
+ * Signs the current user out through the real UI (user menu → Sign out), so main AND the renderer
+ * end the session (calling `window.posApi.auth.logout()` directly leaves the renderer store stale).
+ */
+export async function signOutViaMenu(ctx, page) {
+  await page.getByRole('button', { name: await t(page, 'shell.user.menuLabel') }).click()
+  await page
+    .getByRole('menuitem', { name: await t(page, 'common.signOut') })
+    .or(page.getByRole('button', { name: await t(page, 'common.signOut') }))
+    .first()
+    .click()
+  // The confirmation dialog ("Sign out of this workstation?").
+  await page
+    .locator('[role=dialog],[role=alertdialog]')
+    .getByRole('button', { name: await t(page, 'common.signOut') })
+    .click()
+  await page
+    .getByRole('button', { name: await t(page, 'auth.signIn') })
+    .waitFor({ timeout: 30_000 })
+  ctx.step('signed out through the user menu')
 }

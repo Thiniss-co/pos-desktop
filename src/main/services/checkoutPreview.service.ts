@@ -24,6 +24,11 @@ export interface CheckoutPreviewDependencies {
   readonly permissions: CheckoutPermissionReader
   readonly shiftAuthority: Pick<ShiftAuthorityService, 'resolveForSell'>
   readonly catalog: Pick<CatalogService, 'resolveForCheckout'>
+  /**
+   * POS improvements, Stage 6: false while this register is ZATCA but its mirrored identity is
+   * incomplete — the preview refuses before the cashier reaches payment (commit re-checks).
+   */
+  readonly fiscalReady?: () => boolean
   readonly now?: () => Date
 }
 
@@ -122,6 +127,15 @@ export class CheckoutPreviewService {
       return {
         outcome: 'invalid',
         code: cart.code,
+        field: null,
+        draftRevision: intent.draftRevision
+      }
+    }
+
+    if (this.dependencies.fiscalReady?.() === false) {
+      return {
+        outcome: 'invalid',
+        code: 'FISCAL_SETUP_INCOMPLETE',
         field: null,
         draftRevision: intent.draftRevision
       }

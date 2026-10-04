@@ -29,6 +29,8 @@ export interface BootstrapCommercialAccessChecker {
 export interface BootstrapPersistOptions {
   /** Runs as the FIRST statement inside the persist transaction; a throw discards the snapshot. */
   readonly beforeWrite?: () => void
+  /** POS improvements, Stage 1: the signed-in user this bootstrap was requested for. */
+  readonly permissionsOwnerUserUuid?: string | null
 }
 
 export interface BootstrapSnapshotWriter {
@@ -200,6 +202,8 @@ export class BootstrapService {
     capturedOwner: RenewalOwner | null
   ): BootstrapPersistResult {
     return this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt, {
+      permissionsOwnerUserUuid:
+        capturedOwner?.userUuid ?? this.sessionMetadata?.getContext().userUuid ?? null,
       beforeWrite: () => {
         if (this.options.owner) {
           const current = this.options.owner()

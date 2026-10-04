@@ -186,6 +186,7 @@
     "increaseQuantity": "Increase quantity",
     "removeLine": "Remove line",
     "subtotal": "Subtotal",
+    "totalExclVat": "Total excl. VAT",
     "tax": "Tax",
     "total": "Total",
     "checkoutRequiresOpenShift": "Open an active shift to continue",
@@ -334,7 +335,8 @@
           "offline-sale-authority-unavailable": "The offline selling window for this till has ended. No sale was recorded and your cart is kept. Reconnect so the till can renew automatically, then retry this same sale.",
           "catalog-updating": "The catalog is being updated. Try again in a moment — nothing was recorded.",
           "catalog-updated": "The catalog changed. Review the cart before paying — nothing was recorded.",
-          "legacy-uncertainty-unresolved": "This sale can't be completed, and it may have sent a stock reservation request that can't be identified. Cancel it with the confirmation below — its details are kept for support. No sale was recorded."
+          "legacy-uncertainty-unresolved": "This sale can't be completed, and it may have sent a stock reservation request that can't be identified. Cancel it with the confirmation below — its details are kept for support. No sale was recorded.",
+          "fiscal-setup-incomplete": "This register is set up for ZATCA receipts, but the company's legal name, VAT number or seller address is incomplete. No sale was recorded and your cart is kept. Ask the owner to complete the company's fiscal details, refresh the workstation, then retry."
         }
       },
       "largeChange": "The change due is unusually large. Check the amount received."
@@ -365,7 +367,8 @@
       "PAYMENT_NON_CASH_OVERPAYMENT": "Only cash payments may exceed the total. Reduce the non-cash amount.",
       "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit.",
       "CART_HOLD_LIMIT": "Too many held sales. Recall or discard one first.",
-      "CART_ATTEMPT_LOCKED": "This cart belongs to a payment that is still in progress. Resolve the payment first."
+      "CART_ATTEMPT_LOCKED": "This cart belongs to a payment that is still in progress. Resolve the payment first.",
+      "FISCAL_SETUP_INCOMPLETE": "ZATCA receipts need the company's legal name, VAT number and seller address. Ask the owner to complete them, then refresh the workstation."
     },
     "catalogRefresh": {
       "action": "Refresh workstation data",
@@ -471,7 +474,8 @@
       "matches": "Matching customers ({count})",
       "noneBody": "Check the spelling or phone number.",
       "selected": "Selected",
-      "useWalkIn": "Use walk-in customer"
+      "useWalkIn": "Use walk-in customer",
+      "newCustomer": "New customer"
     },
     "shortcuts": {
       "esc": "Close the open dialog",
@@ -533,7 +537,9 @@
       "backToCart": "Back to cart",
       "shortcutScan": "Focus the scan field",
       "shortcutPay": "Pay, then complete the sale",
-      "shortcutMultiplier": "Type a quantity before the code"
+      "shortcutMultiplier": "Type a quantity before the code",
+      "refund": "Return / Refund",
+      "more": "More"
     },
     "exactCash": {
       "complete": "Complete · Exact cash · {method} · {amount}",
@@ -558,6 +564,9 @@
     "lastSale": {
       "total": "Last sale {total}",
       "change": "change {change}"
+    },
+    "moreActions": {
+      "title": "More actions"
     }
   },
   "sync": {
@@ -685,6 +694,10 @@
         "upload-held-by-predecessor": {
           "title": "Completed sale held from upload",
           "body": "This sale is saved on the workstation, but it cannot be uploaded yet: an earlier sale that used the same stock reservation was not accepted by the server. Sending it first would be refused, so it stays unchanged and is not sent. Other sales keep uploading. Give support both references."
+        },
+        "upload-held-by-entity": {
+          "title": "Completed sale waiting for its new customer",
+          "body": "This sale is saved on the workstation with a customer created on this register. The server has not accepted that customer yet (it was refused or needs a permission), so the sale is kept unchanged and is not sent. Fix the customer under \"Created on this register\"; the sale then uploads by itself."
         }
       },
       "heldBehind": "Waiting behind"
@@ -946,6 +959,10 @@
     "RECEIPT_PROFILE_ASSET_NOT_FOUND": "The logo could not be found on the server. Choose it again.",
     "POLICY_REVISION_STALE": "The offline stock policy changed. Preparing again will use the current policy.",
     "DESKTOP_PREPARATION_UNAVAILABLE": "Offline stock preparation is not available for this workstation right now.",
+    "DESKTOP_ENTITY_UUID_CONFLICT": "This record cannot be created with this id. Correct it and send it again.",
+    "DESKTOP_PRODUCT_IDENTIFIER_TAKEN": "The SKU or barcode already belongs to another product.",
+    "DESKTOP_SUPPLIER_NAME_TAKEN": "A supplier with this name already exists.",
+    "DESKTOP_ENTITY_REFERENCE_INVALID": "A chosen category or tax is no longer available. Refresh workstation data and try again.",
     "RECEIPT_SNAPSHOT_INVALID": "The server refused this sale's receipt record; the receipt itself is unaffected.",
     "RECEIPT_SNAPSHOT_CONFLICT": "The server already holds a different receipt record for this sale; it was kept.",
     "INVOICE_NOT_UPLOADED": "The server has not accepted this sale from this workstation yet."
@@ -1148,7 +1165,16 @@
     "submittingHint": "Keep this window open. Do not start another refund for this sale.",
     "unknownTitle": "Outcome not confirmed yet",
     "conflictTitle": "Refund record conflict",
-    "backToSale": "Back to sale"
+    "backToSale": "Back to sale",
+    "entry": {
+      "title": "Return or refund a sale",
+      "intro": "Choose the original sale. The refund follows that sale: what was already refunded, payments and stock return.",
+      "search": "Search by receipt number",
+      "empty": "No sale matches. Check the receipt number.",
+      "notUploaded": "Not uploaded yet",
+      "openRefund": "Refund in progress",
+      "loadFailed": "Sales could not be loaded."
+    }
   },
   "printing": {
     "previewTitle": "Print preview",
@@ -1207,7 +1233,39 @@
       "busy": "Printer busy",
       "stopped": "Printer stopped"
     },
-    "paperOnly": "{paper} mm paper"
+    "paperOnly": "{paper} mm paper",
+    "auto": {
+      "toggle": {
+        "label": "Print my receipts automatically",
+        "description": "Saved for you only, right away. Each sale prints once, silently, on this register's receipt printer. You can always print or reprint manually.",
+        "failed": "Automatic printing could not be saved. Try again."
+      },
+      "chip": {
+        "off": "Automatic printing is off for you.",
+        "preparing": "Preparing the receipt…",
+        "printing": "Printing the receipt…",
+        "submitted": "Receipt sent to the printer.",
+        "unknown": "The printer did not confirm this receipt. Check the printer before printing it again.",
+        "failed": "The receipt was not printed.",
+        "noPrinter": "Not printed: no receipt printer is set up on this register.",
+        "printerMissing": "Not printed: the receipt printer is not connected.",
+        "settingsChanged": "Not printed: the printer settings changed after this sale.",
+        "expired": "Not printed automatically: too much time passed since the sale.",
+        "printManually": "Use Print receipt to print it."
+      },
+      "setup": {
+        "title": "Automatic printing needs setup",
+        "noPrinter": "No receipt printer is set up on this register, so your sales are not printed automatically. Sales still complete.",
+        "printerMissing": "The receipt printer “{name}” is not connected, so your sales are not printed automatically. Sales still complete.",
+        "openSettings": "Printer settings",
+        "dismiss": "Hide until next sign-in"
+      },
+      "notices": {
+        "title": "Not printed automatically: {count} earlier sale | Not printed automatically: {count} earlier sales",
+        "body": "These sales were completed but their receipts were not printed automatically. Print them from the sale if the customer needs one:",
+        "dismiss": "Dismiss"
+      }
+    }
   },
   "shell": {
     "brand": "Thinis POS",
@@ -1317,5 +1375,134 @@
     "previewTitle": "Receipt header preview",
     "previewEmpty": "No header or footer lines yet.",
     "previewNote": "A preview of the header and footer only. Printed receipts stay white in both themes."
+  },
+  "quickCreate": {
+    "title": {
+      "customer": "Add customer",
+      "supplier": "Add supplier",
+      "product": "Add product"
+    },
+    "intro": {
+      "customer": "Saved on this register now and sent to the server when it is online. You can sell to this customer straight away.",
+      "supplier": "Saved on this register now and sent to the server when it is online.",
+      "product": "Saved on this register now and sent to the server when it is online."
+    },
+    "productNote": "A new product can be sold once the server has added it and this register has refreshed its catalog.",
+    "moreDetails": "More details",
+    "lessDetails": "Fewer details",
+    "save": {
+      "customer": "Save customer",
+      "supplier": "Save supplier",
+      "product": "Save product"
+    },
+    "created": {
+      "customer": "Customer saved: {name}",
+      "supplier": "Supplier saved: {name}",
+      "product": "Product saved: {name}. It can be sold once the server adds it."
+    },
+    "failed": "The record could not be saved.",
+    "optionsUnavailable": "Refresh workstation data before adding products.",
+    "field": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "taxNumber": "Tax number",
+      "address": "Address",
+      "notes": "Notes",
+      "contactPerson": "Contact person",
+      "price": "Price",
+      "category": "Category",
+      "tax": "Tax",
+      "noTax": "No tax",
+      "taxIncluded": "{name} {rate} · price includes tax",
+      "taxAdded": "{name} {rate} · tax added to the price",
+      "barcode": "Barcode",
+      "barcodeHint": "Scan or type it. It must not belong to another product.",
+      "sku": "SKU",
+      "skuHint": "Leave empty to create one automatically.",
+      "unit": "Unit",
+      "trackStock": "Track stock"
+    },
+    "invalid": {
+      "name": "Enter a name.",
+      "phone": "Enter a shorter phone number.",
+      "email": "Enter a valid email address.",
+      "price": "Enter the price as a number, for example 3.50.",
+      "categoryUuid": "Choose a category.",
+      "tax": "Choose a tax.",
+      "taxNumber": "Enter a shorter tax number.",
+      "address": "Enter a shorter address.",
+      "notes": "Enter shorter notes.",
+      "contactPerson": "Enter a shorter name.",
+      "barcode": "Enter a shorter barcode.",
+      "sku": "Enter a shorter SKU.",
+      "unit": "Enter a shorter unit."
+    },
+    "menu": {
+      "label": "Add new",
+      "customer": "Add customer",
+      "product": "Add product",
+      "supplier": "Add supplier"
+    },
+    "records": {
+      "title": "Created on this register",
+      "empty": "Customers, suppliers and products added on this register appear here until the server has them.",
+      "type": {
+        "customer": "Customer",
+        "supplier": "Supplier",
+        "product": "Product"
+      },
+      "status": {
+        "pending_sync": "Pending sync",
+        "waiting_for_creator": "Waiting for its creator",
+        "blocked": "Needs permission",
+        "refused": "Refused by the server",
+        "conflict": "Conflict",
+        "superseded": "Handed over",
+        "created": "Created",
+        "awaiting_catalog": "Awaiting catalog",
+        "ready_to_sell": "Ready to sell"
+      },
+      "help": {
+        "blocked": "The server refused this because the permission is missing. Ask the owner to grant it, then select Retry.",
+        "refused": "Correct the details and send it again. Sales for this record wait until it is accepted.",
+        "conflict": "The server already holds a different request under this key. Correct and send it again.",
+        "waiting_for_creator": "Only the cashier who created it sends it. You can take it over because it was never sent.",
+        "awaiting_catalog": "Refresh workstation data to sell it."
+      },
+      "retry": "Retry",
+      "reassign": "Take over",
+      "resubmit": "Correct and send again"
+    }
+  },
+  "touch": {
+    "settingsTitle": "Your layout on this register",
+    "settingsDescription": "Saved for you only. Other cashiers on this register keep their own choice.",
+    "toggle": {
+      "label": "Touch mode",
+      "description": "Larger buttons, an on-screen number pad, and a button for every keyboard shortcut. Scanning and the F-keys keep working.",
+      "failed": "Touch mode could not be saved. Try again."
+    },
+    "keypad": {
+      "backspace": "Delete last digit",
+      "clear": "Clear",
+      "decimal": "Decimal point"
+    },
+    "actions": {
+      "label": "Touch actions",
+      "exactCash": "Exact cash",
+      "pay": "Pay",
+      "customer": "Customer",
+      "discount": "Discount",
+      "clear": "Clear cart",
+      "search": "Search",
+      "help": "Help"
+    },
+    "quantity": {
+      "title": "Set quantity",
+      "editOf": "Set quantity of {name}",
+      "apply": "Set quantity",
+      "invalid": "Enter a quantity above 0, with at most 3 decimals."
+    }
   }
 }

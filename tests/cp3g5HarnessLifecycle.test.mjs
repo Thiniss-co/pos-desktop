@@ -35,7 +35,11 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(HERE, '..')
 const WRAPPER = join(PROJECT_ROOT, 'scripts/cp3g5LiveUpload.mjs')
 const SEEDER = join(PROJECT_ROOT, 'tests/electron/support/cp3g5/seedLiveBackend.php')
-const BACKEND_ROOT = resolve(PROJECT_ROOT, '..', 'pos-backend')
+// POS_BACKEND_ROOT points the live gate at another backend tree (e.g. a feature worktree), so a run never
+// uses a checkout another session is working in; the sibling ../pos-backend stays the default.
+const BACKEND_ROOT = process.env.POS_BACKEND_ROOT
+  ? resolve(process.env.POS_BACKEND_ROOT)
+  : resolve(PROJECT_ROOT, '..', 'pos-backend')
 const TEMP_ROOT = tmpdir()
 const SANDBOX_PREFIX = 'pos-desktop-cp3g5-'
 const SECRET_SHAPES = /(?:plainTextToken|Bearer|Stack trace|#0|\b[0-9a-f]{64}\b)/i
@@ -617,7 +621,17 @@ test('the diagnostic channel accepts only whitelisted, shape-checked fields', ()
   for (const record of parsed) {
     for (const [key, value] of Object.entries(record)) {
       assert.ok(
-        ['phase', 'operation', 'code', 'exception', 'sqlstate', 'identifier', 'driver_code', 'transaction_level', 'iteration'].includes(key),
+        [
+          'phase',
+          'operation',
+          'code',
+          'exception',
+          'sqlstate',
+          'identifier',
+          'driver_code',
+          'transaction_level',
+          'iteration'
+        ].includes(key),
         `unexpected diagnostic key ${key}`
       )
       assert.doesNotMatch(String(value), SECRET_SHAPES)

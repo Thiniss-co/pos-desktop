@@ -1,6 +1,7 @@
 import type { ReceiptDocument } from '@shared/receipt/receiptDocument'
 import { receiptStrings } from '@shared/receipt/receiptStrings'
 import { RECEIPT_TEMPLATE_VERSION } from './receiptDocument.service'
+import { receiptQrSvg } from './receiptQrSvg'
 
 /**
  * Receipt-printing plan §D-4/§D-8 — a pure, fully-escaped static HTML template. Every value comes
@@ -56,6 +57,8 @@ const CSS = `
   .stacked .value { text-align: start; overflow-wrap: anywhere; }
   .logo { margin-bottom: 1.5mm; }
   .logo img { max-height: 24mm; max-width: 100%; }
+  .logo-small img { max-height: 14mm; }
+  .logo-large img { max-height: 34mm; }
   .header-title { font-size: 1.45em; font-weight: 700; }
   .letterhead-line { font-size: 0.9em; }
   .item { margin: 2mm 0; break-inside: avoid; }
@@ -72,6 +75,15 @@ const CSS = `
   .notice { font-size: 0.78em; color: #333; margin-top: 1.5mm; }
   .footer { text-align: center; margin-top: 3mm; font-size: 0.85em; }
   .continuation { text-align: center; font-size: 0.8em; border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 2mm; }
+  .fiscal-title { border: 2px solid #000; text-align: center; padding: 1.5mm; font-weight: 800; margin-bottom: 2mm; overflow-wrap: anywhere; }
+  .seller { margin-top: 1.5mm; text-align: center; break-inside: avoid; }
+  .seller .seller-name { font-weight: 700; overflow-wrap: anywhere; }
+  .fiscal-reference { margin-top: 1.5mm; font-size: 0.9em; overflow-wrap: anywhere; }
+  .historical-note { border: 1.5px dashed #000; padding: 1mm 1.5mm; margin-top: 2mm; font-size: 0.85em; text-align: center; }
+  .breakdown { margin-top: 1.5mm; font-size: 0.9em; }
+  .breakdown .breakdown-title { font-weight: 700; }
+  .qr-block { margin-top: 3mm; display: flex; justify-content: center; break-inside: avoid; page-break-inside: avoid; }
+  .qr-block svg { display: block; }
 `
 
 export interface ReceiptHtmlLayout {
@@ -109,12 +121,34 @@ export function buildReceiptHtml(
     : ''
   const testBadge =
     doc.kind === 'test' ? `<div class="badge center">${escapeHtml(strings.testTitle)}</div>` : ''
-  const refundBand =
-    doc.kind === 'refund' ? `<div class="refund-band">${escapeHtml(strings.refundTitle)}</div>` : ''
+  const fiscal = doc.fiscal ?? null
+  // Stage 6: the document title (ZATCA titles are the bilingual official ones) replaces the band.
+  const refundBand = fiscal
+    ? `<div class="fiscal-title" data-receipt-title>${bdi(fiscal.title)}</div>`
+    : doc.kind === 'refund'
+      ? `<div class="refund-band">${escapeHtml(strings.refundTitle)}</div>`
+      : ''
+  // Required ZATCA seller fields: always rendered for a ZATCA document, whatever the branding shows.
+  const sellerBlock = fiscal?.seller
+    ? `<div class="seller" data-receipt-seller>
+          <div class="seller-name">${bdi(fiscal.seller.name)}</div>
+          <div>${escapeHtml(fiscal.seller.vatLabel)}: ${bdi(fiscal.seller.vatNumber, 'ltr')}</div>
+          ${fiscal.seller.addressLines.map((line) => `<div>${bdi(line)}</div>`).join('')}
+        </div>`
+    : ''
+  const referenceBlock = fiscal?.reference
+    ? `<div class="fiscal-reference" data-receipt-reference>${bdi(fiscal.reference)}</div>`
+    : ''
+  const historicalBlock = fiscal?.historicalNote
+    ? `<div class="historical-note" data-receipt-historical>${bdi(fiscal.historicalNote)}</div>`
+    : ''
+  const qrBlock = fiscal
+    ? `<div class="qr-block" id="receipt-qr" data-qr-type="${escapeHtml(fiscal.qr.type)}">${receiptQrSvg(fiscal.qr.payload, layout.printableWidthMm).svg}</div>`
+    : ''
 
   const logoImg =
     doc.header.logo?.included && assets.logoDataUrl
-      ? `<div class="center logo"><img src="${escapeHtml(assets.logoDataUrl)}" alt="" /></div>`
+      ? `<div class="center logo logo-${doc.header.logo.size ?? 'medium'}"><img src="${escapeHtml(assets.logoDataUrl)}" alt="" /></div>`
       : ''
   const taxIdentifierLine =
     doc.header.taxIdentifierLabel && doc.header.taxIdentifierValue
@@ -184,13 +218,22 @@ export function buildReceiptHtml(
     })
     .join('')
 
+  const breakdown = fiscal
+    ? `<div class="breakdown" data-receipt-breakdown>
+        <div class="breakdown-title">${escapeHtml(strings.breakdownTitle)}</div>
+        ${fiscal.breakdown.map((line) => row(line.label, `${line.netText} + ${line.taxText}`)).join('')}
+      </div>
+      ${row(fiscal.netTotalLabel, fiscal.netTotalText, 'bold')}
+      ${row(fiscal.vatTotalLabel, fiscal.vatTotalText, 'bold')}`
+    : ''
+
   const settlement = `
     <div class="settlement">
       <div class="hr"></div>
-      ${row(strings.subtotalLabel, doc.totals.subtotalText)}
+      ${fiscal ? '' : row(strings.subtotalLabel, doc.totals.subtotalText)}
       ${doc.totals.itemDiscountText ? row(strings.discountLabel, `−${doc.totals.itemDiscountText}`) : ''}
       ${doc.totals.invoiceDiscountText ? row(strings.invoiceDiscountLabel, `−${doc.totals.invoiceDiscountText}`) : ''}
-      ${taxLines}
+      ${fiscal ? breakdown : taxLines}
       <div class="hr-double"></div>
       <div class="grand-total"><span>${escapeHtml(strings.grandTotalLabel)}</span><span>${bdi(doc.totals.grandTotalText, 'ltr')}</span></div>
       ${payments}
@@ -230,12 +273,16 @@ export function buildReceiptHtml(
 <div class="page" id="receipt-root" style="width:${layout.printableWidthMm}mm">
   ${reprintBadge}${testBadge}${refundBand}
   ${header}
+  ${sellerBlock}
   ${meta}
+  ${referenceBlock}
   <div class="hr"></div>
   ${items}
   ${settlement}
   ${refundBlock}
+  ${historicalBlock}
   ${notices}
+  ${qrBlock}
   ${footer}
 </div>
 </body>

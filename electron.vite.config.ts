@@ -3,12 +3,21 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
+// The final OS print boundary is chosen at BUILD time (see src/main/receipt/printBoundary.types.ts).
+// Only the Playwright harness build sets POS_PRINT_BOUNDARY=virtual; every other build, including
+// every production build, contains the real spooler boundary and no virtual destination.
+const printBoundary =
+  process.env.POS_PRINT_BOUNDARY === 'virtual'
+    ? resolve('src/main/receipt/printBoundary.virtual.ts')
+    : resolve('src/main/receipt/printBoundary.os.ts')
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        '@shared': resolve('src/shared')
+        '@shared': resolve('src/shared'),
+        '@printBoundary': printBoundary
       }
     }
   },

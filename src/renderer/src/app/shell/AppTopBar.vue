@@ -112,7 +112,8 @@ const branding = useBrandingStore()
         :class="PILL_TONE_CLASS[syncPill.tone]"
       >
         <AppIcon :name="syncPill.icon" :size="18" />
-        <span class="hidden pills:inline" aria-hidden="true">{{ syncPill.label }}</span>
+        <!-- Stage 5: text from 1500px (it overlapped the navigation at 1366px); name and title keep it. -->
+        <span class="hidden navlabels:inline" aria-hidden="true">{{ syncPill.label }}</span>
       </RouterLink>
       <WorkstationRefreshControl />
       <ShiftMenu />

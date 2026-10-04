@@ -31,6 +31,7 @@ function service(options: {
         qrPayload: 'p',
         canonicalContent: CANONICAL,
         contentSha256: SHA,
+        snapshotVersion: 1,
         attempts: 0
       }
     ]),
@@ -84,8 +85,14 @@ describe('receipt snapshot uploads', () => {
     ]
     expect(JSON.stringify(body)).toBe(CANONICAL)
     expect(options).toEqual({ reportOutcome: false })
-    expect(repository.findDueUploads).toHaveBeenCalledWith(COMPANY, NOW, 50)
+    expect(repository.findDueUploads).toHaveBeenCalledWith(COMPANY, NOW, 50, 1)
     expect(repository.markAccepted).toHaveBeenCalledWith(INVOICE, NOW.toISOString())
+  })
+
+  it('asks only for snapshots of a version the server stores', async () => {
+    const { uploads, repository } = service({ capability: 2 })
+    await uploads.sweep()
+    expect(repository.findDueUploads).toHaveBeenCalledWith(COMPANY, NOW, 50, 2)
   })
 
   it('an identical replay answer (already stored) is accepted too', async () => {
@@ -198,8 +205,8 @@ describe('receipt snapshot uploads', () => {
     expect(repository.recordUnsettledAttempt).not.toHaveBeenCalled()
   })
 
-  it('sends nothing while the server does not advertise snapshot v1, or nobody is signed in', async () => {
-    for (const options of [{ capability: null }, { capability: 2 }, { contextKey: () => null }]) {
+  it('sends nothing while the server advertises no snapshot version, or nobody is signed in', async () => {
+    for (const options of [{ capability: null }, { contextKey: () => null }]) {
       const { uploads, apiClient } = service(options)
       await uploads.sweep()
       expect(apiClient.requestWithMeta).not.toHaveBeenCalled()

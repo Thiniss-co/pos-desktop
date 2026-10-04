@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /** Tender amount field (V3): currency prefix, 48px bold tabular input, optional label action. */
 import { ref, useId } from 'vue'
+import { applyKeypadKey, type KeypadKey } from '@renderer/shared/utils/keypad'
+import NumericKeypad from './NumericKeypad.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue: string
     label: string
@@ -10,8 +12,18 @@ withDefaults(
     error?: string
     prefix?: string
     autofocus?: boolean
+    /** POS improvements, Stage 5: when set (touch mode), an on-screen keypad edits the field. */
+    keypadLabels?: { backspace: string; clear: string; decimal: string } | null
+    maxDecimals?: number
   }>(),
-  { disabled: false, error: undefined, prefix: undefined, autofocus: false }
+  {
+    disabled: false,
+    error: undefined,
+    prefix: undefined,
+    autofocus: false,
+    keypadLabels: null,
+    maxDecimals: 2
+  }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -24,6 +36,10 @@ const inputRef = ref<HTMLInputElement | null>(null)
 function focus(): void {
   inputRef.value?.focus()
   inputRef.value?.select()
+}
+
+function press(key: KeypadKey): void {
+  emit('update:modelValue', applyKeypadKey(props.modelValue, key, props.maxDecimals))
 }
 
 defineExpose({ focus })
@@ -63,6 +79,16 @@ defineExpose({ focus })
         @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
     </div>
+    <NumericKeypad
+      v-if="keypadLabels"
+      class="mt-1"
+      :backspace-label="keypadLabels.backspace"
+      :clear-label="keypadLabels.clear"
+      :decimal-label="keypadLabels.decimal"
+      :allow-decimal="maxDecimals > 0"
+      :disabled="disabled"
+      @press="press"
+    />
     <p
       v-if="error"
       :id="errorId"

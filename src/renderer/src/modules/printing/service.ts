@@ -1,4 +1,7 @@
 import type {
+  AutoPrintNotice,
+  AutoPrintSetup,
+  AutoPrintStatus,
   PrinterInfo,
   PrinterSettings,
   PrintingDispatchInput,
@@ -49,5 +52,22 @@ export class PrintingService {
 
   async latestForDocument(document: ReceiptDocumentRef): Promise<PrintJobView | null> {
     return unwrapIpcResult(await this.gateway.latestForDocument(toIpcPayload({ document })))
+  }
+
+  /** POS improvements, Stage 7: the automatic-print state of one sale (the complete panel's chip). */
+  async autoPrintStatus(invoiceLocalUuid: string): Promise<AutoPrintStatus> {
+    return unwrapIpcResult(await this.gateway.autoPrintStatus({ invoiceLocalUuid }))
+  }
+
+  async autoPrintSetup(): Promise<AutoPrintSetup> {
+    return unwrapIpcResult(await this.gateway.autoPrintSetup())
+  }
+
+  async autoPrintNotices(): Promise<AutoPrintNotice[]> {
+    return unwrapIpcResult(await this.gateway.autoPrintNotices())
+  }
+
+  async dismissAutoPrintNotices(): Promise<void> {
+    unwrapIpcResult(await this.gateway.dismissAutoPrintNotices())
   }
 }

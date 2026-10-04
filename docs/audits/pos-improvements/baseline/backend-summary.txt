@@ -1,0 +1,4 @@
+pest exit=2
+test:owner exit=0
+typecheck exit=0
+pest(rerun with worktree APP_KEY) exit=0

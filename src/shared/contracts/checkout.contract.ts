@@ -212,6 +212,8 @@ const saleInvoiceItemResultSchema = z
     priceRevision: z.string(),
     taxUuid: z.uuid().nullable(),
     taxMode: z.enum(['none', 'inclusive', 'exclusive']),
+    // POS improvements, Stage 4: frozen at commit; null = unspecified.
+    taxCategory: z.enum(['standard', 'zero_rated', 'exempt']).nullable().optional(),
     taxRateBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
     taxRevision: z.string(),
     discountType: z.enum(['fixed', 'percentage']).nullable(),
@@ -274,7 +276,8 @@ const saleInvoiceResultSchema = z
     customerUuid: z.uuid().nullable(),
     currency: z.string().regex(/^[A-Z]{3}$/),
     currencyExponent: z.number().int().min(0).max(3),
-    taxMode: z.enum(['none', 'inclusive', 'exclusive']),
+    // POS improvements, Stage 4: `mixed` is the header of a sale whose lines carry two or more modes.
+    taxMode: z.enum(['none', 'inclusive', 'exclusive', 'mixed']),
     invoiceDiscountType: z.enum(['fixed', 'percentage']).nullable(),
     invoiceDiscountValue: z.number().int().min(0),
     subtotalAmount: z.number().int(),
@@ -340,6 +343,8 @@ export const checkoutFailureCodeSchema = z.enum([
   // Rev 4 (physical-presence integration).
   'clock-untrusted',
   'offline-sale-authority-unavailable',
+  // POS improvements, Stage 6.
+  'fiscal-setup-incomplete',
   'catalog-updating',
   'catalog-updated',
   'legacy-uncertainty-unresolved'

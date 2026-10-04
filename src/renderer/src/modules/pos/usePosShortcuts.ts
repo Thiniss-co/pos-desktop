@@ -9,7 +9,7 @@ import { onBeforeUnmount, onMounted } from 'vue'
  * `useScanInputRouter` with `onExactCash`, the router owns Shift+F9 in page mode (it stops the
  * event in the capture phase), so do not also bind `ShiftF9` here.
  */
-export type PosShortcutKey = 'F3' | 'F4' | 'F6' | 'F7' | 'F8' | 'F9' | 'ShiftF9'
+export type PosShortcutKey = 'F3' | 'F4' | 'F6' | 'F7' | 'F8' | 'F9' | 'ShiftF9' | 'F10'
 
 export interface PosShortcutOptions {
   readonly focusSearch: () => void

@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto'
 import type { CheckoutIntent } from '@shared/contracts/checkout.contract'
 import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contract'
 import type {
+  InvoiceTaxMode,
+  LineTaxMode,
   LocalInvoiceItemRow,
   LocalInvoicePaymentRow,
   LocalInvoiceRow,
@@ -29,6 +31,9 @@ import type { StockAllocationRepository } from '../repositories/stockAllocation.
 import type { OfflineSaleAuthorityRepository } from '../repositories/offlineSaleAuthority.repository'
 import type { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import type { ReceiptContextCaptureService } from '../receipt/receiptContextCapture.service'
+import type { FiscalContextService } from '../receipt/fiscalContext.service'
+import type { ReceiptSnapshotCaptureService } from '../receipt/receiptSnapshotCapture.service'
+import type { AutoPrintIntentService } from '../receipt/autoPrint.service'
 import type { CatalogService } from './catalog.service'
 import type { CommercialAccessService } from './commercialAccess.service'
 import {
@@ -80,6 +85,8 @@ const NON_TERMINAL_FAILURE_CODES: ReadonlySet<LocalSaleFailure> = new Set([
   // Rev 4 §5: both leave the frozen intent intact and the attempt claimed; retry once true again.
   'clock-untrusted',
   'offline-sale-authority-unavailable',
+  // POS improvements, Stage 6: retried once a refresh brings a complete ZATCA identity.
+  'fiscal-setup-incomplete',
   // Only the defensive branch: the SAME valid revision is installed but a line no longer resolves.
   // A superseded or expired contract is `catalog-superseded`, a terminal rejection (see below).
   'refresh-required'
@@ -116,6 +123,8 @@ export type LocalSaleFailure =
   | 'clock-untrusted'
   // Rev 4 §5.3: the physical-presence authority for this warehouse is missing or expired at `t1`.
   | 'offline-sale-authority-unavailable'
+  // POS improvements, Stage 6: a ZATCA register whose mirrored identity is incomplete.
+  | 'fiscal-setup-incomplete'
   // Rev 4 §8.4 pre-claim backstops: nothing is claimed; the cart reviews the new contract.
   | 'catalog-updating'
   | 'catalog-updated'
@@ -272,6 +281,15 @@ export interface LocalSaleDependencies {
    * labelled historical path (plan §D-2), never a hard failure of the sale itself.
    */
   readonly receiptContext?: Pick<ReceiptContextCaptureService, 'captureForSale'>
+  /** POS improvements, Stage 6: fiscal readiness and the frozen fiscal context (optional, like above). */
+  readonly fiscalContext?: Pick<FiscalContextService, 'readiness' | 'captureForSale'>
+  /** Owner receipt copies: the sale's receipt snapshot, frozen after its fiscal context. */
+  readonly receiptSnapshot?: Pick<ReceiptSnapshotCaptureService, 'captureForSale'>
+  /**
+   * POS improvements, Stage 7: the immutable automatic-print intent, written in the commit
+   * transaction when the selling user's preference is on. Optional only for narrow test fakes.
+   */
+  readonly autoPrintIntent?: Pick<AutoPrintIntentService, 'captureForSale'>
   readonly now?: () => Date
   readonly createUuid?: () => string
 }
@@ -1215,23 +1233,25 @@ export class LocalSaleService {
       return { ok: false, code: 'invalid-request' }
     }
 
-    // The catalog contract permits only `single_invoice_mode`, and calculateCart has just proven
-    // the resolved lines uniform. Derive invoice metadata from that proven set so item order can
-    // never select authority. Widening the policy requires a new backend upload contract version,
-    // top-level representation, fixture, and migration; it is outside Phase 3F.
+    // Derive invoice metadata from the RESOLVED lines so item order can never select authority.
+    // calculateCart has just proven the cart allowed by the installed contract: one mode under
+    // `single_invoice_mode`; any mix under `per_line` (POS improvements, Stage 4). A uniform cart
+    // keeps its own mode — and therefore its exact v2/v3 bytes — even under `per_line`; only a cart
+    // whose lines really differ gets the `mixed` header (uploaded as v4/v5).
     const resolvedTaxModes = new Set(
       intent.items.flatMap((item) => {
         const mode = productsByUuid.get(item.productUuid)?.tax.mode
         return mode === undefined ? [] : [mode]
       })
     )
-    if (resolvedTaxModes.size !== 1) {
+    if (resolvedTaxModes.size === 0) {
       return { ok: false, code: 'invalid-request' }
     }
-    const [invoiceTaxMode] = resolvedTaxModes
-    if (invoiceTaxMode === undefined) {
+    if (resolvedTaxModes.size > 1 && resolution.contract.mixedTaxModePolicy !== 'per_line') {
       return { ok: false, code: 'invalid-request' }
     }
+    const invoiceTaxMode: InvoiceTaxMode =
+      resolvedTaxModes.size > 1 ? 'mixed' : ([...resolvedTaxModes][0] as LineTaxMode)
 
     // 8. calculatePayments from RESOLVED methods only.
     const resolvedMethods: readonly ResolvedPaymentMethod[] = resolution.paymentMethods.map(
@@ -1340,6 +1360,13 @@ export class LocalSaleService {
       }
     }
 
+    // POS improvements, Stage 6: a ZATCA register with an incomplete mirrored identity never commits a
+    // fiscal sale. Non-terminal: the frozen intent stays claimed and commits once a refresh brings a
+    // complete identity (the preview refuses earlier with the same reason).
+    if (this.dependencies.fiscalContext?.readiness(owner.companyUuid).ok === false) {
+      return { ok: false, code: 'fiscal-setup-incomplete' }
+    }
+
     // 10. one commit timestamp — the same `t1` every window above was checked at; D4-A local number.
     const committedAt = t1Iso
     const devicePrefix = owner.deviceUuid.replace(/-/g, '').slice(0, 6)
@@ -1396,6 +1423,32 @@ export class LocalSaleService {
       customerUuid: intent.customerUuid
     })
 
+    // POS improvements, Stage 6: the frozen fiscal context and the receipt's exact QR payload, in this
+    // SAME transaction (readiness was proven above, inside it).
+    this.dependencies.fiscalContext?.captureForSale({
+      invoiceLocalUuid,
+      companyUuid: owner.companyUuid,
+      soldAt: committedAt,
+      grandTotalAmount: cart.value.grandTotalAmount,
+      taxTotalAmount: cart.value.taxTotalAmount,
+      currency: resolution.contract.currency,
+      currencyExponent: resolution.contract.currencyExponent
+    })
+
+    // Owner receipt copies: the receipt snapshot, in this SAME transaction, after both contexts it
+    // freezes (receipt context, and the fiscal context whose exact QR it copies).
+    this.dependencies.receiptSnapshot?.captureForSale({ invoiceLocalUuid })
+
+    // POS improvements, Stage 7: the automatic-print intent (owner, locale, printer snapshot), in this
+    // SAME transaction, so a sale and its intent exist together or not at all.
+    this.dependencies.autoPrintIntent?.captureForSale({
+      invoiceLocalUuid,
+      companyUuid: owner.companyUuid,
+      deviceUuid: owner.deviceUuid,
+      userUuid: owner.userUuid,
+      committedAt
+    })
+
     // 12-15. one item + zero-or-more allocation consumptions + one movement per tracked line; one payment per row.
     const itemsByLocalUuid = new Map<string, string>()
     const plannedConsumptions: {
@@ -1436,6 +1489,8 @@ export class LocalSaleService {
         taxMode: product.tax.mode,
         taxRateBasisPoints: product.tax.rateBasisPoints,
         taxRevision: product.tax.revision,
+        // Stage 4: frozen from the installed catalog at commit; never back-filled or inferred.
+        taxCategory: product.tax.category ?? null,
         discountType: item.discountType,
         discountValue: item.discountType === null ? 0 : item.discountValue,
         subtotalAmount: line.subtotalAmount,
@@ -1651,7 +1706,12 @@ export class LocalSaleService {
     if (payments.some((payment) => payment.invoiceLocalUuid !== invoice.localUuid)) {
       fail('an invoice payment belongs to a different invoice')
     }
-    if (items.some((item) => item.taxMode !== invoice.taxMode)) {
+    // Stage 4: a uniform header equals every line's mode; a `mixed` header covers two or more modes.
+    if (invoice.taxMode === 'mixed') {
+      if (new Set(items.map((item) => item.taxMode)).size < 2) {
+        fail('a mixed invoice header covers lines that all share one tax mode')
+      }
+    } else if (items.some((item) => item.taxMode !== invoice.taxMode)) {
       fail('an invoice item tax mode differs from the proven uniform invoice tax mode')
     }
 

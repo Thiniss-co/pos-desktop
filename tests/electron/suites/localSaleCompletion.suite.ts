@@ -697,6 +697,103 @@ databaseTest('mixed tax modes reject before writes regardless of line order', (s
 })
 
 databaseTest(
+  'POS improvements Stage 4: under a per_line contract a mixed cart commits a mixed header, frozen line categories and a v4 payload',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    try {
+      const repositories = realRepositories(database)
+      const { localSale } = setUpAuthorizedContext(database, repositories)
+      database.prepare('UPDATE catalog_products SET track_stock = 0').run()
+      database.prepare("UPDATE catalog_metadata SET mixed_tax_mode_policy = 'per_line'").run()
+      setProductTaxMode(database, productUuid, 'inclusive', 1500)
+      setProductTaxMode(database, trackedProductUuid, 'exclusive', 1000)
+      database
+        .prepare("UPDATE catalog_products SET tax_category = 'standard' WHERE uuid = ?")
+        .run(productUuid)
+
+      const line = (id: string, product: string): CheckoutIntent['items'][number] => ({
+        id,
+        productUuid: product,
+        quantity: '1.000',
+        discountType: null,
+        discountValue: 0
+      })
+      // 1000 incl. 15% (tax 130) + 500 excl. 10% (tax 50 → 550) = 1550.
+      const outcome = localSale.complete(
+        'd0000000-0000-4000-8000-000000000011',
+        validIntent({
+          items: [line('exclusive', trackedProductUuid), line('inclusive', productUuid)],
+          payments: [
+            { id: 'payment-1', paymentMethodUuid: methodUuid, amount: 1550, reference: null }
+          ]
+        })
+      )
+
+      ok(outcome.outcome === 'committed', JSON.stringify(outcome))
+      const [invoice] = readCommitted(sandbox, 'SELECT * FROM local_invoices') as Array<
+        Record<string, unknown>
+      >
+      equal(invoice?.tax_mode, 'mixed')
+      equal(invoice?.tax_total_amount, 180)
+      equal(invoice?.grand_total_amount, 1550)
+      deepEqual(
+        readCommitted(
+          sandbox,
+          'SELECT tax_mode, tax_category, tax_amount FROM local_invoice_items ORDER BY line_index'
+        ),
+        [
+          { tax_mode: 'exclusive', tax_category: null, tax_amount: 50 },
+          { tax_mode: 'inclusive', tax_category: 'standard', tax_amount: 130 }
+        ]
+      )
+      const [queued] = readCommitted(
+        sandbox,
+        "SELECT payload_json FROM sync_queue WHERE aggregate_type = 'invoice'"
+      ) as Array<{ payload_json: string }>
+      const payload = JSON.parse(queued?.payload_json ?? '{}') as Record<string, unknown>
+      equal(payload.client_contract_version, 4)
+      equal(payload.tax_mode, 'mixed')
+      equal('offline_sale_authority_uuid' in payload, false)
+      deepEqual(
+        (payload.items as Array<Record<string, unknown>>).map((item) => item.tax_mode),
+        ['exclusive', 'inclusive']
+      )
+    } finally {
+      closeDatabase(database)
+    }
+  }
+)
+
+databaseTest(
+  'POS improvements Stage 4: a uniform cart under a per_line contract keeps its own header and the v2 payload',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    try {
+      const repositories = realRepositories(database)
+      const { localSale } = setUpAuthorizedContext(database, repositories)
+      database.prepare("UPDATE catalog_metadata SET mixed_tax_mode_policy = 'per_line'").run()
+
+      const outcome = localSale.complete('d0000000-0000-4000-8000-000000000012', validIntent())
+
+      ok(outcome.outcome === 'committed', JSON.stringify(outcome))
+      const [invoice] = readCommitted(sandbox, 'SELECT tax_mode FROM local_invoices') as Array<{
+        tax_mode: string
+      }>
+      ok(invoice?.tax_mode !== 'mixed')
+      const [queued] = readCommitted(
+        sandbox,
+        "SELECT payload_json FROM sync_queue WHERE aggregate_type = 'invoice'"
+      ) as Array<{ payload_json: string }>
+      const payload = JSON.parse(queued?.payload_json ?? '{}') as Record<string, unknown>
+      equal(payload.client_contract_version, 2)
+      equal(payload.tax_mode, invoice?.tax_mode)
+    } finally {
+      closeDatabase(database)
+    }
+  }
+)
+
+databaseTest(
   'the post-write invariant rolls back a deliberately corrupted item tax mode',
   (sandbox) => {
     const database = openTestDatabase(sandbox)

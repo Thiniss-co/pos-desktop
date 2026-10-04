@@ -44,6 +44,8 @@ import AppSelect from '@renderer/shared/components/forms/AppSelect.vue'
 import CartLineItem from '@renderer/shared/components/pos/CartLineItem.vue'
 import CatalogRefreshPanel from '@renderer/shared/components/pos/CatalogRefreshPanel.vue'
 import PhysicalPresenceNotice from '@renderer/modules/offlineSale/components/PhysicalPresenceNotice.vue'
+import AutoPrintNotices from '@renderer/modules/printing/components/AutoPrintNotices.vue'
+import AutoPrintSaleStatus from '@renderer/modules/printing/components/AutoPrintSaleStatus.vue'
 import CartPanel from '@renderer/shared/components/pos/CartPanel.vue'
 import CategorySelector from '@renderer/shared/components/pos/CategorySelector.vue'
 import OrderTotals from '@renderer/shared/components/pos/OrderTotals.vue'
@@ -54,6 +56,17 @@ import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.v
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
 import HeldSalesList from '@renderer/shared/components/pos/HeldSalesList.vue'
 import QuickActionsBar from '@renderer/shared/components/pos/QuickActionsBar.vue'
+import NumericKeypad from '@renderer/shared/components/pos/NumericKeypad.vue'
+import { applyKeypadKey, type KeypadKey } from '@renderer/shared/utils/keypad'
+import { formatQuantity } from '@shared/pos/posCalculator'
+import { useUserPreferencesStore } from '@renderer/modules/preferences/userPreferences.store'
+import RefundEntryDialog from '@renderer/modules/refunds/components/RefundEntryDialog.vue'
+import RefundDialog from '@renderer/modules/refunds/components/RefundDialog.vue'
+import { useQuickCreateStore } from '@renderer/modules/quickCreate/store'
+import { useRefundsStore } from '@renderer/modules/refunds/store'
+import QuickCreateDialog from '@renderer/modules/quickCreate/components/QuickCreateDialog.vue'
+import AppToast from '@renderer/shared/components/feedback/AppToast.vue'
+import type { QuickCreateEntity, QuickCreateRecord } from '@shared/contracts/quickCreate.contract'
 import ScanEntry from '@renderer/shared/components/pos/ScanEntry.vue'
 import SaleRecoveryBanner from '@renderer/shared/components/pos/SaleRecoveryBanner.vue'
 import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
@@ -153,8 +166,99 @@ const {
 } = storeToRefs(payment)
 const { isRunning: isRefreshingCatalog, error: bootstrapError } = storeToRefs(bootstrap)
 const searchRef = ref<InstanceType<typeof ProductSearchBar> | null>(null)
+/** POS improvements: the register quick-create dialog (kind) and its confirmation. */
+const quickCreateKind = ref<QuickCreateEntity | null>(null)
+const quickCreateName = ref('')
+const quickCreateNotice = ref<string | null>(null)
+let quickCreateNoticeTimer: ReturnType<typeof setTimeout> | null = null
+
+/** POS improvements, Stage 3: More actions, and Return / Refund (an overlay over the POS). */
+const quickCreateStore = useQuickCreateStore()
+const moreActionsOpen = ref(false)
+const refundsStore = useRefundsStore()
+const refundAllowed = computed(() => refundsStore.accessAllowed)
+const refundEntryOpen = ref(false)
+const refundInvoiceUuid = ref<string | null>(null)
+const moreActions = computed(() =>
+  (['customer', 'product', 'supplier'] as const).filter((kind) => quickCreateStore.access[kind])
+)
+
+async function loadRefundAccess(): Promise<void> {
+  await refundsStore.loadAccess()
+}
+
+function openRefundEntry(): void {
+  if (!refundAllowed.value) return
+  refundEntryOpen.value = true
+}
+
+function selectRefundInvoice(invoiceLocalUuid: string): void {
+  refundEntryOpen.value = false
+  refundInvoiceUuid.value = invoiceLocalUuid
+}
+
+function closeRefund(): void {
+  refundInvoiceUuid.value = null
+  void nextTick(() => focusScanEntry())
+}
+
+/** Closes a POS overlay and gives the scan entry its focus back (the cashier keeps scanning). */
+function closeOverlay(close: () => void): void {
+  close()
+  void nextTick(() => focusScanEntry())
+}
+
+function chooseMoreAction(kind: QuickCreateEntity): void {
+  moreActionsOpen.value = false
+  openQuickCreate(kind)
+}
+
+function openNewCustomerFromSelector(): void {
+  const name = customerQuery.value
+  dialogMode.value = null
+  openQuickCreate('customer', name)
+}
+
+function openQuickCreate(kind: QuickCreateEntity, initialName = ''): void {
+  quickCreateName.value = initialName
+  quickCreateKind.value = kind
+}
+
+async function handleQuickCreated(record: QuickCreateRecord): Promise<void> {
+  quickCreateKind.value = null
+  if (record.entityType === 'customer') {
+    // The new customer is selectable at once (main merges it into the customer search).
+    customerQuery.value = record.name
+    await catalog.searchCustomers()
+    catalog.selectCustomer(record.entityUuid)
+  }
+  quickCreateNotice.value = String(
+    t(`quickCreate.created.${record.entityType}`, { name: record.name })
+  )
+  if (quickCreateNoticeTimer) clearTimeout(quickCreateNoticeTimer)
+  quickCreateNoticeTimer = setTimeout(() => (quickCreateNotice.value = null), 6000)
+  void nextTick(() => focusScanEntry())
+}
 const dialogMode = ref<DialogMode>(null)
 const clearConfirmOpen = ref(false)
+
+// --- POS improvements, Stage 5: touch mode -------------------------------------------------------
+// Per-user (main owns the identity). Touch adds visible controls for every shortcut and an on-screen
+// keypad; the scanner and the function keys keep working exactly as before.
+const userPreferences = useUserPreferencesStore()
+const touchMode = computed(() => userPreferences.preferences.touchMode)
+const keypadLabels = computed(() =>
+  touchMode.value
+    ? {
+        backspace: t('touch.keypad.backspace'),
+        clear: t('touch.keypad.clear'),
+        decimal: t('touch.keypad.decimal')
+      }
+    : null
+)
+const quantityKeypadLineId = ref<string | null>(null)
+const quantityKeypadDraft = ref('')
+const quantityKeypadError = ref<string | null>(null)
 const cartSheetOpen = ref(false)
 const invoiceDiscountSelection = ref<InvoiceDiscountSelection>('none')
 const invoiceDiscountDraft = ref('')
@@ -774,7 +878,21 @@ const quickActions = computed<DisplayQuickAction[]>(() => [
     label: String(t('pos.quickSale.repeatLast')),
     icon: 'add',
     disabled: lastAddedLine.value === null || !canEdit.value || !canAddToCart.value
-  }
+  },
+  // POS improvements, Stage 3: a visible Return / Refund, and More (register quick-create).
+  ...(refundAllowed.value
+    ? [
+        {
+          id: 'refund',
+          label: String(t('pos.quickSale.refund')),
+          icon: 'undo' as const,
+          shortcut: 'F10'
+        }
+      ]
+    : []),
+  ...(moreActions.value.length > 0
+    ? [{ id: 'more', label: String(t('pos.quickSale.more')), icon: 'more_horiz' as const }]
+    : [])
 ])
 
 const heldSalesDisplay = computed<DisplayHeldSale[]>(() =>
@@ -835,6 +953,22 @@ const exactCashMethod = computed(() => {
   return candidates.length === 1 ? candidates[0] : null
 })
 const grandTotalAmount = computed(() => calculation.value?.grandTotalAmount ?? 0)
+/**
+ * POS improvements, Stage 4: a cart whose lines carry different tax modes (allowed under a per-line
+ * contract). Its gross-and-net "Subtotal" would not add up with the tax to the total, so the summary
+ * shows "Total excl. VAT" (total − VAT) instead. Uniform carts keep the existing summary.
+ */
+const mixedTaxCart = computed(
+  () => new Set(lines.value.map((line) => line.product.tax.mode)).size > 1
+)
+const summaryFirstLabel = computed(() =>
+  mixedTaxCart.value ? t('pos.totalExclVat') : t('pos.subtotal')
+)
+const summaryFirstAmount = computed(() =>
+  mixedTaxCart.value
+    ? (calculation.value?.grandTotalAmount ?? 0) - (calculation.value?.taxTotalAmount ?? 0)
+    : (calculation.value?.subtotalAmount ?? 0)
+)
 const exactCashEligible = computed(
   () =>
     exactCashMethod.value !== null &&
@@ -1082,6 +1216,10 @@ function handleQuickAction(id: string): void {
     dialogMode.value = 'held'
   } else if (id === 'repeat') {
     repeatLastItem()
+  } else if (id === 'refund') {
+    openRefundEntry()
+  } else if (id === 'more') {
+    moreActionsOpen.value = true
   } else if (id === 'customer' && catalogAvailable.value && attemptSettled.value) {
     openCustomerDialog()
   } else if (id === 'discount' && lines.value.length > 0 && canEdit.value && attemptSettled.value) {
@@ -1102,6 +1240,73 @@ function handleQuickTender(id: string): void {
 }
 
 /** F9: first press opens payment in the column; once a valid tender covers the sale, completes it. */
+/**
+ * Stage 5: the touch bar holds the shortcuts that have no other visible control — Exact cash
+ * (Shift+F9) and Help (F1) — plus Pay. Every other shortcut already has an on-screen control of at
+ * least 44×44 in touch mode: Choose customer (F7), Add discount (F8), Clear cart, the search field (F2),
+ * the scan field (F3), and the Hold / Recall / Return tiles (F4 / F6 / F10).
+ */
+const touchActions = computed(() => [
+  {
+    id: 'touch-exact-cash',
+    label: t('touch.actions.exactCash'),
+    shortcut: 'Shift+F9',
+    icon: 'payments' as const,
+    disabled: lines.value.length === 0 || !attemptSettled.value
+  },
+  {
+    id: 'touch-pay',
+    label: t('touch.actions.pay'),
+    shortcut: 'F9',
+    icon: 'point_of_sale' as const,
+    disabled: lines.value.length === 0
+  },
+  { id: 'touch-help', label: t('touch.actions.help'), shortcut: 'F1', icon: 'help' as const }
+])
+
+function handleTouchAction(id: string): void {
+  if (id === 'touch-exact-cash') {
+    handleExactCash()
+  } else if (id === 'touch-pay') {
+    handlePayShortcut()
+  } else if (id === 'touch-help') {
+    openDialog('help')
+  }
+}
+
+function openQuantityKeypad(lineId: string): void {
+  const line = lines.value.find((candidate) => candidate.id === lineId)
+  if (!line) {
+    return
+  }
+  quantityKeypadLineId.value = lineId
+  quantityKeypadDraft.value = ''
+  quantityKeypadError.value = null
+}
+
+function pressQuantityKey(key: KeypadKey): void {
+  quantityKeypadDraft.value = applyKeypadKey(quantityKeypadDraft.value, key, 3)
+  quantityKeypadError.value = null
+}
+
+function applyQuantityKeypad(): void {
+  const lineId = quantityKeypadLineId.value
+  const draft = quantityKeypadDraft.value
+  if (lineId === null) {
+    return
+  }
+  // The keypad allows at most three decimals; the cart's canonical form is thousandths ("2.500").
+  // The cart then applies its own limits; a refusal keeps the dialog open.
+  const match = /^(\d{1,6})(?:\.(\d{1,3}))?$/.exec(draft)
+  const milli = match ? Number(match[1]) * 1000 + Number((match[2] ?? '').padEnd(3, '0')) : 0
+  const quantity = milli > 0 ? formatQuantity(milli) : null
+  if (quantity === null || !quantity.ok || !cart.setQuantity(lineId, quantity.value)) {
+    quantityKeypadError.value = t('touch.quantity.invalid')
+    return
+  }
+  closeOverlay(() => (quantityKeypadLineId.value = null))
+}
+
 function handlePayShortcut(): void {
   // Inside the payment dialog F9 is routed by the scan-input router to the step's primary action.
   if (!paymentPanelOpen.value) {
@@ -1258,6 +1463,14 @@ function closePaymentPanel(): void {
 
 const receiptDialogOpen = ref(false)
 const receiptDocument = ref<ReceiptDocumentRef | null>(null)
+
+/** POS improvements, Stage 7: the sale whose automatic print the complete panel reports. */
+const completedInvoiceUuid = computed(() => {
+  const outcome = completionOutcome.value
+  return outcome && (outcome.outcome === 'committed' || outcome.outcome === 'acknowledged')
+    ? outcome.invoice.localUuid
+    : null
+})
 
 function handlePrintReceipt(): void {
   const outcome = completionOutcome.value
@@ -1589,7 +1802,8 @@ usePosShortcuts({
     F6: () => handleQuickAction('recall'),
     F7: () => handleQuickAction('customer'),
     F8: () => handleQuickAction('discount'),
-    F9: handlePayShortcut
+    F9: handlePayShortcut,
+    F10: () => handleQuickAction('refund')
   }
 })
 
@@ -1688,7 +1902,15 @@ onBeforeUnmount(() => {
 
 let releaseCatalogChanges: (() => void) | null = null
 
+// Permissions change with every bootstrap (main pushes quick-create changes then): re-read refund access.
+watch(
+  () => quickCreateStore.access,
+  () => void loadRefundAccess(),
+  { deep: true }
+)
+
 onMounted(async () => {
+  void loadRefundAccess()
   synchronizationAgeTimer = window.setInterval(() => {
     synchronizationReferenceTime.value = Date.now()
   }, 60_000)
@@ -1793,6 +2015,7 @@ onMounted(async () => {
           </template>
         </CatalogRefreshPanel>
         <PhysicalPresenceNotice />
+        <AutoPrintNotices />
 
         <!-- Shift state that limits selling (the lifecycle actions live in the top-bar menu). -->
         <template v-if="freshness !== 'loading'">
@@ -2025,6 +2248,14 @@ onMounted(async () => {
               :label="t('pos.quickSale.actionsLabel')"
               @action="handleQuickAction"
             />
+            <div v-if="touchMode" class="pos-page__touch-bar" data-testid="touch-action-bar">
+              <QuickActionsBar
+                :actions="touchActions"
+                layout="wrap"
+                :label="t('touch.actions.label')"
+                @action="handleTouchAction"
+              />
+            </div>
           </div>
 
           <div class="flex flex-none flex-col gap-2 px-4 pt-2 empty:hidden">
@@ -2091,6 +2322,10 @@ onMounted(async () => {
               :remove-label="t('pos.cart.removeOf', { name: line.name })"
               :quantity-label="t('pos.cart.quantityOf', { name: line.name })"
               :disabled="!canEdit || !attemptSettled"
+              :edit-quantity-label="
+                touchMode ? t('touch.quantity.editOf', { name: line.name }) : null
+              "
+              @edit-quantity="openQuantityKeypad(line.id)"
               @decrease="cart.decrementQuantity(line.id)"
               @increase="cart.incrementQuantity(line.id)"
               @remove="cart.remove(line.id)"
@@ -2099,8 +2334,8 @@ onMounted(async () => {
               <OrderTotals
                 class="mx-4 mt-3"
                 framed
-                :subtotal-label="t('pos.subtotal')"
-                :subtotal="money(calculation?.subtotalAmount ?? 0)"
+                :subtotal-label="summaryFirstLabel"
+                :subtotal="money(summaryFirstAmount)"
                 :discount-label="
                   invoiceDiscountType === 'percentage'
                     ? t('pos.cart.discountPercent', {
@@ -2164,13 +2399,14 @@ onMounted(async () => {
           </CartPanel>
           <PaymentPanel
             ref="paymentPanelRef"
+            :keypad-labels="keypadLabels"
             class="pos-page__payment"
             :open="paymentPanelOpen"
             :title="t('pos.payment.title')"
             :status-chip-label="t('pos.tender.statusChip')"
             :close-label="t('common.close')"
-            :subtotal-label="t('pos.subtotal')"
-            :subtotal="money(calculation?.subtotalAmount ?? 0)"
+            :subtotal-label="summaryFirstLabel"
+            :subtotal="money(summaryFirstAmount)"
             :discount-label="t('pos.discount')"
             :discount="
               (calculation?.discountTotalAmount ?? 0) > 0
@@ -2284,6 +2520,9 @@ onMounted(async () => {
             @acknowledge="handleAcknowledgeAttempt"
             @print="handlePrintReceipt"
           >
+            <template v-if="completedInvoiceUuid" #done-extra>
+              <AutoPrintSaleStatus :invoice-local-uuid="completedInvoiceUuid" />
+            </template>
             <template #actions>
               <AppButton
                 v-if="paymentPanelRecoveryState.kind === 'clear'"
@@ -2386,6 +2625,7 @@ onMounted(async () => {
               ['F8', t('pos.discount')],
               ['F9', t('pos.quickSale.shortcutPay')],
               ['Shift+F9', t('pos.exactCash.shortcut')],
+              ['F10', t('pos.quickSale.refund')],
               ['Ctrl+P', t('pos.keys.print')],
               ['3*', t('pos.quickSale.shortcutMultiplier')]
             ]"
@@ -2535,10 +2775,36 @@ onMounted(async () => {
           @blur="applyInvoiceDiscount"
           @keydown="handleInvoiceDiscountKeydown"
         />
+        <!-- Stage 5: touch keypad for the discount (pointer presses keep the field focused). -->
+        <NumericKeypad
+          v-if="touchMode && invoiceDiscountSelection !== 'none'"
+          :backspace-label="t('touch.keypad.backspace')"
+          :clear-label="t('touch.keypad.clear')"
+          :decimal-label="t('touch.keypad.decimal')"
+          @press="
+            (key) => {
+              invoiceDiscountDraft = applyKeypadKey(
+                invoiceDiscountDraft,
+                key,
+                invoiceDiscountSelection === 'fixed' ? currencyExponent : 2
+              )
+              invoiceDiscountError = null
+            }
+          "
+        />
       </template>
       <template v-if="dialogMode === 'customers'" #actions>
         <AppButton variant="secondary" class="me-auto" @click="useWalkInCustomer">
           {{ t('pos.customerDialog.useWalkIn') }}
+        </AppButton>
+        <AppButton
+          v-if="quickCreateStore.access.customer"
+          variant="secondary"
+          icon="person_add"
+          data-testid="customer-dialog-new"
+          @click="openNewCustomerFromSelector"
+        >
+          {{ t('pos.customerDialog.newCustomer') }}
         </AppButton>
         <AppButton variant="ghost" @click="dialogMode = null">{{ t('common.cancel') }}</AppButton>
       </template>
@@ -2554,5 +2820,97 @@ onMounted(async () => {
         </AppButton>
       </template>
     </AppDialog>
+
+    <!-- POS improvements, Stage 3: More actions (register quick-create). -->
+    <AppDialog
+      :open="moreActionsOpen"
+      size="sm"
+      :close-label="t('common.close')"
+      data-testid="more-actions-dialog"
+      @close="closeOverlay(() => (moreActionsOpen = false))"
+    >
+      <template #title>{{ t('pos.moreActions.title') }}</template>
+      <div class="flex flex-col gap-2">
+        <AppButton
+          v-for="kind in moreActions"
+          :key="kind"
+          variant="secondary"
+          size="lg"
+          full-width
+          :icon="
+            kind === 'customer' ? 'person_add' : kind === 'product' ? 'inventory' : 'storefront'
+          "
+          :data-testid="`more-actions-${kind}`"
+          @click="chooseMoreAction(kind)"
+        >
+          {{ t(`quickCreate.menu.${kind}`) }}
+        </AppButton>
+      </div>
+    </AppDialog>
+
+    <!-- POS improvements, Stage 5: touch quantity keypad for one cart line. -->
+    <AppDialog
+      :open="quantityKeypadLineId !== null"
+      size="sm"
+      :close-label="t('common.close')"
+      data-testid="quantity-keypad-dialog"
+      @close="closeOverlay(() => (quantityKeypadLineId = null))"
+    >
+      <template #title>{{ t('touch.quantity.title') }}</template>
+      <div class="flex flex-col gap-3">
+        <output
+          class="numeric rounded-md border border-control bg-surf px-3 py-2 text-end text-2xl font-bold"
+          data-testid="quantity-keypad-value"
+          aria-live="polite"
+          >{{ quantityKeypadDraft || '0' }}</output
+        >
+        <AppInlineError v-if="quantityKeypadError">{{ quantityKeypadError }}</AppInlineError>
+        <NumericKeypad
+          :backspace-label="t('touch.keypad.backspace')"
+          :clear-label="t('touch.keypad.clear')"
+          :decimal-label="t('touch.keypad.decimal')"
+          @press="pressQuantityKey"
+        />
+        <AppButton
+          size="lg"
+          full-width
+          data-testid="quantity-keypad-apply"
+          @click="applyQuantityKeypad"
+          >{{ t('touch.quantity.apply') }}</AppButton
+        >
+      </div>
+    </AppDialog>
+
+    <!-- POS improvements, Stage 3: Return / Refund (choose the original sale, then the refund flow). -->
+    <RefundEntryDialog
+      v-if="refundEntryOpen"
+      :open="refundEntryOpen"
+      @close="closeOverlay(() => (refundEntryOpen = false))"
+      @select="selectRefundInvoice"
+    />
+    <RefundDialog
+      v-if="refundInvoiceUuid !== null"
+      :open="refundInvoiceUuid !== null"
+      :invoice-local-uuid="refundInvoiceUuid"
+      @close="closeRefund"
+    />
+
+    <!-- POS improvements: register quick-create (customer, product, supplier). -->
+    <QuickCreateDialog
+      v-if="quickCreateKind !== null"
+      :open="quickCreateKind !== null"
+      :kind="quickCreateKind"
+      :initial-name="quickCreateName"
+      @close="closeOverlay(() => (quickCreateKind = null))"
+      @created="handleQuickCreated"
+    />
+    <AppToast
+      v-if="quickCreateNotice"
+      variant="success"
+      :dismiss-label="t('common.close')"
+      data-testid="quick-create-notice"
+      @dismiss="quickCreateNotice = null"
+      >{{ quickCreateNotice }}</AppToast
+    >
   </section>
 </template>

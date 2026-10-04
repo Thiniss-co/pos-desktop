@@ -9,7 +9,11 @@ import {
   printingDispatchInputSchema,
   printingGetJobInputSchema,
   printingCancelJobInputSchema,
-  printingLatestForDocumentInputSchema
+  printingLatestForDocumentInputSchema,
+  printingAutoPrintStatusInputSchema,
+  printingAutoPrintSetupInputSchema,
+  printingAutoPrintNoticesInputSchema,
+  printingAutoPrintDismissNoticesInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
 import { isPublicAppError } from '../http/apiError'
@@ -136,6 +140,55 @@ export function registerPrintingIpcHandlers(services: ApplicationServices): void
         query.document.kind,
         documentLocalUuid
       )
+    })
+  })
+
+  // POS improvements, Stage 7: automatic printing. Each resolves the caller first (session and
+  // pos.view); the status is readable only for a sale of the caller's register and user.
+  ipcMain.handle(IPC_CHANNELS.printingAutoPrintStatus, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+    return handleIpcRequest(input, printingAutoPrintStatusInputSchema, (query) => {
+      const owner = services.receiptAccess.resolveCaller()
+      return services.autoPrint.statusForSale(owner, query.invoiceLocalUuid)
+    })
+  })
+
+  ipcMain.handle(IPC_CHANNELS.printingAutoPrintSetup, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+    return handleIpcRequest(input, printingAutoPrintSetupInputSchema, () => {
+      services.receiptAccess.resolveCaller()
+      return services.autoPrint.setup()
+    })
+  })
+
+  ipcMain.handle(IPC_CHANNELS.printingAutoPrintNotices, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+    return handleIpcRequest(input, printingAutoPrintNoticesInputSchema, () =>
+      services.autoPrint.noticesFor(services.receiptAccess.resolveCaller())
+    )
+  })
+
+  ipcMain.handle(IPC_CHANNELS.printingAutoPrintDismissNotices, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+    return handleIpcRequest(input, printingAutoPrintDismissNoticesInputSchema, () => {
+      services.autoPrint.dismissNotices(services.receiptAccess.resolveCaller())
+      return { dismissed: true }
     })
   })
 }

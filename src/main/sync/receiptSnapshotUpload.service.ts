@@ -2,14 +2,14 @@ import { invoiceReceiptSnapshotRoute } from '@shared/constants/apiRoutes'
 import { isPublicAppError } from '../http/apiError'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import { receiptSnapshotStoredSchema } from '../http/desktopResources.contract'
-import type { BootstrapCapabilityRepository } from '../repositories/bootstrapCapability.repository'
+import type { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import type { ReceiptSnapshotRepository } from '../repositories/receiptSnapshot.repository'
 
 /**
  * Owner receipt copies — uploads each accepted sale's frozen receipt snapshot, exactly once.
  *
- * - Sends only while the server advertises `receipt_snapshot` version 1 (latest persisted bootstrap)
- *   and only for sales the server has accepted (`sync_status = 'synced'`).
+ * - Sends only snapshots of a version the server advertises (`receipt_snapshot`, latest persisted
+ *   bootstrap; a server of version N stores 1..N) and only for sales the server has accepted.
  * - Sends the stored canonical bytes; the payload is never rebuilt, so a retry is always identical.
  * - Started by a persisted bootstrap or an invoice-upload status change; no timer. One sweep at a time;
  *   a request during a sweep queues one more. A context token (company, device, user, epoch) is
@@ -28,7 +28,7 @@ export interface ReceiptSnapshotUploadDependencies {
     ReceiptSnapshotRepository,
     'findDueUploads' | 'markAccepted' | 'markRejected' | 'recordUnsettledAttempt'
   >
-  readonly capabilities: Pick<BootstrapCapabilityRepository, 'getCapabilityVersion'>
+  readonly capabilities: Pick<BootstrapSnapshotRepository, 'getCapabilityVersion'>
   readonly apiClient: Pick<DesktopApiClient, 'requestWithMeta'>
   /** `${companyUuid}|${deviceUuid}|${userUuid}|${sessionEpoch}` of the signed-in user, or null. */
   readonly contextKey: () => string | null
@@ -54,10 +54,10 @@ export class ReceiptSnapshotUploadService {
       return
     }
     const token = this.dependencies.contextKey()
-    if (
-      token === null ||
-      this.dependencies.capabilities.getCapabilityVersion(RECEIPT_SNAPSHOT_CAPABILITY) !== 1
-    ) {
+    const capability = this.dependencies.capabilities.getCapabilityVersion(
+      RECEIPT_SNAPSHOT_CAPABILITY
+    )
+    if (token === null || capability === null || capability < 1) {
       return
     }
     const companyUuid = token.split('|')[0]
@@ -68,7 +68,8 @@ export class ReceiptSnapshotUploadService {
       const due = this.dependencies.repository.findDueUploads(
         companyUuid,
         this.now(),
-        MAX_SNAPSHOTS_PER_SWEEP
+        MAX_SNAPSHOTS_PER_SWEEP,
+        capability
       )
       for (const snapshot of due) {
         if (this.dependencies.contextKey() !== token) {

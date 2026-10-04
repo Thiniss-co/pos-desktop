@@ -1,0 +1,9 @@
+typecheck=0
+lint=✖ 14 problems (2 errors, 12 warnings) (baseline: seedReliability.mjs 2 errors; seedReliability/stage4ppcheckout warnings)
+vitest=      Tests  1734 passed (1734)
+sqlite=# tests 507 # pass 445 # fail 0 # skipped 62
+harness=# pass 69 # fail 0 (POS_BACKEND_ROOT=backend worktree)
+verify:fixture=all fixtures verified byte-for-byte against pos-backend (incl. zatca-phase1-qr-golden.json)
+backend pest=2333 tests, 2151 passed, 182 skipped, 0 failed (serial)
+backend pint=pass
+backend architecture:report=no violations

@@ -11,7 +11,6 @@ import AppPanel from '@renderer/shared/components/common/AppPanel.vue'
 import type { IconName } from '@renderer/shared/components/common/icons.generated'
 import AppSegmented from '@renderer/shared/components/forms/AppSegmented.vue'
 import AppStepper from '@renderer/shared/components/forms/AppStepper.vue'
-import AppSwitch from '@renderer/shared/components/forms/AppSwitch.vue'
 import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
 import type { PrinterInfo, ReceiptDocumentRef } from '@shared/contracts/printing.contract'
@@ -19,6 +18,8 @@ import ReceiptProfileSection from '@renderer/modules/receiptProfile/components/R
 import { useStartupStore } from '@renderer/app/startup/startup.store'
 import { usePrintingStore } from '@renderer/modules/printing/store'
 import { useReceiptProfileStore } from '@renderer/modules/receiptProfile/store'
+import TouchModeSwitch from '@renderer/modules/preferences/components/TouchModeSwitch.vue'
+import AutoPrintSwitch from '@renderer/modules/preferences/components/AutoPrintSwitch.vue'
 
 const MIN_COPIES = 1
 const MAX_COPIES = 3
@@ -38,7 +39,6 @@ const printerNameModel = ref('')
 const paperWidthModel = ref('80')
 const copiesModel = ref('1')
 const dispatchModeModel = ref('direct')
-const autoPrintModel = ref(false)
 const savedNotice = ref(false)
 
 // ---- Tabs (only rendered when the receipt-profile section is available on this workstation) ----
@@ -155,7 +155,6 @@ function syncFormFromSettings(): void {
   paperWidthModel.value = String(settings.paperWidthMm)
   copiesModel.value = String(settings.defaultCopies)
   dispatchModeModel.value = settings.dispatchMode
-  autoPrintModel.value = settings.autoPrintAfterSale
 }
 
 onMounted(async () => {
@@ -180,7 +179,9 @@ async function saveSettings(): Promise<void> {
     printableWidthMm: paperWidthMm === 58 ? 48 : 72,
     defaultCopies: Number(copiesModel.value),
     dispatchMode: dispatchModeModel.value === 'system_dialog' ? 'system_dialog' : 'direct',
-    autoPrintAfterSale: autoPrintModel.value
+    // POS improvements, Stage 7: the retired workstation flag is kept as stored; the per-user
+    // preference alone decides automatic printing (D3).
+    autoPrintAfterSale: workstationSettings.value?.autoPrintAfterSale ?? false
   })
   if (ok) {
     syncFormFromSettings()
@@ -286,6 +287,16 @@ function closeReceiptDialog(): void {
         </p>
       </AppPanel>
 
+      <!-- POS improvements, Stage 5: this user's own layout on this register. -->
+      <AppPanel
+        class="settings-page__touch flex-[1_1_320px]"
+        aria-labelledby="settings-touch-title"
+      >
+        <h2 id="settings-touch-title" class="text-lg font-bold">{{ t('touch.settingsTitle') }}</h2>
+        <p class="mt-1 mb-3 text-sm text-muted">{{ t('touch.settingsDescription') }}</p>
+        <TouchModeSwitch show-description />
+      </AppPanel>
+
       <AppPanel
         class="settings-page__printer flex-[2_1_520px]"
         :padded="false"
@@ -344,11 +355,7 @@ function closeReceiptDialog(): void {
             />
           </div>
 
-          <AppSwitch
-            v-model="autoPrintModel"
-            :label="t('printing.autoPrintLabel')"
-            :description="t('printing.autoPrintDescription')"
-          />
+          <AutoPrintSwitch show-description />
 
           <AppBanner v-if="errorMessage" variant="error" role="alert">{{ errorMessage }}</AppBanner>
           <AppBanner v-else-if="savedNotice" variant="success" role="status">

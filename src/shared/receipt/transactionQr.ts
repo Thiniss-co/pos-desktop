@@ -1,14 +1,13 @@
 /**
- * The non-fiscal transaction-reference QR (`txn-ref-v1`) and the receipt-snapshot canonical JSON.
+ * POS improvements, Stage 6 — the non-fiscal transaction-reference QR (`txn-ref-v1`).
  *
+ * Agreed with the receipt-snapshot work (owner reprint) as an exact shared format:
  *   THINIS-TXN/1;co=<company uuid>;doc=<sale|refund>;id=<local document uuid>;ts=<UTC YYYY-MM-DDTHH:MM:SSZ>;amt=<decimal>;cur=<ISO 4217>
- *
- * ASCII, at most 255 characters, fixed key order; the amount is the minor-unit total written with the
- * currency exponent (zero-padded, never trimmed). It carries no secret and no URL and is never labelled
- * as a fiscal QR. The backend twin is `app/Modules/POS/Support/TransactionReferenceQr.php`; both are
- * held to the byte-identical vectors in `tests/fixtures/transaction-qr-golden.json`. Same exports as the
- * POS-improvements Stage 6 module of the same path, which supersedes this one when the two merge.
+ * ASCII, at most 255 characters, fixed key order, amounts from minor units with the currency exponent.
+ * It carries no secret and no URL and is never labelled ZATCA. `doc=refund` is used for refund
+ * receipts; `doc=sale` for sales and historical copies.
  */
+import { zatcaAmount, zatcaTimestamp } from './fiscalQr'
 
 export const TRANSACTION_QR_PREFIX = 'THINIS-TXN/1'
 export const TRANSACTION_QR_MAX_LENGTH = 255
@@ -37,39 +36,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const PATTERN =
   /^THINIS-TXN\/1;co=([0-9a-f-]{36});doc=(sale|refund);id=([0-9a-f-]{36});ts=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z);amt=(\d+(?:\.\d{1,3})?);cur=([A-Z]{3})$/
 
-/** Non-negative minor units with an exponent of 0–3, e.g. (1050, 2) → "10.50". */
-export function transactionQrAmount(minor: number, exponent: number): string {
-  if (
-    !Number.isSafeInteger(minor) ||
-    minor < 0 ||
-    !Number.isInteger(exponent) ||
-    exponent < 0 ||
-    exponent > 3
-  ) {
-    throw new RangeError('Amounts are non-negative minor units with an exponent of 0–3')
-  }
-  if (exponent === 0) {
-    return String(minor)
-  }
-  const digits = String(minor).padStart(exponent + 1, '0')
-  return `${digits.slice(0, -exponent)}.${digits.slice(-exponent)}`
-}
-
-/** Any ISO instant as UTC, truncated to whole seconds. */
-export function transactionQrTimestamp(instant: string): string {
-  const date = new Date(instant)
-  if (Number.isNaN(date.getTime())) {
-    throw new RangeError('The instant is not a valid date')
-  }
-  return `${date.toISOString().slice(0, 19)}Z`
-}
-
 export function encodeTransactionReferenceQr(facts: TransactionReferenceFacts): string {
   if (!UUID.test(facts.companyUuid) || !UUID.test(facts.documentUuid)) {
     throw new RangeError('The company and document identities must be lowercase uuids')
-  }
-  if (facts.documentKind !== 'sale' && facts.documentKind !== 'refund') {
-    throw new RangeError('The document kind must be sale or refund')
   }
   if (!/^[A-Z]{3}$/.test(facts.currency)) {
     throw new RangeError('The currency must be an ISO 4217 code')
@@ -79,8 +48,8 @@ export function encodeTransactionReferenceQr(facts: TransactionReferenceFacts): 
     `co=${facts.companyUuid}`,
     `doc=${facts.documentKind}`,
     `id=${facts.documentUuid}`,
-    `ts=${transactionQrTimestamp(facts.instant)}`,
-    `amt=${transactionQrAmount(facts.totalMinor, facts.currencyExponent)}`,
+    `ts=${zatcaTimestamp(facts.instant)}`,
+    `amt=${zatcaAmount(facts.totalMinor, facts.currencyExponent)}`,
     `cur=${facts.currency}`
   ].join(';')
   if (text.length > TRANSACTION_QR_MAX_LENGTH) {
@@ -95,17 +64,22 @@ export function decodeTransactionReferenceQr(text: string): TransactionReference
   if (!match) {
     return null
   }
-  return {
-    co: match[1],
-    doc: match[2] as 'sale' | 'refund',
-    id: match[3],
-    ts: match[4],
-    amt: match[5],
-    cur: match[6]
-  }
+  const [, co, doc, id, ts, amt, cur] = match as unknown as [
+    string,
+    string,
+    'sale' | 'refund',
+    string,
+    string,
+    string,
+    string
+  ]
+  return { co, doc, id, ts, amt, cur }
 }
 
-/** Keys sorted recursively, no whitespace, UTF-8 unescaped: the receipt-snapshot canonical form. */
+/**
+ * Keys sorted recursively, no whitespace, UTF-8 unescaped — the receipt-snapshot canonical form (the
+ * same rule as `localSale.fingerprint`'s, which main uses for sale fingerprints).
+ */
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalize(value))
 }

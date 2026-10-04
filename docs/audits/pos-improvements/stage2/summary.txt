@@ -1,0 +1,4 @@
+vitest=0       Tests  1661 passed (1661)
+sqlite=0 # tests 499 # pass 437 # fail 0 # skipped 62 
+harness=1 # pass 66 # fail 1 
+harness=0 # pass 67 # fail 0 (POS_BACKEND_ROOT=backend worktree)

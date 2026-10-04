@@ -1,0 +1,143 @@
+{
+  "journey": "smoke",
+  "startedAt": "2026-10-04T19:28:38.208Z",
+  "runDir": "/tmp/pos-pw-W6fxYM",
+  "steps": [
+    {
+      "at": "2026-10-04T19:28:40.807Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:43387",
+      "database": "/tmp/pos-pw-W6fxYM/smoke/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T19:28:45.951Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T19:28:46.832Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-W6fxYM/smoke/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T19:28:47.949Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T19:28:48.022Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:28:48.896Z",
+      "label": "device assigned through the fence",
+      "assigned": true,
+      "quarantined_allocations": 0
+    },
+    {
+      "at": "2026-10-04T19:28:49.116Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T19:28:49.294Z",
+      "screenshot": "01-pos-after-assignment.png"
+    },
+    {
+      "at": "2026-10-04T19:28:49.476Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T19:28:49.726Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T19:28:49.873Z",
+      "screenshot": "02-cart-after-scan.png"
+    },
+    {
+      "at": "2026-10-04T19:28:50.385Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:28:50.551Z",
+      "screenshot": "03-exact-cash-done.png"
+    },
+    {
+      "at": "2026-10-04T19:28:50.742Z",
+      "label": "server report",
+      "device_assigned": true,
+      "invoices": {
+        "2f8bb662-0a35-4bdd-b9ca-929c8c5ea1fb": {
+          "sync_records": 1,
+          "statuses": [
+            "processed"
+          ],
+          "server_invoices": 1,
+          "stock_movements": 1,
+          "sold_while_offline": [
+            false
+          ]
+        }
+      },
+      "device_invoice_count": 1
+    },
+    {
+      "at": "2026-10-04T19:28:50.910Z",
+      "label": "server stock",
+      "sku": "COLA-CAN",
+      "track_stock": true,
+      "stock_items": [
+        {
+          "warehouse_id": 1,
+          "quantity": 99,
+          "reserved_quantity": 0,
+          "allocation_reserved_quantity": 0,
+          "available_quantity": 99
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T19:28:50.912Z",
+      "label": "route",
+      "route": "pos"
+    },
+    {
+      "at": "2026-10-04T19:28:50.916Z",
+      "label": "printers visible to the harness build",
+      "names": [
+        "PW-Virtual-80",
+        "PW-Virtual-58"
+      ]
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/device/register elapsed_ms=316 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/auth/login elapsed_ms=269 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/license/validate elapsed_ms=49 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43387/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/device/heartbeat elapsed_ms=71 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43387/api/v1/desktop/bootstrap elapsed_ms=81 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43387/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43387/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43387/api/v1/desktop/shifts/current elapsed_ms=63 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43387/api/v1/desktop/shifts/current elapsed_ms=90 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/license/validate elapsed_ms=40 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43387/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43387/api/v1/desktop/bootstrap elapsed_ms=58 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43387/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43387/api/v1/desktop/shifts/current elapsed_ms=50 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/shifts/open elapsed_ms=42 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43387/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43387/api/v1/desktop/invoices/upload elapsed_ms=131 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json"
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T19:28:51.011Z"
+}

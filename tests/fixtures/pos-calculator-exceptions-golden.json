@@ -3,7 +3,7 @@
     "calculationVersion": "3d-largest-remainder-v1",
     "generatedFrom": {
         "repo": "pos-backend",
-        "commit": "d9351bccbdb2114d81a9a2c70216fd2a2a92754b"
+        "commit": "8f7c9f78dea389e2cbc0e908eea83440ea1b1ed9"
     },
     "cases": [
         {

@@ -1,8 +1,11 @@
 import {
   posCartWidthPreferenceSchema,
+  userPreferencesSchema,
   type LocaleCode,
   type PosCartWidthPreference,
-  type ThemePreference
+  type ThemePreference,
+  type UserPreferenceKey,
+  type UserPreferences
 } from '@shared/contracts/preferences.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
@@ -35,6 +38,15 @@ export class PreferencesService {
   async getPosCartWidth(): Promise<PosCartWidthPreference> {
     const width = unwrapIpcResult(await this.gateway.getPosCartWidth())
     return posCartWidthPreferenceSchema.safeParse(width).data ?? null
+  }
+
+  /** Stage 5: the signed-in user's own preferences; the result shape is checked here. */
+  async getUserPreferences(): Promise<UserPreferences> {
+    return userPreferencesSchema.parse(unwrapIpcResult(await this.gateway.getUser()))
+  }
+
+  async setUserPreference(key: UserPreferenceKey, value: boolean): Promise<UserPreferences> {
+    return userPreferencesSchema.parse(unwrapIpcResult(await this.gateway.setUser({ key, value })))
   }
 
   async setPosCartWidth(width: PosCartWidthPreference): Promise<PosCartWidthPreference> {

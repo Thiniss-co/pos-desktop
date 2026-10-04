@@ -1,0 +1,6 @@
+typecheck=0
+lint(first run)=1 ✖ 52 problems (3 errors, 49 warnings) — new: qc3actions unused helper + prettier in journeys/harness test
+lint(after fix)=1 ✖ 14 problems (2 errors, 12 warnings) — the 2 errors are the baseline seedReliability.mjs ones (baseline: 2 errors, 13 warnings)
+vitest=0       Tests  1662 passed (1662)
+sqlite=0 # tests 499 # pass 437 # fail 0 # skipped 62 
+harness=0 # pass 67 # fail 0  (POS_BACKEND_ROOT=backend worktree)

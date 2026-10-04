@@ -1,5 +1,5 @@
 import { normalizeCatalogSearch } from '@shared/catalog/normalization'
-import { BootstrapCapabilityRepository } from './bootstrapCapability.repository'
+import { FiscalContextRepository } from './fiscalContext.repository'
 import type { ProductImageAssetMetadata, ProductImageRepository } from './productImage.repository'
 import type { CompanyBrandingRepository } from './companyBranding.repository'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
@@ -357,7 +357,11 @@ export class BootstrapSnapshotRepository {
   persistSnapshot(
     resource: DesktopBootstrapResource,
     fetchedAt: string,
-    options: { readonly beforeWrite?: () => void } = {}
+    options: {
+      readonly beforeWrite?: () => void
+      /** The signed-in user this bootstrap was requested for (POS improvements, Stage 1). */
+      readonly permissionsOwnerUserUuid?: string | null
+    } = {}
   ): BootstrapPersistResult {
     const manifest = assertCatalogSemantics(resource)
     const allocationSnapshot = resolveAllocationSnapshot(resource)
@@ -400,7 +404,11 @@ export class BootstrapSnapshotRepository {
 
         const commitIdempotent = this.database.transaction(() => {
           options.beforeWrite?.()
-          this.persistBootstrapContext(resource, fetchedAt)
+          this.persistBootstrapContext(
+            resource,
+            fetchedAt,
+            options.permissionsOwnerUserUuid ?? null
+          )
           this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
           this.persistOfflineSaleAuthority(resource, fetchedAt)
           // P8: image changes leave the catalog revision unchanged, so the fast path applies them too.
@@ -433,7 +441,7 @@ export class BootstrapSnapshotRepository {
         // evidence; every allocation read is scoped to the current company.
         this.database.prepare('DELETE FROM bootstrap_allocation_capability').run()
       }
-      this.persistBootstrapContext(resource, fetchedAt)
+      this.persistBootstrapContext(resource, fetchedAt, options.permissionsOwnerUserUuid ?? null)
 
       // The Phase 3 sellable catalogue is isolated from the legacy Phase 2 numeric-ID tables.
       // Existing legacy rows remain available for diagnostics after migration but are never used
@@ -486,7 +494,7 @@ export class BootstrapSnapshotRepository {
           )
       )
 
-      counts.products = this.replaceCollection(resource.products ?? [], (row) =>
+      counts.products = this.replaceCollection(resource.products ?? [], (row) => {
         this.database
           .prepare(
             `
@@ -523,7 +531,15 @@ export class BootstrapSnapshotRepository {
             row.resolved_tax?.revision ?? null,
             row.updated_at ?? null
           )
-      )
+        // POS improvements, Stage 4: the category issued with this revision (negotiated catalogs
+        // only). A separate statement so the insert above keeps working on pre-0022 schemas.
+        const category = row.resolved_tax?.category ?? null
+        if (category !== null && this.hasProductTaxCategory()) {
+          this.database
+            .prepare('UPDATE catalog_products SET tax_category = ? WHERE uuid = ?')
+            .run(category, row.uuid)
+        }
+      })
 
       counts.product_barcodes = this.replaceCollection(resource.product_barcodes ?? [], (row) =>
         this.database
@@ -647,6 +663,58 @@ export class BootstrapSnapshotRepository {
       catalogRevision: resource.catalog_contract.revision,
       fetchedAt
     }
+  }
+
+  private capabilityTables: boolean | null = null
+  private productTaxCategory: boolean | null = null
+
+  private hasProductTaxCategory(): boolean {
+    if (this.productTaxCategory === null) {
+      this.productTaxCategory =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM pragma_table_info('catalog_products') WHERE name = 'tax_category'"
+          )
+          .pluck()
+          .get() === 1
+    }
+    return this.productTaxCategory
+  }
+
+  /** Whether migration 0020 exists in this database (older schemas exist only in migration suites). */
+  private hasCapabilityTables(): boolean {
+    if (this.capabilityTables === null) {
+      this.capabilityTables =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('bootstrap_capabilities', 'bootstrap_snapshot_owner')"
+          )
+          .pluck()
+          .get() === 2
+    }
+    return this.capabilityTables
+  }
+
+  /** The negotiated version of a server capability, or null when the last bootstrap lacked it. */
+  getCapabilityVersion(capability: string): number | null {
+    if (!this.hasCapabilityTables()) {
+      return null
+    }
+    const row = this.database
+      .prepare('SELECT version FROM bootstrap_capabilities WHERE capability = ?')
+      .get(capability) as { version: number } | undefined
+    return row?.version ?? null
+  }
+
+  /** The user whose bootstrap filled the permission cache (null: unknown, e.g. before Stage 1). */
+  getPermissionsOwnerUserUuid(): string | null {
+    if (!this.hasCapabilityTables()) {
+      return null
+    }
+    const row = this.database
+      .prepare('SELECT user_uuid FROM bootstrap_snapshot_owner WHERE id = 1')
+      .get() as { user_uuid: string | null } | undefined
+    return row?.user_uuid ?? null
   }
 
   hasPermission(permission: string): boolean {
@@ -1042,7 +1110,11 @@ export class BootstrapSnapshotRepository {
       .run(fetchedAt, resource.sync.snapshot_version, resource.server_time, JSON.stringify(counts))
   }
 
-  private persistBootstrapContext(resource: DesktopBootstrapResource, fetchedAt: string): void {
+  private persistBootstrapContext(
+    resource: DesktopBootstrapResource,
+    fetchedAt: string,
+    permissionsOwnerUserUuid: string | null
+  ): void {
     this.database
       .prepare(
         `
@@ -1057,15 +1129,19 @@ export class BootstrapSnapshotRepository {
       )
       .run(resource.company.id, resource.company.name, bit(resource.company.is_active), fetchedAt)
 
+    // POS improvements, Stage 6: the fiscal identity mirror, in this same snapshot transaction. A
+    // response without the block (an older backend) removes the mirror: the register is then
+    // non-fiscal until a backend sends the block again; already-frozen contexts never change.
+    new FiscalContextRepository(this.database).replaceIdentity(
+      resource.company.id,
+      resource.fiscal_identity ?? null,
+      fetchedAt
+    )
+
     this.replaceBranch(resource.branch, fetchedAt)
     this.replaceWarehouse(resource.warehouse, fetchedAt)
     this.replaceSubscription(resource.subscription, fetchedAt)
     this.persistDeviceRegistration(resource.device, fetchedAt)
-    // Owner receipt copies: what the server accepts, replaced with this snapshot (absent → cleared).
-    new BootstrapCapabilityRepository(this.database).replaceAll(
-      resource.receipt_snapshot ? { receipt_snapshot: resource.receipt_snapshot.version } : {},
-      fetchedAt
-    )
 
     this.database.prepare('DELETE FROM bootstrap_features').run()
     for (const [code, enabled] of Object.entries(resource.features)) {
@@ -1090,6 +1166,37 @@ export class BootstrapSnapshotRepository {
       this.database
         .prepare('INSERT INTO bootstrap_permissions (permission_name, updated_at) VALUES (?, ?)')
         .run(permission, fetchedAt)
+    }
+
+    // POS improvements, Stage 1: whose permissions these are, and which server capabilities this
+    // bootstrap confirmed. Both are replaced with every persisted bootstrap. (Skipped only on a
+    // schema older than migration 0020, which the migration suites deliberately construct.)
+    if (this.hasCapabilityTables()) {
+      this.database
+        .prepare(
+          `
+            INSERT INTO bootstrap_snapshot_owner (id, user_uuid, updated_at) VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET user_uuid = excluded.user_uuid, updated_at = excluded.updated_at
+          `
+        )
+        .run(permissionsOwnerUserUuid, fetchedAt)
+      this.database.prepare('DELETE FROM bootstrap_capabilities').run()
+      if (resource.quick_create) {
+        this.database
+          .prepare(
+            'INSERT INTO bootstrap_capabilities (capability, version, updated_at) VALUES (?, ?, ?)'
+          )
+          .run('quick_create', resource.quick_create.version, fetchedAt)
+      }
+      // Owner receipt copies: the newest receipt snapshot version the server stores. Renegotiated with
+      // every bootstrap like the others; absent (an older backend) means no snapshot is sent.
+      if (resource.receipt_snapshot) {
+        this.database
+          .prepare(
+            'INSERT INTO bootstrap_capabilities (capability, version, updated_at) VALUES (?, ?, ?)'
+          )
+          .run('receipt_snapshot', resource.receipt_snapshot.version, fetchedAt)
+      }
     }
 
     this.database

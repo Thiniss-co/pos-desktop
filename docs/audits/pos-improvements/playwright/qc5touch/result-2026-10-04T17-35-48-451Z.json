@@ -1,0 +1,287 @@
+{
+  "journey": "qc5touch",
+  "startedAt": "2026-10-04T17:35:48.451Z",
+  "runDir": "/tmp/pos-pw-zZYoZ3",
+  "steps": [
+    {
+      "at": "2026-10-04T17:35:50.893Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:41389",
+      "database": "/tmp/pos-pw-zZYoZ3/qc5touch/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T17:35:55.476Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T17:35:56.230Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-zZYoZ3/qc5touch/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T17:35:57.210Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T17:35:57.265Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T17:35:58.164Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T17:36:00.667Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T17:36:03.671Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T17:36:09.879Z",
+      "label": "A: touch mode switched on by touch",
+      "stored": [
+        {
+          "key": "ui.touchMode",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T17:36:13.752Z",
+      "screenshot": "A1-touch-mode-on.png"
+    },
+    {
+      "at": "2026-10-04T17:36:25.762Z",
+      "screenshot": "B1-quantity-keypad.png"
+    },
+    {
+      "at": "2026-10-04T17:36:27.870Z",
+      "label": "B: quantities after the keypad",
+      "quantities": [
+        [
+          "Cola Can",
+          "3.000"
+        ],
+        [
+          "Chips Small",
+          "1.000"
+        ]
+      ]
+    },
+    {
+      "at": "2026-10-04T17:36:31.760Z",
+      "screenshot": "B2-touch-bar.png"
+    },
+    {
+      "at": "2026-10-04T17:36:40.765Z",
+      "screenshot": "B3-sale-complete.png"
+    },
+    {
+      "at": "2026-10-04T17:36:43.049Z",
+      "label": "B: touch-only sale committed and uploaded",
+      "sale": {
+        "local_uuid": "3574f97a-3662-4985-9638-47b107e814dc",
+        "sync_status": "synced"
+      },
+      "focusAfterKeypad": "INPUT"
+    },
+    {
+      "at": "2026-10-04T17:37:01.789Z",
+      "screenshot": "C1-refund-accepted-by-touch.png"
+    },
+    {
+      "at": "2026-10-04T17:37:03.955Z",
+      "label": "C: touch-only refund",
+      "refunds": [
+        {
+          "submission_state": "accepted"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T17:37:06.867Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T17:37:07.755Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T17:37:08.751Z",
+      "label": "A: per-user persistence",
+      "afterSignOut": "off",
+      "afterSignIn": "on"
+    },
+    {
+      "at": "2026-10-04T17:37:18.844Z",
+      "screenshot": "D-en-light-1920x1080-keypad.png"
+    },
+    {
+      "at": "2026-10-04T17:37:25.846Z",
+      "screenshot": "D-en-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-04T17:37:25.846Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "1920x1080",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T17:37:35.840Z",
+      "screenshot": "D-en-light-1366x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T17:37:42.852Z",
+      "screenshot": "D-en-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-04T17:37:42.852Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "1366x768",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T17:37:49.924Z",
+      "screenshot": "D-en-light-1024x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T17:37:56.845Z",
+      "screenshot": "D-en-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-04T17:37:56.845Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "1024x768",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T17:38:05.835Z",
+      "screenshot": "D-en-light-800x600-keypad.png"
+    },
+    {
+      "at": "2026-10-04T17:38:12.842Z",
+      "screenshot": "D-en-light-800x600.png"
+    },
+    {
+      "at": "2026-10-04T17:38:17.851Z",
+      "screenshot": "D-en-light-800x600-cart-sheet.png"
+    },
+    {
+      "at": "2026-10-04T17:38:21.985Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "800x600",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": true,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T17:38:29.930Z",
+      "screenshot": "D-en-dark-1920x1080-keypad.png"
+    }
+  ],
+  "result": "failed",
+  "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('quantity-keypad-dialog').getByRole('button', { name: 'Close' }) to be visible\n\n    at tap (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc5touch.mjs:41:17)\n    at Module.run (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc5touch.mjs:290:19)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/device/register elapsed_ms=314 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/auth/login elapsed_ms=263 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/license/validate elapsed_ms=43 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/device/heartbeat elapsed_ms=60 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=111",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/bootstrap elapsed_ms=67 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold stale installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current elapsed_ms=61 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current elapsed_ms=81 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/bootstrap elapsed_ms=40 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current elapsed_ms=33 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/shifts/open elapsed_ms=32 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/invoices/upload elapsed_ms=75 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/bootstrap elapsed_ms=46 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/invoices/924c80cc-7d64-43f1-9794-8be204cc46c5",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/invoices/924c80cc-7d64-43f1-9794-8be204cc46c5 elapsed_ms=28 backend_code=DESKTOP_INVOICE_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/invoices/924c80cc-7d64-43f1-9794-8be204cc46c5",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/invoices/924c80cc-7d64-43f1-9794-8be204cc46c5 elapsed_ms=39 backend_code=DESKTOP_INVOICE_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/refunds/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/refunds/upload elapsed_ms=51 backend_code=DESKTOP_REFUND_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/auth/logout",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/auth/logout elapsed_ms=25 backend_code=DESKTOP_LOGOUT_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-ineligible mode=active level=0 next_in_s=42",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/auth/login elapsed_ms=221 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41389/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/license/validate elapsed_ms=37 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41389/api/v1/desktop/device/heartbeat elapsed_ms=59 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=128",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41389/api/v1/desktop/shifts/current elapsed_ms=51 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T17:38:59.995Z"
+}

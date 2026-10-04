@@ -1,0 +1,169 @@
+{
+  "journey": "qc1permissions",
+  "startedAt": "2026-10-04T14:51:16.220Z",
+  "runDir": "/tmp/pos-pw-X8ACyu",
+  "steps": [
+    {
+      "at": "2026-10-04T14:51:18.581Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:40493",
+      "database": "/tmp/pos-pw-X8ACyu/qc1permissions/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T14:51:22.626Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T14:51:23.292Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-X8ACyu/qc1permissions/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T14:51:23.947Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T14:51:24.000Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:51:24.680Z",
+      "label": "device assigned",
+      "assigned": true,
+      "quarantined_allocations": 0
+    },
+    {
+      "at": "2026-10-04T14:51:27.441Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:51:27.444Z",
+      "label": "1: cashier A access before the grant",
+      "available": true,
+      "customer": false,
+      "supplier": false,
+      "product": false
+    },
+    {
+      "at": "2026-10-04T14:51:27.899Z",
+      "label": "owner signed in to the company-owner SPA"
+    },
+    {
+      "at": "2026-10-04T14:51:28.512Z",
+      "label": "2: owner created cashier B in the SPA",
+      "email": "bea.cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:51:29.077Z",
+      "screenshot": "02a-owner-created-cashier-b.png"
+    },
+    {
+      "at": "2026-10-04T14:51:29.529Z",
+      "screenshot": "02b-owner-quick-actions-before.png"
+    },
+    {
+      "at": "2026-10-04T14:51:30.099Z",
+      "screenshot": "02c-owner-quick-actions-granted.png"
+    },
+    {
+      "at": "2026-10-04T14:51:30.222Z",
+      "label": "2: owner granted Add customers",
+      "grantsBefore": [],
+      "grantsAfter": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T14:51:50.923Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T14:51:51.021Z",
+      "label": "register shows the sign-in screen after a relaunch"
+    },
+    {
+      "at": "2026-10-04T14:51:51.082Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:51:51.635Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:51:51.639Z",
+      "label": "3: cashier A access after the grant",
+      "afterGrant": {
+        "available": true,
+        "customer": true,
+        "supplier": false,
+        "product": false
+      },
+      "signInPath": "relaunch"
+    },
+    {
+      "at": "2026-10-04T14:51:51.756Z",
+      "screenshot": "03-register-cashier-a-after-grant.png"
+    },
+    {
+      "at": "2026-10-04T14:51:52.289Z",
+      "label": "4: direct API attempts",
+      "created1": {
+        "status": 201,
+        "code": "DESKTOP_ENTITY_CREATED",
+        "outcome": "accepted",
+        "replayed": "false",
+        "entity": "fe516c4e-037f-4929-a911-95abda6a437f"
+      },
+      "replay": {
+        "status": 201,
+        "code": "DESKTOP_ENTITY_CREATED",
+        "outcome": "accepted",
+        "replayed": "true",
+        "entity": "fe516c4e-037f-4929-a911-95abda6a437f"
+      },
+      "conflict": {
+        "status": 409,
+        "code": "IDEMPOTENCY_CONFLICT",
+        "outcome": null,
+        "replayed": null,
+        "entity": null
+      },
+      "denied": {
+        "status": 403,
+        "code": "PERMISSION_DENIED",
+        "outcome": null,
+        "replayed": null,
+        "entity": null
+      }
+    },
+    {
+      "at": "2026-10-04T14:51:54.579Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T14:52:15.533Z",
+      "label": "electron relaunched on the same isolated profile"
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current elapsed_ms=36 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current elapsed_ms=54 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json"
+  ],
+  "result": "failed",
+  "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Sign in' }) to be visible\n\n    at reachSignIn (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc1permissions.mjs:85:46)\n    at async Module.run (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc1permissions.mjs:222:7)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current elapsed_ms=36 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:40493/api/v1/desktop/shifts/current elapsed_ms=54 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T14:52:45.766Z"
+}

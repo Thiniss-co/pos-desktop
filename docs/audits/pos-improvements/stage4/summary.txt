@@ -1,0 +1,6 @@
+typecheck=0
+lint=1 ✖ 14 problems (2 errors, 12 warnings) after formatting PosPage.vue and qc2offline.mjs — all remaining are baseline (seedReliability.mjs, stage4ppcheckout.mjs)
+vitest=0       Tests  1674 passed (1674)
+sqlite=0 # tests 502 # pass 440 # fail 0 # skipped 62 (run before the renderer-only summary change)
+harness=0 # pass 69 # fail 0  (POS_BACKEND_ROOT=backend worktree)
+verify:fixture=0 verify:fixture: stock-allocation-envelope-golden.json OK — byte-identical, raw and canonical hashes independently verified verify:fixture: all fixtures verified byte-for-byte against pos-backend. 
