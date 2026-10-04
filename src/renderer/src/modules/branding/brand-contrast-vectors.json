@@ -1,0 +1,42 @@
+[
+    {
+        "color": "#000000",
+        "luminance": 0,
+        "on": "#ffffff"
+    },
+    {
+        "color": "#ffffff",
+        "luminance": 1,
+        "on": "#000000"
+    },
+    {
+        "color": "#6a58f2",
+        "luminance": 0.1645,
+        "on": "#ffffff"
+    },
+    {
+        "color": "#f7b955",
+        "luminance": 0.5513,
+        "on": "#000000"
+    },
+    {
+        "color": "#2dd4bf",
+        "luminance": 0.5141,
+        "on": "#000000"
+    },
+    {
+        "color": "#e11d48",
+        "luminance": 0.1735,
+        "on": "#ffffff"
+    },
+    {
+        "color": "#777777",
+        "luminance": 0.1845,
+        "on": "#000000"
+    },
+    {
+        "color": "#0e9f8e",
+        "luminance": 0.2684,
+        "on": "#000000"
+    }
+]

@@ -6,6 +6,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { i18n } from '@renderer/i18n'
 import AppTopBar from './AppTopBar.vue'
+import { useBrandingStore } from '@renderer/modules/branding/store'
 import type { ShellNavItem } from './useShellNavigation'
 
 /*
@@ -74,5 +75,34 @@ describe('AppTopBar navigation labels', () => {
 
     expect(link.classes()).toEqual(expect.arrayContaining(['flex-col', 'navlabels:flex-row']))
     expect(link.attributes('aria-current')).toBe('page')
+  })
+})
+
+describe('AppTopBar company identity (P9)', () => {
+  it('shows the product mark and "Thinis POS" without a delivered identity', () => {
+    const wrapper = render()
+    expect(wrapper.find('[data-testid="top-bar-logo"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="top-bar-name"]').text()).toBe('Thinis POS')
+  })
+
+  it('shows the company logo and name when delivered', async () => {
+    const pinia = createPinia()
+    const wrapper = mount(AppTopBar, {
+      props: { items: ITEMS },
+      global: {
+        plugins: [pinia, i18n],
+        stubs: { RouterLink: RouterLinkStub, ShiftMenu: true, UserMenu: true }
+      }
+    })
+    useBrandingStore(pinia).view = {
+      companyName: 'Harbour Coffee',
+      primaryColor: '#0e9f8e',
+      logoDataUrl: 'data:image/png;base64,iVBORw0KGgo='
+    }
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="top-bar-logo"]').attributes('src')).toContain(
+      'data:image/png;base64,'
+    )
+    expect(wrapper.get('[data-testid="top-bar-name"]').text()).toBe('Harbour Coffee')
   })
 })

@@ -11,6 +11,7 @@ import AppPill from '@renderer/shared/components/common/AppPill.vue'
 import { PILL_TONE_CLASS } from '@renderer/shared/components/common/types'
 import ShiftMenu from '@renderer/modules/pos/components/ShiftMenu.vue'
 import UserMenu from './UserMenu.vue'
+import { useBrandingStore } from '@renderer/modules/branding/store'
 import WorkstationRefreshControl from './WorkstationRefreshControl.vue'
 import type { ShellNavItem } from './useShellNavigation'
 import { useShellStatus } from './useShellStatus'
@@ -20,6 +21,7 @@ const emit = defineEmits<{ openNav: []; signOut: [] }>()
 
 const { t } = useI18n()
 const { network, syncPill } = useShellStatus()
+const branding = useBrandingStore()
 </script>
 
 <template>
@@ -33,16 +35,39 @@ const { network, syncPill } = useShellStatus()
     >
       <AppIcon name="menu" :size="20" />{{ t('shell.menu') }}
     </button>
-    <div class="flex flex-none items-center gap-2.5">
+    <div class="flex min-w-0 flex-none items-center gap-2.5" data-testid="top-bar-brand">
+      <!-- P9: the company logo when one was delivered and verified; else the product mark. -->
+      <img
+        v-if="branding.view.logoDataUrl"
+        :src="branding.view.logoDataUrl"
+        alt=""
+        class="h-8.5 max-w-24 flex-none object-contain"
+        data-testid="top-bar-logo"
+      />
       <span
+        v-else
         aria-hidden="true"
         class="flex size-8.5 items-center justify-center rounded-[9px] bg-pri text-on-pri"
         ><AppIcon name="stacks" :size="20"
       /></span>
       <!-- 900–1199px: the wordmark yields its width to the navigation labels (still announced). -->
-      <span class="text-lg font-bold whitespace-nowrap wide:sr-only cartlg:not-sr-only">{{
-        t('shell.brand')
-      }}</span>
+      <!-- `not-sr-only` restores normal white-space, so the name truncates on an inner element. -->
+      <!-- With a logo the name is shown from 1500px only (below that the logo stands for the company and the
+           name stays announced); without one the wordmark keeps its usual breakpoints. -->
+      <span
+        class="text-lg font-bold whitespace-nowrap"
+        :class="
+          branding.view.logoDataUrl
+            ? 'sr-only navlabels:not-sr-only'
+            : 'wide:sr-only cartlg:not-sr-only'
+        "
+        ><span
+          class="block max-w-40 truncate"
+          :title="branding.view.companyName ?? undefined"
+          data-testid="top-bar-name"
+          >{{ branding.view.companyName ?? t('shell.brand') }}</span
+        ></span
+      >
     </div>
     <!--
       Labels are always visible. From 1500px they sit beside the icon (the prototype's layout);

@@ -47,6 +47,8 @@ export interface BootstrapServiceOptions {
    * and the install hold settled. Fire-and-forget: never awaited, never able to fail a bootstrap.
    */
   readonly productImageSync?: { sweep(companyUuid: string): Promise<void> }
+  /** Owner UX plan P9: the background company-logo fetch, same fire-and-forget contract. */
+  readonly companyBrandSync?: { sweep(companyUuid: string): Promise<void> }
   /**
    * Rev 4 §8: the catalog-install lifecycle. `acquire()` runs after the fetch and before any write
    * (the renderer hold handshake); `beforeWrite()` is the synchronous final check inside the
@@ -285,6 +287,9 @@ export class BootstrapService {
 
     if (this.options.productImageSync) {
       void this.options.productImageSync.sweep(resource.company.id).catch(() => undefined)
+    }
+    if (this.options.companyBrandSync) {
+      void this.options.companyBrandSync.sweep(resource.company.id).catch(() => undefined)
     }
 
     return bootstrapResultSchema.parse({

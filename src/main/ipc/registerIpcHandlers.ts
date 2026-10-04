@@ -18,6 +18,7 @@ import { registerPreparationIpcHandlers } from './preparation.ipc'
 import { registerRefundsIpcHandlers } from './refunds.ipc'
 import { registerPrintingIpcHandlers } from './printing.ipc'
 import { registerReceiptProfileIpcHandlers } from './receiptProfile.ipc'
+import { registerBrandingIpcHandlers } from './branding.ipc'
 
 let hasRegisteredIpcHandlers = false
 
@@ -44,6 +45,7 @@ export function registerIpcHandlers(services: ApplicationServices): void {
   registerRefundsIpcHandlers(services)
   registerPrintingIpcHandlers(services)
   registerReceiptProfileIpcHandlers(services)
+  registerBrandingIpcHandlers(services)
   registerCatalogInstallIpcHandlers(services)
 
   hasRegisteredIpcHandlers = true

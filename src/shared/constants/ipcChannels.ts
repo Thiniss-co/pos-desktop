@@ -19,6 +19,9 @@ export const IPC_CHANNELS = Object.freeze({
   catalogGetProductForSale: 'catalog:get-product-for-sale',
   /** Main → renderer only: a stock or snapshot change hint; carries no quantities. */
   catalogChanged: 'catalog:changed',
+  // Owner UX plan P9: the company identity (read) and its change notice (main → renderer only).
+  brandingGet: 'branding:get',
+  brandingChanged: 'branding:changed',
   catalogFindByBarcode: 'catalog:find-by-barcode',
   catalogListPaymentMethods: 'catalog:list-payment-methods',
   catalogSearchCustomers: 'catalog:search-customers',

@@ -1,4 +1,5 @@
 import { ipcRenderer } from 'electron'
+import type { CompanyBrandingView } from '@shared/contracts/branding.contract'
 import type {
   AttemptsChanged,
   DraftState,
@@ -123,6 +124,11 @@ export interface PosApi {
   readonly bootstrap: {
     getStatus(): Promise<IpcResult<BootstrapStatus>>
     refresh(): Promise<IpcResult<BootstrapResult>>
+  }
+  /** Owner UX plan P9: the company identity shown in the top bar and its brand colour. */
+  readonly branding: {
+    get(): Promise<IpcResult<CompanyBrandingView>>
+    onChanged(listener: () => void): () => void
   }
   readonly catalog: {
     getStatus(): Promise<IpcResult<CatalogStatus>>
@@ -350,6 +356,15 @@ export const posApi: PosApi = Object.freeze({
   bootstrap: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.bootstrapGetStatus),
     refresh: () => ipcRenderer.invoke(IPC_CHANNELS.bootstrapRefresh)
+  }),
+  branding: Object.freeze({
+    get: () => ipcRenderer.invoke(IPC_CHANNELS.brandingGet),
+    onChanged: (listener: () => void) => {
+      // No payload: the renderer re-reads through `get`; the Electron event is never handed over.
+      const subscription = (): void => listener()
+      ipcRenderer.on(IPC_CHANNELS.brandingChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.brandingChanged, subscription)
+    }
   }),
   catalog: Object.freeze({
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.catalogGetStatus),

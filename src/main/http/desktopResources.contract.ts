@@ -518,6 +518,46 @@ export const productImageAssetResponseSchema = z
 export type ProductImageAssetResponse = z.infer<typeof productImageAssetResponseSchema>
 
 /**
+ * Owner UX plan P9 — the company identity block and the logo asset. The bounds mirror the backend
+ * (a transparent PNG within 512 px, ≤ 128 KiB) and `0019_company_branding`.
+ */
+export const companyBrandingBlockSchema = z
+  .object({
+    primary_color: z
+      .string()
+      .regex(/^#[0-9a-f]{6}$/)
+      .nullable(),
+    logo: z
+      .object({
+        sha256: receiptProfileSha256Schema,
+        byte_length: z.number().int().min(1).max(131_072),
+        width_px: z.number().int().min(1).max(512),
+        height_px: z.number().int().min(1).max(512),
+        media_type: z.literal('image/png')
+      })
+      .strict()
+      .nullable(),
+    revision: z.number().int().nonnegative()
+  })
+  .strict()
+
+export type CompanyBrandingBlock = z.infer<typeof companyBrandingBlockSchema>
+
+export const companyBrandAssetResponseSchema = z
+  .object({
+    sha256: receiptProfileSha256Schema,
+    media_type: z.literal('image/png'),
+    width_px: z.number().int().min(1).max(512),
+    height_px: z.number().int().min(1).max(512),
+    byte_length: z.number().int().min(1).max(131_072),
+    content_base64: z
+      .string()
+      .max(174_764)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+  })
+  .strict()
+
+/**
  * The `{can_manage, profile}` wrapper shared by `PUT receipt-profile` and the negotiated bootstrap
  * `receipt_profile` block. `profile: null` means the company has never published a profile — the
  * server still says whether this user may create one.
@@ -628,6 +668,9 @@ export const desktopBootstrapResourceSchema = z
     // Owner UX plan P8: present only when this request negotiated `product_image_version=1` and the
     // response carries products. ABSENT says nothing about images: the stored references are kept.
     product_images: productImagesBlockSchema.optional(),
+    // Owner UX plan P9: present only when this request negotiated `company_branding_version=1`.
+    // ABSENT says nothing about branding: the stored identity is kept.
+    company_branding: companyBrandingBlockSchema.optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),

@@ -14,6 +14,7 @@ import { LocalRefundRepository } from '../../../src/main/repositories/localRefun
 import { LocalStockRepository } from '../../../src/main/repositories/localStock.repository'
 import { PreparationRepository } from '../../../src/main/repositories/preparation.repository'
 import { ProductImageRepository } from '../../../src/main/repositories/productImage.repository'
+import { CompanyBrandingRepository } from '../../../src/main/repositories/companyBranding.repository'
 import { ReceiptContextRepository } from '../../../src/main/repositories/receiptContext.repository'
 import { ReceiptProfileRepository } from '../../../src/main/repositories/receiptProfile.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
@@ -47,6 +48,8 @@ export interface RealRepositories {
   readonly preparation: PreparationRepository
   /** Owner UX plan P8: product image references and verified bytes. */
   readonly productImages: ProductImageRepository
+  /** Owner UX plan P9: the company identity and its logo. */
+  readonly companyBranding: CompanyBrandingRepository
   /** Receipt-printing plan §D-11: the company receipt-profile mirror. */
   readonly receiptProfile: ReceiptProfileRepository
   /** Receipt-printing plan §D-2/§D-8: the immutable receipt context (issuer/cashier/profile). */
@@ -80,6 +83,7 @@ export function realRepositories(
     allocationRecoveries
   })
   const productImages = new ProductImageRepository(database)
+  const companyBranding = new CompanyBrandingRepository(database)
   const repositories = {
     appSettings: new AppSettingsRepository(database),
     allocationDispatches: new AllocationDispatchRepository(database),
@@ -88,7 +92,8 @@ export function realRepositories(
       database,
       stockAllocations,
       allocationReconciliation,
-      productImages
+      productImages,
+      companyBranding
     ),
     bootstrapState: new BootstrapStateRepository(database),
     catalog: new CatalogRepository(database),
@@ -101,6 +106,7 @@ export function realRepositories(
     offlineSaleAuthorities: new OfflineSaleAuthorityRepository(database),
     preparation: new PreparationRepository(database, now),
     productImages,
+    companyBranding,
     receiptProfile: new ReceiptProfileRepository(database),
     receiptContext: new ReceiptContextRepository(database),
     saleAttempts: new SaleAttemptRepository(database),

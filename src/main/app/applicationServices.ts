@@ -1,4 +1,9 @@
 import { app, BrowserWindow, dialog, net, powerMonitor, safeStorage, webContents } from 'electron'
+import { CompanyBrandingRepository } from '../repositories/companyBranding.repository'
+import { CompanyBrandSyncService } from '../services/companyBrandSync.service'
+import { broadcastBrandingChanged } from '../ipc/branding.ipc'
+import { decodeNativePng } from '../receipt/receiptProfileSync.service'
+import type { CompanyBrandingView } from '@shared/contracts/branding.contract'
 import { ProductImageRepository } from '../repositories/productImage.repository'
 import { ProductImageSyncService } from '../services/productImageSync.service'
 import { AttemptSettlementService } from '../services/attemptSettlement.service'
@@ -157,6 +162,8 @@ export interface ApplicationServices {
   readonly printerSettings: PrinterSettingsService
   readonly receiptPrinting: ReceiptPrintingService
   readonly receiptProfileAdmin: ReceiptProfileAdminService
+  /** Owner UX plan P9: the company identity for the renderer (name, colour, verified logo). */
+  readonly branding: { current(): CompanyBrandingView }
   readonly companyUsers: CompanyUsersService
   readonly connectivity: ConnectivityService
   /** POS reliability rev 3: separated, read-only stock information for POS catalog reads. */
@@ -220,11 +227,14 @@ export function createApplicationServices(): ApplicationServices {
   // Owner UX plan P8: product image references (applied inside the bootstrap persist transaction)
   // and their verified bytes.
   const productImages = new ProductImageRepository(database)
+  // Owner UX plan P9: the company identity delivered by the bootstrap and its verified logo.
+  const companyBranding = new CompanyBrandingRepository(database)
   const bootstrapSnapshot = new BootstrapSnapshotRepository(
     database,
     stockAllocations,
     allocationReconciliation,
-    productImages
+    productImages,
+    companyBranding
   )
   const catalogRepository = new CatalogRepository(database)
   const syncQueue = new SyncQueueRepository(database)
@@ -389,21 +399,45 @@ export function createApplicationServices(): ApplicationServices {
   // Owner UX plan P8: background image downloads after a persisted bootstrap. The context token is
   // the signed-in owner; any change (sign-out, another user, company or device, a new epoch) stops a
   // sweep and discards what it fetched.
+  const ownerContextKey = (): string | null => {
+    const context = sessionMetadata.getContext()
+    return context.isAuthenticated && context.companyUuid && context.deviceUuid && context.userUuid
+      ? `${context.companyUuid}|${context.deviceUuid}|${context.userUuid}|${sessionEpoch.current()}`
+      : null
+  }
   const productImageSync = new ProductImageSyncService({
     repository: productImages,
     apiClient,
-    contextKey: () => {
-      const context = sessionMetadata.getContext()
-      return context.isAuthenticated &&
-        context.companyUuid &&
-        context.deviceUuid &&
-        context.userUuid
-        ? `${context.companyUuid}|${context.deviceUuid}|${context.userUuid}|${sessionEpoch.current()}`
-        : null
-    },
+    contextKey: ownerContextKey,
     onStored: () => broadcastCatalogChanged({ reason: 'stock', revision: null }),
     log: (line) => console.log(line)
   })
+  const companyBrandSync = new CompanyBrandSyncService({
+    repository: companyBranding,
+    apiClient,
+    contextKey: ownerContextKey,
+    decodePng: decodeNativePng,
+    onStored: broadcastBrandingChanged
+  })
+  const branding = {
+    current: (): CompanyBrandingView => {
+      const context = sessionMetadata.getContext()
+      const company = bootstrapSnapshot.getCompany()
+      if (
+        !context.isAuthenticated ||
+        !context.companyUuid ||
+        company?.companyUuid !== context.companyUuid
+      ) {
+        return { companyName: null, primaryColor: null, logoDataUrl: null }
+      }
+      const stored = companyBranding.current(context.companyUuid)
+      return {
+        companyName: company.name,
+        primaryColor: stored?.primaryColor ?? null,
+        logoDataUrl: stored?.logo ? `data:image/png;base64,${stored.logo.toString('base64')}` : null
+      }
+    }
+  }
   let settleAfterInstall: () => void = () => undefined
   // Rev 4 §8: the catalog-install lifecycle. Late-bound to the completion service (built below).
   let completionInFlight: () => boolean = () => false
@@ -475,6 +509,8 @@ export function createApplicationServices(): ApplicationServices {
       commercialAccessPublisher?.publishCurrent()
       // Rev 3: fired after the install transaction committed; the renderer re-reads coherently.
       broadcastCatalogChanged({ reason: 'snapshot', revision: result.catalogRevision ?? null })
+      // P9: the company identity may have changed with the snapshot.
+      broadcastBrandingChanged()
       // Rev 4 §9.1: an install may have superseded a claimed attempt that can no longer commit.
       settleAfterInstall()
     },
@@ -483,7 +519,7 @@ export function createApplicationServices(): ApplicationServices {
     // session user only; never fails or delays bootstrap (see BootstrapReceiptProfileSync).
     sessionMetadata,
     receiptProfileSync,
-    { owner: renewalOwner, installGate, productImageSync }
+    { owner: renewalOwner, installGate, productImageSync, companyBrandSync }
   )
   // Rev 4 §7: the single owner of license validation and renewal timing. The catalog leg here only
   // installs when the catalog is missing or stale (selling is impossible anyway); the gated
@@ -1131,6 +1167,7 @@ export function createApplicationServices(): ApplicationServices {
     printerSettings,
     receiptPrinting,
     receiptProfileAdmin,
+    branding,
     companyUsers,
     connectivity,
     stockView,

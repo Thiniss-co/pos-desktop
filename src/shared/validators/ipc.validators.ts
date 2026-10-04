@@ -153,5 +153,6 @@ export const printingLatestForDocumentInputSchema = printingLatestForDocumentCon
 // Receipt-printing plan §D-11: get and choose-logo take no argument at all -- the renderer can never
 // name a file path, an owner or a company. Publish is the strict editor contract.
 export const receiptProfileGetInputSchema = z.undefined()
+export const brandingGetInputSchema = z.undefined()
 export const receiptProfileChooseLogoInputSchema = z.undefined()
 export const receiptProfilePublishInputSchema = receiptProfilePublishContractSchema

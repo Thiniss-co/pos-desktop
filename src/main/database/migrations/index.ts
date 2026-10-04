@@ -16,6 +16,7 @@ import { receiptPrintingMigration } from './0015_receipt_printing'
 import { allocationDispatchEvidenceMigration } from './0016_allocation_dispatch_evidence'
 import { offlineSaleAuthorityWarehouseMigration } from './0017_offline_sale_authority_warehouse'
 import { productImagesMigration } from './0018_product_images'
+import { companyBrandingMigration } from './0019_company_branding'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -35,5 +36,6 @@ export const databaseMigrations = [
   receiptPrintingMigration,
   allocationDispatchEvidenceMigration,
   offlineSaleAuthorityWarehouseMigration,
-  productImagesMigration
+  productImagesMigration,
+  companyBrandingMigration
 ] as const

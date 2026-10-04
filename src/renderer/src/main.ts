@@ -17,6 +17,7 @@ import { applyLocaleToDocument, useLocaleStore } from './modules/preferences/loc
 import { applyThemeToDocument, useThemeStore } from './modules/preferences/theme.store'
 import { useCartLayoutStore } from './modules/preferences/cartLayout.store'
 import { startCatalogInstallClient } from './modules/catalogInstall/installHold'
+import { startBrandingClient } from './modules/branding/store'
 
 const pinia = createPinia()
 
@@ -60,6 +61,8 @@ async function bootstrapRenderer(): Promise<void> {
   createApp(App).use(pinia).use(i18n).use(router).mount('#app')
   // Rev 4 §8: the catalog-install hold client (draft reports, hold arming, apply-before-release).
   startCatalogInstallClient(pinia)
+  // Owner UX plan P9: the company logo, name and brand colour (default brand when none).
+  startBrandingClient(pinia)
 }
 
 void bootstrapRenderer()

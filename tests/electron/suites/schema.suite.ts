@@ -91,7 +91,10 @@ const expectedTables = [
   'offline_sale_authority_conflicts',
   // Owner UX plan P8 (migration 0018): product image references and verified bytes.
   'catalog_product_images',
-  'product_image_assets'
+  'product_image_assets',
+  // Owner UX plan P9 (migration 0019): the company identity and its logo bytes.
+  'company_branding',
+  'company_brand_assets'
 ]
 
 databaseTest(

@@ -1,5 +1,6 @@
 import { normalizeCatalogSearch } from '@shared/catalog/normalization'
 import type { ProductImageAssetMetadata, ProductImageRepository } from './productImage.repository'
+import type { CompanyBrandingRepository } from './companyBranding.repository'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import type {
   DesktopBootstrapResource,
@@ -348,7 +349,8 @@ export class BootstrapSnapshotRepository {
       AllocationReconciliationService,
       'applyBootstrap'
     >,
-    private readonly productImages?: Pick<ProductImageRepository, 'applyFullBlock'>
+    private readonly productImages?: Pick<ProductImageRepository, 'applyFullBlock' | 'clearAll'>,
+    private readonly companyBranding?: Pick<CompanyBrandingRepository, 'applyBlock' | 'clearAll'>
   ) {}
 
   persistSnapshot(
@@ -359,7 +361,15 @@ export class BootstrapSnapshotRepository {
     const manifest = assertCatalogSemantics(resource)
     const allocationSnapshot = resolveAllocationSnapshot(resource)
     const counts: Record<string, number> = {}
-    const current = this.getCatalogMetadata()
+    // Owner UX plan P9 (review R3-5): a device re-registered to another company is detected FIRST.
+    // The catalog metadata carries no company, so comparing the incoming `generated_at` with the
+    // previous company's catalog could refuse the new company's snapshot as "older". On a change,
+    // freshness is not compared across companies; the full persist below replaces the catalog and
+    // clears the previous company's image and branding caches in the same transaction.
+    const previousCompany = this.getCompany()
+    const companyChanged =
+      previousCompany !== null && previousCompany.companyUuid !== resource.company.id
+    const current = companyChanged ? null : this.getCatalogMetadata()
     const incomingGeneratedAt = Date.parse(resource.catalog_contract.generated_at)
 
     if (current) {
@@ -394,6 +404,7 @@ export class BootstrapSnapshotRepository {
           this.persistOfflineSaleAuthority(resource, fetchedAt)
           // P8: image changes leave the catalog revision unchanged, so the fast path applies them too.
           this.persistProductImages(resource, fetchedAt)
+          this.persistCompanyBranding(resource, fetchedAt)
           this.database
             .prepare('UPDATE catalog_metadata SET fetched_at = ? WHERE id = 1')
             .run(fetchedAt)
@@ -413,6 +424,10 @@ export class BootstrapSnapshotRepository {
 
     const commit = this.database.transaction(() => {
       options.beforeWrite?.()
+      if (companyChanged) {
+        this.productImages?.clearAll()
+        this.companyBranding?.clearAll()
+      }
       this.persistBootstrapContext(resource, fetchedAt)
 
       // The Phase 3 sellable catalogue is isolated from the legacy Phase 2 numeric-ID tables.
@@ -605,6 +620,7 @@ export class BootstrapSnapshotRepository {
       this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
       this.persistOfflineSaleAuthority(resource, fetchedAt)
       this.persistProductImages(resource, fetchedAt)
+      this.persistCompanyBranding(resource, fetchedAt)
 
       if (!this.isCatalogIntact(manifest)) {
         throw catalogSnapshotError(
@@ -902,6 +918,30 @@ export class BootstrapSnapshotRepository {
     const persisted =
       block.scope === 'full' ? (resource.products ?? []).map((product) => product.uuid) : null
     this.productImages.applyFullBlock(resource.company.id, entries, persisted, fetchedAt)
+  }
+
+  /** Owner UX plan P9: the negotiated `company_branding` block. Absent says nothing (kept). */
+  private persistCompanyBranding(resource: DesktopBootstrapResource, fetchedAt: string): void {
+    const block = resource.company_branding
+    if (!this.companyBranding || block === undefined) {
+      return
+    }
+    this.companyBranding.applyBlock(
+      resource.company.id,
+      {
+        primaryColor: block.primary_color,
+        logo: block.logo
+          ? {
+              sha256: block.logo.sha256,
+              byteLength: block.logo.byte_length,
+              widthPx: block.logo.width_px,
+              heightPx: block.logo.height_px
+            }
+          : null,
+        revision: block.revision
+      },
+      fetchedAt
+    )
   }
 
   private persistOfflineSaleAuthority(resource: DesktopBootstrapResource, fetchedAt: string): void {
