@@ -156,6 +156,23 @@ describe('receipt snapshot uploads', () => {
       NOW.toISOString()
     )
 
+    const serverError = service({
+      answer: async () => {
+        // As the client parses an error envelope: a backend code and trace id, no HTTP status.
+        throw createPublicError('transport', 'server error', true, {
+          backendCode: 'SERVER_ERROR',
+          traceId: 'trace-1'
+        })
+      }
+    })
+    await serverError.uploads.sweep()
+    expect(serverError.repository.recordUnsettledAttempt).toHaveBeenCalledWith(
+      INVOICE,
+      'SERVER_ERROR',
+      true,
+      NOW.toISOString()
+    )
+
     const offline = service({
       answer: async () => {
         throw createPublicError('transport', 'offline', true)
