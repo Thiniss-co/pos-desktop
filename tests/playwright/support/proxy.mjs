@@ -9,6 +9,7 @@
  * Each rule matches `METHOD path` (regex) and may delay, answer with a status, drop the answer
  * after the server processed the request (`dropResponse`), drop the connection, or `hold()` the
  * request (the client's connection fails at once; the request reaches the server only when released).
+ * `transformBody(text) → text` rewrites the backend's answer before the client receives it.
  * `offline()` stops accepting connections entirely (connection refused). `preserveHost` forwards the
  * client's Host header (a browser journey needs the server to build URLs for the proxy origin).
  */
@@ -43,6 +44,22 @@ export async function startProxy(targetOrigin, port = null, { preserveHost = fal
             return
           }
           const respond = () => {
+            if (rule?.transformBody) {
+              // The backend's answer, rewritten by the journey before the client sees it.
+              const body = []
+              up.on('data', (chunk) => body.push(chunk))
+              up.on('end', () => {
+                const text = Buffer.from(
+                  rule.transformBody(Buffer.concat(body).toString('utf8')),
+                  'utf8'
+                )
+                const headers = { ...up.headers, 'content-length': String(text.length) }
+                delete headers['transfer-encoding']
+                res.writeHead(up.statusCode ?? 502, headers)
+                res.end(text)
+              })
+              return
+            }
             res.writeHead(up.statusCode ?? 502, up.headers)
             up.pipe(res)
           }
