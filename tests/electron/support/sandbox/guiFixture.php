@@ -25,6 +25,22 @@ declare(strict_types=1);
  *   php guiFixture.php <backend-root> stock-position <SKU>
  *   php guiFixture.php <backend-root> record-opening-stock <SKU>:<quantity>
  *   php guiFixture.php <backend-root> product-image <SKU>:<1|2|3|remove>
+ *   php guiFixture.php <backend-root> brand <#rrggbb|none>:<logo1|logo2|keep|nologo>
+ *   php guiFixture.php <backend-root> revoke-device <device-uuid>
+ *   php guiFixture.php <backend-root> second-company
+ *   php guiFixture.php <backend-root> assign-device-other <device-uuid>
+ *   php guiFixture.php <backend-root> move-device-other <device-uuid>
+ *
+ * Company identity (owner UX plan P9). `brand` sets the GUI company's primary colour and logo through
+ * `ChangeCompanyBrandingAction` / `StoreCompanyBrandLogoAction` at the current brand revision (the
+ * actions behind the owner endpoints). `revoke-device` revokes through `RevokeDeviceAction`.
+ * `second-company` seeds a second, minimal company (code OTHER-CO, activation code ACTIVATE-OTHER-CO,
+ * cashier other-cashier@desktop-mvp.test, one untracked product) the way `DesktopMvpSmokeSeeder` seeds
+ * the first — an INJECTED precondition for the re-registration journey, reported as simulated.
+ * `assign-device-other` places a device in that company's branch and warehouse through the fence.
+ * `move-device-other` moves a registered device row to that company (a raw row move, SIMULATED): the
+ * backend refuses to register a device uuid that belongs to another company, so no product flow can
+ * re-register a till elsewhere today; the move only exercises the register's company-change handling.
  *
  * Product images (owner UX plan P8). `product-image` gives the product a generated image (variant
  * 1–3: distinct colours and sizes) or removes it, through `StoreProductImageAction` and
@@ -65,6 +81,18 @@ use App\Modules\Catalog\Actions\ChangeProductImageAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
 use App\Modules\Catalog\Actions\StoreProductImageAction;
 use App\Modules\Catalog\Models\ProductImage;
+use App\Modules\Catalog\Enums\ProductStatus;
+use App\Modules\Catalog\Enums\ProductTaxMode;
+use App\Modules\Devices\Actions\RevokeDeviceAction;
+use App\Modules\Identity\Enums\SystemRole;
+use App\Modules\Payments\Enums\PaymentMethodType;
+use App\Modules\Payments\Models\PaymentMethod;
+use App\Modules\Subscriptions\Models\CompanySubscription;
+use App\Modules\Tenancy\Actions\ChangeCompanyBrandingAction;
+use App\Modules\Tenancy\Actions\StoreCompanyBrandLogoAction;
+use App\Modules\Tenancy\Enums\IsoCurrency;
+use App\Modules\Tenancy\Models\CompanyBrandProfile;
+use App\Modules\Tenancy\Services\CompanyCurrencyProvisioner;
 use App\Modules\Catalog\Actions\UpdateProductAction;
 use App\Modules\Catalog\Data\UpdateProductData;
 use App\Modules\Inventory\Actions\CreateInventoryAdjustmentAction;
@@ -99,7 +127,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -143,7 +171,10 @@ if ($operation === 'record-opening-stock' && preg_match('/^[A-Z0-9-]{1,40}:\d{1,
 if ($operation === 'product-image' && preg_match('/^[A-Z0-9-]{1,40}:(1|2|3|remove)$/', $argument) !== 1) {
     sandboxRefuse('product-image needs <SKU>:<1|2|3|remove>');
 }
-if (in_array($operation, ['assign-device', 'report', 'device', 'allocations', 'movements'], true)
+if ($operation === 'brand' && preg_match('/^(#[0-9a-f]{6}|none):(logo1|logo2|keep|nologo)$/', $argument) !== 1) {
+    sandboxRefuse('brand needs <#rrggbb|none>:<logo1|logo2|keep|nologo>');
+}
+if (in_array($operation, ['assign-device', 'report', 'device', 'allocations', 'movements', 'revoke-device', 'assign-device-other', 'move-device-other'], true)
     && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $argument) !== 1) {
     sandboxRefuse('a device uuid is required');
 }
@@ -367,6 +398,93 @@ $result = match ($operation) {
                 ->orderBy('id')->get(['operation', 'response_status'])->map(fn ($row): array => (array) $row)->all(),
         ];
     })(),
+    'brand' => (function () use ($argument, $company, $actor): array {
+        [$color, $logo] = explode(':', $argument);
+        $branding = app(ChangeCompanyBrandingAction::class);
+        $revision = (int) (CompanyBrandProfile::query()->where('company_id', $company->id)->value('revision') ?? 0);
+        $profile = $branding->setColor($company->id, $color === 'none' ? null : $color, $revision);
+        if ($logo === 'nologo') {
+            $profile = $branding->removeLogo($company->id, $profile->revision);
+        } elseif ($logo !== 'keep') {
+            [$width, $height, $rgb] = $logo === 'logo1' ? [300, 120, [20, 110, 100]] : [240, 240, [150, 40, 160]];
+            $image = imagecreatetruecolor($width, $height);
+            imagefill($image, 0, 0, imagecolorallocate($image, ...$rgb));
+            imagefilledrectangle($image, 20, 20, $width - 20, $height - 20, imagecolorallocate($image, 250, 250, 250));
+            ob_start();
+            imagepng($image);
+            $asset = app(StoreCompanyBrandLogoAction::class)->execute($company->id, $actor->id, (string) ob_get_clean());
+            $profile = $branding->setLogo($company->id, $asset->id, $profile->revision);
+        }
+
+        return ['revision' => $profile->revision, 'primary_color' => $profile->primary_color, 'logo_asset_id' => $profile->logo_asset_id];
+    })(),
+    'revoke-device' => (function () use ($argument, $company, $actor): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+        app(RevokeDeviceAction::class)->execute($device, $actor->id, 'P9 re-registration journey');
+
+        return ['revoked' => true];
+    })(),
+    'second-company' => (function () use ($company): array {
+        $other = Company::query()->firstOrCreate(
+            ['code' => 'OTHER-CO'],
+            ['name' => 'Other Company', 'email' => 'other@desktop-mvp.test', 'is_active' => true, 'activation_code' => 'ACTIVATE-OTHER-CO'],
+        );
+        app(CompanyCurrencyProvisioner::class)->provision($other, IsoCurrency::Usd);
+        $template = CompanySubscription::query()->where('company_id', $company->id)->latest('id')->firstOrFail();
+        if (! CompanySubscription::query()->where('company_id', $other->id)->exists()) {
+            // Same plan, features and limits; a fresh public uuid (HasUuid fills an empty one).
+            $copy = $template->replicate(['uuid']);
+            $copy->company_id = $other->id;
+            $copy->save();
+        }
+        $branch = Branch::query()->firstOrCreate(['company_id' => $other->id, 'name' => 'Other Branch']);
+        $warehouse = Warehouse::query()->firstOrCreate(['company_id' => $other->id, 'name' => 'Other Warehouse'], ['branch_id' => $branch->id]);
+        $cashier = User::query()->updateOrCreate(
+            ['email' => 'other-cashier@desktop-mvp.test'],
+            ['name' => 'Other Cashier', 'company_id' => $other->id, 'password' => 'Password123!', 'is_active' => true],
+        );
+        $cashier->syncRoles(SystemRole::Cashier->value);
+        $category = Category::query()->firstOrCreate(['company_id' => $other->id, 'name' => 'Other goods'], ['is_active' => true]);
+        PaymentMethod::query()->firstOrCreate(
+            ['company_id' => $other->id, 'code' => 'cash'],
+            ['name' => 'Cash', 'type' => PaymentMethodType::Cash, 'allows_change' => true, 'requires_reference' => false, 'sort_order' => 1, 'is_active' => true],
+        );
+        if (! Product::query()->where('company_id', $other->id)->exists()) {
+            app(CreateProductAction::class)->execute(new CreateProductData(
+                companyId: $other->id,
+                categoryId: $category->id,
+                name: 'Other Service',
+                sku: 'OTHER-SVC',
+                barcode: null,
+                description: null,
+                status: ProductStatus::Active,
+                isActive: true,
+                trackStock: false,
+                unit: null,
+                taxMode: ProductTaxMode::None,
+                taxId: null,
+                price: 1_000,
+            ));
+        }
+
+        return ['company' => $other->uuid, 'branch' => $branch->uuid, 'warehouse' => $warehouse->uuid];
+    })(),
+    'move-device-other' => DB::transaction(function () use ($argument, $company): array {
+        $other = Company::query()->where('code', 'OTHER-CO')->firstOrFail();
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+        $device->forceFill(['company_id' => $other->id, 'branch_id' => null, 'warehouse_id' => null])->save();
+
+        return ['moved' => true, 'simulated' => true];
+    }),
+    'assign-device-other' => DB::transaction(function () use ($argument, $actor): array {
+        $other = Company::query()->where('code', 'OTHER-CO')->firstOrFail();
+        $device = DesktopDevice::query()->where('company_id', $other->id)->where('device_uuid', $argument)->firstOrFail();
+        $branch = Branch::query()->where('company_id', $other->id)->where('name', 'Other Branch')->firstOrFail();
+        $warehouse = Warehouse::query()->where('company_id', $other->id)->where('name', 'Other Warehouse')->firstOrFail();
+        app(DeviceAssignmentFenceService::class)->applyAssignment($device, $branch->id, $warehouse->id, $actor->id);
+
+        return ['assigned' => true];
+    }),
     'product-image' => (function () use ($argument, $company, $actor): array {
         [$sku, $variant] = explode(':', $argument);
         $product = Product::query()->where('company_id', $company->id)->where('sku', $sku)->firstOrFail();

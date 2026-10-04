@@ -425,3 +425,10 @@ refusalCase(
   () => {},
   { script: GUI_FIXTURE, args: ['product-image', 'COLA-CAN:9'] }
 )
+
+refusalCase(
+  'the GUI fixture refuses a malformed brand step',
+  'brand needs <#rrggbb|none>:<logo1|logo2|keep|nologo>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['brand', 'red:logo1'] }
+)
