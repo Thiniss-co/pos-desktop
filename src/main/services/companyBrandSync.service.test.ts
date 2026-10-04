@@ -67,4 +67,33 @@ describe('company logo worker (P9)', () => {
     await service.sweep(COMPANY)
     expect(repository.markAvailable).toHaveBeenCalledTimes(1)
   })
+
+  it('queues one more sweep when asked during a fetch, so a newer logo is not left pending', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const repository = {
+      findPendingLogo: vi.fn(() => pending),
+      markAvailable: vi.fn(() => true),
+      markFailed: vi.fn()
+    }
+    const apiClient = { request: vi.fn(async () => answer) }
+    apiClient.request.mockImplementationOnce(async () => {
+      await gate
+      return answer
+    })
+    const service = new CompanyBrandSyncService({
+      repository,
+      apiClient: apiClient as never,
+      contextKey: () => `${COMPANY}|d|u|1`,
+      decodePng: decode
+    })
+
+    const first = service.sweep(COMPANY)
+    await service.sweep(COMPANY)
+    release()
+    await first
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(repository.findPendingLogo).toHaveBeenCalledTimes(2)
+  })
 })

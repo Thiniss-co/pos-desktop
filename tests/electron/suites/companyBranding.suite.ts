@@ -128,3 +128,29 @@ databaseTest(
     closeDatabase(database)
   }
 )
+
+databaseTest(
+  "a company change is not refused by the previous company's allocation revision",
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const { bootstrapSnapshot } = realRepositories(database)
+    const first = desktopBootstrapFixture({ stock_allocations: [], stock_allocation_revision: 7 })
+    bootstrapSnapshot.persistSnapshot(first, '2026-01-02T00:01:00+00:00')
+
+    // The other company's allocation history is shorter (revision 2 < 7): before the fix the whole
+    // replacement rolled back as "older than the active local allocation snapshot".
+    const other = desktopBootstrapFixture({
+      company: { id: COMPANY_B, name: 'Other Shop', is_active: true },
+      stock_allocations: [],
+      stock_allocation_revision: 2
+    })
+    bootstrapSnapshot.persistSnapshot(other, '2026-01-02T00:02:00+00:00')
+
+    equal(bootstrapSnapshot.getCompany()?.companyUuid, COMPANY_B)
+    deepEqual(
+      database.prepare('SELECT revision FROM bootstrap_allocation_capability WHERE id = 1').get(),
+      { revision: 2 }
+    )
+    closeDatabase(database)
+  }
+)

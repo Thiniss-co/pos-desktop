@@ -1,7 +1,10 @@
 /**
- * Owner UX plan P9 — the register's brand tokens, derived from the company's one `#RRGGBB` primary colour with
- * the SAME algorithm and shared vectors as the owner portal (`resources/company-owner/utils/brandTokens.ts`,
- * `brand-contrast-vectors.json`, mirrored by the backend's `BrandColorContrast`).
+ * Owner UX plan P9 — the register's brand tokens, derived from the company's one `#RRGGBB` primary colour. The
+ * luminance, contrast and black/white text choice are the owner portal's (`resources/company-owner/utils/
+ * brandTokens.ts`), pinned by the same shared vectors (`brand-contrast-vectors.json`, mirrored by the backend's
+ * `BrandColorContrast`), and both adjust only OKLCH lightness. The derived tokens differ where the register's
+ * palette differs: the register has no separate outline token, so `pri` itself is adjusted to 3:1 on the surface,
+ * and its soft fill is opaque (composited) rather than translucent.
  *
  * - `pri` (filled primary actions, and also selected outlines and indicators drawn on the surface) is the colour
  *   itself when it reaches 3:1 against the theme's surface; otherwise its lightness moves until it does (else the

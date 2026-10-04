@@ -67,6 +67,8 @@ export function verifyCompanyLogoBytes(
 
 export class CompanyBrandSyncService {
   private running = false
+  /** A sweep requested while one was running (a newer bootstrap): run once more when it ends. */
+  private rerunFor: string | null = null
   private readonly now: () => Date
 
   constructor(private readonly dependencies: CompanyBrandSyncDependencies) {
@@ -75,6 +77,7 @@ export class CompanyBrandSyncService {
 
   async sweep(companyUuid: string): Promise<void> {
     if (this.running) {
+      this.rerunFor = companyUuid
       return
     }
     const token = this.dependencies.contextKey()
@@ -87,6 +90,7 @@ export class CompanyBrandSyncService {
     }
     this.running = true
     let stored = false
+    let refused = false
 
     try {
       let response: unknown
@@ -99,7 +103,7 @@ export class CompanyBrandSyncService {
           }
         )
       } catch (error) {
-        const refused =
+        refused =
           isPublicAppError(error) &&
           (error.category === 'authentication' || error.category === 'authorization')
         if (!refused && this.dependencies.contextKey() === token) {
@@ -142,6 +146,11 @@ export class CompanyBrandSyncService {
         } catch {
           // A notification failure never affects the stored logo.
         }
+      }
+      const rerun = this.rerunFor
+      this.rerunFor = null
+      if (rerun !== null && !refused) {
+        void this.sweep(rerun)
       }
     }
   }

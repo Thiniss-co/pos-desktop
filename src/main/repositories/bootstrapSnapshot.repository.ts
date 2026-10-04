@@ -427,6 +427,10 @@ export class BootstrapSnapshotRepository {
       if (companyChanged) {
         this.productImages?.clearAll()
         this.companyBranding?.clearAll()
+        // The allocation revision is per company too: the new company's snapshot is judged on its
+        // own, never against the previous company's high-water. The previous grants stay as
+        // evidence; every allocation read is scoped to the current company.
+        this.database.prepare('DELETE FROM bootstrap_allocation_capability').run()
       }
       this.persistBootstrapContext(resource, fetchedAt)
 
@@ -926,7 +930,7 @@ export class BootstrapSnapshotRepository {
     if (!this.companyBranding || block === undefined) {
       return
     }
-    this.companyBranding.applyBlock(
+    const outcome = this.companyBranding.applyBlock(
       resource.company.id,
       {
         primaryColor: block.primary_color,
@@ -942,6 +946,10 @@ export class BootstrapSnapshotRepository {
       },
       fetchedAt
     )
+    if (outcome === 'conflict') {
+      // A protocol error from the server: the stored identity is kept until a newer revision.
+      console.warn('[pos-branding] company branding rejected: same revision, different content')
+    }
   }
 
   private persistOfflineSaleAuthority(resource: DesktopBootstrapResource, fetchedAt: string): void {
