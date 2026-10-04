@@ -20,13 +20,16 @@ import { useCatalogStore } from '../pos/catalog.store'
  * - Only main's terminal state releases the hold: the `catalog:install-release` push, or — when
  *   that push is lost — the status poll that starts at 3 s and repeats every second.
  * - On `installed`, the new contract is read and applied to the cart BEFORE the hold resolves, so
- *   queued actions run against the new revision, never the superseded one.
+ *   queued actions run against the new revision, never the superseded one. The hold stays armed
+ *   (`waitForInstallHold` keeps waiting) until a catalog read that reported no error shows exactly
+ *   the revision main installed; a failed or stale read keeps retrying.
  */
 
 interface ActiveHold {
   readonly id: string
   readonly promise: Promise<void>
   readonly resolve: () => void
+  /** The terminal state arrived (deduplicates release and poll); the hold still blocks until cleared. */
   settled: boolean
   pollTimer: ReturnType<typeof setTimeout> | null
 }
@@ -40,7 +43,7 @@ export const installHoldActive: Readonly<Ref<boolean>> = holdActive
 
 /** Resolves immediately when no install hold is armed; otherwise when main releases it. */
 export function waitForInstallHold(): Promise<void> {
-  return active && !active.settled ? active.promise : Promise.resolve()
+  return active ? active.promise : Promise.resolve()
 }
 
 function sleep(ms: number): Promise<void> {
@@ -92,26 +95,37 @@ export function startCatalogInstallClient(pinia: Pinia): void {
     { immediate: true }
   )
 
-  const applyInstalledContract = async (): Promise<void> => {
+  const applyInstalledContract = async (revision: string | null): Promise<void> => {
     let delay = 500
     for (;;) {
       try {
+        // `initialize()` reports its own failures through `catalog.error` instead of throwing.
         await catalog.initialize()
         const contract = catalog.status?.catalogValid ? catalog.status.contract : null
-        if (contract) {
+        const applied =
+          catalog.error === null &&
+          contract !== null &&
+          contract !== undefined &&
+          (revision === null || contract.revision === revision)
+        if (applied) {
           cart.setContract(contract)
+          catalog.recordInstall?.()
+          return
         }
-        catalog.recordInstall?.()
-        return
       } catch {
-        // Keep holding: queued actions must never run against an unread contract.
-        await sleep(delay)
-        delay = Math.min(delay * 2, 5000)
+        // Fall through to the retry below.
       }
+      // Keep holding: queued actions must never run against an unread or superseded contract.
+      await sleep(delay)
+      delay = Math.min(delay * 2, 5000)
     }
   }
 
-  const finish = async (holdId: string, installed: boolean): Promise<void> => {
+  const finish = async (
+    holdId: string,
+    installed: boolean,
+    revision: string | null
+  ): Promise<void> => {
     const hold = active
     if (!hold || hold.id !== holdId || hold.settled) {
       return
@@ -121,7 +135,7 @@ export function startCatalogInstallClient(pinia: Pinia): void {
       clearTimeout(hold.pollTimer)
     }
     if (installed) {
-      await applyInstalledContract()
+      await applyInstalledContract(revision)
     } else {
       await catalog.initialize().catch(() => undefined)
     }
@@ -142,11 +156,11 @@ export function startCatalogInstallClient(pinia: Pinia): void {
         const result = await api.holdStatus({ holdId })
         const state = result.ok ? result.data.state : 'unknown'
         if (state === 'installed') {
-          await finish(holdId, true)
+          await finish(holdId, true, result.ok ? result.data.revision : null)
           return
         }
         if (state === 'aborted' || state === 'unknown') {
-          await finish(holdId, false)
+          await finish(holdId, false, null)
           return
         }
       } catch {
@@ -187,7 +201,7 @@ export function startCatalogInstallClient(pinia: Pinia): void {
   })
 
   api.onRelease((release: InstallRelease) => {
-    void finish(release.holdId, release.installed)
+    void finish(release.holdId, release.installed, release.revision)
   })
 
   // Rev 4 §9.1: main settled a claimed attempt (or a legacy one needs attention) without being

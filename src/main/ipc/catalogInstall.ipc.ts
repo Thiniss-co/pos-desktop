@@ -117,11 +117,13 @@ export function registerCatalogInstallIpcHandlers(services: ApplicationServices)
     })
   })
 
-  ipcMain.handle(IPC_CHANNELS.catalogInstallHoldStatus, (_event, input: unknown) =>
-    handleIpcRequest(input, installHoldStatusInputSchema, (value) => ({
-      state: services.installGate.status(value.holdId)
+  ipcMain.handle(IPC_CHANNELS.catalogInstallHoldStatus, (event, input: unknown) => {
+    if (!trusted(event)) return ipcFailure(untrusted)
+    return handleIpcRequest(input, installHoldStatusInputSchema, (value) => ({
+      state: services.installGate.status(value.holdId),
+      revision: services.installGate.installedRevision(value.holdId)
     }))
-  )
+  })
 
   ipcMain.handle(IPC_CHANNELS.workstationRefresh, (event, input: unknown) => {
     if (!trusted(event)) return ipcFailure(untrusted)

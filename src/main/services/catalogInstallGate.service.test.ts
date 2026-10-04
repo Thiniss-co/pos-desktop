@@ -84,12 +84,13 @@ describe('CatalogInstallGate — Rev 4 §8', () => {
     w.gate.beforeWrite()
     const holdId = (w.sent[0].payload as { holdId: string }).holdId
     expect(w.gate.status(holdId)).toBe('installing')
-    w.gate.settle(true)
+    w.gate.settle(true, undefined, 'a'.repeat(64))
 
     expect(w.gate.status(holdId)).toBe('installed')
+    expect(w.gate.installedRevision(holdId)).toBe('a'.repeat(64))
     expect(w.gate.isHoldActive()).toBe(false)
     expect(w.sent.map((m) => m.channel)).toEqual(['hold', 'release'])
-    expect(w.sent[1].payload).toEqual({ holdId, installed: true })
+    expect(w.sent[1].payload).toEqual({ holdId, installed: true, revision: 'a'.repeat(64) })
   })
 
   it('background: a draft with lines is refused before any handshake', async () => {

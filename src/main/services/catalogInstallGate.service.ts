@@ -54,6 +54,8 @@ interface Hold {
   state: InstallHoldState
   deadlineMono: number
   settledAtMono: number | null
+  /** The catalog revision an `installed` hold put in place. */
+  revision: string | null
 }
 
 export interface CatalogInstallGateDependencies {
@@ -187,7 +189,8 @@ export class CatalogInstallGate {
       replies: new Map(),
       state: 'requested',
       deadlineMono: Number.POSITIVE_INFINITY,
-      settledAtMono: null
+      settledAtMono: null,
+      revision: null
     }
     this.holds.set(hold.id, hold)
     this.active = hold
@@ -289,16 +292,17 @@ export class CatalogInstallGate {
   }
 
   /** Step 3 — record the terminal state and push the release (polling recovers a lost push). */
-  settle(installed: boolean, reason?: string): void {
+  settle(installed: boolean, reason?: string, revision: string | null = null): void {
     const hold = this.active
     if (!hold) {
       return
     }
     hold.state = installed ? 'installed' : 'aborted'
+    hold.revision = installed ? revision : null
     hold.settledAtMono = this.mono()
     this.active = null
     for (const id of hold.targets) {
-      this.dependencies.send(id, 'release', { holdId: hold.id, installed })
+      this.dependencies.send(id, 'release', { holdId: hold.id, installed, revision: hold.revision })
     }
     this.dependencies.onHoldChanged?.()
     this.dependencies.log?.(
@@ -308,6 +312,11 @@ export class CatalogInstallGate {
 
   status(holdId: string): InstallHoldState {
     return this.holds.get(holdId)?.state ?? 'unknown'
+  }
+
+  /** The catalog revision an `installed` hold put in place; null for any other or unknown hold. */
+  installedRevision(holdId: string): string | null {
+    return this.holds.get(holdId)?.revision ?? null
   }
 
   private pruneOutcomes(): void {

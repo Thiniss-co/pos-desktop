@@ -50,7 +50,7 @@ export interface BootstrapServiceOptions {
   readonly installGate?: {
     acquire(): Promise<void>
     beforeWrite(): void
-    settle(installed: boolean, reason?: string): void
+    settle(installed: boolean, reason?: string, revision?: string | null): void
   }
 }
 
@@ -254,7 +254,7 @@ export class BootstrapService {
     let persisted: BootstrapPersistResult
     try {
       persisted = this.persistGuarded(resource, fetchedAt, capturedOwner)
-      gate?.settle(true)
+      gate?.settle(true, undefined, persisted.catalogRevision ?? null)
     } catch (error) {
       // The code only (never a message or payload): it names why the install was discarded.
       const code = (error as { code?: unknown; backendCode?: unknown } | null) ?? null

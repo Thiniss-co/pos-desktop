@@ -55,13 +55,19 @@ export const installHoldStateSchema = z.enum([
 ])
 export type InstallHoldState = z.infer<typeof installHoldStateSchema>
 
-export const installHoldStatusSchema = z.object({ state: installHoldStateSchema }).strict()
+/** `revision` is the catalog revision an `installed` hold put in place (null for any other state). */
+export const installHoldStatusSchema = z
+  .object({ state: installHoldStateSchema, revision: z.string().min(1).nullable() })
+  .strict()
+export type InstallHoldStatus = z.infer<typeof installHoldStatusSchema>
 
 /** Main → renderer: the hold reached a terminal state. Lost pushes are recovered by status polls. */
 export const installReleaseSchema = z
   .object({
     holdId: z.uuid(),
-    installed: z.boolean()
+    installed: z.boolean(),
+    /** The installed catalog revision; the renderer keeps the hold until it has applied exactly this one. */
+    revision: z.string().min(1).nullable()
   })
   .strict()
 export type InstallRelease = z.infer<typeof installReleaseSchema>

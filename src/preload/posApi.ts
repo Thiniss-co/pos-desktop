@@ -167,7 +167,9 @@ export interface PosApi {
   readonly catalogInstall: {
     reportDraftState(state: DraftState): Promise<IpcResult<null>>
     replyHold(reply: InstallHoldReply): Promise<IpcResult<null>>
-    holdStatus(input: { holdId: string }): Promise<IpcResult<{ state: InstallHoldState }>>
+    holdStatus(input: {
+      holdId: string
+    }): Promise<IpcResult<{ state: InstallHoldState; revision: string | null }>>
     refreshWorkstation(input: WorkstationRefreshInput): Promise<IpcResult<WorkstationRefreshResult>>
     onHold(listener: (request: InstallHoldRequest) => void): () => void
     onRelease(listener: (release: InstallRelease) => void): () => void
@@ -444,7 +446,12 @@ export const posApi: PosApi = Object.freeze({
       const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
         const value = payload as Partial<InstallRelease> | null
         if (value && typeof value.holdId === 'string' && typeof value.installed === 'boolean') {
-          listener({ holdId: value.holdId, installed: value.installed })
+          listener({
+            holdId: value.holdId,
+            installed: value.installed,
+            revision:
+              typeof value.revision === 'string' && value.revision !== '' ? value.revision : null
+          })
         }
       }
       ipcRenderer.on(IPC_CHANNELS.catalogInstallRelease, subscription)
