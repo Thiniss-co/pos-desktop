@@ -716,4 +716,3 @@ Earlier `ownerOpeningStock` result files from 04:35–04:36 record the developme
 The COLA-CAN expectation became 97, derived from the accepted movements (100 − 3) rather than set to a number.
 
 **Evidence.** `phase1-checkpoint/`: all 13 journeys passed on the fingerprinted snapshot; catalog lock-order MySQL 9/9; opening-stock MySQL 5/5; backend Pest summary; the before-fix deadlock log.
-

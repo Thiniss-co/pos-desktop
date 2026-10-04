@@ -218,4 +218,3 @@ Tested snapshot (`phase1-checkpoint/FINGERPRINT`): backend `f6cbed0` + uncommitt
 | Revision-start `NOT NULL` and removal of the `updated_at` fallback | **Deferred** to a later release, after the release-N backfill (`2026_10_01_150000_backfill_sellable_revision_started_at`) is verified on the target database | — | backend `docs/architecture/sellable-catalog-contract.md` |
 
 Invoices rejected `DESKTOP_CATALOG_REVISION_INVALID` before this fix are **rejected, pending investigation**, not lost; recovery is per invoice (backend `sellable-catalog-contract.md`, "Recovering an invoice rejected before the P16 fix"). None was requeued here.
-
