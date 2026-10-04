@@ -24,7 +24,10 @@ export async function run(ctx) {
   const proxy = await startProxy(sandbox.origin, null, { preserveHost: true })
   ctx.step('sandbox', { guardedHttp: sandbox.guardHttp, database: sandbox.databasePath })
   const context = await chromium.launchPersistentContext(join(ctx.runDir, 'chrome'), {
-    executablePath: '/usr/bin/google-chrome',
+    // The installed Chrome, found by Playwright on any platform; PW_CHROME_PATH overrides it.
+    ...(process.env.PW_CHROME_PATH
+      ? { executablePath: process.env.PW_CHROME_PATH }
+      : { channel: 'chrome' }),
     headless: true,
     viewport: { width: 1280, height: 900 }
   })

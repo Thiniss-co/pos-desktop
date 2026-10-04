@@ -21,6 +21,12 @@ import { EVIDENCE_ROOT } from './support/paths.mjs'
 const SELF = fileURLToPath(import.meta.url)
 const journeys = process.argv.slice(2)
 
+if (journeys.length === 0) {
+  // A run that names no journey would test nothing; it must never read as a pass.
+  console.error('usage: node tests/playwright/run.mjs <journey> [<journey> ...]')
+  process.exit(2)
+}
+
 if (process.env.PW_WRAPPED !== '1') {
   const runDir = mkdtempSync(join(realpathSync(tmpdir()), 'pos-pw-'))
   const runtime = join(runDir, 'runtime')
@@ -37,6 +43,8 @@ if (process.env.PW_WRAPPED !== '1') {
     XDG_DATA_HOME: join(runDir, 'data'),
     PW_WRAPPED: '1',
     PW_RUN_DIR: runDir,
+    // Optional: an explicit Chrome for journeys that drive the owner portal (default: the installed Chrome).
+    PW_CHROME_PATH: process.env.PW_CHROME_PATH ?? '',
     // Opt-in: serve the disposable backend through the guarded HTTP router (see support/sandbox.mjs).
     POS_SANDBOX_GUARD_HTTP: process.env.POS_SANDBOX_GUARD_HTTP === '1' ? '1' : ''
   }
