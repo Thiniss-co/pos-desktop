@@ -1,0 +1,9 @@
+qc6receipts exit=0
+qc2offline exit=1
+qc3actions exit=0
+qc4mixedtax exit=0
+qc4mixedtaxalloc exit=0
+qc7autoprint exit=0
+qc2offline-final exit=0
+qc6receipts-final exit=0
+qc7autoprint-final exit=0

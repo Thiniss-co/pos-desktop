@@ -1,0 +1,6 @@
+typecheck exit=0
+lint exit=1
+test exit=0
+test:sqlite:electron exit=0
+test:cp3g5-harness exit=0
+verify:fixture exit=0

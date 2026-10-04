@@ -1,0 +1,6 @@
+typecheck=0
+lint(first run)=1 ✖ 32 problems (2 errors, 30 warnings) — new ones were prettier formatting in PosPage.vue and NumericKeypad.vue
+lint(after eslint --fix)=1 ✖ 14 problems (2 errors, 12 warnings) — baseline only (seedReliability.mjs, stage4ppcheckout.mjs)
+vitest=0       Tests  1688 passed (1688)
+sqlite=0 # tests 503 # pass 441 # fail 0 # skipped 62 
+harness=0 # pass 69 # fail 0  (POS_BACKEND_ROOT=backend worktree)

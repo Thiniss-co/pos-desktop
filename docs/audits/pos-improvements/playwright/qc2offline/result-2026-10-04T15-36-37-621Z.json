@@ -1,0 +1,209 @@
+{
+  "journey": "qc2offline",
+  "startedAt": "2026-10-04T15:36:37.622Z",
+  "runDir": "/tmp/pos-pw-sGceQN",
+  "steps": [
+    {
+      "at": "2026-10-04T15:36:40.260Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:41297",
+      "database": "/tmp/pos-pw-sGceQN/qc2offline/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T15:36:40.261Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:45659"
+    },
+    {
+      "at": "2026-10-04T15:36:44.940Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T15:36:45.693Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-sGceQN/qc2offline/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T15:36:45.871Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "customers.create",
+      "granted": true,
+      "direct": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:36:46.028Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "catalog.products.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:36:46.178Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "suppliers.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create",
+        "suppliers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:36:47.116Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T15:36:47.187Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T15:36:48.962Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T15:36:51.528Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T15:36:54.527Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T15:36:55.558Z",
+      "label": "A: quick-create menu for cashier A",
+      "items": [
+        "Add customer",
+        "Add product",
+        "Add supplier"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:36:59.610Z",
+      "screenshot": "A0-menu.png"
+    },
+    {
+      "at": "2026-10-04T15:37:05.617Z",
+      "screenshot": "customer-qc2-offline-customer-dialog.png"
+    },
+    {
+      "at": "2026-10-04T15:37:07.573Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Offline Customer"
+    },
+    {
+      "at": "2026-10-04T15:37:18.635Z",
+      "screenshot": "product-qc2-juice-dialog.png"
+    },
+    {
+      "at": "2026-10-04T15:37:20.580Z",
+      "label": "quick-created product through the dialog",
+      "name": "Qc2 Juice"
+    },
+    {
+      "at": "2026-10-04T15:37:29.644Z",
+      "screenshot": "supplier-qc2-supplier-co-dialog.png"
+    },
+    {
+      "at": "2026-10-04T15:37:31.591Z",
+      "label": "quick-created supplier through the dialog",
+      "name": "Qc2 Supplier Co"
+    },
+    {
+      "at": "2026-10-04T15:38:01.592Z",
+      "label": "A: cart customer after creation",
+      "customerName": null
+    },
+    {
+      "at": "2026-10-04T15:38:03.760Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T15:38:08.683Z",
+      "screenshot": "A1-offline-cart-new-customer.png"
+    },
+    {
+      "at": "2026-10-04T15:38:09.156Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "0": {
+        "name": "Qc2 Supplier Co",
+        "status": "pending_sync"
+      },
+      "1": {
+        "name": "Qc2 Juice",
+        "status": "pending_sync"
+      },
+      "2": {
+        "name": "Qc2 Offline Customer",
+        "status": "pending_sync"
+      },
+      "at": "2026-10-04T15:38:11.433Z",
+      "label": "A: records while offline"
+    },
+    {
+      "at": "2026-10-04T15:38:16.680Z",
+      "screenshot": "A2-sync-pending-offline.png"
+    },
+    {
+      "at": "2026-10-04T15:38:20.360Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T15:38:20.635Z",
+      "label": "A: after an offline restart",
+      "outbox": [
+        {
+          "entity_type": "customer",
+          "state": "unknown",
+          "dispatch_count": 4
+        },
+        {
+          "entity_type": "product",
+          "state": "unknown",
+          "dispatch_count": 4
+        },
+        {
+          "entity_type": "supplier",
+          "state": "unknown",
+          "dispatch_count": 4
+        }
+      ],
+      "sale": [
+        {
+          "customer_uuid": "fc25cc64-3e27-4675-988c-f4c4e6504bba",
+          "state": "pending"
+        }
+      ]
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current elapsed_ms=7 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current elapsed_ms=4 classification=connection_refused"
+  ],
+  "result": "failed",
+  "error": "Error: A: the outbox did not survive the restart intact\n    at Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc2offline.mjs:167:13)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current elapsed_ms=7 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45659/api/v1/desktop/shifts/current elapsed_ms=4 classification=connection_refused",
+    "[pos-heartbeat] event=stopped mode=backoff level=1"
+  ],
+  "finishedAt": "2026-10-04T15:38:21.671Z"
+}

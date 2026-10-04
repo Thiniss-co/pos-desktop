@@ -1,0 +1,237 @@
+{
+  "journey": "qc1permissions",
+  "startedAt": "2026-10-04T14:55:42.752Z",
+  "runDir": "/tmp/pos-pw-NTrkOi",
+  "steps": [
+    {
+      "at": "2026-10-04T14:55:45.074Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:41957",
+      "database": "/tmp/pos-pw-NTrkOi/qc1permissions/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T14:55:48.973Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T14:55:49.635Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-NTrkOi/qc1permissions/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T14:55:50.278Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T14:55:50.328Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:55:51.014Z",
+      "label": "device assigned",
+      "assigned": true,
+      "quarantined_allocations": 0
+    },
+    {
+      "at": "2026-10-04T14:55:52.813Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:55:52.819Z",
+      "label": "1: cashier A access before the grant",
+      "available": true,
+      "customer": false,
+      "supplier": false,
+      "product": false
+    },
+    {
+      "at": "2026-10-04T14:55:53.261Z",
+      "label": "owner signed in to the company-owner SPA"
+    },
+    {
+      "at": "2026-10-04T14:55:53.857Z",
+      "label": "2: owner created cashier B in the SPA",
+      "email": "bea.cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:55:54.435Z",
+      "screenshot": "02a-owner-created-cashier-b.png"
+    },
+    {
+      "at": "2026-10-04T14:55:54.886Z",
+      "screenshot": "02b-owner-quick-actions-before.png"
+    },
+    {
+      "at": "2026-10-04T14:55:55.454Z",
+      "screenshot": "02c-owner-quick-actions-granted.png"
+    },
+    {
+      "at": "2026-10-04T14:55:55.574Z",
+      "label": "2: owner granted Add customers",
+      "grantsBefore": [],
+      "grantsAfter": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T14:56:16.272Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T14:56:16.370Z",
+      "label": "register shows the sign-in screen after a relaunch"
+    },
+    {
+      "at": "2026-10-04T14:56:16.422Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:56:16.962Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:56:16.964Z",
+      "label": "3: cashier A access after the grant",
+      "afterGrant": {
+        "available": true,
+        "customer": true,
+        "supplier": false,
+        "product": false
+      },
+      "signInPath": "relaunch"
+    },
+    {
+      "at": "2026-10-04T14:56:17.098Z",
+      "screenshot": "03-register-cashier-a-after-grant.png"
+    },
+    {
+      "at": "2026-10-04T14:56:17.629Z",
+      "label": "4: direct API attempts",
+      "created1": {
+        "status": 201,
+        "code": "DESKTOP_ENTITY_CREATED",
+        "outcome": "accepted",
+        "replayed": "false",
+        "entity": "9ec0dd58-67c3-4af4-a852-8d1010b43b18"
+      },
+      "replay": {
+        "status": 201,
+        "code": "DESKTOP_ENTITY_CREATED",
+        "outcome": "accepted",
+        "replayed": "true",
+        "entity": "9ec0dd58-67c3-4af4-a852-8d1010b43b18"
+      },
+      "conflict": {
+        "status": 409,
+        "code": "IDEMPOTENCY_CONFLICT",
+        "outcome": null,
+        "replayed": null,
+        "entity": null
+      },
+      "denied": {
+        "status": 403,
+        "code": "PERMISSION_DENIED",
+        "outcome": null,
+        "replayed": null,
+        "entity": null
+      }
+    },
+    {
+      "at": "2026-10-04T14:56:21.341Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T14:56:22.306Z",
+      "label": "sign-in submitted",
+      "user": "bea.cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:56:23.281Z",
+      "label": "5: cashier B access on the same register",
+      "available": false,
+      "customer": false,
+      "supplier": false,
+      "product": false
+    },
+    {
+      "at": "2026-10-04T14:56:25.278Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:56:25.284Z",
+      "label": "5: cashier B access after B’s own bootstrap",
+      "available": true,
+      "customer": false,
+      "supplier": false,
+      "product": false
+    },
+    {
+      "at": "2026-10-04T14:56:28.327Z",
+      "screenshot": "05-register-cashier-b.png"
+    },
+    {
+      "at": "2026-10-04T14:56:28.459Z",
+      "label": "6: backend quick-create report",
+      "requests": [
+        {
+          "entity_type": "customer",
+          "request_key": "e1600f4e-4f1b-4c9c-9798-1f50cd20d53b",
+          "client_entity_uuid": "9ec0dd58-67c3-4af4-a852-8d1010b43b18",
+          "outcome": "accepted",
+          "status": 201,
+          "code": "DESKTOP_ENTITY_CREATED",
+          "user_email": "cashier@desktop-mvp.test"
+        }
+      ],
+      "bindings": 1,
+      "customers": [
+        {
+          "uuid": "9ec0dd58-67c3-4af4-a852-8d1010b43b18",
+          "name": "Qc1 Walk-in"
+        }
+      ]
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/auth/login elapsed_ms=231 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/device/heartbeat elapsed_ms=56 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current elapsed_ms=50 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current elapsed_ms=66 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate elapsed_ms=28 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/bootstrap elapsed_ms=47 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current elapsed_ms=36 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/auth/logout",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/auth/logout elapsed_ms=28 backend_code=DESKTOP_LOGOUT_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/auth/login elapsed_ms=222 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate elapsed_ms=44 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current elapsed_ms=35 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current elapsed_ms=51 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41957/api/v1/desktop/license/validate elapsed_ms=28 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/bootstrap elapsed_ms=37 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41957/api/v1/desktop/shifts/current elapsed_ms=26 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json"
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T14:56:28.603Z"
+}

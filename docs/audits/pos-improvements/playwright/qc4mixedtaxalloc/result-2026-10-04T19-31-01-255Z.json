@@ -1,0 +1,115 @@
+{
+  "journey": "qc4mixedtaxalloc",
+  "startedAt": "2026-10-04T19:31:01.255Z",
+  "runDir": "/tmp/pos-pw-z4Z7lA",
+  "steps": [
+    {
+      "at": "2026-10-04T19:31:04.070Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:38467",
+      "database": "/tmp/pos-pw-z4Z7lA/qc4mixedtaxalloc/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T19:31:09.403Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T19:31:10.312Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-z4Z7lA/qc4mixedtaxalloc/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T19:31:11.422Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T19:31:11.490Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:31:12.535Z",
+      "label": "precondition: allocation-mode warehouse (fixture)",
+      "policy_revision": null,
+      "exposures": {
+        "COLA-CAN": true
+      }
+    },
+    {
+      "at": "2026-10-04T19:31:12.723Z",
+      "label": "precondition: categorized taxes and mixed-mode products (fixture)",
+      "products": {
+        "MIX-INC": {
+          "uuid": "e07e8323-47a4-4edd-9890-fdb638e86763",
+          "barcode": "7780000000011",
+          "tax_mode": "inclusive",
+          "tax_category": "standard"
+        },
+        "MIX-ZERO": {
+          "uuid": "52743dee-69dd-43cf-99e5-aa20ce92c7a7",
+          "barcode": "7780000000028",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated"
+        },
+        "MIX-EXEMPT": {
+          "uuid": "38485c83-2bca-4fc2-a25f-5708fceac6c9",
+          "barcode": "7780000000035",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt"
+        }
+      },
+      "precondition": true
+    },
+    {
+      "at": "2026-10-04T19:31:12.908Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T19:31:13.061Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T19:31:13.120Z",
+      "label": "1: installed contract",
+      "policy": "per_line",
+      "physicalPresenceAuthorities": 0
+    }
+  ],
+  "result": "failed",
+  "error": "Error: scan of 6221000000011 did not change the cart; screen: Skip to main content\nDesktop MVP Demo Company\nPOS\nSales\nSync\nOffline stock\nSettings\nOnline\nAll uploaded\nUpdating catalog…\nWorkstation data refreshed in 1 second\nWorkstation data refreshed.\nShift open · since 10:31 PM\nDM\nDesktop MVP Cashier\nPOS\nAll\nBeverages\nHousehold\nSnacks\nSearch products\nF2\nCatalog up to date · updated in 1 second\nWorkstation data refreshed Oct 4, 2026, 10:31 PM\n\nAutomatic printing needs setup\n\nNo receipt printer is set up on this register, so your sales are not printed automatically. Sales still complete.\nPrinter settings\nLoading local catalog\nItems per page\n12\n24\n1–7 of 7\nCart\n0 items\nClear cart\n\nCustomer: Walk-in customer\n\nChoose customer\nScan or type code\nF3\nNext scan\n×2\n×3\n×5\n×10\n\nScans are added straight to the sale. Prefix a quantity with *, e.g. 3*6221234567890.\n\n    at scan (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/support/journey.mjs:160:11)\n    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc4mixedtaxalloc.mjs:76:45)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38467/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38467/api/v1/desktop/device/register elapsed_ms=364 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38467/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38467/api/v1/desktop/auth/login elapsed_ms=280 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38467/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38467/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38467/api/v1/desktop/license/validate elapsed_ms=50 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38467/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38467/api/v1/desktop/device/heartbeat elapsed_ms=76 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=113",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38467/api/v1/desktop/bootstrap elapsed_ms=88 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold stale installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38467/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38467/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38467/api/v1/desktop/shifts/current elapsed_ms=70 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38467/api/v1/desktop/shifts/current elapsed_ms=97 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38467/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38467/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38467/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38467/api/v1/desktop/bootstrap elapsed_ms=51 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38467/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38467/api/v1/desktop/shifts/current elapsed_ms=44 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38467/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38467/api/v1/desktop/shifts/open elapsed_ms=41 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0",
+    "[ipc] unexpected error: TypeError: The database connection is not open"
+  ],
+  "finishedAt": "2026-10-04T19:31:13.440Z"
+}

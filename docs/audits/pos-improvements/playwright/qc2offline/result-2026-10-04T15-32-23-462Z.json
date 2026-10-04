@@ -1,0 +1,324 @@
+{
+  "journey": "qc2offline",
+  "startedAt": "2026-10-04T15:32:23.463Z",
+  "runDir": "/tmp/pos-pw-PghlbI",
+  "steps": [
+    {
+      "at": "2026-10-04T15:32:26.075Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:41683",
+      "database": "/tmp/pos-pw-PghlbI/qc2offline/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T15:32:26.076Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:43145"
+    },
+    {
+      "at": "2026-10-04T15:32:30.577Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T15:32:31.296Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-PghlbI/qc2offline/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T15:32:31.468Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "customers.create",
+      "granted": true,
+      "direct": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:32:31.625Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "catalog.products.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:32:31.777Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "suppliers.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create",
+        "suppliers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:32:32.721Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T15:32:32.787Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T15:32:34.542Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T15:32:37.130Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T15:32:40.128Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T15:32:41.155Z",
+      "label": "A: quick-create menu for cashier A",
+      "items": [
+        "Add customer",
+        "Add product",
+        "Add supplier"
+      ]
+    },
+    {
+      "at": "2026-10-04T15:32:44.205Z",
+      "screenshot": "A0-menu.png"
+    },
+    {
+      "at": "2026-10-04T15:32:50.215Z",
+      "screenshot": "customer-qc2-offline-customer-dialog.png"
+    },
+    {
+      "at": "2026-10-04T15:32:52.170Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Offline Customer"
+    },
+    {
+      "at": "2026-10-04T15:33:03.225Z",
+      "screenshot": "product-qc2-juice-dialog.png"
+    },
+    {
+      "at": "2026-10-04T15:33:05.175Z",
+      "label": "quick-created product through the dialog",
+      "name": "Qc2 Juice"
+    },
+    {
+      "at": "2026-10-04T15:33:14.233Z",
+      "screenshot": "supplier-qc2-supplier-co-dialog.png"
+    },
+    {
+      "at": "2026-10-04T15:33:16.199Z",
+      "label": "quick-created supplier through the dialog",
+      "name": "Qc2 Supplier Co"
+    },
+    {
+      "at": "2026-10-04T15:33:46.199Z",
+      "label": "A: cart customer after creation",
+      "customerName": null
+    },
+    {
+      "at": "2026-10-04T15:33:47.377Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T15:33:52.275Z",
+      "screenshot": "A1-offline-cart-new-customer.png"
+    },
+    {
+      "at": "2026-10-04T15:33:52.745Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "0": {
+        "name": "Qc2 Supplier Co",
+        "status": "pending_sync"
+      },
+      "1": {
+        "name": "Qc2 Juice",
+        "status": "pending_sync"
+      },
+      "2": {
+        "name": "Qc2 Offline Customer",
+        "status": "pending_sync"
+      },
+      "at": "2026-10-04T15:33:55.038Z",
+      "label": "A: records while offline"
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate elapsed_ms=40 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/device/heartbeat elapsed_ms=58 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap elapsed_ms=72 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current elapsed_ms=45 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current elapsed_ms=60 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate elapsed_ms=33 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap elapsed_ms=39 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current elapsed_ms=32 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/shifts/open elapsed_ms=35 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=2 classification=probe_connection_failed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=7 classification=connection_refused",
+    "entity-create customer dcf816ae-c70d-4b0a-ba7f-9b60b3b39ead -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=6 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=5 classification=connection_refused",
+    "entity-create customer dcf816ae-c70d-4b0a-ba7f-9b60b3b39ead -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=5 classification=connection_refused",
+    "entity-create product 6d73d4f5-7d01-45c3-ab51-9e3ce0edd248 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=3 classification=connection_refused",
+    "entity-create customer dcf816ae-c70d-4b0a-ba7f-9b60b3b39ead -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=6 classification=connection_refused",
+    "entity-create product 6d73d4f5-7d01-45c3-ab51-9e3ce0edd248 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=7 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=4 classification=connection_refused",
+    "entity-create supplier 8da41c15-fee7-406f-808d-fd15224d7057 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=2 classification=connection_refused",
+    "entity-create product 6d73d4f5-7d01-45c3-ab51-9e3ce0edd248 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=2 classification=connection_refused",
+    "entity-create supplier 8da41c15-fee7-406f-808d-fd15224d7057 -> unknown",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=6 classification=connection_refused",
+    "entity-create customer dcf816ae-c70d-4b0a-ba7f-9b60b3b39ead -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=8 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=6 classification=connection_refused",
+    "entity-create supplier 8da41c15-fee7-406f-808d-fd15224d7057 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=7 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=2 classification=connection_refused",
+    "entity-create product 6d73d4f5-7d01-45c3-ab51-9e3ce0edd248 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=3 classification=connection_refused",
+    "entity-create supplier 8da41c15-fee7-406f-808d-fd15224d7057 -> unknown",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed"
+  ],
+  "result": "failed",
+  "error": "locator.click: Error: strict mode violation: getByRole('link', { name: 'Sync' }) resolved to 2 elements:\n    1) <a href=\"#/sync\" class=\"app-top-bar__nav-item relative flex min-w-0 flex-col items-center justify-center gap-0.5 px-1.5 text-center text-xs leading-[1.15] no-underline navlabels:flex-row navlabels:gap-1.75 navlabels:px-2.75 navlabels:text-base navlabels:leading-normal navlabels:whitespace-nowrap font-medium text-ink hover:text-pri-text\">…</a> aka getByRole('link', { name: 'Sync', exact: true })\n    2) <a href=\"#/sync\" title=\"Sync paused · 1\" aria-label=\"Sync paused · 1\" class=\"app-pill flex h-8 flex-none items-center gap-1.5 rounded-full px-3 text-xs font-semibold whitespace-nowrap no-underline hover:brightness-95 bg-warn-bg text-warn\">…</a> aka getByRole('link', { name: 'Sync paused ·' })\n\nCall log:\n  - waiting for getByRole('link', { name: 'Sync' })\n\n    at openSync (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc2offline.mjs:93:76)\n    at async Module.run (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc2offline.mjs:140:5)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/device/register elapsed_ms=310 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/auth/login elapsed_ms=255 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate elapsed_ms=40 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/device/heartbeat elapsed_ms=58 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=109",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap elapsed_ms=72 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold stale installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current elapsed_ms=45 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current elapsed_ms=60 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/license/validate elapsed_ms=33 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/bootstrap elapsed_ms=39 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:43145/api/v1/desktop/shifts/current elapsed_ms=32 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:43145/api/v1/desktop/shifts/open elapsed_ms=35 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=2 classification=probe_connection_failed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=7 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=6 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=5 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=5 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=3 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=6 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=7 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=4 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=2 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=2 classification=connection_refused",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/customers elapsed_ms=6 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=8 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=6 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=7 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/products elapsed_ms=2 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=3 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:43145/up",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:43145/api/v1/desktop/quick-create/suppliers elapsed_ms=3 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:43145/up elapsed_ms=4 classification=probe_connection_failed",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T15:33:56.256Z"
+}

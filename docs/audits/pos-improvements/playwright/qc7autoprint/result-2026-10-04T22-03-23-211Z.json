@@ -1,0 +1,458 @@
+{
+  "journey": "qc7autoprint",
+  "startedAt": "2026-10-04T22:03:23.211Z",
+  "runDir": "/tmp/pos-pw-bKblH3",
+  "steps": [
+    {
+      "at": "2026-10-04T22:03:25.645Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:46591",
+      "database": "/tmp/pos-pw-bKblH3/qc7autoprint/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T22:03:30.027Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T22:03:30.748Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-bKblH3/qc7autoprint/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T22:03:31.733Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T22:03:31.806Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:03:32.667Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T22:03:35.243Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T22:03:40.240Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T22:03:40.258Z",
+      "label": "A: fresh user preference",
+      "touchMode": false,
+      "autoPrint": true
+    },
+    {
+      "at": "2026-10-04T22:03:44.319Z",
+      "screenshot": "A1-setup-banner-no-printer.png"
+    },
+    {
+      "at": "2026-10-04T22:03:45.452Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:03:45.946Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:03:47.368Z",
+      "screenshot": "A2-not-printed-no-printer.png"
+    },
+    {
+      "at": "2026-10-04T22:03:47.437Z",
+      "label": "A: sale without a printer",
+      "chip": {
+        "state": "skipped_no_printer",
+        "job": "",
+        "text": "Not printed: no receipt printer is set up on this register. Use Print receipt to print it."
+      },
+      "db": {
+        "intent": {
+          "setup": "no_printer",
+          "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+          "outcome": "skipped_no_printer",
+          "job_uuid": null,
+          "job_status": null,
+          "failure_code": null,
+          "resolved_options_json": null
+        },
+        "autoJobs": 0
+      },
+      "openDialogs": 1
+    },
+    {
+      "at": "2026-10-04T22:03:47.875Z",
+      "label": "1: workstation printer PW-Virtual-80 (virtual adapter)"
+    },
+    {
+      "at": "2026-10-04T22:03:53.561Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T22:03:54.045Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:03:57.796Z",
+      "screenshot": "01-auto-printed.png"
+    },
+    {
+      "at": "2026-10-04T22:03:58.283Z",
+      "label": "1: automatic print",
+      "bannerGoneAfterSetup": true,
+      "chip": {
+        "state": "admitted",
+        "job": "submitted",
+        "text": "Receipt sent to the printer."
+      },
+      "autoJobs": 1,
+      "pdfs": 1,
+      "dispatch": {
+        "silent": true,
+        "deviceName": "PW-Virtual-80"
+      },
+      "qrMatchesFrozenPayload": true
+    },
+    {
+      "at": "2026-10-04T22:03:58.453Z",
+      "screenshot": "02a-switched-off-on-panel.png"
+    },
+    {
+      "at": "2026-10-04T22:04:01.225Z",
+      "label": "electron launched again on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T22:04:01.720Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:04:02.207Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:04:06.393Z",
+      "screenshot": "02b-off-after-restart.png"
+    },
+    {
+      "at": "2026-10-04T22:04:06.393Z",
+      "label": "2: off persists across a restart",
+      "preference": {
+        "touchMode": false,
+        "autoPrint": false
+      },
+      "chip": {
+        "state": "off",
+        "job": "",
+        "text": "Automatic printing is off for you."
+      },
+      "intent": null,
+      "dispatches": 0
+    },
+    {
+      "at": "2026-10-04T22:04:09.453Z",
+      "screenshot": "03a-settings-switch-on.png"
+    },
+    {
+      "at": "2026-10-04T22:04:09.706Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T22:04:10.189Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:04:12.695Z",
+      "label": "3: back on; system-dialog manual mode",
+      "chip": {
+        "state": "admitted",
+        "job": "submitted",
+        "text": "Receipt sent to the printer."
+      },
+      "autoJobs": 1,
+      "dispatch": {
+        "silent": true,
+        "deviceName": "PW-Virtual-80"
+      }
+    },
+    {
+      "at": "2026-10-04T22:04:15.049Z",
+      "screenshot": "04a-banner-printer-missing.png"
+    },
+    {
+      "at": "2026-10-04T22:04:15.225Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:04:15.687Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:04:15.857Z",
+      "screenshot": "04b-not-printed-printer-missing.png"
+    },
+    {
+      "at": "2026-10-04T22:04:15.927Z",
+      "label": "4: printer disconnected",
+      "banner": true,
+      "chip": {
+        "state": "printer_missing",
+        "job": "",
+        "text": "Not printed: the receipt printer is not connected. Use Print receipt to print it."
+      },
+      "db": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": "printer_missing",
+        "job_uuid": null,
+        "job_status": null,
+        "failure_code": null,
+        "resolved_options_json": null
+      }
+    },
+    {
+      "at": "2026-10-04T22:04:16.551Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T22:04:17.018Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:04:20.165Z",
+      "screenshot": "05-print-failed.png"
+    },
+    {
+      "at": "2026-10-04T22:04:20.236Z",
+      "label": "5: printer failure",
+      "chip": {
+        "state": "admitted",
+        "job": "outcome_unknown",
+        "text": "The printer did not confirm this receipt. Check the printer before printing it again."
+      },
+      "job": "outcome_unknown",
+      "failureCode": "OS_REPORTED_FAILURE",
+      "dispatches": 1,
+      "sale": "synced"
+    },
+    {
+      "at": "2026-10-04T22:04:20.870Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:04:21.351Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:05:53.048Z",
+      "screenshot": "06-outcome-unknown.png"
+    },
+    {
+      "at": "2026-10-04T22:05:53.732Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:05:53.787Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:05:56.108Z",
+      "label": "6: printer never answered",
+      "chip": {
+        "state": "admitted",
+        "job": "outcome_unknown",
+        "text": "The printer did not confirm this receipt. Check the printer before printing it again."
+      },
+      "db": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": "admitted",
+        "job_uuid": "71e0e409-5761-4159-8ec1-4df9f6705852",
+        "job_status": "outcome_unknown",
+        "failure_code": "CALLBACK_TIMEOUT",
+        "resolved_options_json": "{\"autoPrintAfterSale\":false,\"defaultCopies\":1,\"dispatchMode\":\"direct\",\"fixedPageHeightMm\":297,\"marginBottomMm\":6,\"marginTopMm\":2,\"maxContinuousLengthMm\":1000,\"pageLengthProfile\":\"content_sized\",\"paperWidthMm\":80,\"printableWidthMm\":72,\"printerName\":\"PW-Virtual-80\"}"
+      },
+      "dispatches": 1,
+      "autoJobs": 1
+    },
+    {
+      "at": "2026-10-04T22:05:56.284Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T22:05:56.746Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:06:01.637Z",
+      "screenshot": "07a-held-pending.png"
+    },
+    {
+      "at": "2026-10-04T22:06:01.684Z",
+      "label": "7: chip while admission is held",
+      "state": "pending",
+      "job": "",
+      "text": "Preparing the receipt…"
+    },
+    {
+      "at": "2026-10-04T22:06:05.688Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:06:06.601Z",
+      "label": "sign-in submitted",
+      "user": "manager@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:06:10.697Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:06:11.589Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:06:14.090Z",
+      "label": "7: FAULT INJECTION — admission held (virtual boundary seam) between commit and admission",
+      "afterCommit": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": null,
+        "job_uuid": null,
+        "job_status": null,
+        "failure_code": null,
+        "resolved_options_json": null
+      },
+      "afterOtherCashier": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": null,
+        "job_uuid": null,
+        "job_status": null,
+        "failure_code": null,
+        "resolved_options_json": null
+      }
+    },
+    {
+      "at": "2026-10-04T22:06:17.372Z",
+      "label": "electron launched again on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T22:06:18.709Z",
+      "label": "7: relaunch (same cashier, within 10 minutes)",
+      "db": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": "admitted",
+        "job_uuid": "467e0fd2-88d1-4126-bf9b-20d4b5e59cf5",
+        "job_status": "submitted",
+        "failure_code": null,
+        "resolved_options_json": "{\"autoPrintAfterSale\":false,\"defaultCopies\":1,\"dispatchMode\":\"direct\",\"fixedPageHeightMm\":297,\"marginBottomMm\":6,\"marginTopMm\":2,\"maxContinuousLengthMm\":1000,\"pageLengthProfile\":\"content_sized\",\"paperWidthMm\":80,\"printableWidthMm\":72,\"printerName\":\"PW-Virtual-80\"}"
+      },
+      "autoJobs": 1
+    },
+    {
+      "at": "2026-10-04T22:06:19.103Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:06:19.157Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:06:21.532Z",
+      "label": "8: reload and sign-in again",
+      "sale1AutoJobs": 1,
+      "sale7AutoJobs": 1
+    },
+    {
+      "at": "2026-10-04T22:06:21.707Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:06:22.184Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:06:28.083Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:06:29.987Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:06:35.059Z",
+      "screenshot": "09-notice-settings-changed.png"
+    },
+    {
+      "at": "2026-10-04T22:06:35.059Z",
+      "label": "9: FAULT INJECTION — admission held, then the paper width changed before recovery",
+      "db": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": "settings_changed",
+        "job_uuid": null,
+        "job_status": null,
+        "failure_code": null,
+        "resolved_options_json": null
+      },
+      "autoJobs": 0,
+      "notice": true,
+      "namesTheSale": true
+    },
+    {
+      "at": "2026-10-04T22:06:37.156Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T22:06:37.626Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:06:40.170Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:06:48.479Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:06:50.801Z",
+      "label": "10: FAULT INJECTION — sign-out while QR preparation was held (virtual boundary delay)",
+      "db": {
+        "setup": "configured",
+        "user_uuid": "107ed0c2-4d51-4ba2-adce-93ddc29f5e08",
+        "outcome": "admitted",
+        "job_uuid": "bae9be5f-681c-4a59-9227-c939e91b9ab5",
+        "job_status": "failed_before_dispatch",
+        "failure_code": "ACCESS_REVOKED",
+        "resolved_options_json": "{\"autoPrintAfterSale\":false,\"defaultCopies\":1,\"dispatchMode\":\"direct\",\"fixedPageHeightMm\":297,\"marginBottomMm\":6,\"marginTopMm\":2,\"maxContinuousLengthMm\":1000,\"pageLengthProfile\":\"content_sized\",\"paperWidthMm\":80,\"printableWidthMm\":72,\"printerName\":\"PW-Virtual-80\"}"
+      },
+      "dispatches": 0,
+      "autoJobsAfterSignIn": 1
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T22:06:50.846Z"
+}

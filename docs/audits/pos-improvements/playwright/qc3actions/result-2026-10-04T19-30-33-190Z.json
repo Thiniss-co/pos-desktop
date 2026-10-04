@@ -1,0 +1,108 @@
+{
+  "journey": "qc3actions",
+  "startedAt": "2026-10-04T19:30:33.191Z",
+  "runDir": "/tmp/pos-pw-HTIgGe",
+  "steps": [
+    {
+      "at": "2026-10-04T19:30:36.133Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:36837",
+      "database": "/tmp/pos-pw-HTIgGe/qc3actions/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T19:30:41.653Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T19:30:42.540Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-HTIgGe/qc3actions/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T19:30:43.171Z",
+      "label": "precondition: quick-create grants for the cashier (fixture)"
+    },
+    {
+      "at": "2026-10-04T19:30:44.120Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T19:30:44.179Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:30:45.191Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T19:30:45.387Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T19:30:45.539Z",
+      "label": "shift opened"
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/register elapsed_ms=350 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/auth/login elapsed_ms=269 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate elapsed_ms=44 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/heartbeat elapsed_ms=66 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap elapsed_ms=84 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current elapsed_ms=68 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current elapsed_ms=93 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate elapsed_ms=38 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap elapsed_ms=50 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current elapsed_ms=35 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/shifts/open elapsed_ms=39 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json"
+  ],
+  "result": "failed",
+  "error": "Error: scan of 6221000000011 did not change the cart; screen: Skip to main content\nDesktop MVP Demo Company\nPOS\nSales\nSync\nOffline stock\nSettings\nOnline\nAll uploaded\nUpdating catalog…\nWorkstation data refreshed in 1 second\nWorkstation data refreshed.\nShift open · since 10:30 PM\nDM\nDesktop MVP Cashier\nPOS\nAll\nBeverages\nHousehold\nSnacks\nSearch products\nF2\nCatalog up to date · updated in 1 second\nWorkstation data refreshed Oct 4, 2026, 10:30 PM\n\nAutomatic printing needs setup\n\nNo receipt printer is set up on this register, so your sales are not printed automatically. Sales still complete.\nPrinter settings\nCS\nChips Small\npcs\n·\nCHIPS-S\n$7.50\nRecorded 150\nWarehouse figure as of 10:30 PM\nCC\nCola Can\npcs\n·\nCOLA-CAN\n$15.00\nRecorded 100\nWarehouse figure as of 10:30 PM\nSI\nService Item\npcs\n·\nSERVICE-001\n$20.00\nNot stock-tracked\nWB\nWater Bottle\npcs\n·\nWATER-500\n$5\n    at scan (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/support/journey.mjs:160:11)\n    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc3actions.mjs:78:5)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/register elapsed_ms=350 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/auth/login elapsed_ms=269 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate elapsed_ms=44 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/device/heartbeat elapsed_ms=66 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=109",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap elapsed_ms=84 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold stale installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current elapsed_ms=68 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current elapsed_ms=93 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/license/validate elapsed_ms=38 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/bootstrap elapsed_ms=50 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:36837/api/v1/desktop/shifts/current elapsed_ms=35 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:36837/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:36837/api/v1/desktop/shifts/open elapsed_ms=39 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T19:30:45.855Z"
+}

@@ -1,0 +1,531 @@
+{
+  "journey": "qc5touch",
+  "startedAt": "2026-10-04T19:31:13.548Z",
+  "runDir": "/tmp/pos-pw-44pD8n",
+  "steps": [
+    {
+      "at": "2026-10-04T19:31:16.298Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:42721",
+      "database": "/tmp/pos-pw-44pD8n/qc5touch/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T19:31:21.719Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T19:31:22.764Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-44pD8n/qc5touch/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T19:31:23.967Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T19:31:24.037Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:31:25.358Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T19:31:25.574Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T19:31:25.746Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T19:31:26.504Z",
+      "label": "A: touch mode switched on by touch",
+      "stored": [
+        {
+          "key": "ui.touchMode",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T19:31:26.660Z",
+      "screenshot": "A1-touch-mode-on.png"
+    },
+    {
+      "at": "2026-10-04T19:31:28.446Z",
+      "screenshot": "B1-quantity-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:28.770Z",
+      "label": "B: quantities after the keypad",
+      "quantities": [
+        [
+          "Cola Can",
+          "3.000"
+        ],
+        [
+          "Chips Small",
+          "1.000"
+        ]
+      ]
+    },
+    {
+      "at": "2026-10-04T19:31:28.901Z",
+      "screenshot": "B2-touch-bar.png"
+    },
+    {
+      "at": "2026-10-04T19:31:29.439Z",
+      "screenshot": "B3-sale-complete.png"
+    },
+    {
+      "at": "2026-10-04T19:31:29.993Z",
+      "label": "B: touch-only sale committed and uploaded",
+      "sale": {
+        "local_uuid": "11e6c8e8-5e78-4fa9-9da6-20762a135807",
+        "sync_status": "synced"
+      },
+      "focusAfterKeypad": "INPUT"
+    },
+    {
+      "at": "2026-10-04T19:31:31.770Z",
+      "screenshot": "C1-refund-accepted-by-touch.png"
+    },
+    {
+      "at": "2026-10-04T19:31:32.131Z",
+      "label": "C: touch-only refund",
+      "refunds": [
+        {
+          "submission_state": "accepted"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T19:31:32.321Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T19:31:32.396Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:31:32.766Z",
+      "label": "A: per-user persistence",
+      "afterSignOut": "off",
+      "afterSignIn": "on"
+    },
+    {
+      "at": "2026-10-04T19:31:34.144Z",
+      "screenshot": "D-en-light-1920x1080-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:34.616Z",
+      "screenshot": "D-en-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-04T19:31:34.616Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "1920x1080",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:35.570Z",
+      "screenshot": "D-en-light-1366x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:35.979Z",
+      "screenshot": "D-en-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:35.979Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "1366x768",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:36.912Z",
+      "screenshot": "D-en-light-1024x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:37.316Z",
+      "screenshot": "D-en-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:37.316Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "1024x768",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:38.951Z",
+      "screenshot": "D-en-light-800x600-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:39.328Z",
+      "screenshot": "D-en-light-800x600.png"
+    },
+    {
+      "at": "2026-10-04T19:31:39.409Z",
+      "screenshot": "D-en-light-800x600-cart-sheet.png"
+    },
+    {
+      "at": "2026-10-04T19:31:39.727Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "light",
+      "size": "800x600",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": true,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:40.700Z",
+      "screenshot": "D-en-dark-1920x1080-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:41.149Z",
+      "screenshot": "D-en-dark-1920x1080.png"
+    },
+    {
+      "at": "2026-10-04T19:31:41.149Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "dark",
+      "size": "1920x1080",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:42.083Z",
+      "screenshot": "D-en-dark-1366x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:42.494Z",
+      "screenshot": "D-en-dark-1366x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:42.494Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "dark",
+      "size": "1366x768",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:43.650Z",
+      "screenshot": "D-en-dark-1024x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:44.037Z",
+      "screenshot": "D-en-dark-1024x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:44.037Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "dark",
+      "size": "1024x768",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:45.226Z",
+      "screenshot": "D-en-dark-800x600-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:45.617Z",
+      "screenshot": "D-en-dark-800x600.png"
+    },
+    {
+      "at": "2026-10-04T19:31:45.695Z",
+      "screenshot": "D-en-dark-800x600-cart-sheet.png"
+    },
+    {
+      "at": "2026-10-04T19:31:46.029Z",
+      "label": "D: combination",
+      "locale": "en",
+      "theme": "dark",
+      "size": "800x600",
+      "dir": "ltr",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": true,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:47.130Z",
+      "screenshot": "D-ar-light-1920x1080-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:47.586Z",
+      "screenshot": "D-ar-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-04T19:31:47.586Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "light",
+      "size": "1920x1080",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:48.532Z",
+      "screenshot": "D-ar-light-1366x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:49.005Z",
+      "screenshot": "D-ar-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:49.005Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "light",
+      "size": "1366x768",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:49.951Z",
+      "screenshot": "D-ar-light-1024x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:50.371Z",
+      "screenshot": "D-ar-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:50.371Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "light",
+      "size": "1024x768",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:51.595Z",
+      "screenshot": "D-ar-light-800x600-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:52.001Z",
+      "screenshot": "D-ar-light-800x600.png"
+    },
+    {
+      "at": "2026-10-04T19:31:52.062Z",
+      "screenshot": "D-ar-light-800x600-cart-sheet.png"
+    },
+    {
+      "at": "2026-10-04T19:31:52.398Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "light",
+      "size": "800x600",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": true,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:53.400Z",
+      "screenshot": "D-ar-dark-1920x1080-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:53.864Z",
+      "screenshot": "D-ar-dark-1920x1080.png"
+    },
+    {
+      "at": "2026-10-04T19:31:53.864Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "dark",
+      "size": "1920x1080",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:54.772Z",
+      "screenshot": "D-ar-dark-1366x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:55.181Z",
+      "screenshot": "D-ar-dark-1366x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:55.181Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "dark",
+      "size": "1366x768",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:56.102Z",
+      "screenshot": "D-ar-dark-1024x768-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:56.592Z",
+      "screenshot": "D-ar-dark-1024x768.png"
+    },
+    {
+      "at": "2026-10-04T19:31:56.592Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "dark",
+      "size": "1024x768",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": false,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:57.793Z",
+      "screenshot": "D-ar-dark-800x600-keypad.png"
+    },
+    {
+      "at": "2026-10-04T19:31:58.169Z",
+      "screenshot": "D-ar-dark-800x600.png"
+    },
+    {
+      "at": "2026-10-04T19:31:58.243Z",
+      "screenshot": "D-ar-dark-800x600-cart-sheet.png"
+    },
+    {
+      "at": "2026-10-04T19:31:58.560Z",
+      "label": "D: combination",
+      "locale": "ar",
+      "theme": "dark",
+      "size": "800x600",
+      "dir": "rtl",
+      "touch": "on",
+      "horizontalOverflow": false,
+      "navOverlapsStatus": false,
+      "overflowingLabels": [],
+      "smallControls": 0,
+      "sheetOpened": true,
+      "dialogFits": true,
+      "smallSample": []
+    },
+    {
+      "at": "2026-10-04T19:31:58.560Z",
+      "label": "D: matrix summary",
+      "combinations": 16,
+      "failures": []
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T19:31:58.628Z"
+}

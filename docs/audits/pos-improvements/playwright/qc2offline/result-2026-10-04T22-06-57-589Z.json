@@ -1,0 +1,433 @@
+{
+  "journey": "qc2offline",
+  "startedAt": "2026-10-04T22:06:57.589Z",
+  "runDir": "/tmp/pos-pw-cPWQgX",
+  "steps": [
+    {
+      "at": "2026-10-04T22:07:00.020Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:35009",
+      "database": "/tmp/pos-pw-cPWQgX/qc2offline/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T22:07:00.022Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:41061"
+    },
+    {
+      "at": "2026-10-04T22:07:04.315Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T22:07:05.027Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-cPWQgX/qc2offline/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T22:07:05.188Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "customers.create",
+      "granted": true,
+      "direct": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T22:07:05.335Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "catalog.products.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T22:07:05.480Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "suppliers.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create",
+        "suppliers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T22:07:05.911Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T22:07:05.993Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:07:07.735Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T22:07:10.358Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T22:07:13.350Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T22:07:15.373Z",
+      "label": "A: quick-create menu for cashier A",
+      "items": [
+        "Add customer",
+        "Add product",
+        "Add supplier"
+      ]
+    },
+    {
+      "at": "2026-10-04T22:07:19.435Z",
+      "screenshot": "A0-menu.png"
+    },
+    {
+      "at": "2026-10-04T22:07:25.452Z",
+      "screenshot": "customer-qc2-offline-customer-dialog.png"
+    },
+    {
+      "at": "2026-10-04T22:07:27.396Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Offline Customer"
+    },
+    {
+      "at": "2026-10-04T22:07:38.456Z",
+      "screenshot": "product-qc2-juice-dialog.png"
+    },
+    {
+      "at": "2026-10-04T22:07:40.407Z",
+      "label": "quick-created product through the dialog",
+      "name": "Qc2 Juice"
+    },
+    {
+      "at": "2026-10-04T22:07:49.470Z",
+      "screenshot": "supplier-qc2-supplier-co-dialog.png"
+    },
+    {
+      "at": "2026-10-04T22:07:51.412Z",
+      "label": "quick-created supplier through the dialog",
+      "name": "Qc2 Supplier Co"
+    },
+    {
+      "at": "2026-10-04T22:08:21.417Z",
+      "label": "A: cart customer after creation",
+      "customerName": null
+    },
+    {
+      "at": "2026-10-04T22:08:23.628Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:08:28.518Z",
+      "screenshot": "A1-offline-cart-new-customer.png"
+    },
+    {
+      "at": "2026-10-04T22:08:29.002Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "0": {
+        "name": "Qc2 Supplier Co",
+        "status": "pending_sync"
+      },
+      "1": {
+        "name": "Qc2 Juice",
+        "status": "pending_sync"
+      },
+      "2": {
+        "name": "Qc2 Offline Customer",
+        "status": "pending_sync"
+      },
+      "at": "2026-10-04T22:08:31.278Z",
+      "label": "A: records while offline"
+    },
+    {
+      "at": "2026-10-04T22:08:31.607Z",
+      "screenshot": "A2-sync-pending-offline.png"
+    },
+    {
+      "at": "2026-10-04T22:08:33.405Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T22:08:33.668Z",
+      "label": "A: after an offline restart",
+      "outbox": [
+        {
+          "entity_type": "customer",
+          "state": "pending",
+          "dispatch_count": 0
+        },
+        {
+          "entity_type": "product",
+          "state": "pending",
+          "dispatch_count": 0
+        },
+        {
+          "entity_type": "supplier",
+          "state": "pending",
+          "dispatch_count": 0
+        }
+      ],
+      "sale": [
+        {
+          "customer_uuid": "2882ba53-7aef-47c3-9f00-fa30e8924f60",
+          "state": "pending"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T22:08:39.042Z",
+      "label": "A: held customer request delivered to the server after the register gave up",
+      "status": 201
+    },
+    {
+      "at": "2026-10-04T22:08:44.101Z",
+      "label": "A: product after acceptance",
+      "status": "ready_to_sell"
+    },
+    {
+      "at": "2026-10-04T22:08:44.270Z",
+      "label": "A: replay and ordering",
+      "customerOutbox": {
+        "state": "accepted",
+        "dispatch_count": 2,
+        "updated_at": "2026-10-04T22:08:44.069Z"
+      },
+      "saleQueue": [
+        {
+          "state": "uploading",
+          "updated_at": "2026-10-04T22:08:44.070Z"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-04T22:08:45.401Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T22:08:47.565Z",
+      "label": "scanned",
+      "code": "7770000002001"
+    },
+    {
+      "at": "2026-10-04T22:08:52.473Z",
+      "screenshot": "A3-new-product-in-cart.png"
+    },
+    {
+      "at": "2026-10-04T22:08:52.952Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:08:55.602Z",
+      "screenshot": "A4-sync-created-ready.png"
+    },
+    {
+      "at": "2026-10-04T22:08:55.796Z",
+      "label": "A: backend effects",
+      "customers": [
+        {
+          "uuid": "2882ba53-7aef-47c3-9f00-fa30e8924f60",
+          "name": "Qc2 Offline Customer"
+        }
+      ],
+      "products": [
+        {
+          "uuid": "7867e748-e95e-474a-a091-794d9ffa2328",
+          "sku": "QC-7867E748E9",
+          "name": "Qc2 Juice"
+        }
+      ],
+      "suppliers": [
+        {
+          "uuid": "e9de647f-a169-44ad-b17d-0d62cc02a094",
+          "name": "Qc2 Supplier Co"
+        }
+      ],
+      "requests": [
+        "customer:accepted:cashier@desktop-mvp.test",
+        "product:accepted:cashier@desktop-mvp.test",
+        "supplier:accepted:cashier@desktop-mvp.test"
+      ]
+    },
+    {
+      "at": "2026-10-04T22:08:56.078Z",
+      "screenshot": "customer-qc2-handover-dialog.png"
+    },
+    {
+      "at": "2026-10-04T22:08:56.133Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Handover"
+    },
+    {
+      "at": "2026-10-04T22:08:56.302Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T22:08:56.353Z",
+      "label": "sign-in submitted",
+      "user": "manager@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:08:56.786Z",
+      "label": "workstation data refreshed",
+      "outcome": "busy"
+    },
+    {
+      "at": "2026-10-04T22:09:00.841Z",
+      "screenshot": "B1-waiting-for-creator.png"
+    },
+    {
+      "at": "2026-10-04T22:10:03.603Z",
+      "screenshot": "B-debug-takeover.png"
+    },
+    {
+      "at": "2026-10-04T22:10:03.609Z",
+      "label": "B: debug after takeover",
+      "access": {
+        "ok": true,
+        "data": {
+          "available": false,
+          "customer": false,
+          "supplier": false,
+          "product": false
+        }
+      },
+      "alerts": [
+        "Online",
+        "The workstation is busy. Try again in a moment.",
+        "You do not have permission to create this record on the register."
+      ]
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=7 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=3 classification=connection_refused",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/up",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/up elapsed_ms=24 status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers elapsed_ms=11 classification=unknown",
+    "entity-create customer cbf14fc1-db4b-4a8a-86d7-7c5da31cffb2 -> unknown",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=65 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/products elapsed_ms=81 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create product d64b9d18-6215-4263-a902-5e44932a545c -> accepted",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap elapsed_ms=41 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/suppliers elapsed_ms=69 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create supplier d9dee78b-ce36-4289-bd60-b47acf54defd -> accepted",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers elapsed_ms=36 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create customer cbf14fc1-db4b-4a8a-86d7-7c5da31cffb2 -> accepted",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload elapsed_ms=202 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=30 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap elapsed_ms=42 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=38 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload elapsed_ms=61 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=33 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:41061/up elapsed_ms=1 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/logout",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/logout elapsed_ms=2 classification=connection_refused",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/login elapsed_ms=237 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=44 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=29 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap elapsed_ms=43 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/device/heartbeat elapsed_ms=27 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json"
+  ],
+  "result": "failed",
+  "error": "Error: B: takeover not accepted: {\"requestKey\":\"d3d7cc81-9690-476f-b519-65da86515295\",\"entityType\":\"customer\",\"entityUuid\":\"c064dd1f-54a5-4040-a4d0-5c7d103b0b48\",\"name\":\"Qc2 Handover\",\"status\":\"waiting_for_creator\",\"mine\":false,\"resultCode\":null,\"resultMessage\":null,\"resultFields\":null,\"traceId\":null,\"sendCount\":0,\"createdAt\":\"2026-10-04T22:08:56.119Z\",\"resubmittedAs\":null,\"actions\":{\"retry\":false,\"reassign\":true,\"resubmit\":false}}\n    at waitRecord (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc2offline.mjs:84:9)\n    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc2offline.mjs:281:7)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=7 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=3 classification=connection_refused",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/up",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/up elapsed_ms=24 status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers elapsed_ms=11 classification=unknown",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/products",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=65 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (online): renewed",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/products elapsed_ms=81 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap elapsed_ms=41 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold background installed",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/suppliers elapsed_ms=69 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/quick-create/customers elapsed_ms=36 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload elapsed_ms=202 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=30 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap elapsed_ms=42 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=38 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/invoices/upload elapsed_ms=61 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=33 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:41061/up elapsed_ms=1 classification=probe_connection_failed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/logout",
+    "[pos-api] stage=failure method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/logout elapsed_ms=2 classification=connection_refused",
+    "[pos-heartbeat] event=session-ineligible mode=backoff level=1 next_in_s=7",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/auth/login elapsed_ms=237 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=7",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/shifts/current elapsed_ms=44 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/license/validate elapsed_ms=29 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:41061/api/v1/desktop/bootstrap elapsed_ms=43 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:41061/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:41061/api/v1/desktop/device/heartbeat elapsed_ms=27 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=121",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T22:10:05.570Z"
+}

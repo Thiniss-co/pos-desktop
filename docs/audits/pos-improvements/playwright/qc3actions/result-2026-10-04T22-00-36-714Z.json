@@ -1,0 +1,229 @@
+{
+  "journey": "qc3actions",
+  "startedAt": "2026-10-04T22:00:36.714Z",
+  "runDir": "/tmp/pos-pw-1UhOwI",
+  "steps": [
+    {
+      "at": "2026-10-04T22:00:39.106Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:38207",
+      "database": "/tmp/pos-pw-1UhOwI/qc3actions/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T22:00:43.292Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T22:00:44.000Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-1UhOwI/qc3actions/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T22:00:44.443Z",
+      "label": "precondition: quick-create grants for the cashier (fixture)"
+    },
+    {
+      "at": "2026-10-04T22:00:44.856Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T22:00:44.926Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T22:00:45.746Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T22:00:48.319Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T22:00:51.310Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T22:00:53.513Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:00:53.989Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T22:00:53.989Z",
+      "label": "1: scan → exact cash committed",
+      "elapsedMs": 2675
+    },
+    {
+      "at": "2026-10-04T22:00:54.479Z",
+      "label": "1: quick-action tiles",
+      "tiles": [
+        "hold",
+        "recall",
+        "repeat",
+        "refund",
+        "more"
+      ]
+    },
+    {
+      "at": "2026-10-04T22:00:56.455Z",
+      "screenshot": "01-tiles.png"
+    },
+    {
+      "at": "2026-10-04T22:00:56.640Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T22:00:56.825Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T22:00:57.407Z",
+      "screenshot": "02a-customer-dialog-new.png"
+    },
+    {
+      "at": "2026-10-04T22:00:58.606Z",
+      "screenshot": "02b-new-customer-prefilled.png"
+    },
+    {
+      "at": "2026-10-04T22:01:01.181Z",
+      "label": "2: new customer from the selector",
+      "prefilled": "Qc3 Layla",
+      "selected": "69714913-a34a-4c4b-8676-2c37a6135003",
+      "visible": true
+    },
+    {
+      "at": "2026-10-04T22:01:05.614Z",
+      "screenshot": "02c-customer-selected-cart-kept.png"
+    },
+    {
+      "at": "2026-10-04T22:01:11.626Z",
+      "screenshot": "03a-more-actions.png"
+    },
+    {
+      "at": "2026-10-04T22:01:18.632Z",
+      "screenshot": "03b-product-validation.png"
+    },
+    {
+      "at": "2026-10-04T22:01:22.593Z",
+      "label": "3: validation and cancel",
+      "fieldErrors": 2,
+      "productsOrSuppliersCreated": 0,
+      "cartKept": true
+    },
+    {
+      "at": "2026-10-04T22:01:27.633Z",
+      "screenshot": "04a-refund-entry.png"
+    },
+    {
+      "at": "2026-10-04T22:01:27.948Z",
+      "label": "4: refund entry backed out",
+      "cartKept": true,
+      "focus": {
+        "tag": "INPUT",
+        "placeholder": "Scan barcode — or type 3*code"
+      }
+    },
+    {
+      "at": "2026-10-04T22:01:37.644Z",
+      "screenshot": "05a-refund-dialog-from-pos.png"
+    },
+    {
+      "at": "2026-10-04T22:01:42.644Z",
+      "screenshot": "05b-refund-accepted.png"
+    },
+    {
+      "at": "2026-10-04T22:01:44.234Z",
+      "label": "5: refund through the POS entry",
+      "refunds": [
+        {
+          "invoice_local_uuid": "3acbb869-73e2-477b-8401-18cb9f12f9aa",
+          "submission_state": "accepted"
+        }
+      ],
+      "cartKept": true
+    },
+    {
+      "at": "2026-10-04T22:01:47.668Z",
+      "screenshot": "05c-cart-after-refund.png"
+    },
+    {
+      "at": "2026-10-04T22:02:05.668Z",
+      "screenshot": "06a-refused-supplier.png"
+    },
+    {
+      "at": "2026-10-04T22:02:11.691Z",
+      "screenshot": "06b-corrected-accepted.png"
+    },
+    {
+      "at": "2026-10-04T22:02:11.814Z",
+      "label": "6: correct and send again",
+      "sameIdSuppliers": [
+        {
+          "uuid": "41ba0aa9-45a8-419e-8508-24538241e409",
+          "name": "Qc3 Second Supplier"
+        }
+      ],
+      "results": [
+        "refused:DESKTOP_SUPPLIER_NAME_TAKEN",
+        "accepted:DESKTOP_ENTITY_CREATED"
+      ]
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/device/register elapsed_ms=285 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/auth/login elapsed_ms=246 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/license/validate elapsed_ms=42 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/device/heartbeat elapsed_ms=59 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/bootstrap elapsed_ms=66 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/shifts/current elapsed_ms=46 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/shifts/current elapsed_ms=61 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/license/validate elapsed_ms=31 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/bootstrap elapsed_ms=37 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/shifts/current elapsed_ms=31 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/shifts/open elapsed_ms=30 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/invoices/upload elapsed_ms=75 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/customers elapsed_ms=34 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create customer 9cb09f7d-1eaf-48d1-8264-7608a6c27bd9 -> accepted",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/bootstrap elapsed_ms=45 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/invoices/e76622eb-424d-4313-a872-35e276876fec",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/invoices/e76622eb-424d-4313-a872-35e276876fec elapsed_ms=27 backend_code=DESKTOP_INVOICE_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:38207/api/v1/desktop/invoices/e76622eb-424d-4313-a872-35e276876fec",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:38207/api/v1/desktop/invoices/e76622eb-424d-4313-a872-35e276876fec elapsed_ms=29 backend_code=DESKTOP_INVOICE_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/refunds/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/refunds/upload elapsed_ms=51 backend_code=DESKTOP_REFUND_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/suppliers elapsed_ms=30 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create supplier 5052da94-4310-43c8-8ab3-82bd54036f46 -> accepted",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/suppliers elapsed_ms=31 backend_code=DESKTOP_SUPPLIER_NAME_TAKEN trace_id=965e2a74-a0e9-4838-a3a5-5fb90f64644e validation_fields=name status=409 content_type=application/json",
+    "entity-create supplier 10e3a369-50ef-4185-824c-0d515ed700eb -> refused",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/suppliers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:38207/api/v1/desktop/quick-create/suppliers elapsed_ms=30 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create supplier ae97aff7-9515-40fb-b856-7d1b3514b494 -> accepted"
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-04T22:02:13.660Z"
+}

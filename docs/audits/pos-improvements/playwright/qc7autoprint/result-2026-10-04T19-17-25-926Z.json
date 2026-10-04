@@ -1,0 +1,348 @@
+{
+  "journey": "qc7autoprint",
+  "startedAt": "2026-10-04T19:17:25.927Z",
+  "runDir": "/tmp/pos-pw-lZrmom",
+  "steps": [
+    {
+      "at": "2026-10-04T19:17:30.065Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:35309",
+      "database": "/tmp/pos-pw-lZrmom/qc7autoprint/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T19:17:35.562Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T19:17:36.352Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-lZrmom/qc7autoprint/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T19:17:37.395Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T19:17:37.454Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:17:38.686Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-04T19:17:38.847Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T19:17:39.002Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-04T19:17:39.040Z",
+      "label": "A: fresh user preference",
+      "touchMode": false,
+      "autoPrint": true
+    },
+    {
+      "at": "2026-10-04T19:17:39.559Z",
+      "screenshot": "A1-setup-banner-no-printer.png"
+    },
+    {
+      "at": "2026-10-04T19:17:39.751Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T19:17:40.236Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:17:40.498Z",
+      "screenshot": "A2-not-printed-no-printer.png"
+    },
+    {
+      "at": "2026-10-04T19:17:40.593Z",
+      "label": "A: sale without a printer",
+      "chip": {
+        "state": "skipped_no_printer",
+        "job": "",
+        "text": "Not printed: no receipt printer is set up on this register. Use Print receipt to print it."
+      },
+      "db": {
+        "intent": {
+          "setup": "no_printer",
+          "user_uuid": "fd36c8fb-bfad-4665-b7b1-2f5921136e2d",
+          "outcome": "skipped_no_printer",
+          "job_uuid": null,
+          "job_status": null,
+          "failure_code": null,
+          "resolved_options_json": null
+        },
+        "autoJobs": 0
+      },
+      "openDialogs": 1
+    },
+    {
+      "at": "2026-10-04T19:17:41.058Z",
+      "label": "1: workstation printer PW-Virtual-80 (virtual adapter)"
+    },
+    {
+      "at": "2026-10-04T19:17:46.768Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T19:17:47.282Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:17:49.217Z",
+      "screenshot": "01-auto-printed.png"
+    },
+    {
+      "at": "2026-10-04T19:17:49.733Z",
+      "label": "1: automatic print",
+      "bannerGoneAfterSetup": true,
+      "chip": {
+        "state": "admitted",
+        "job": "submitted",
+        "text": "Receipt sent to the printer."
+      },
+      "autoJobs": 1,
+      "pdfs": 1,
+      "dispatch": {
+        "silent": true,
+        "deviceName": "PW-Virtual-80"
+      },
+      "qrMatchesFrozenPayload": true
+    },
+    {
+      "at": "2026-10-04T19:17:50.423Z",
+      "screenshot": "02a-switched-off-on-panel.png"
+    },
+    {
+      "at": "2026-10-04T19:17:51.749Z",
+      "label": "electron launched again on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T19:17:52.270Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T19:17:52.764Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:17:53.154Z",
+      "screenshot": "02b-off-after-restart.png"
+    },
+    {
+      "at": "2026-10-04T19:17:53.154Z",
+      "label": "2: off persists across a restart",
+      "preference": {
+        "touchMode": false,
+        "autoPrint": false
+      },
+      "chip": {
+        "state": "off",
+        "job": "",
+        "text": "Automatic printing is off for you."
+      },
+      "intent": null,
+      "dispatches": 0
+    },
+    {
+      "at": "2026-10-04T19:17:53.830Z",
+      "screenshot": "03a-settings-switch-on.png"
+    },
+    {
+      "at": "2026-10-04T19:17:54.079Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T19:17:54.570Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:17:56.508Z",
+      "label": "3: back on; system-dialog manual mode",
+      "chip": {
+        "state": "admitted",
+        "job": "submitted",
+        "text": "Receipt sent to the printer."
+      },
+      "autoJobs": 1,
+      "dispatch": {
+        "silent": true,
+        "deviceName": "PW-Virtual-80"
+      }
+    },
+    {
+      "at": "2026-10-04T19:17:59.448Z",
+      "screenshot": "04a-banner-printer-missing.png"
+    },
+    {
+      "at": "2026-10-04T19:17:59.772Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T19:18:00.269Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:18:00.513Z",
+      "screenshot": "04b-not-printed-printer-missing.png"
+    },
+    {
+      "at": "2026-10-04T19:18:00.635Z",
+      "label": "4: printer disconnected",
+      "banner": true,
+      "chip": {
+        "state": "printer_missing",
+        "job": "",
+        "text": "Not printed: the receipt printer is not connected. Use Print receipt to print it."
+      },
+      "db": {
+        "setup": "configured",
+        "user_uuid": "fd36c8fb-bfad-4665-b7b1-2f5921136e2d",
+        "outcome": "printer_missing",
+        "job_uuid": null,
+        "job_status": null,
+        "failure_code": null,
+        "resolved_options_json": null
+      }
+    },
+    {
+      "at": "2026-10-04T19:18:01.370Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T19:18:01.854Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:18:03.786Z",
+      "screenshot": "05-print-failed.png"
+    },
+    {
+      "at": "2026-10-04T19:18:03.858Z",
+      "label": "5: printer failure",
+      "chip": {
+        "state": "admitted",
+        "job": "outcome_unknown",
+        "text": "The printer did not confirm this receipt. Check the printer before printing it again."
+      },
+      "job": "outcome_unknown",
+      "failureCode": "OS_REPORTED_FAILURE",
+      "dispatches": 1,
+      "sale": "synced"
+    },
+    {
+      "at": "2026-10-04T19:18:04.485Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-04T19:18:04.954Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-04T19:19:36.798Z",
+      "screenshot": "06-outcome-unknown.png"
+    },
+    {
+      "at": "2026-10-04T19:19:38.621Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-04T19:19:39.077Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T19:19:41.933Z",
+      "label": "6: printer never answered",
+      "chip": {
+        "state": "admitted",
+        "job": "outcome_unknown",
+        "text": "The printer did not confirm this receipt. Check the printer before printing it again."
+      },
+      "db": {
+        "setup": "configured",
+        "user_uuid": "fd36c8fb-bfad-4665-b7b1-2f5921136e2d",
+        "outcome": "admitted",
+        "job_uuid": "f7937561-699f-45f9-9908-14455239e642",
+        "job_status": "outcome_unknown",
+        "failure_code": "CALLBACK_TIMEOUT",
+        "resolved_options_json": "{\"autoPrintAfterSale\":false,\"defaultCopies\":1,\"dispatchMode\":\"direct\",\"fixedPageHeightMm\":297,\"marginBottomMm\":6,\"marginTopMm\":2,\"maxContinuousLengthMm\":1000,\"pageLengthProfile\":\"content_sized\",\"paperWidthMm\":80,\"printableWidthMm\":72,\"printerName\":\"PW-Virtual-80\"}"
+      },
+      "dispatches": 1,
+      "autoJobs": 1
+    },
+    {
+      "at": "2026-10-04T19:19:42.256Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-04T19:19:42.912Z",
+      "label": "exact-cash sale committed"
+    }
+  ],
+  "result": "failed",
+  "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('dialog').getByRole('button', { name: /New sale/ })\n    - locator resolved to <button type=\"button\" data-autofocus=\"\" aria-keyshortcuts=\"F9\" aria-describedby=\"v-59\" data-commit-action=\"acknowledge\" class=\"app-button numeric inline-flex shrink-0 items-center justify-center gap-2 border font-semibold whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed aria-busy:opacity-85 app-button--primary border-pri bg-pri text-on-pri font-bold enabled:hover:border-pri-hover enabled:hover:bg-pri-hover enabled:active:bg-pri-press min-h-12 px-4.5 text-base rounded-md not…>…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n\n    at newSale (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc7autoprint.mjs:140:6)\n    at async Module.run (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc7autoprint.mjs:399:5)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/device/heartbeat elapsed_ms=189 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=121",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current elapsed_ms=37 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current elapsed_ms=63 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload elapsed_ms=70 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current elapsed_ms=42 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload elapsed_ms=129 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload elapsed_ms=106 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload elapsed_ms=98 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload elapsed_ms=106 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/auth/logout",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/auth/logout elapsed_ms=266 backend_code=DESKTOP_LOGOUT_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-ineligible mode=active level=0 next_in_s=14",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/auth/login elapsed_ms=625 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/license/validate elapsed_ms=297 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/device/heartbeat elapsed_ms=377 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=117",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:35309/api/v1/desktop/shifts/current elapsed_ms=240 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:35309/api/v1/desktop/invoices/upload elapsed_ms=177 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T19:20:13.239Z"
+}

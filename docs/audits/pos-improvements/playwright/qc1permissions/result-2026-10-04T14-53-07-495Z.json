@@ -1,0 +1,191 @@
+{
+  "journey": "qc1permissions",
+  "startedAt": "2026-10-04T14:53:07.496Z",
+  "runDir": "/tmp/pos-pw-HZro9g",
+  "steps": [
+    {
+      "at": "2026-10-04T14:53:09.821Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:33407",
+      "database": "/tmp/pos-pw-HZro9g/qc1permissions/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-04T14:53:13.714Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-improvements/out/pw-test"
+    },
+    {
+      "at": "2026-10-04T14:53:14.370Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-HZro9g/qc1permissions/profile/Electron"
+    },
+    {
+      "at": "2026-10-04T14:53:15.025Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-04T14:53:15.074Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:53:15.761Z",
+      "label": "device assigned",
+      "assigned": true,
+      "quarantined_allocations": 0
+    },
+    {
+      "at": "2026-10-04T14:53:17.540Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:53:17.543Z",
+      "label": "1: cashier A access before the grant",
+      "available": true,
+      "customer": false,
+      "supplier": false,
+      "product": false
+    },
+    {
+      "at": "2026-10-04T14:53:18.012Z",
+      "label": "owner signed in to the company-owner SPA"
+    },
+    {
+      "at": "2026-10-04T14:53:18.598Z",
+      "label": "2: owner created cashier B in the SPA",
+      "email": "bea.cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:53:19.181Z",
+      "screenshot": "02a-owner-created-cashier-b.png"
+    },
+    {
+      "at": "2026-10-04T14:53:19.643Z",
+      "screenshot": "02b-owner-quick-actions-before.png"
+    },
+    {
+      "at": "2026-10-04T14:53:20.215Z",
+      "screenshot": "02c-owner-quick-actions-granted.png"
+    },
+    {
+      "at": "2026-10-04T14:53:20.335Z",
+      "label": "2: owner granted Add customers",
+      "grantsBefore": [],
+      "grantsAfter": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-04T14:53:41.043Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-04T14:53:41.140Z",
+      "label": "register shows the sign-in screen after a relaunch"
+    },
+    {
+      "at": "2026-10-04T14:53:41.193Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-04T14:53:41.715Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-04T14:53:41.718Z",
+      "label": "3: cashier A access after the grant",
+      "afterGrant": {
+        "available": true,
+        "customer": true,
+        "supplier": false,
+        "product": false
+      },
+      "signInPath": "relaunch"
+    },
+    {
+      "at": "2026-10-04T14:53:41.834Z",
+      "screenshot": "03-register-cashier-a-after-grant.png"
+    },
+    {
+      "at": "2026-10-04T14:53:42.367Z",
+      "label": "4: direct API attempts",
+      "created1": {
+        "status": 201,
+        "code": "DESKTOP_ENTITY_CREATED",
+        "outcome": "accepted",
+        "replayed": "false",
+        "entity": "f80f727b-4826-4dbf-9756-b157b37a3cc6"
+      },
+      "replay": {
+        "status": 201,
+        "code": "DESKTOP_ENTITY_CREATED",
+        "outcome": "accepted",
+        "replayed": "true",
+        "entity": "f80f727b-4826-4dbf-9756-b157b37a3cc6"
+      },
+      "conflict": {
+        "status": 409,
+        "code": "IDEMPOTENCY_CONFLICT",
+        "outcome": null,
+        "replayed": null,
+        "entity": null
+      },
+      "denied": {
+        "status": 403,
+        "code": "PERMISSION_DENIED",
+        "outcome": null,
+        "replayed": null,
+        "entity": null
+      }
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/auth/login elapsed_ms=233 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/device/heartbeat elapsed_ms=58 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current elapsed_ms=45 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current elapsed_ms=63 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate elapsed_ms=27 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/bootstrap elapsed_ms=46 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current elapsed_ms=30 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json"
+  ],
+  "result": "failed",
+  "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Sign in' }) to be visible\n\n    at signOutViaMenu (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/support/journey.mjs:307:6)\n    at async Module.run (/var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/journeys/qc1permissions.mjs:216:5)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-improvements/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/auth/login elapsed_ms=233 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate elapsed_ms=34 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/device/heartbeat elapsed_ms=58 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=116",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current elapsed_ms=45 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current elapsed_ms=63 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33407/api/v1/desktop/license/validate elapsed_ms=27 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/bootstrap elapsed_ms=46 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33407/api/v1/desktop/shifts/current elapsed_ms=30 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-04T14:54:14.180Z"
+}
