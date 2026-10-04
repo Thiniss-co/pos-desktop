@@ -45,6 +45,8 @@ if (process.env.PW_WRAPPED !== '1') {
     PW_RUN_DIR: runDir,
     // Optional: an explicit Chrome for journeys that drive the owner portal (default: the installed Chrome).
     PW_CHROME_PATH: process.env.PW_CHROME_PATH ?? '',
+    // Optional: the backend tree the disposable sandbox runs from (see support/paths.mjs).
+    PW_BACKEND_ROOT: process.env.PW_BACKEND_ROOT ?? '',
     // Opt-in: serve the disposable backend through the guarded HTTP router (see support/sandbox.mjs).
     POS_SANDBOX_GUARD_HTTP: process.env.POS_SANDBOX_GUARD_HTTP === '1' ? '1' : ''
   }
