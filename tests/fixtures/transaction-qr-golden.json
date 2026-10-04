@@ -1,0 +1,137 @@
+{
+    "format": "txn-ref-v1",
+    "version": 1,
+    "transaction_reference": [
+        {
+            "name": "sale, two decimals, a local offset converted to UTC and truncated",
+            "facts": {
+                "companyUuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                "documentKind": "sale",
+                "documentUuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                "instant": "2026-10-04T13:05:09.987+03:00",
+                "totalMinor": 1050,
+                "currencyExponent": 2,
+                "currency": "SAR"
+            },
+            "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-10-04T10:05:09Z;amt=10.50;cur=SAR"
+        },
+        {
+            "name": "zero total keeps its decimals",
+            "facts": {
+                "companyUuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                "documentKind": "sale",
+                "documentUuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                "instant": "2026-01-01T00:00:00Z",
+                "totalMinor": 0,
+                "currencyExponent": 2,
+                "currency": "EGP"
+            },
+            "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-01-01T00:00:00Z;amt=0.00;cur=EGP"
+        },
+        {
+            "name": "exponent 0",
+            "facts": {
+                "companyUuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                "documentKind": "sale",
+                "documentUuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                "instant": "2026-02-28T23:59:59.999Z",
+                "totalMinor": 1500,
+                "currencyExponent": 0,
+                "currency": "JPY"
+            },
+            "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-02-28T23:59:59Z;amt=1500;cur=JPY"
+        },
+        {
+            "name": "exponent 3, padded",
+            "facts": {
+                "companyUuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                "documentKind": "sale",
+                "documentUuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                "instant": "2026-06-15T08:30:00.000Z",
+                "totalMinor": 5,
+                "currencyExponent": 3,
+                "currency": "KWD"
+            },
+            "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-06-15T08:30:00Z;amt=0.005;cur=KWD"
+        },
+        {
+            "name": "the largest register total",
+            "facts": {
+                "companyUuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                "documentKind": "sale",
+                "documentUuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                "instant": "2026-12-31T21:00:00-03:00",
+                "totalMinor": 900000000000000,
+                "currencyExponent": 2,
+                "currency": "USD"
+            },
+            "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2027-01-01T00:00:00Z;amt=9000000000000.00;cur=USD"
+        },
+        {
+            "name": "refund (reserved for refund receipts)",
+            "facts": {
+                "companyUuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                "documentKind": "refund",
+                "documentUuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                "instant": "2026-10-04T10:00:00Z",
+                "totalMinor": 250,
+                "currencyExponent": 2,
+                "currency": "SAR"
+            },
+            "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=refund;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-10-04T10:00:00Z;amt=2.50;cur=SAR"
+        }
+    ],
+    "canonical_json": [
+        {
+            "name": "keys sorted recursively; unicode, quotes and slashes unescaped; nulls kept",
+            "value": {
+                "snapshot_version": 1,
+                "template_version": 1,
+                "qr": {
+                    "type": "txn-ref-v1",
+                    "payload": "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-10-04T10:05:09Z;amt=10.50;cur=SAR"
+                },
+                "context": {
+                    "invoice_local_uuid": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+                    "company_uuid": "0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b",
+                    "context_version": 1,
+                    "issuer_company_name": "شركة الاختبار / Test Co.",
+                    "issuer_branch_name": "Main \"Branch\"",
+                    "issuer_warehouse_name": null,
+                    "cashier_display_name": "Huda",
+                    "customer_name": null,
+                    "customer_tax_number": null,
+                    "time_zone": "Asia/Riyadh",
+                    "receipt_profile_version_uuid": null,
+                    "created_at": "2026-10-04T10:05:09.987Z"
+                }
+            },
+            "canonical": "{\"context\":{\"cashier_display_name\":\"Huda\",\"company_uuid\":\"0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b\",\"context_version\":1,\"created_at\":\"2026-10-04T10:05:09.987Z\",\"customer_name\":null,\"customer_tax_number\":null,\"invoice_local_uuid\":\"7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d\",\"issuer_branch_name\":\"Main \\\"Branch\\\"\",\"issuer_company_name\":\"شركة الاختبار / Test Co.\",\"issuer_warehouse_name\":null,\"receipt_profile_version_uuid\":null,\"time_zone\":\"Asia/Riyadh\"},\"qr\":{\"payload\":\"THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-10-04T10:05:09Z;amt=10.50;cur=SAR\",\"type\":\"txn-ref-v1\"},\"snapshot_version\":1,\"template_version\":1}",
+            "sha256": "0bf2d4e21aeee4f74bc748ca003c5631f598b72717ab5669edcd65333ced8b90"
+        },
+        {
+            "name": "lists keep their order",
+            "value": {
+                "b": [
+                    3,
+                    1,
+                    2
+                ],
+                "a": {
+                    "z": true,
+                    "y": false
+                }
+            },
+            "canonical": "{\"a\":{\"y\":false,\"z\":true},\"b\":[3,1,2]}",
+            "sha256": "54531b650cf9dcb98bfd0f5d9f9d1e530c8ceaa8908b9d589bbb989eec19ee1b"
+        }
+    ],
+    "invalid_payloads": [
+        "THINIS-TXN/2;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-01-01T00:00:00Z;amt=1.00;cur=SAR",
+        "THINIS-TXN/1;doc=sale;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-01-01T00:00:00Z;amt=1.00;cur=SAR",
+        "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-01-01T00:00:00.000Z;amt=1.00;cur=SAR",
+        "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-01-01T00:00:00Z;amt=1.0000;cur=SAR",
+        "THINIS-TXN/1;co=0f8e6c2a-3b4d-4e5f-8a9b-1c2d3e4f5a6b;doc=sale;id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d;ts=2026-01-01T00:00:00Z;amt=1.00;cur=sar",
+        "https://example.test/receipt?id=7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+    ]
+}

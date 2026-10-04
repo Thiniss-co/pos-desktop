@@ -945,7 +945,10 @@
     "RECEIPT_PROFILE_ASSET_INVALID": "تعذّر استخدام ملف الشعار. اختر صورة أخرى.",
     "RECEIPT_PROFILE_ASSET_NOT_FOUND": "تعذّر العثور على الشعار على الخادم. اختره مرة أخرى.",
     "POLICY_REVISION_STALE": "تغيّرت سياسة المخزون دون اتصال. سيستخدم التجهيز التالي السياسة الحالية.",
-    "DESKTOP_PREPARATION_UNAVAILABLE": "تجهيز المخزون دون اتصال غير متاح لهذه المحطة حاليًا."
+    "DESKTOP_PREPARATION_UNAVAILABLE": "تجهيز المخزون دون اتصال غير متاح لهذه المحطة حاليًا.",
+    "RECEIPT_SNAPSHOT_INVALID": "رفض الخادم سجل إيصال هذه العملية؛ ولم يتأثر الإيصال نفسه.",
+    "RECEIPT_SNAPSHOT_CONFLICT": "يحتفظ الخادم بالفعل بسجل إيصال مختلف لهذه العملية، وقد أُبقي عليه.",
+    "INVOICE_NOT_UPLOADED": "لم يقبل الخادم هذه العملية من محطة العمل هذه بعد."
   },
   "offlineSale": {
     "title": "البيع دون اتصال",

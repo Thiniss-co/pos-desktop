@@ -1,4 +1,5 @@
 import { normalizeCatalogSearch } from '@shared/catalog/normalization'
+import { BootstrapCapabilityRepository } from './bootstrapCapability.repository'
 import type { ProductImageAssetMetadata, ProductImageRepository } from './productImage.repository'
 import type { CompanyBrandingRepository } from './companyBranding.repository'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
@@ -1060,6 +1061,11 @@ export class BootstrapSnapshotRepository {
     this.replaceWarehouse(resource.warehouse, fetchedAt)
     this.replaceSubscription(resource.subscription, fetchedAt)
     this.persistDeviceRegistration(resource.device, fetchedAt)
+    // Owner receipt copies: what the server accepts, replaced with this snapshot (absent → cleared).
+    new BootstrapCapabilityRepository(this.database).replaceAll(
+      resource.receipt_snapshot ? { receipt_snapshot: resource.receipt_snapshot.version } : {},
+      fetchedAt
+    )
 
     this.database.prepare('DELETE FROM bootstrap_features').run()
     for (const [code, enabled] of Object.entries(resource.features)) {

@@ -72,7 +72,11 @@ export const API_ERROR_CODES = [
   // CP4 offline stock preparation. Both are definitive answers `PreparationService` classifies on;
   // unlisted, they were stripped from `backendCode` and every such answer degraded to "ambiguous".
   'POLICY_REVISION_STALE',
-  'DESKTOP_PREPARATION_UNAVAILABLE'
+  'DESKTOP_PREPARATION_UNAVAILABLE',
+  // Owner receipt copies: the receipt snapshot upload's definitive answers.
+  'RECEIPT_SNAPSHOT_INVALID',
+  'RECEIPT_SNAPSHOT_CONFLICT',
+  'INVOICE_NOT_UPLOADED'
 ] as const
 
 export const UNKNOWN_API_ERROR_CODE = 'UNKNOWN' as const
