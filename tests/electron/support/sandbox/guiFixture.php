@@ -132,7 +132,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'receipt-snapshots'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'receipt-snapshots', 'fiscal-zatca'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -301,16 +301,40 @@ $result = match ($operation) {
             ->leftJoin('shifts as sh', 'sh.id', '=', 'i.shift_id')
             ->where('s.desktop_device_id', $device->id)
             ->orderBy('s.id')
-            ->get(['s.local_invoice_uuid', 's.qr_payload', 's.content_sha256', 's.snapshot_version', 'i.sold_at', 'i.grand_total_amount', 'i.currency', 'sh.currency_exponent']);
+            ->get(['s.local_invoice_uuid', 's.qr_type', 's.qr_payload', 's.content_sha256', 's.snapshot_version', 's.canonical_content', 'i.id as invoice_id', 'i.sold_at', 'i.grand_total_amount', 'i.tax_total_amount', 'i.currency', 'sh.currency_exponent']);
         $currencyExponent = fn (string $code): ?int => DB::table('currencies')->where('company_id', $company->id)->where('code', $code)->value('exponent');
 
-        return ['supported' => true, 'snapshots' => $rows->map(fn ($row): array => [
-            'local_invoice_uuid' => $row->local_invoice_uuid,
-            'content_sha256' => $row->content_sha256,
-            'snapshot_version' => (int) $row->snapshot_version,
-            'qr_payload' => $row->qr_payload,
-            'expected_qr' => App\Modules\POS\Support\TransactionReferenceQr::encode(strtolower($company->uuid), 'sale', $row->local_invoice_uuid, Carbon\CarbonImmutable::parse($row->sold_at, 'UTC'), (int) $row->grand_total_amount, (int) ($row->currency_exponent ?? $currencyExponent($row->currency)), $row->currency),
-        ])->all()];
+        return ['supported' => true, 'snapshots' => $rows->map(function ($row) use ($company, $currencyExponent): array {
+            $exponent = (int) ($row->currency_exponent ?? $currencyExponent($row->currency));
+            $soldAt = Carbon\CarbonImmutable::parse($row->sold_at, 'UTC');
+            $fiscal = json_decode($row->canonical_content, true)['fiscal'] ?? null;
+            $expected = $row->qr_type === 'zatca-p1'
+                ? App\Modules\POS\Support\ZatcaPhase1Qr::encode((string) $fiscal['seller_name'], (string) $fiscal['vat_number'], App\Modules\POS\Support\TransactionReferenceQr::timestamp($soldAt), App\Modules\POS\Support\ZatcaPhase1Qr::amount((int) $row->grand_total_amount, $exponent), App\Modules\POS\Support\ZatcaPhase1Qr::amount((int) $row->tax_total_amount, $exponent))
+                : App\Modules\POS\Support\TransactionReferenceQr::encode(strtolower($company->uuid), 'sale', $row->local_invoice_uuid, $soldAt, (int) $row->grand_total_amount, $exponent, $row->currency);
+            $invoice = App\Modules\POS\Models\PosInvoice::query()->with(['items', 'payments', 'receiptSnapshot', 'shift'])->findOrFail($row->invoice_id);
+
+            return [
+                'local_invoice_uuid' => $row->local_invoice_uuid,
+                'content_sha256' => $row->content_sha256,
+                'snapshot_version' => (int) $row->snapshot_version,
+                'qr_type' => $row->qr_type,
+                'qr_payload' => $row->qr_payload,
+                'expected_qr' => $expected,
+                // What the owner portal's receipt copy carries for this sale (read-only).
+                'owner_copy_qr' => app(App\Modules\POS\Actions\BuildOwnerReceiptCopyAction::class)->execute($invoice)['qr']['payload'],
+            ];
+        })->all()];
+    })(),
+    // Owner receipt copies: the company switches to ZATCA phase 1 with a complete identity, as the owner
+    // fiscal settings would save it (the register mirrors it on its next bootstrap).
+    'fiscal-zatca' => (function () use ($company): array {
+        DB::table('companies')->where('id', $company->id)->update([
+            'legal_name' => 'Harbour Coffee Trading LLC', 'tax_number' => '310122393500003', 'street' => '1 Corniche Road',
+            'city' => 'Jeddah', 'postal_code' => '23511', 'country' => 'Saudi Arabia', 'fiscal_regime' => 'sa_zatca_phase1',
+            'fiscal_revision' => DB::raw('fiscal_revision + 1'),
+        ]);
+
+        return ['regime' => 'sa_zatca_phase1', 'revision' => (int) DB::table('companies')->where('id', $company->id)->value('fiscal_revision')];
     })(),
     'create-owner-product' => (function () use ($argument, $company, $actor): array {
         $context = app(CurrentCompanyResolver::class)->resolve($actor);

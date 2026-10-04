@@ -8,6 +8,7 @@ import {
   waitForRoute,
   waitForServerInvoices
 } from '../support/journey.mjs'
+import { createHash } from 'node:crypto'
 import { queryLocal } from '../support/localDb.mjs'
 
 /**
@@ -57,7 +58,8 @@ function agreement(sandbox, device, profileDir, expected) {
         stored &&
         stored.content_sha256 === row.sha &&
         stored.qr_payload === row.qr &&
-        stored.qr_payload === stored.expected_qr
+        stored.qr_payload === stored.expected_qr &&
+        stored.owner_copy_qr === row.qr
       )
     })
   return { ok, local, server }
@@ -179,6 +181,56 @@ export async function run(ctx) {
       sends: proxy.requests(RECEIPT).length
     })
     await ctx.shot(page, '02-after-restart')
+
+    // 5. A ZATCA register: the snapshot is v2 and carries the exact TLV frozen in the sale's fiscal
+    //    context; the server stores it, and the owner copy carries the same payload.
+    ctx.step('5: company switched to ZATCA phase 1', sandbox.fixture('fiscal-zatca'))
+    await refreshWorkstation(ctx, page)
+    await scan(ctx, page, '6221000000028')
+    await payExactCash(ctx, page)
+    await page.keyboard.press('F9')
+    await waitForServerInvoices(sandbox, device, 5)
+    await refreshWorkstation(ctx, page)
+    const fifth = await waitFor('5: ZATCA snapshot', () =>
+      agreement(sandbox, device, session.profileDir, 5)
+    )
+    const zatcaRow = fifth.server[4]
+    const [frozen] = queryLocal(
+      session.profileDir,
+      'SELECT regime, qr_type, qr_payload FROM local_invoice_fiscal_context WHERE invoice_local_uuid = ?',
+      [zatcaRow.local_invoice_uuid]
+    )
+    const tlv = Buffer.from(zatcaRow.qr_payload, 'base64')
+    const fields = []
+    for (let offset = 0; offset < tlv.length; offset += 2 + tlv[offset + 1]) {
+      fields.push(tlv.subarray(offset + 2, offset + 2 + tlv[offset + 1]).toString('utf8'))
+    }
+    if (
+      frozen?.regime !== 'sa_zatca_phase1' ||
+      zatcaRow.snapshot_version !== 2 ||
+      zatcaRow.qr_type !== 'zatca-p1' ||
+      zatcaRow.qr_payload !== frozen.qr_payload ||
+      zatcaRow.owner_copy_qr !== frozen.qr_payload ||
+      fields[0] !== 'Harbour Coffee Trading LLC' ||
+      fields[1] !== '310122393500003'
+    ) {
+      throw new Error(
+        `5: the ZATCA snapshot does not carry the frozen QR: ${JSON.stringify({ frozen, zatcaRow, fields })}`
+      )
+    }
+    const printed = queryLocal(
+      session.profileDir,
+      'SELECT qr_verified_sha256 AS verified FROM receipt_print_jobs WHERE document_local_uuid = ? AND qr_verified_sha256 IS NOT NULL',
+      [zatcaRow.local_invoice_uuid]
+    )
+    ctx.step(
+      '5: ZATCA sale: v2 snapshot, stored and owner-copy QR equal the frozen fiscal-context QR',
+      {
+        fields,
+        printedQrVerified: printed.map((row) => row.verified),
+        frozenSha256: createHash('sha256').update(frozen.qr_payload).digest('hex')
+      }
+    )
   } finally {
     await session.app.close().catch(() => undefined)
   }
