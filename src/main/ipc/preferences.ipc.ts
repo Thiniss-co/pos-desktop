@@ -7,7 +7,8 @@ import {
   themePreferenceSchema,
   type LocaleCode,
   type PosCartWidthPreference,
-  type ThemePreference
+  type ThemePreference,
+  type UserPreferences
 } from '@shared/contracts/preferences.contract'
 import {
   preferencesGetLocaleInputSchema,
@@ -15,7 +16,9 @@ import {
   preferencesGetThemeInputSchema,
   preferencesSetThemeInputSchema,
   preferencesGetPosCartWidthInputSchema,
-  preferencesSetPosCartWidthInputSchema
+  preferencesSetPosCartWidthInputSchema,
+  preferencesGetUserInputSchema,
+  preferencesSetUserInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
 import { isPublicAppError } from '../http/apiError'
@@ -120,5 +123,28 @@ export function registerPreferencesIpcHandlers(services: ApplicationServices): v
       services.appSettings.set(POS_CART_WIDTH_SETTING_KEY, width === null ? '' : String(width))
       return width
     })
+  })
+  // POS improvements, Stage 5: the signed-in user's own preferences (touch layout, auto-print).
+  ipcMain.handle(IPC_CHANNELS.preferencesGetUser, (event, input: unknown) => {
+    const rejected = rejectUntrustedSender<UserPreferences>(event)
+
+    if (rejected) {
+      return rejected
+    }
+
+    return handleIpcRequest(input, preferencesGetUserInputSchema, () =>
+      services.userPreferences.current()
+    )
+  })
+  ipcMain.handle(IPC_CHANNELS.preferencesSetUser, (event, input: unknown) => {
+    const rejected = rejectUntrustedSender<UserPreferences>(event)
+
+    if (rejected) {
+      return rejected
+    }
+
+    return handleIpcRequest(input, preferencesSetUserInputSchema, (preference) =>
+      services.userPreferences.set(preference)
+    )
   })
 }

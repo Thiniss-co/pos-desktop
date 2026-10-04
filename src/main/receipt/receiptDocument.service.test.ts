@@ -18,7 +18,7 @@ import type {
 
 function invoice(overrides: Partial<LocalInvoiceRow> = {}): LocalInvoiceRow {
   return {
-    localUuid: 'inv-1',
+    localUuid: 'a1a1a1a1-0000-4000-8000-000000000001',
     attemptKey: 'attempt-1',
     offlineNumber: 'POS-abc123-20260101-000001',
     remoteUuid: null,
@@ -27,7 +27,7 @@ function invoice(overrides: Partial<LocalInvoiceRow> = {}): LocalInvoiceRow {
     syncAttempts: 0,
     lastSyncError: null,
     syncedAt: null,
-    companyUuid: 'company-1',
+    companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
     branchUuid: 'branch-1',
     warehouseUuid: 'warehouse-1',
     deviceUuid: 'device-1',
@@ -66,7 +66,7 @@ function invoice(overrides: Partial<LocalInvoiceRow> = {}): LocalInvoiceRow {
 function item(overrides: Partial<LocalInvoiceItemRow> = {}): LocalInvoiceItemRow {
   return {
     localUuid: 'item-1',
-    invoiceLocalUuid: 'inv-1',
+    invoiceLocalUuid: 'a1a1a1a1-0000-4000-8000-000000000001',
     lineIndex: 0,
     productUuid: 'product-1',
     productName: 'Widget',
@@ -98,7 +98,7 @@ function item(overrides: Partial<LocalInvoiceItemRow> = {}): LocalInvoiceItemRow
 function payment(overrides: Partial<LocalInvoicePaymentRow> = {}): LocalInvoicePaymentRow {
   return {
     localUuid: 'pay-1',
-    invoiceLocalUuid: 'inv-1',
+    invoiceLocalUuid: 'a1a1a1a1-0000-4000-8000-000000000001',
     paymentIndex: 0,
     paymentMethodUuid: 'method-1',
     type: 'cash',
@@ -122,8 +122,19 @@ function buildService(overrides: {
   refundPayments?: LocalRefundPaymentRow[]
   refundContext?: NewRefundReceiptContext | null
   refundLineContexts?: NewRefundLineReceiptContext[]
+  /** POS improvements, Stage 6. */
+  profileVersion?: Record<string, unknown> | null
+  fiscalContext?: Record<string, unknown> | null
 }): ReceiptDocumentService {
   return new ReceiptDocumentService({
+    receiptProfile: {
+      getVersion: () => (overrides.profileVersion ?? null) as never,
+      getCurrent: () => null
+    },
+    fiscalContexts: {
+      invoiceContext: () => (overrides.fiscalContext ?? null) as never,
+      refundContext: () => null
+    },
     localSale: {
       findInvoiceByLocalUuid: () => overrides.invoice ?? null,
       itemsForInvoice: () => overrides.items ?? [],
@@ -141,7 +152,7 @@ function buildService(overrides: {
     },
     bootstrapSnapshot: {
       getCompany: () => ({
-        companyUuid: 'company-1',
+        companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
         name: 'Fallback Co',
         isActive: true,
         updatedAt: '2026-01-01'
@@ -158,8 +169,8 @@ function buildService(overrides: {
 
 function context(overrides: Partial<NewInvoiceReceiptContext> = {}): NewInvoiceReceiptContext {
   return {
-    invoiceLocalUuid: 'inv-1',
-    companyUuid: 'company-1',
+    invoiceLocalUuid: 'a1a1a1a1-0000-4000-8000-000000000001',
+    companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
     issuerCompanyName: 'Frozen Co',
     issuerBranchName: 'Frozen Branch',
     issuerWarehouseName: 'Frozen WH',
@@ -186,7 +197,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const doc = service.buildSaleDocument('inv-1', 'en', false)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.header.companyName).toBe('Frozen Co')
     expect(doc.header.branchName).toBe('Frozen Branch')
@@ -201,7 +212,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: null
     })
-    const doc = service.buildSaleDocument('inv-1', 'en', false)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.header.companyName).toBe('Fallback Co')
     expect(doc.meta.cashierName).toBeNull()
@@ -215,7 +226,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const doc = service.buildSaleDocument('inv-1', 'en', false)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.notices.length).toBe(1)
     expect(doc.meta.serverNumber).toBeNull()
@@ -228,7 +239,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const doc = service.buildSaleDocument('inv-1', 'en', false)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.meta.serverNumber).toBe('INV-0001')
   })
@@ -255,7 +266,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const doc = service.buildSaleDocument('inv-1', 'en', false)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.totals.taxLines).toHaveLength(2)
     expect(doc.totals.taxLines[0]!.rateLabel).toBe('5%')
@@ -270,7 +281,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment({ amount: 2185 })],
       context: context()
     })
-    const singleDoc = single.buildSaleDocument('inv-1', 'en', false)
+    const singleDoc = single.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
     expect(singleDoc.totals.paidText).toBeNull()
     expect(singleDoc.totals.changeText).toBeNull()
 
@@ -280,7 +291,11 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const changeDoc = withChange.buildSaleDocument('inv-1', 'en', false)
+    const changeDoc = withChange.buildSaleDocument(
+      'a1a1a1a1-0000-4000-8000-000000000001',
+      'en',
+      false
+    )
     expect(changeDoc.totals.changeText).not.toBeNull()
     expect(changeDoc.totals.paidText).not.toBeNull()
   })
@@ -292,7 +307,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const doc = service.buildSaleDocument('inv-1', 'en', true)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', true)
     expect(doc.isReprint).toBe(true)
   })
 
@@ -303,7 +318,7 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
       payments: [payment()],
       context: context()
     })
-    const doc = service.buildSaleDocument('inv-1', 'ar', false)
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'ar', false)
     expect(doc.totals.grandTotalText).toMatch(/[0-9]/)
   })
 })
@@ -311,10 +326,10 @@ describe('ReceiptDocumentService.buildSaleDocument', () => {
 describe('ReceiptDocumentService.buildRefundDocument', () => {
   function refund(overrides: Partial<LocalRefundRow> = {}): LocalRefundRow {
     return {
-      localUuid: 'refund-1',
-      invoiceLocalUuid: 'inv-1',
+      localUuid: 'b1b1b1b1-0000-4000-8000-000000000001',
+      invoiceLocalUuid: 'a1a1a1a1-0000-4000-8000-000000000001',
       invoiceRemoteUuid: 'remote-inv-1',
-      companyUuid: 'company-1',
+      companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
       deviceUuid: 'device-1',
       userUuid: 'user-1',
       shiftUuid: 'shift-1',
@@ -348,7 +363,7 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
   function refundItem(overrides: Partial<LocalRefundItemRow> = {}): LocalRefundItemRow {
     return {
       localUuid: 'ritem-1',
-      refundLocalUuid: 'refund-1',
+      refundLocalUuid: 'b1b1b1b1-0000-4000-8000-000000000001',
       lineIndex: 0,
       invoiceItemRemoteUuid: 'remote-item-1',
       productUuid: 'product-1',
@@ -368,7 +383,7 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
   function refundPayment(overrides: Partial<LocalRefundPaymentRow> = {}): LocalRefundPaymentRow {
     return {
       localUuid: 'rpay-1',
-      refundLocalUuid: 'refund-1',
+      refundLocalUuid: 'b1b1b1b1-0000-4000-8000-000000000001',
       paymentIndex: 0,
       paymentMethodUuid: null,
       type: 'cash',
@@ -385,8 +400,8 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
       refundItems: [refundItem()],
       refundPayments: [refundPayment()],
       refundContext: {
-        refundLocalUuid: 'refund-1',
-        companyUuid: 'company-1',
+        refundLocalUuid: 'b1b1b1b1-0000-4000-8000-000000000001',
+        companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
         issuerCompanyName: 'Frozen Co',
         issuerBranchName: 'Frozen Branch',
         cashierDisplayName: 'Jane',
@@ -400,7 +415,7 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
       refundLineContexts: [
         {
           refundItemLocalUuid: 'ritem-1',
-          refundLocalUuid: 'refund-1',
+          refundLocalUuid: 'b1b1b1b1-0000-4000-8000-000000000001',
           invoiceItemRemoteUuid: 'remote-item-1',
           originalUnitPriceAmount: 1000,
           originalQuantityMilli: 1000,
@@ -412,9 +427,10 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
       ]
     })
 
-    const doc = service.buildRefundDocument('refund-1', 'en', false)
+    const doc = service.buildRefundDocument('b1b1b1b1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.items[0]!.sku).toBe('SKU-1')
+    expect(doc.items[0]!.taxRateLabel).toBe('15%')
     expect(doc.items[0]!.unitPriceText).not.toBe('')
     expect(doc.notices).not.toContain(expect.stringContaining('not recorded'))
     expect(doc.refund?.originalServerNumber).toBe('INV-0001')
@@ -430,7 +446,7 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
       refundLineContexts: []
     })
 
-    const doc = service.buildRefundDocument('refund-1', 'en', false)
+    const doc = service.buildRefundDocument('b1b1b1b1-0000-4000-8000-000000000001', 'en', false)
 
     expect(doc.items[0]!.sku).toBeNull()
     expect(doc.items[0]!.unitPriceText).toBe('')
@@ -445,7 +461,90 @@ describe('ReceiptDocumentService.buildRefundDocument', () => {
       refundContext: null
     })
 
-    const doc = service.buildRefundDocument('refund-1', 'en', false)
+    const doc = service.buildRefundDocument('b1b1b1b1-0000-4000-8000-000000000001', 'en', false)
     expect(doc.totals.payments[0]!.label).toBe('Card')
+  })
+})
+
+describe('POS improvements Stage 6: profile v2 display choices and the fiscal block', () => {
+  const zatcaContext = {
+    invoiceLocalUuid: 'a1a1a1a1-0000-4000-8000-000000000001',
+    companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
+    regime: 'sa_zatca_phase1',
+    sellerName: 'Harbour Coffee Trading LLC',
+    vatNumber: '310122393500003',
+    sellerAddress: {
+      street: '1 Corniche Road',
+      city: 'Jeddah',
+      postal_code: null,
+      country: 'Saudi Arabia'
+    },
+    fiscalRevision: 2,
+    qrType: 'zatca-p1',
+    qrPayload:
+      'AQxCb2JzIFJlY29yZHMCDzMxMDEyMjM5MzUwMDAwMwMUMjAyMi0wNC0yNVQxNTozMDowMFoEBzEwMDAuMDAFBjE1MC4wMA==',
+    qrSha256: 'a'.repeat(64),
+    createdAt: '2026-01-01T10:00:00.000Z'
+  }
+  const profileVersion = {
+    versionUuid: 'v-1',
+    companyUuid: 'c1c1c1c1-0000-4000-8000-000000000001',
+    revision: 2,
+    addressLines: ['Profile Street 5'],
+    phone: '+966 11 000 0000',
+    taxIdentifierLabel: null,
+    taxIdentifierValue: null,
+    footerLines: ['See you soon'],
+    logoSha256: null,
+    logoAvailable: false,
+    receivedAt: '2026-01-01',
+    displayOptions: {
+      show_branch: false,
+      show_address: false,
+      show_phone: false,
+      show_cashier: false,
+      show_customer: true,
+      show_footer: false,
+      logo_size: 'small'
+    }
+  }
+
+  it('hides only optional decoration; the ZATCA seller address, title and QR are always present', () => {
+    const service = buildService({
+      invoice: invoice({ syncStatus: 'synced' }),
+      items: [item()],
+      context: context({ receiptProfileVersionUuid: 'v-1' }),
+      profileVersion,
+      fiscalContext: zatcaContext
+    })
+
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
+
+    expect(doc.header.addressLines).toEqual([])
+    expect(doc.header.phone).toBeNull()
+    expect(doc.header.branchName).toBeNull()
+    expect(doc.meta.cashierName).toBeNull()
+    expect(doc.footer).toEqual([])
+    expect(doc.fiscal?.kind).toBe('zatca-sale')
+    expect(doc.fiscal?.title).toBe('Simplified Tax Invoice / فاتورة ضريبية مبسطة')
+    expect(doc.fiscal?.seller?.addressLines).toEqual(['1 Corniche Road', 'Jeddah', 'Saudi Arabia'])
+    expect(doc.fiscal?.qr).toEqual({ type: 'zatca-p1', payload: zatcaContext.qrPayload })
+  })
+
+  it('a v1 version (no choices) shows everything as before', () => {
+    const service = buildService({
+      invoice: invoice({ syncStatus: 'synced' }),
+      items: [item()],
+      context: context({ receiptProfileVersionUuid: 'v-1' }),
+      profileVersion: { ...profileVersion, displayOptions: null }
+    })
+
+    const doc = service.buildSaleDocument('a1a1a1a1-0000-4000-8000-000000000001', 'en', false)
+
+    expect(doc.header.addressLines).toEqual(['Profile Street 5'])
+    expect(doc.meta.cashierName).toBe('Jane')
+    expect(doc.footer).toEqual(['See you soon'])
+    expect(doc.fiscal?.kind).toBe('historical')
+    expect(doc.fiscal?.qr.type).toBe('txn-ref-v1')
   })
 })

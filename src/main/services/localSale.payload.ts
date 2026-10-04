@@ -33,6 +33,11 @@ export function buildUploadPayload(
   // sale that was actually rung, reproducible byte-for-byte from committed rows alone.
   const authorityUuid = invoice.offlineSaleAuthorityUuid ?? null
   const isPhysicalPresence = authorityUuid !== null
+  // POS improvements, Stage 4: a `mixed` header (lines with two or more modes, committed only under
+  // a `per_line` contract) selects v4 (allocation-backed) or v5 (physical presence). A uniform cart
+  // keeps v2/v3 and its exact bytes. Like v3, this is a property of the committed row alone.
+  const isMixed = invoice.taxMode === 'mixed'
+  const contractVersion = isPhysicalPresence ? (isMixed ? 5 : 3) : isMixed ? 4 : 2
 
   return {
     idempotency_key: invoice.localUuid,
@@ -44,7 +49,7 @@ export function buildUploadPayload(
     customer_uuid: invoice.customerUuid,
     currency: invoice.currency,
     tax_mode: invoice.taxMode,
-    client_contract_version: isPhysicalPresence ? 3 : 2,
+    client_contract_version: contractVersion,
     shift_uuid: invoice.shiftUuid,
     // Emitted ONLY for v3. A v2 payload's bytes are unchanged, which is what keeps every existing
     // stored payload hash valid and every existing golden fixture byte-identical.

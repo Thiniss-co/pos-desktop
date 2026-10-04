@@ -173,7 +173,8 @@ export class InvoiceDispositionDiscoveryService {
       }
 
       if (
-        payload.client_contract_version !== 3 ||
+        // v3, or v5 (v3 with mixed taxes, POS improvements Stage 4): the physical-presence contracts.
+        (payload.client_contract_version !== 3 && payload.client_contract_version !== 5) ||
         typeof payload.offline_sale_authority_uuid !== 'string'
       ) {
         continue

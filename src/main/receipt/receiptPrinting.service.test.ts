@@ -1,4 +1,14 @@
 import { describe, expect, it, vi, type Mock } from 'vitest'
+
+// POS improvements, Stage 6: the QR decoder is replaced by what the "rendered" receipt contains.
+const qrDecode = vi.hoisted(() => ({ data: null as string | null }))
+vi.mock('jsqr', () => ({
+  default: vi.fn(() => (qrDecode.data === null ? null : { data: qrDecode.data }))
+}))
+
+/** The official ZATCA example: a valid `zatca-p1` payload for the fake documents. */
+const OFFICIAL_QR =
+  'AQxCb2JzIFJlY29yZHMCDzMxMDEyMjM5MzUwMDAwMwMUMjAyMi0wNC0yNVQxNTozMDowMFoEBzEwMDAuMDAFBjE1MC4wMA=='
 import { ReceiptPrintingService, type ReceiptPrintingDependencies } from './receiptPrinting.service'
 import type { ReceiptAccessService, ReceiptOwner } from './receiptAccess.service'
 import type { ReceiptDocumentService } from './receiptDocument.service'
@@ -151,10 +161,19 @@ class FakeJobRepository {
     this.rows.set(jobUuid, { ...r, layoutJson, layoutSha256 })
     return 1
   }
+  qrVerified = new Map<string, string>()
+  recordQrVerified(jobUuid: string, leaseId: string, sha: string): number {
+    const r = this.rows.get(jobUuid)
+    if (!r || r.workerLeaseId !== leaseId || r.status !== 'preparing') return 0
+    this.qrVerified.set(jobUuid, sha)
+    return 1
+  }
   beginDispatching(jobUuid: string, leaseId: string, dispatchToken: string): number {
     const r = this.rows.get(jobUuid)
     if (!r || r.workerLeaseId !== leaseId || r.status !== 'preparing' || r.layoutJson === null)
       return 0
+    // Mirrors the real statement: a sale/refund job needs its verified QR.
+    if (r.documentKind !== 'test' && !this.qrVerified.has(jobUuid)) return 0
     this.rows.set(jobUuid, {
       ...r,
       status: 'dispatching',
@@ -263,6 +282,7 @@ class FakeJobRepository {
 }
 
 interface FakeRenderWindow {
+  captureQrBitmap: Mock
   render: Mock
   capturePreviewPage: Mock
   verifyWithPdf: Mock
@@ -289,6 +309,10 @@ function buildService(
       | (() => Promise<{ success: boolean; failureReason: string }>)
     resolveCaller?: ReceiptOwner
     invoice?: LocalInvoiceRow
+    /** What the rendered QR decodes to (default: the expected payload). */
+    decodedQr?: string | null
+    /** The QR the frozen facts produce (default: the document's own). */
+    expectedQr?: { type: 'zatca-p1' | 'txn-ref-v1'; payload: string } | null
   } = {}
 ): {
   service: ReceiptPrintingService
@@ -301,7 +325,9 @@ function buildService(
   const jobs = overrides.jobs ?? new FakeJobRepository()
   const invoice = overrides.invoice ?? invoiceRow()
 
+  qrDecode.data = overrides.decodedQr === undefined ? OFFICIAL_QR : overrides.decodedQr
   const fakeRenderWindow: FakeRenderWindow = {
+    captureQrBitmap: vi.fn(async () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
     render: vi.fn(async () => ({
       pageWidthUm: 80000,
       pageHeightUm: 100000,
@@ -356,7 +382,23 @@ function buildService(
       },
       refund: null,
       notices: [],
-      footer: []
+      footer: [],
+      fiscal:
+        kind === 'test'
+          ? null
+          : {
+              kind: 'zatca-sale',
+              title: 'Simplified Tax Invoice / فاتورة ضريبية مبسطة',
+              seller: null,
+              reference: null,
+              historicalNote: null,
+              qr: { type: 'zatca-p1', payload: OFFICIAL_QR },
+              breakdown: [],
+              netTotalLabel: 'Total excl. VAT',
+              netTotalText: '$0.00',
+              vatTotalLabel: 'Total VAT',
+              vatTotalText: '$0.00'
+            }
     }
   }
 
@@ -414,6 +456,14 @@ function buildService(
     localRefunds: localRefunds as unknown as ReceiptPrintingDependencies['localRefunds'],
     getPrinters: vi.fn(async () => [{ name: 'printer-1', displayName: 'Printer 1' }]),
     getRenderWindow: () => fakeRenderWindow as unknown as ReceiptRenderWindow,
+    fiscalQr: {
+      expectedSaleQr: vi.fn(() =>
+        overrides.expectedQr === undefined
+          ? { type: 'zatca-p1' as const, payload: OFFICIAL_QR }
+          : overrides.expectedQr
+      ),
+      expectedRefundQr: vi.fn(() => ({ type: 'zatca-p1' as const, payload: OFFICIAL_QR }))
+    },
     now: () => new Date('2026-01-01T00:00:00.000Z'),
     createUuid: (() => {
       let n = 0
@@ -455,6 +505,43 @@ describe('ReceiptPrintingService.dispatch', () => {
     const result = await service.dispatch(OWNER, input)
 
     expect(result.status).toBe('submitted')
+  })
+
+  describe('POS improvements Stage 6: the rendered-QR gate (Phase P, before the fence)', () => {
+    it('records the verified QR and dispatches when the rendered QR is exactly the expected one', async () => {
+      const { service, jobs, fakeRenderWindow } = buildService()
+      const { input } = await previewAndDispatch(service, 'req-qr-ok')
+
+      const result = await service.dispatch(OWNER, input)
+
+      expect(result.status).toBe('submitted')
+      expect(fakeRenderWindow.captureQrBitmap).toHaveBeenCalledTimes(1)
+      expect([...jobs.qrVerified.values()]).toHaveLength(1)
+    })
+
+    it.each([
+      ['a rendered QR that decodes to another payload', { decodedQr: 'THINIS-TXN/1;co=x' }],
+      ['an unreadable rendered QR', { decodedQr: null }],
+      ['a frozen context that no longer reproduces its payload', { expectedQr: null as null }],
+      [
+        'an expected QR of another type than the document carries',
+        {
+          expectedQr: {
+            type: 'txn-ref-v1' as const,
+            payload: OFFICIAL_QR
+          }
+        }
+      ]
+    ])('refuses %s: failed before dispatch, never printed', async (_label, overrides) => {
+      const { service, fakeRenderWindow } = buildService(overrides)
+      const { input } = await previewAndDispatch(service, `req-qr-${_label.length}`)
+
+      const result = await service.dispatch(OWNER, input)
+
+      expect(result.status).toBe('failed_before_dispatch')
+      expect(result.failureCode).toBe('RECEIPT_QR_INVALID')
+      expect(fakeRenderWindow.dispatchPrint).not.toHaveBeenCalled()
+    })
   })
 
   it('replays an exact retry read-only, without redispatching', async () => {
@@ -753,5 +840,251 @@ describe('ReceiptPrintingService failure surfaces', () => {
 
     expect(result.status).toBe('failed_before_dispatch')
     expect(result.failureCode).toBe('PRINTER_NOT_FOUND')
+  })
+})
+
+describe('POS improvements Stage 6: 58 mm printable width', () => {
+  it('caps the printable width to the 58 mm paper (48 mm) instead of the 72 mm default', async () => {
+    const { service, fakeRenderWindow } = buildService()
+    const preview = await service.preview(OWNER, {
+      document: { kind: 'sale', invoiceLocalUuid: 'inv-1' },
+      locale: 'en',
+      overrides: { paperWidthMm: 58 }
+    })
+
+    await service.dispatch(OWNER, {
+      requestId: 'req-58mm',
+      document: { kind: 'sale', invoiceLocalUuid: 'inv-1' },
+      locale: 'en',
+      overrides: { paperWidthMm: 58 },
+      preview: {
+        previewDocumentSha256: preview.previewDocumentSha256,
+        previewOptionsSha256: preview.previewOptionsSha256
+      }
+    })
+
+    const params = fakeRenderWindow.render.mock.calls.at(-1)?.[0] as
+      { paperWidthMm: number; printableWidthMm: number } | undefined
+    expect(params?.paperWidthMm).toBe(58)
+    expect(params?.printableWidthMm).toBe(48)
+  })
+})
+
+describe('POS improvements Stage 6: the authorization fence runs last (R6d)', () => {
+  /** Holds the rendered-QR capture (Phase P) open until `release()`. */
+  function holdQrCapture(fakeRenderWindow: FakeRenderWindow): {
+    reached: Promise<void>
+    release: () => void
+  } {
+    let release!: () => void
+    let reachedResolve!: () => void
+    const reached = new Promise<void>((resolve) => (reachedResolve = resolve))
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    fakeRenderWindow.captureQrBitmap = vi.fn(async () => {
+      reachedResolve()
+      await gate
+      return { data: new Uint8ClampedArray(4), width: 1, height: 1 }
+    })
+    return { reached, release }
+  }
+
+  it.each([
+    [
+      'logout',
+      (access: FakeAccess) =>
+        (access.resolveCaller = vi.fn(() => {
+          throw new Error('signed out')
+        })),
+      'ACCESS_REVOKED'
+    ],
+    [
+      'another user signing in',
+      (access: FakeAccess) =>
+        (access.resolveCaller = vi.fn(() => ({ ...OWNER, userUuid: 'user-b', sessionEpoch: 2 }))),
+      'SESSION_CHANGED'
+    ],
+    [
+      'the same user signing in again (new session epoch)',
+      (access: FakeAccess) => (access.resolveCaller = vi.fn(() => ({ ...OWNER, sessionEpoch: 2 }))),
+      'SESSION_CHANGED'
+    ],
+    [
+      'pos.view revoked by a bootstrap refresh',
+      (access: FakeAccess) =>
+        (access.resolveCaller = vi.fn(() => {
+          throw new Error('pos.view missing')
+        })),
+      'ACCESS_REVOKED'
+    ]
+  ])(
+    '%s while the QR is being prepared: failed before dispatch, never printed',
+    async (_label, change, code) => {
+      const { service, access, fakeRenderWindow, jobs } = buildService()
+      const { input } = await previewAndDispatch(service, `req-fence-${code}-${_label.length}`)
+      const held = holdQrCapture(fakeRenderWindow)
+
+      const pending = service.dispatch(OWNER, input)
+      await held.reached
+      change(access)
+      held.release()
+      const result = await pending
+
+      expect(result.status).toBe('failed_before_dispatch')
+      expect(result.failureCode).toBe(code)
+      expect(fakeRenderWindow.dispatchPrint).not.toHaveBeenCalled()
+      expect([...jobs.rows.values()].some((row) => row.status === 'dispatching')).toBe(false)
+    }
+  )
+
+  it('a queue cancellation during QR preparation leaves the job cancelled and never printed', async () => {
+    const { service, fakeRenderWindow } = buildService()
+    const { input } = await previewAndDispatch(service, 'req-fence-cancel')
+    const held = holdQrCapture(fakeRenderWindow)
+
+    const pending = service.dispatch(OWNER, input)
+    await held.reached
+    service.cancelJob(OWNER, 'req-fence-cancel')
+    held.release()
+    const result = await pending
+
+    expect(result.status).toBe('cancelled')
+    expect(fakeRenderWindow.dispatchPrint).not.toHaveBeenCalled()
+  })
+
+  it('a lease taken over during QR preparation: the conditional update fails and nothing is printed', async () => {
+    const { service, fakeRenderWindow, jobs } = buildService()
+    const { input } = await previewAndDispatch(service, 'req-fence-lease')
+    const held = holdQrCapture(fakeRenderWindow)
+
+    const pending = service.dispatch(OWNER, input)
+    await held.reached
+    for (const [uuid, row] of jobs.rows) {
+      if (row.status === 'preparing') jobs.rows.set(uuid, { ...row, workerLeaseId: 'lease-other' })
+    }
+    held.release()
+    const result = await pending
+
+    expect(result.status).not.toBe('dispatching')
+    expect(result.status).not.toBe('submitted')
+    expect(fakeRenderWindow.dispatchPrint).not.toHaveBeenCalled()
+  })
+
+  it('no microtask runs between the final gate and the print boundary call', async () => {
+    const { service, access, fakeRenderWindow } = buildService()
+    const { input } = await previewAndDispatch(service, 'req-fence-sync')
+    let lastGateMarker: { ran: boolean } | null = null
+    access.resolveCaller = vi.fn(() => {
+      const marker = { ran: false }
+      queueMicrotask(() => (marker.ran = true))
+      lastGateMarker = marker
+      return OWNER
+    })
+    let microtaskRanBeforeDispatch: boolean | null = null
+    fakeRenderWindow.dispatchPrint = vi.fn(async () => {
+      microtaskRanBeforeDispatch = lastGateMarker?.ran ?? null
+      return { success: true, failureReason: '' }
+    })
+
+    const result = await service.dispatch(OWNER, input)
+
+    expect(result.status).toBe('submitted')
+    expect(microtaskRanBeforeDispatch).toBe(false)
+  })
+})
+
+describe('POS improvements Stage 7: an admitted AUTO job', () => {
+  it('prints silently to the snapshot printer with the snapshot options, whatever the current settings', async () => {
+    const { service, fakeRenderWindow } = buildService()
+    const prepared = service.prepareAutoJob(OWNER, {
+      invoiceLocalUuid: 'inv-1',
+      locale: 'ar',
+      settings: {
+        printerName: 'printer-1',
+        paperWidthMm: 58,
+        printableWidthMm: 72,
+        marginTopMm: 2,
+        marginBottomMm: 6,
+        pageLengthProfile: 'content_sized',
+        maxContinuousLengthMm: 1000,
+        fixedPageHeightMm: 297,
+        defaultCopies: 2,
+        dispatchMode: 'system_dialog',
+        autoPrintAfterSale: false
+      }
+    })
+
+    expect(prepared.options).toMatchObject({
+      silent: true,
+      printerName: 'printer-1',
+      paperWidthMm: 58,
+      printableWidthMm: 48,
+      copies: 2
+    })
+    expect(prepared.job).toMatchObject({
+      trigger: 'auto',
+      requestId: 'auto-sale:inv-1',
+      locale: 'ar',
+      sessionEpochAtClaim: OWNER.sessionEpoch
+    })
+
+    const job = service.claimAutoJob(prepared)
+    expect(job).not.toBeNull()
+    expect(service.claimAutoJob({ ...prepared, job: { ...prepared.job, jobUuid: 'other' } })).toBe(
+      null
+    )
+
+    const result = await service.runAdmittedAutoJob(job!, OWNER, prepared)
+    expect(result.status).toBe('submitted')
+    expect(fakeRenderWindow.dispatchPrint).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceName: 'printer-1', silent: true, copies: 2 })
+    )
+  })
+})
+
+describe('POS improvements Stage 7: one render at a time on the shared window', () => {
+  it('a preview requested while an AUTO job is preparing waits for it instead of interleaving', async () => {
+    const { service, fakeRenderWindow } = buildService()
+    let active = 0
+    let maxActive = 0
+    const baseRender = fakeRenderWindow.render.getMockImplementation()!
+    fakeRenderWindow.render = vi.fn(async (...args: unknown[]) => {
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      try {
+        return await baseRender(...args)
+      } finally {
+        active -= 1
+      }
+    })
+    const prepared = service.prepareAutoJob(OWNER, {
+      invoiceLocalUuid: 'inv-1',
+      locale: 'en',
+      settings: {
+        printerName: 'printer-1',
+        paperWidthMm: 80,
+        printableWidthMm: 72,
+        marginTopMm: 2,
+        marginBottomMm: 6,
+        pageLengthProfile: 'content_sized',
+        maxContinuousLengthMm: 1000,
+        fixedPageHeightMm: 297,
+        defaultCopies: 1,
+        dispatchMode: 'direct',
+        autoPrintAfterSale: false
+      }
+    })
+    const job = service.claimAutoJob(prepared)!
+
+    const auto = service.runAdmittedAutoJob(job, OWNER, prepared)
+    const preview = service.preview(OWNER, {
+      document: { kind: 'sale', invoiceLocalUuid: 'inv-1' },
+      locale: 'en',
+      overrides: {}
+    })
+
+    expect((await auto).status).toBe('submitted')
+    expect((await preview).pageCount).toBe(1)
+    expect(maxActive).toBe(1)
   })
 })

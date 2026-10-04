@@ -57,6 +57,8 @@ export interface NewLocalInvoiceItem {
   readonly priceRevision: string
   readonly taxUuid: string | null
   readonly taxMode: LocalInvoiceItemRow['taxMode']
+  /** Stage 4: optional so existing callers keep compiling; omitted means unspecified (NULL). */
+  readonly taxCategory?: LocalInvoiceItemRow['taxCategory']
   readonly taxRateBasisPoints: number
   readonly taxRevision: string
   readonly discountType: LocalInvoiceItemRow['discountType']
@@ -154,6 +156,7 @@ function mapItemRow(row: Record<string, unknown>): LocalInvoiceItemRow {
     priceRevision: row.price_revision as string,
     taxUuid: row.tax_uuid as string | null,
     taxMode: row.tax_mode as LocalInvoiceItemRow['taxMode'],
+    taxCategory: (row.tax_category ?? null) as LocalInvoiceItemRow['taxCategory'],
     taxRateBasisPoints: row.tax_rate_basis_points as number,
     taxRevision: row.tax_revision as string,
     discountType: row.discount_type as LocalInvoiceItemRow['discountType'],
@@ -259,6 +262,21 @@ export class LocalSaleRepository {
     return created
   }
 
+  private itemTaxCategory: boolean | null = null
+
+  private hasItemTaxCategory(): boolean {
+    if (this.itemTaxCategory === null) {
+      this.itemTaxCategory =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM pragma_table_info('local_invoice_items') WHERE name = 'tax_category'"
+          )
+          .pluck()
+          .get() === 1
+    }
+    return this.itemTaxCategory
+  }
+
   insertItem(item: NewLocalInvoiceItem): LocalInvoiceItemRow {
     this.database
       .prepare(
@@ -299,6 +317,14 @@ export class LocalSaleRepository {
         item.uncoveredMilli ?? 0,
         item.createdAt
       )
+
+    // POS improvements, Stage 4: written in the same transaction as the insert above. A separate
+    // statement keeps that insert valid on pre-0022 schemas (no column) and NULL means unspecified.
+    if ((item.taxCategory ?? null) !== null && this.hasItemTaxCategory()) {
+      this.database
+        .prepare('UPDATE local_invoice_items SET tax_category = ? WHERE local_uuid = ?')
+        .run(item.taxCategory, item.localUuid)
+    }
 
     const row = this.database
       .prepare('SELECT * FROM local_invoice_items WHERE local_uuid = ?')

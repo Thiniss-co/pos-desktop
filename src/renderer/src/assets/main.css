@@ -12,6 +12,8 @@
 @import './tokens.css';
 @import './themes/palette.css';
 @import './base.css';
+/* POS improvements, Stage 5: touch mode — unlayered, so it outranks the layered utilities. */
+@import './touch.css';
 @import 'tailwindcss/utilities.css' layer(utilities) source(none);
 
 @source '../';

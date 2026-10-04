@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { FiscalContextService } from '../receipt/fiscalContext.service'
 import { requestBootstrap } from './bootstrap.service'
 import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api.contract'
 import type {
@@ -84,6 +85,8 @@ export interface RefundServiceDependencies {
    * path, never a hard failure of the refund itself.
    */
   readonly receiptContext?: Pick<ReceiptContextCaptureService, 'captureForRefund'>
+  /** POS improvements, Stage 6: freezes the accepted refund's fiscal context and QR. */
+  readonly fiscalContext?: Pick<FiscalContextService, 'captureForRefund'>
 }
 
 function validationError(
@@ -725,6 +728,20 @@ export class RefundService {
           localRefundUuid,
           { remoteUuid: outcome.refund.id, refundNumber: outcome.refund.refund_number },
           settledAt
+        )
+        // POS improvements, Stage 6: the credit note's fiscal facts, frozen as the server froze them
+        // at acceptance (a reference QR when it sent none). Written once; a replay finds it present.
+        this.dependencies.fiscalContext?.captureForRefund(
+          {
+            refundLocalUuid: localRefundUuid,
+            companyUuid: local.companyUuid,
+            refundedAt: local.refundedAt,
+            grandTotalAmount: local.grandTotalAmount,
+            taxTotalAmount: local.taxTotalAmount,
+            currency: local.currency,
+            currencyExponent: local.currencyExponent
+          },
+          outcome.refund.fiscal ?? null
         )
         break
       case 'rejected':

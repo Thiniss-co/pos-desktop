@@ -5,6 +5,7 @@ import { formatReceiptMoney } from '@shared/receipt/receiptMoney'
 import { receiptStrings } from '@shared/receipt/receiptStrings'
 import type {
   ReceiptDocument,
+  ReceiptFiscalBlock,
   ReceiptItemLine,
   ReceiptLocale,
   ReceiptTaxLine
@@ -14,6 +15,13 @@ import type { LocalRefundRepository } from '../repositories/localRefund.reposito
 import type { ReceiptContextRepository } from '../repositories/receiptContext.repository'
 import type { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import type { ReceiptProfileRepository } from '../repositories/receiptProfile.repository'
+import type { FiscalContextRepository } from '../repositories/fiscalContext.repository'
+import type { ServerRefundFiscalBlock } from './fiscalContext.service'
+import { encodeTransactionReferenceQr } from '@shared/receipt/transactionQr'
+import {
+  ZATCA_CREDIT_NOTE_TITLE,
+  ZATCA_SIMPLIFIED_INVOICE_TITLE
+} from '@shared/receipt/receiptStrings'
 
 /**
  * Receipt-printing plan §D-2/§D-9 — builds the frozen, printable `ReceiptDocument` from persisted
@@ -22,7 +30,8 @@ import type { ReceiptProfileRepository } from '../repositories/receiptProfile.re
  * catalog prices, current tax settings or current `track_stock`.
  */
 
-export const RECEIPT_TEMPLATE_VERSION = 1
+/** 2 (POS improvements, Stage 6): fiscal block, mandatory QR, VAT breakdown. */
+export const RECEIPT_TEMPLATE_VERSION = 2
 
 export interface ReceiptDocumentDependencies {
   readonly localSale: Pick<
@@ -42,6 +51,8 @@ export interface ReceiptDocumentDependencies {
    *  Production wiring always supplies it (plan §D-11 — rendering reads branding ONLY from the
    *  captured profile version, never from the current mirror pointer). */
   readonly receiptProfile?: Pick<ReceiptProfileRepository, 'getVersion' | 'getCurrent'>
+  /** POS improvements, Stage 6: the frozen fiscal contexts (absent only in narrow unit fakes). */
+  readonly fiscalContexts?: Pick<FiscalContextRepository, 'invoiceContext' | 'refundContext'>
 }
 
 function notFound(): PublicAppError {
@@ -51,6 +62,25 @@ function notFound(): PublicAppError {
     backendCode: 'receipt_not_found',
     retryable: false
   })
+}
+
+/**
+ * POS improvements, Stage 6: the offset of the receipt's FROZEN time zone at that instant (Intl
+ * `longOffset`), not the workstation's — the earlier approximation printed the workstation offset.
+ */
+function zoneOffset(date: Date, timeZone: string): string {
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' })
+      .formatToParts(date)
+      .find((part) => part.type === 'timeZoneName')?.value
+    const match = name === undefined ? null : /^GMT(?:([+-]\d{2}):(\d{2}))?$/.exec(name)
+    if (match) {
+      return match[1] ? `UTC${match[1]}:${match[2]}` : 'UTC+00:00'
+    }
+  } catch {
+    // fall through to the workstation offset below
+  }
+  return formatOffset(date)
 }
 
 function formatOffset(date: Date): string {
@@ -74,11 +104,7 @@ function formatDateTime(isoUtc: string, timeZone: string, locale: ReceiptLocale)
       minute: '2-digit',
       numberingSystem: 'latn'
     }).format(date)
-    // The offset is computed in the WORKSTATION's local zone (there is no reliable
-    // Intl-only way to get a named zone's offset without a heavier dependency); when
-    // `timeZone` differs from the workstation, this is a close, honestly-labelled
-    // approximation rather than a silently wrong one.
-    return `${formatted} (${formatOffset(date)})`
+    return `${formatted} (${zoneOffset(date, timeZone)})`
   } catch {
     return isoUtc
   }
@@ -118,6 +144,70 @@ function parsePaymentSnapshotName(methodSnapshotJson: string): string | null {
   }
 }
 
+function formatDate(isoUtc: string, timeZone: string, locale: ReceiptLocale): string {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      numberingSystem: 'latn'
+    }).format(new Date(isoUtc))
+  } catch {
+    return isoUtc.slice(0, 10)
+  }
+}
+
+interface BreakdownLine {
+  readonly category: 'standard' | 'zero_rated' | 'exempt' | null
+  readonly rateBasisPoints: number
+  readonly mode: 'none' | 'inclusive' | 'exclusive'
+  readonly taxAmount: number
+  readonly totalAmount: number
+}
+
+/** Stage 6: the VAT breakdown keyed by (category, rate, mode): net = total − tax for every mode. */
+function vatBreakdown(
+  lines: readonly BreakdownLine[],
+  strings: ReturnType<typeof receiptStrings>,
+  money: (amount: number) => string
+): ReceiptFiscalBlock['breakdown'] {
+  const groups = new Map<string, { line: BreakdownLine; net: number; tax: number }>()
+  for (const line of lines) {
+    const key = `${line.category ?? '-'}|${line.rateBasisPoints}|${line.mode}`
+    const group = groups.get(key) ?? { line, net: 0, tax: 0 }
+    group.net += line.totalAmount - line.taxAmount
+    group.tax += line.taxAmount
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+    .sort(
+      (a, b) =>
+        b.line.rateBasisPoints - a.line.rateBasisPoints || a.line.mode.localeCompare(b.line.mode)
+    )
+    .map(({ line, net, tax }) => ({
+      label:
+        line.mode === 'none'
+          ? strings.modeLabel('none')
+          : `${strings.categoryLabel(line.category)} ${line.rateBasisPoints / 100}% · ${strings.modeLabel(line.mode)}`,
+      netText: money(net),
+      taxText: money(tax)
+    }))
+}
+
+function addressLines(address: {
+  readonly street: string | null
+  readonly city: string | null
+  readonly postal_code: string | null
+  readonly country: string | null
+}): string[] {
+  return [
+    address.street,
+    [address.city, address.postal_code].filter((part) => (part ?? '').trim() !== '').join(' '),
+    address.country
+  ].filter((line): line is string => (line ?? '').trim() !== '')
+}
+
 export class ReceiptDocumentService {
   constructor(private readonly dependencies: ReceiptDocumentDependencies) {}
 
@@ -147,7 +237,11 @@ export class ReceiptDocumentService {
       invoice.companyUuid,
       context?.receiptProfileVersionUuid ?? null
     )
-    const header = { ...names, ...branding.header }
+    const header = {
+      ...names,
+      ...branding.header,
+      branchName: branding.display.showBranch ? names.branchName : null
+    }
 
     const itemLines: ReceiptItemLine[] = items
       .slice()
@@ -192,8 +286,8 @@ export class ReceiptDocumentService {
         serverNumber: invoice.serverNumber,
         dateTimeText: formatDateTime(invoice.soldAt, context?.timeZone ?? 'UTC', locale),
         cashierLabel: strings.cashierLabel,
-        cashierName: context?.cashierDisplayName ?? null,
-        customerName: context?.customerName ?? null,
+        cashierName: branding.display.showCashier ? (context?.cashierDisplayName ?? null) : null,
+        customerName: branding.display.showCustomer ? (context?.customerName ?? null) : null,
         customerTaxNumber: context?.customerTaxNumber ?? null,
         currency: invoice.currency
       },
@@ -213,7 +307,8 @@ export class ReceiptDocumentService {
       },
       refund: null,
       notices,
-      footer: branding.footerLines
+      footer: branding.footerLines,
+      fiscal: this.saleFiscal(invoice, items, strings, money)
     }
   }
 
@@ -247,7 +342,11 @@ export class ReceiptDocumentService {
       refund.companyUuid,
       context?.receiptProfileVersionUuid ?? null
     )
-    const header = { ...names, ...branding.header }
+    const header = {
+      ...names,
+      ...branding.header,
+      branchName: branding.display.showBranch ? names.branchName : null
+    }
 
     const itemLines: ReceiptItemLine[] = items
       .slice()
@@ -266,7 +365,8 @@ export class ReceiptDocumentService {
           lineTotalText: money(item.totalAmount),
           ownDiscountText: item.discountAmount > 0 ? money(item.discountAmount) : null,
           invoiceDiscountShareText: null,
-          taxRateLabel: descriptor?.taxRateText ? `${descriptor.taxRateText}%` : null
+          // The server's decimal rate text ("15.0000") prints like a sale line ("15%").
+          taxRateLabel: descriptor?.taxRateText ? `${Number(descriptor.taxRateText)}%` : null
         }
       })
 
@@ -304,7 +404,7 @@ export class ReceiptDocumentService {
         serverNumber: null,
         dateTimeText: formatDateTime(refund.refundedAt, context?.timeZone ?? 'UTC', locale),
         cashierLabel: strings.cashierLabel,
-        cashierName: context?.cashierDisplayName ?? null,
+        cashierName: branding.display.showCashier ? (context?.cashierDisplayName ?? null) : null,
         customerName: null,
         customerTaxNumber: null,
         currency: refund.currency
@@ -329,7 +429,177 @@ export class ReceiptDocumentService {
         reason: refund.reason
       },
       notices,
-      footer: branding.footerLines
+      footer: branding.footerLines,
+      fiscal: this.refundFiscal(
+        refund,
+        items,
+        lineContexts,
+        strings,
+        money,
+        context?.timeZone ?? 'UTC',
+        locale
+      )
+    }
+  }
+
+  /**
+   * POS improvements, Stage 6: the sale's fiscal block from its FROZEN context. A sale committed before
+   * contexts existed is a historical copy with a reference QR over existing facts — never a VAT identity
+   * taken from today's settings.
+   */
+  private saleFiscal(
+    invoice: NonNullable<ReturnType<LocalSaleRepository['findInvoiceByLocalUuid']>>,
+    items: readonly LocalInvoiceItemRow[],
+    strings: ReturnType<typeof receiptStrings>,
+    money: (amount: number) => string
+  ): ReceiptFiscalBlock {
+    const context = this.dependencies.fiscalContexts?.invoiceContext(invoice.localUuid) ?? null
+    const zatca = context !== null && context.regime === 'sa_zatca_phase1'
+    const breakdown = vatBreakdown(
+      items.map((item) => ({
+        category: item.taxCategory ?? null,
+        rateBasisPoints: item.taxRateBasisPoints,
+        mode: item.taxMode,
+        taxAmount: item.taxAmount,
+        totalAmount: item.totalAmount
+      })),
+      strings,
+      money
+    )
+    const qr =
+      context !== null
+        ? { type: context.qrType, payload: context.qrPayload }
+        : {
+            type: 'txn-ref-v1' as const,
+            payload: encodeTransactionReferenceQr({
+              companyUuid: invoice.companyUuid,
+              documentKind: 'sale',
+              documentUuid: invoice.localUuid,
+              instant: invoice.soldAt,
+              totalMinor: invoice.grandTotalAmount,
+              currencyExponent: invoice.currencyExponent,
+              currency: invoice.currency
+            })
+          }
+    return {
+      kind: zatca ? 'zatca-sale' : context !== null ? 'receipt' : 'historical',
+      title: zatca
+        ? ZATCA_SIMPLIFIED_INVOICE_TITLE
+        : context !== null
+          ? strings.receiptTitle
+          : strings.historicalTitle,
+      seller:
+        zatca && context.sellerName !== null && context.vatNumber !== null
+          ? {
+              name: context.sellerName,
+              vatLabel: strings.vatNumberLabel,
+              vatNumber: context.vatNumber,
+              addressLines:
+                context.sellerAddress === null ? [] : addressLines(context.sellerAddress)
+            }
+          : null,
+      reference: null,
+      historicalNote: context === null ? strings.historicalNote : null,
+      qr,
+      breakdown,
+      netTotalLabel: strings.totalExclVatLabel,
+      netTotalText: money(invoice.grandTotalAmount - invoice.taxTotalAmount),
+      vatTotalLabel: strings.vatTotalLabel,
+      vatTotalText: money(invoice.taxTotalAmount)
+    }
+  }
+
+  /**
+   * Stage 6: the accepted refund's fiscal block. A ZATCA refund is a credit note carrying the seller
+   * identity, note number and original-invoice reference the SERVER froze at acceptance.
+   */
+  private refundFiscal(
+    refund: NonNullable<ReturnType<LocalRefundRepository['findByLocalUuid']>>,
+    items: ReturnType<LocalRefundRepository['itemsForRefund']>,
+    lineContexts: ReturnType<ReceiptContextRepository['findRefundLineContexts']>,
+    strings: ReturnType<typeof receiptStrings>,
+    money: (amount: number) => string,
+    timeZone: string,
+    locale: ReceiptLocale
+  ): ReceiptFiscalBlock {
+    const context = this.dependencies.fiscalContexts?.refundContext(refund.localUuid) ?? null
+    const fiscal = (context?.fiscal ?? null) as ServerRefundFiscalBlock | null
+    const zatca = context !== null && context.regime === 'sa_zatca_phase1' && fiscal !== null
+    // Categories come from the ORIGINAL invoice lines (by product), which froze them at commit.
+    const originalItems = this.dependencies.localSale.itemsForInvoice(refund.invoiceLocalUuid)
+    const categoryByProduct = new Map(
+      originalItems.map((item) => [item.productUuid, item.taxCategory ?? null])
+    )
+    const rateByProduct = new Map(
+      originalItems.map((item) => [item.productUuid, item.taxRateBasisPoints])
+    )
+    const descriptorRate = new Map(
+      lineContexts.map((line) => [
+        line.invoiceItemRemoteUuid,
+        line.taxRateText ? Math.round(Number(line.taxRateText) * 100) : null
+      ])
+    )
+    const breakdown = vatBreakdown(
+      items.map((item) => ({
+        category: categoryByProduct.get(item.productUuid) ?? null,
+        rateBasisPoints:
+          descriptorRate.get(item.invoiceItemRemoteUuid) ??
+          rateByProduct.get(item.productUuid) ??
+          0,
+        mode: item.taxMode,
+        taxAmount: item.taxAmount,
+        totalAmount: item.totalAmount
+      })),
+      strings,
+      money
+    )
+    const qr =
+      context !== null
+        ? { type: context.qrType, payload: context.qrPayload }
+        : {
+            type: 'txn-ref-v1' as const,
+            payload: encodeTransactionReferenceQr({
+              companyUuid: refund.companyUuid,
+              documentKind: 'refund',
+              documentUuid: refund.localUuid,
+              instant: refund.refundedAt,
+              totalMinor: refund.grandTotalAmount,
+              currencyExponent: refund.currencyExponent,
+              currency: refund.currency
+            })
+          }
+    return {
+      kind: zatca ? 'zatca-credit-note' : context !== null ? 'refund-receipt' : 'historical',
+      title: zatca
+        ? ZATCA_CREDIT_NOTE_TITLE
+        : context !== null
+          ? strings.refundReceiptTitle
+          : strings.historicalTitle,
+      seller:
+        zatca && fiscal.seller_name !== null && fiscal.vat_number !== null
+          ? {
+              name: fiscal.seller_name,
+              vatLabel: strings.vatNumberLabel,
+              vatNumber: fiscal.vat_number,
+              addressLines: addressLines(fiscal.seller_address)
+            }
+          : null,
+      reference:
+        zatca && fiscal.original_invoice.number !== null
+          ? strings.creditNoteReference(
+              fiscal.original_invoice.number,
+              fiscal.original_invoice.issued_at === null
+                ? '—'
+                : formatDate(fiscal.original_invoice.issued_at, timeZone, locale)
+            )
+          : null,
+      historicalNote: context === null ? strings.historicalNote : null,
+      qr,
+      breakdown,
+      netTotalLabel: strings.totalExclVatLabel,
+      netTotalText: money(refund.grandTotalAmount - refund.taxTotalAmount),
+      vatTotalLabel: strings.vatTotalLabel,
+      vatTotalText: money(refund.taxTotalAmount)
     }
   }
 
@@ -344,7 +614,11 @@ export class ReceiptDocumentService {
         ? (this.dependencies.receiptProfile.getCurrent(companyUuid)?.versionUuid ?? null)
         : null
     const branding = this.resolveBranding(companyUuid, currentVersionUuid)
-    const header = { ...names, ...branding.header }
+    const header = {
+      ...names,
+      ...branding.header,
+      branchName: branding.display.showBranch ? names.branchName : null
+    }
     const money = (amount: number): string => formatReceiptMoney(amount, locale, 'USD', 2)
 
     return {
@@ -422,9 +696,10 @@ export class ReceiptDocumentService {
       phone: string | null
       taxIdentifierLabel: string | null
       taxIdentifierValue: string | null
-      logo: { sha256: string; included: boolean } | null
+      logo: { sha256: string; included: boolean; size?: 'small' | 'medium' | 'large' } | null
     }
     footerLines: string[]
+    display: { showBranch: boolean; showCashier: boolean; showCustomer: boolean }
   } {
     const empty = {
       header: {
@@ -434,7 +709,8 @@ export class ReceiptDocumentService {
         taxIdentifierValue: null,
         logo: null
       },
-      footerLines: []
+      footerLines: [],
+      display: { showBranch: true, showCashier: true, showCustomer: true }
     }
 
     if (!companyUuid || !receiptProfileVersionUuid || !this.dependencies.receiptProfile) {
@@ -449,17 +725,29 @@ export class ReceiptDocumentService {
       return empty
     }
 
+    // POS improvements, Stage 6 (profile v2): the version's display choices hide OPTIONAL decoration
+    // only; null (a v1 version) shows everything. Fiscal fields and the QR are built elsewhere.
+    const display = version.displayOptions ?? null
     return {
       header: {
-        addressLines: [...version.addressLines],
-        phone: version.phone,
+        addressLines: display?.show_address === false ? [] : [...version.addressLines],
+        phone: display?.show_phone === false ? null : version.phone,
         taxIdentifierLabel: version.taxIdentifierLabel,
         taxIdentifierValue: version.taxIdentifierValue,
         logo: version.logoSha256
-          ? { sha256: version.logoSha256, included: version.logoAvailable }
+          ? {
+              sha256: version.logoSha256,
+              included: version.logoAvailable,
+              ...(display ? { size: display.logo_size } : {})
+            }
           : null
       },
-      footerLines: [...version.footerLines]
+      footerLines: display?.show_footer === false ? [] : [...version.footerLines],
+      display: {
+        showBranch: display?.show_branch !== false,
+        showCashier: display?.show_cashier !== false,
+        showCustomer: display?.show_customer !== false
+      }
     }
   }
 

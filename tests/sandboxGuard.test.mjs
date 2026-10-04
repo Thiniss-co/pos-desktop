@@ -289,6 +289,34 @@ refusalCase(
 )
 
 refusalCase(
+  'the GUI fixture grants only the three quick-create permissions to the seeded cashier or manager',
+  'quick-create-grant needs <cashier|manager>:<customers.create|catalog.products.create|suppliers.create>:<0|1>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['quick-create-grant', 'admin:users.manage:1'] }
+)
+
+refusalCase(
+  'the GUI fixture mixed-tax catalog precondition takes no argument',
+  'mixed-tax-catalog takes no argument',
+  () => {},
+  { script: GUI_FIXTURE, args: ['mixed-tax-catalog', 'MIX-INC'] }
+)
+
+refusalCase(
+  'the GUI fixture mixed-tax report is read-only and takes no argument',
+  'mixed-tax-report takes no argument',
+  () => {},
+  { script: GUI_FIXTURE, args: ['mixed-tax-report', 'x'] }
+)
+
+refusalCase(
+  'the GUI fixture quick-create report is read-only and takes no argument',
+  'quick-create-report takes no argument',
+  () => {},
+  { script: GUI_FIXTURE, args: ['quick-create-report', 'customers.create:1'] }
+)
+
+refusalCase(
   'the GUI fixture refuses a permission outside the opening-stock allowlist',
   'owner-permission needs <inventory.adjust|inventory.view|inventory.manage>:<0|1>',
   () => {},

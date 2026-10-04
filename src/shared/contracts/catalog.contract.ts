@@ -17,7 +17,9 @@ export const catalogContractSchema = z
     maximumUnitPrice: z.literal(1_000_000_000),
     maximumLineTotal: z.literal(900_000_000_000_000),
     maximumInvoiceTotal: z.literal(900_000_000_000_000),
-    mixedTaxModePolicy: z.literal('single_invoice_mode')
+    // POS improvements, Stage 4: `per_line` is issued only to a register that negotiated
+    // `catalog_tax_policy_version=2`; a cart may then mix tax modes and uploads as v4/v5.
+    mixedTaxModePolicy: z.enum(['single_invoice_mode', 'per_line'])
   })
   .strict()
 
@@ -54,7 +56,9 @@ export const catalogProductSchema = z
         id: z.uuid().nullable(),
         mode: z.enum(['none', 'inclusive', 'exclusive']),
         rateBasisPoints: z.number().int().min(0).max(10_000),
-        revision: revisionSchema
+        revision: revisionSchema,
+        /** Stage 4: absent when the installed catalog carries no category for this product. */
+        category: z.enum(['standard', 'zero_rated', 'exempt']).optional()
       })
       .strict(),
     /**
@@ -194,7 +198,13 @@ export const catalogCustomerSchema = z
   .object({
     uuid: z.uuid(),
     name: z.string(),
-    phone: z.string().nullable()
+    phone: z.string().nullable(),
+    /**
+     * POS improvements, Stage 2: present (true) only for a customer created on this register whose
+     * create request the server has not accepted yet. Selling to it is allowed; the sale uploads
+     * after the customer is accepted.
+     */
+    pendingSync: z.literal(true).optional()
   })
   .strict()
 

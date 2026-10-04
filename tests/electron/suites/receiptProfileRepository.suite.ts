@@ -224,3 +224,40 @@ databaseTest(
     closeDatabase(database)
   }
 )
+
+databaseTest(
+  'POS improvements Stage 6: a v2 version mirrors its display choices with the (insert-only) row; v1 keeps none',
+  (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    try {
+      const repo = realRepositories(database).receiptProfile
+      const displayOptions = {
+        show_branch: true,
+        show_address: false,
+        show_phone: true,
+        show_cashier: false,
+        show_customer: true,
+        show_footer: true,
+        logo_size: 'large' as const
+      }
+      const v1 = version()
+      equal(repo.ingest(COMPANY_A, USER_A, true, v1, NOW).kind, 'applied')
+      const v2 = {
+        ...version(),
+        versionUuid: '00000000-0000-4000-8000-0000000000b2',
+        revision: 2,
+        displayOptions
+      }
+      const outcome = repo.ingest(COMPANY_A, USER_A, true, v2, LATER)
+
+      equal(outcome.kind, 'applied')
+      equal(repo.getVersion(v1.versionUuid, COMPANY_A)?.displayOptions ?? null, null)
+      equal(repo.getVersion(v2.versionUuid, COMPANY_A)?.displayOptions?.show_cashier, false)
+      equal(repo.getVersion(v2.versionUuid, COMPANY_A)?.displayOptions?.logo_size, 'large')
+      // A replay of the same version (same content) stays an idempotent replay.
+      equal(repo.ingest(COMPANY_A, USER_A, true, v2, LATER).kind, 'idempotent_replay')
+    } finally {
+      closeDatabase(database)
+    }
+  }
+)

@@ -3,7 +3,7 @@
     "calculationVersion": "3d-largest-remainder-v1",
     "generatedFrom": {
         "repo": "pos-backend",
-        "commit": "d9351bccbdb2114d81a9a2c70216fd2a2a92754b"
+        "commit": "8f7c9f78dea389e2cbc0e908eea83440ea1b1ed9"
     },
     "cases": [
         {
@@ -115,6 +115,286 @@
                 "discountTotalAmount": 190,
                 "taxTotalAmount": 0,
                 "grandTotalAmount": 810
+            }
+        },
+        {
+            "name": "mixed-fractional-quantities-line-discounts",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "0.333",
+                        "unitPriceAmount": 1999,
+                        "discountType": "percentage",
+                        "discountValue": 1250,
+                        "taxMode": "inclusive",
+                        "taxRateBasisPoints": 500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000002",
+                        "quantity": "1.005",
+                        "unitPriceAmount": 3333,
+                        "discountType": "fixed",
+                        "discountValue": 17,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 1500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000003",
+                        "quantity": "2.500",
+                        "unitPriceAmount": 120,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": "percentage",
+                "invoiceDiscountValue": 333
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 666,
+                        "discountAmount": 102,
+                        "taxAmount": 27,
+                        "totalAmount": 564
+                    },
+                    {
+                        "subtotalAmount": 3350,
+                        "discountAmount": 128,
+                        "taxAmount": 483,
+                        "totalAmount": 3705
+                    },
+                    {
+                        "subtotalAmount": 300,
+                        "discountAmount": 10,
+                        "taxAmount": 0,
+                        "totalAmount": 290
+                    }
+                ],
+                "subtotalAmount": 4316,
+                "discountTotalAmount": 240,
+                "taxTotalAmount": 510,
+                "grandTotalAmount": 4559
+            }
+        },
+        {
+            "name": "mixed-inclusive-exclusive-fixed-invoice-discount",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1150,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "inclusive",
+                        "taxRateBasisPoints": 1500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000002",
+                        "quantity": "2.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 1500
+                    }
+                ],
+                "invoiceDiscountType": "fixed",
+                "invoiceDiscountValue": 250
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1150,
+                        "discountAmount": 91,
+                        "taxAmount": 138,
+                        "totalAmount": 1059
+                    },
+                    {
+                        "subtotalAmount": 2000,
+                        "discountAmount": 159,
+                        "taxAmount": 276,
+                        "totalAmount": 2117
+                    }
+                ],
+                "subtotalAmount": 3150,
+                "discountTotalAmount": 250,
+                "taxTotalAmount": 414,
+                "grandTotalAmount": 3176
+            }
+        },
+        {
+            "name": "mixed-inclusive-exclusive-percentage-invoice-discount",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1150,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "inclusive",
+                        "taxRateBasisPoints": 1500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000002",
+                        "quantity": "2.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 1500
+                    }
+                ],
+                "invoiceDiscountType": "percentage",
+                "invoiceDiscountValue": 1000
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1150,
+                        "discountAmount": 115,
+                        "taxAmount": 135,
+                        "totalAmount": 1035
+                    },
+                    {
+                        "subtotalAmount": 2000,
+                        "discountAmount": 200,
+                        "taxAmount": 270,
+                        "totalAmount": 2070
+                    }
+                ],
+                "subtotalAmount": 3150,
+                "discountTotalAmount": 315,
+                "taxTotalAmount": 405,
+                "grandTotalAmount": 3105
+            }
+        },
+        {
+            "name": "mixed-rounding-tie-equal-bases",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000002",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 1500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "inclusive",
+                        "taxRateBasisPoints": 1500
+                    }
+                ],
+                "invoiceDiscountType": "fixed",
+                "invoiceDiscountValue": 1
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 150,
+                        "totalAmount": 1150
+                    },
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 1,
+                        "taxAmount": 130,
+                        "totalAmount": 999
+                    }
+                ],
+                "subtotalAmount": 2000,
+                "discountTotalAmount": 1,
+                "taxTotalAmount": 280,
+                "grandTotalAmount": 2149
+            }
+        },
+        {
+            "name": "mixed-standard-zero-rated-exempt-none",
+            "input": {
+                "items": [
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000001",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 1000,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 1500
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000002",
+                        "quantity": "3.000",
+                        "unitPriceAmount": 250,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "exclusive",
+                        "taxRateBasisPoints": 0
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000003",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 700,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "inclusive",
+                        "taxRateBasisPoints": 0
+                    },
+                    {
+                        "productUuid": "00000000-0000-4000-8000-000000000004",
+                        "quantity": "1.000",
+                        "unitPriceAmount": 400,
+                        "discountType": null,
+                        "discountValue": 0,
+                        "taxMode": "none",
+                        "taxRateBasisPoints": 0
+                    }
+                ],
+                "invoiceDiscountType": null,
+                "invoiceDiscountValue": 0
+            },
+            "expected": {
+                "lines": [
+                    {
+                        "subtotalAmount": 1000,
+                        "discountAmount": 0,
+                        "taxAmount": 150,
+                        "totalAmount": 1150
+                    },
+                    {
+                        "subtotalAmount": 750,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 750
+                    },
+                    {
+                        "subtotalAmount": 700,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 700
+                    },
+                    {
+                        "subtotalAmount": 400,
+                        "discountAmount": 0,
+                        "taxAmount": 0,
+                        "totalAmount": 400
+                    }
+                ],
+                "subtotalAmount": 2850,
+                "discountTotalAmount": 0,
+                "taxTotalAmount": 150,
+                "grandTotalAmount": 3000
             }
         },
         {
@@ -363,5 +643,5 @@
             }
         }
     ],
-    "sha256": "259b083a6bf2940d2f1d3076578b65c51a934fd8901e243788ff7b2d3b2c40d2"
+    "sha256": "e2afb82db9225e4fe93f10e9a97ce999d85130431297cac8ec89d53a69a99504"
 }

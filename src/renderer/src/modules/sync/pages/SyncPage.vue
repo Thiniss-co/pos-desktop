@@ -21,6 +21,7 @@ import PageContainer from '@renderer/shared/components/layout/PageContainer.vue'
 import PageHeader from '@renderer/shared/components/layout/PageHeader.vue'
 import { useSyncStore } from '../store'
 import SyncAttentionPanel from '../components/SyncAttentionPanel.vue'
+import QuickCreateRecordsPanel from '@renderer/modules/quickCreate/components/QuickCreateRecordsPanel.vue'
 
 const sync = useSyncStore()
 const connectivity = useConnectivityStore()
@@ -263,6 +264,9 @@ onBeforeUnmount(() => sync.dispose())
       :error="supportError"
       @open-pos="openPos"
     />
+
+    <!-- POS improvements: customers, suppliers and products created on this register. -->
+    <QuickCreateRecordsPanel />
 
     <!--
       The queue exposes counts only, never per-record rows, so this section states the real count

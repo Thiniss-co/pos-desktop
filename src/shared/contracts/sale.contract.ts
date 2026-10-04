@@ -11,7 +11,11 @@ export type LocalStockMovementSyncStatus =
   'pending' | 'uploading' | 'retryable_error' | 'conflict' | 'rejected'
 
 export type ConnectivityStateAtSale = 'online' | 'offline' | 'unknown'
-export type InvoiceTaxMode = 'none' | 'inclusive' | 'exclusive'
+/** The mode one line carries — always the mode its catalog revision issued. */
+export type LineTaxMode = 'none' | 'inclusive' | 'exclusive'
+/** An invoice header: one line mode, or (POS improvements, Stage 4) `mixed` over two or more. */
+export type InvoiceTaxMode = LineTaxMode | 'mixed'
+export type TaxCategory = 'standard' | 'zero_rated' | 'exempt'
 export type InvoiceDiscountType = 'fixed' | 'percentage'
 export type InvoicePaymentType = 'cash' | 'card' | 'other'
 /**
@@ -173,7 +177,9 @@ export interface LocalInvoiceItemRow {
   readonly currency: string
   readonly priceRevision: string
   readonly taxUuid: string | null
-  readonly taxMode: InvoiceTaxMode
+  readonly taxMode: LineTaxMode
+  /** Stage 4: frozen at commit; null = unspecified (legacy catalog or pre-0022 row). */
+  readonly taxCategory?: TaxCategory | null
   readonly taxRateBasisPoints: number
   readonly taxRevision: string
   readonly discountType: InvoiceDiscountType | null

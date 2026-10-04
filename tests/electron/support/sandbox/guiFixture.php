@@ -79,6 +79,11 @@ require __DIR__ . '/laravelSandboxGuard.php';
 use App\Models\User;
 use App\Modules\Catalog\Actions\ChangeProductImageAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
+use App\Modules\Catalog\Actions\CreateTaxAction;
+use App\Modules\Catalog\Data\CreateTaxData;
+use App\Modules\Catalog\Enums\TaxCategory;
+use App\Modules\Catalog\Enums\TaxType;
+use App\Modules\Catalog\Models\Tax;
 use App\Modules\Catalog\Actions\StoreProductImageAction;
 use App\Modules\Catalog\Models\ProductImage;
 use App\Modules\Catalog\Enums\ProductStatus;
@@ -127,7 +132,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -138,6 +143,24 @@ if (in_array($operation, ['create-owner-product', 'stock'], true) && preg_match(
 if ($operation === 'mode-physical-presence' && $argument !== ''
     && (preg_match('/^\d{1,2}$/', $argument) !== 1 || (int) $argument < 1 || (int) $argument > 72)) {
     sandboxRefuse('mode-physical-presence takes an optional window in hours (1-72)');
+}
+
+// POS improvements, Stage 2: grant or revoke ONE quick-create permission on the seeded cashier or
+// manager (a labelled precondition; the owner-SPA delegation itself is exercised by qc1permissions).
+if ($operation === 'quick-create-grant'
+    && preg_match('/^(cashier|manager):(customers\.create|catalog\.products\.create|suppliers\.create):[01]$/', $argument) !== 1) {
+    sandboxRefuse('quick-create-grant needs <cashier|manager>:<customers.create|catalog.products.create|suppliers.create>:<0|1>');
+}
+
+// POS improvements, Stage 4: a labelled precondition (categorized taxes and mixed-mode products) and a
+// READ-ONLY report of mixed-tax upload effects; neither takes an argument.
+if (in_array($operation, ['mixed-tax-catalog', 'mixed-tax-report'], true) && $argument !== '') {
+    sandboxRefuse($operation.' takes no argument');
+}
+
+// POS improvements, Stage 1: a READ-ONLY report of register quick-create effects; it takes no argument.
+if ($operation === 'quick-create-report' && $argument !== '') {
+    sandboxRefuse('quick-create-report takes no argument');
 }
 
 if ($operation === 'set-tracking' && preg_match('/^[A-Z0-9-]{1,40}:[01]$/', $argument) !== 1) {
@@ -522,6 +545,106 @@ $result = match ($operation) {
         'authorities' => DB::table('pos_offline_sale_authorities')->orderBy('id')
             ->get(['uuid', 'warehouse_id', 'issued_at', 'not_after', 'superseded_at'])
             ->map(fn ($row): array => (array) $row)->all(),
+    ],
+    // POS improvements, Stage 1 (read-only): register quick-create results, uuid bindings, the created
+    // entities and each staff member's quick-create grants.
+    'quick-create-grant' => (function () use ($argument, $company): array {
+        [$who, $permission, $on] = explode(':', $argument);
+        $user = User::query()->where('company_id', $company->id)->where('email', "{$who}@desktop-mvp.test")->firstOrFail();
+        $model = Spatie\Permission\Models\Permission::findOrCreate($permission, 'web');
+        $on === '1' ? $user->givePermissionTo($model) : $user->revokePermissionTo($model);
+        app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return ['user' => $user->email, 'permission' => $permission, 'granted' => $on === '1',
+            'direct' => $user->fresh()->getDirectPermissions()->pluck('name')->sort()->values()->all()];
+    })(),
+    'mixed-tax-catalog' => (function () use ($company, $actor): array {
+        $context = app(CurrentCompanyResolver::class)->resolve($actor);
+        app()->instance(CompanyContext::class, $context);
+        $category = Category::query()->where('company_id', $company->id)->orderBy('id')->firstOrFail();
+        $tax = fn (string $code, string $rate, string $taxCategory) => Tax::query()->where('company_id', $company->id)->where('code', $code)->first()
+            ?? app(CreateTaxAction::class)->execute(new CreateTaxData(
+                companyId: $company->id, name: $code, code: $code, rate: $rate, type: TaxType::Percentage,
+                isDefault: false, isActive: true, category: TaxCategory::from($taxCategory),
+            ));
+        $standard = $tax('QC4-VAT15', '15.00', 'standard');
+        $zero = $tax('QC4-ZERO', '0.00', 'zero_rated');
+        $exempt = $tax('QC4-EXEMPT', '0.00', 'exempt');
+        $products = [];
+
+        foreach ([
+            ['MIX-INC', 'Qc4 Inclusive', 1150, 'inclusive', $standard, '7780000000011'],
+            ['MIX-ZERO', 'Qc4 Zero-rated', 250, 'exclusive', $zero, '7780000000028'],
+            ['MIX-EXEMPT', 'Qc4 Exempt', 700, 'inclusive', $exempt, '7780000000035'],
+        ] as [$sku, $name, $price, $mode, $productTax, $barcode]) {
+            $existing = Product::query()->where('company_id', $company->id)->where('sku', $sku)->first();
+
+            if ($existing === null) {
+                $request = OwnerStoreProductRequest::create('/api/v1/company-owner/products', 'POST', [
+                    'name' => $name, 'category_id' => $category->uuid, 'sku' => $sku, 'barcode' => $barcode,
+                    'price' => $price, 'tax_mode' => $mode, 'tax_id' => $productTax->uuid, 'track_stock' => false,
+                ]);
+                $request->setContainer(app())->setRedirector(app('redirect'));
+                $request->setUserResolver(fn () => $actor);
+                $request->validateResolved();
+                $existing = app(CreateProductAction::class)->execute(CreateProductData::fromRequest($request, $context));
+            }
+
+            $products[$sku] = ['uuid' => $existing->uuid, 'barcode' => $existing->barcode, 'tax_mode' => $existing->tax_mode?->value, 'tax_category' => $productTax->category?->value];
+        }
+
+        return ['products' => $products, 'precondition' => true];
+    })(),
+    'mixed-tax-report' => (function () use ($company): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->orderByDesc('id')->firstOrFail();
+        $invoices = DB::table('pos_invoices')->where('desktop_device_id', $device->id)->orderBy('id')->get();
+
+        return [
+            'contracts' => DB::table('desktop_catalog_contracts')->where('desktop_device_id', $device->id)->orderBy('id')
+                ->pluck('mixed_tax_mode_policy')->all(),
+            'invoices' => $invoices->map(fn ($invoice): array => [
+                'idempotency_key' => $invoice->idempotency_key,
+                'tax_mode' => $invoice->tax_mode,
+                'contract_version' => DB::table('desktop_invoice_syncs')->where('pos_invoice_id', $invoice->id)->value('client_contract_version'),
+                'offline_sale_authority' => $invoice->offline_sale_authority_id !== null,
+                'subtotal' => (int) $invoice->subtotal_amount, 'discount' => (int) $invoice->discount_total_amount,
+                'tax' => (int) $invoice->tax_total_amount, 'grand' => (int) $invoice->grand_total_amount,
+                'items' => DB::table('pos_invoice_items')->where('pos_invoice_id', $invoice->id)->orderBy('id')
+                    ->get(['product_uuid', 'tax_mode', 'tax_category', 'tax_amount', 'total_amount', 'discount_amount', 'subtotal_amount'])
+                    ->map(fn ($row): array => (array) $row)->all(),
+                'refunds' => DB::table('pos_refunds')->where('pos_invoice_id', $invoice->id)->orderBy('id')->get()
+                    ->map(fn ($refund): array => [
+                        'tax' => (int) $refund->tax_total_amount, 'grand' => (int) $refund->grand_total_amount,
+                        'items' => DB::table('pos_refund_items')->where('pos_refund_id', $refund->id)->orderBy('id')
+                            ->get(['product_uuid', 'tax_mode', 'tax_category', 'quantity', 'tax_amount', 'total_amount'])
+                            ->map(fn ($row): array => (array) $row)->all(),
+                    ])->all(),
+            ])->all(),
+        ];
+    })(),
+    'quick-create-report' => [
+        'requests' => DB::table('desktop_entity_create_requests')->where('company_id', $company->id)->orderBy('id')
+            ->get(['entity_type', 'request_key', 'client_entity_uuid', 'outcome', 'response_status', 'response_body', 'user_id', 'desktop_device_id'])
+            ->map(fn ($row): array => [
+                'entity_type' => $row->entity_type,
+                'request_key' => $row->request_key,
+                'client_entity_uuid' => $row->client_entity_uuid,
+                'outcome' => $row->outcome,
+                'status' => (int) $row->response_status,
+                'code' => json_decode((string) $row->response_body, true)['code'] ?? null,
+                'user_email' => DB::table('users')->where('id', $row->user_id)->value('email'),
+            ])->all(),
+        'bindings' => DB::table('desktop_entity_uuid_bindings')->where('company_id', $company->id)
+            ->get(['entity_type', 'client_entity_uuid', 'request_key'])->map(fn ($row): array => (array) $row)->all(),
+        'customers' => DB::table('customers')->where('company_id', $company->id)->orderBy('id')->get(['uuid', 'name'])->map(fn ($row): array => (array) $row)->all(),
+        'suppliers' => DB::table('suppliers')->where('company_id', $company->id)->orderBy('id')->get(['uuid', 'name'])->map(fn ($row): array => (array) $row)->all(),
+        'products' => DB::table('products')->where('company_id', $company->id)->orderBy('id')->get(['uuid', 'sku', 'name'])->map(fn ($row): array => (array) $row)->all(),
+        'grants' => DB::table('users')->where('company_id', $company->id)->orderBy('id')->get(['id', 'email'])
+            ->mapWithKeys(fn ($user): array => [$user->email => DB::table('model_has_permissions')
+                ->join('permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
+                ->where('model_has_permissions.model_id', $user->id)
+                ->where('model_has_permissions.model_type', App\Models\User::class)
+                ->orderBy('permissions.name')->pluck('permissions.name')->all()])->all(),
     ],
     'devices' => [
         'devices' => DesktopDevice::query()->where('company_id', $company->id)->orderBy('id')->get()

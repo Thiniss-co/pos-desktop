@@ -22,6 +22,13 @@ export type ReceiptDocumentRef = z.infer<typeof receiptDocumentRefSchema>
 // ---------------------------------------------------------------------------------------------
 
 export const PAPER_WIDTHS_MM = [58, 80] as const
+
+/**
+ * POS improvements, Stage 6: the widest printable area each paper roll really has (thermal heads print
+ * ~48 mm on 58 mm paper and ~72 mm on 80 mm). A stored or default printable width larger than the
+ * chosen paper — e.g. the 72 mm default on a 58 mm roll — is capped to this when a job is resolved.
+ */
+export const MAX_PRINTABLE_WIDTH_MM: Readonly<Record<58 | 80, number>> = { 58: 48, 80: 72 }
 export type PaperWidthMm = (typeof PAPER_WIDTHS_MM)[number]
 export const paperWidthMmSchema = z.union([z.literal(58), z.literal(80)])
 
@@ -173,6 +180,55 @@ export const printPreviewOutputSchema = z
   })
   .strict()
 export type PrintPreviewOutput = z.infer<typeof printPreviewOutputSchema>
+
+// ---------------------------------------------------------------------------------------------
+// POS improvements, Stage 7 — automatic printing (per-user, default ON; intents + admissions)
+// ---------------------------------------------------------------------------------------------
+
+/** `off`: no intent (the user's preference was off at commit). `pending`: not decided yet. */
+export const AUTO_PRINT_STATES = [
+  'off',
+  'pending',
+  'admitted',
+  'skipped_no_printer',
+  'printer_missing',
+  'settings_changed',
+  'expired_unprinted'
+] as const
+export type AutoPrintState = (typeof AUTO_PRINT_STATES)[number]
+
+export const printingAutoPrintStatusInputSchema = z.object({ invoiceLocalUuid: z.uuid() }).strict()
+
+export const autoPrintStatusSchema = z
+  .object({ state: z.enum(AUTO_PRINT_STATES), job: printJobViewSchema.nullable() })
+  .strict()
+export type AutoPrintStatus = z.infer<typeof autoPrintStatusSchema>
+
+export const AUTO_PRINT_SETUP_NEEDS = ['none', 'no_printer', 'printer_missing'] as const
+export const autoPrintSetupSchema = z
+  .object({
+    autoPrint: z.boolean(),
+    printerName: z.string().nullable(),
+    needsSetup: z.enum(AUTO_PRINT_SETUP_NEEDS)
+  })
+  .strict()
+export type AutoPrintSetup = z.infer<typeof autoPrintSetupSchema>
+
+export const AUTO_PRINT_NOTICE_OUTCOMES = [
+  'skipped_no_printer',
+  'printer_missing',
+  'settings_changed',
+  'expired_unprinted'
+] as const
+export const autoPrintNoticeSchema = z
+  .object({
+    invoiceLocalUuid: z.uuid(),
+    receiptNumber: z.string(),
+    outcome: z.enum(AUTO_PRINT_NOTICE_OUTCOMES),
+    decidedAt: z.string()
+  })
+  .strict()
+export type AutoPrintNotice = z.infer<typeof autoPrintNoticeSchema>
 
 // ---------------------------------------------------------------------------------------------
 // Company receipt profile mirror (D-11)

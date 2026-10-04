@@ -112,6 +112,7 @@ function toIncomingVersion(
     taxIdentifierLabel: profile.tax_identifier_label,
     taxIdentifierValue: profile.tax_identifier_value,
     footerLines: profile.footer_lines,
+    displayOptions: profile.display_options ?? null,
     logo: profile.logo
       ? {
           sha256: profile.logo.sha256,

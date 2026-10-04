@@ -22,6 +22,16 @@ export const IPC_CHANNELS = Object.freeze({
   // Owner UX plan P9: the company identity (read) and its change notice (main → renderer only).
   brandingGet: 'branding:get',
   brandingChanged: 'branding:changed',
+  quickCreateGetAccess: 'quick-create:get-access',
+  quickCreateCustomer: 'quick-create:create-customer',
+  quickCreateSupplier: 'quick-create:create-supplier',
+  quickCreateProduct: 'quick-create:create-product',
+  quickCreateProductOptions: 'quick-create:product-options',
+  quickCreateList: 'quick-create:list',
+  quickCreateRetry: 'quick-create:retry',
+  quickCreateReassign: 'quick-create:reassign',
+  quickCreateResubmit: 'quick-create:resubmit',
+  quickCreateChanged: 'quick-create:changed',
   catalogFindByBarcode: 'catalog:find-by-barcode',
   catalogListPaymentMethods: 'catalog:list-payment-methods',
   catalogSearchCustomers: 'catalog:search-customers',
@@ -80,6 +90,9 @@ export const IPC_CHANNELS = Object.freeze({
   preferencesSetTheme: 'preferences:set-theme',
   preferencesGetPosCartWidth: 'preferences:get-pos-cart-width',
   preferencesSetPosCartWidth: 'preferences:set-pos-cart-width',
+  // POS improvements, Stage 5: per-user preferences of the signed-in user.
+  preferencesGetUser: 'preferences:get-user',
+  preferencesSetUser: 'preferences:set-user',
   companyUsersGetAccess: 'company-users:get-access',
   companyUsersList: 'company-users:list',
   companyUsersGet: 'company-users:get',
@@ -93,6 +106,8 @@ export const IPC_CHANNELS = Object.freeze({
   salesListInvoices: 'sales:list-invoices',
   salesGetInvoice: 'sales:get-invoice',
   refundsGetRefundable: 'refunds:get-refundable',
+  // POS improvements, Stage 3: whether this session may start a refund (shows the POS action).
+  refundsGetAccess: 'refunds:get-access',
   refundsPreview: 'refunds:preview',
   refundsSubmit: 'refunds:submit',
   refundsResume: 'refunds:resume',
@@ -108,6 +123,12 @@ export const IPC_CHANNELS = Object.freeze({
   printingGetJob: 'printing:get-job',
   printingCancelJob: 'printing:cancel-job',
   printingLatestForDocument: 'printing:latest-for-document',
+  // POS improvements, Stage 7 -- automatic printing: one sale's state, the setup banner, and the
+  // recovery notices of the signed-in user.
+  printingAutoPrintStatus: 'printing:auto-print-status',
+  printingAutoPrintSetup: 'printing:auto-print-setup',
+  printingAutoPrintNotices: 'printing:auto-print-notices',
+  printingAutoPrintDismissNotices: 'printing:auto-print-dismiss-notices',
   // Receipt-printing plan §D-11 -- the CompanyAdmin receipt-profile editor. Same discipline as
   // printing: assertTrustedSender, a strict Zod input schema, then the caller's session and the
   // mirrored `canManage` verdict inside `ReceiptProfileAdminService`.

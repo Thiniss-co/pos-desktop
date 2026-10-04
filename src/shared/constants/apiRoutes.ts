@@ -79,13 +79,13 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * the client then uses `bootstrapOfflineSaleV1` (identical except for the version).
    */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=1&product_image_version=1&company_branding_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
   },
   bootstrapOfflineSaleV1: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1&product_image_version=1&company_branding_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
@@ -163,8 +163,29 @@ export const DESKTOP_API_ROUTES = Object.freeze({
     requiresAuth: true,
     requiresDeviceUuid: true
   },
+  // POS improvements, Stage 2: register quick-create (durable, keyed, replayed verbatim by the server).
+  quickCreateCustomers: {
+    path: '/quick-create/customers',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  quickCreateSuppliers: {
+    path: '/quick-create/suppliers',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
+  quickCreateProducts: {
+    path: '/quick-create/products',
+    method: 'POST',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
   refundsUpload: {
-    path: '/refunds/upload',
+    // POS improvements, Stage 6: asks for the credit note's frozen fiscal facts in the acceptance
+    // response. A query parameter, never part of the hashed body; an older backend ignores it.
+    path: '/refunds/upload?fiscal_contract_version=1',
     method: 'POST',
     requiresAuth: true,
     requiresDeviceUuid: true
@@ -311,6 +332,19 @@ export function companyBrandAssetRoute(sha256: string): DesktopApiRoute {
 
   return {
     path: `/company-branding/assets/${sha256}`,
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  }
+}
+
+/** POS improvements, Stage 2: the stored result of one of THIS register's quick-create requests. */
+export function quickCreateRequestRoute(requestKey: string): DesktopApiRoute {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestKey)) {
+    throw new Error('A quick-create request key must be a UUID')
+  }
+  return {
+    path: `/quick-create/requests/${requestKey.toLowerCase()}`,
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true

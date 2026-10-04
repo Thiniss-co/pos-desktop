@@ -45,6 +45,8 @@ const CLAIMED_FAILURE_CODES = new Set([
   'refresh-required',
   'clock-untrusted',
   'offline-sale-authority-unavailable',
+  // POS improvements, Stage 6: retried after a refresh brings a complete ZATCA identity.
+  'fiscal-setup-incomplete',
   'legacy-uncertainty-unresolved'
 ])
 

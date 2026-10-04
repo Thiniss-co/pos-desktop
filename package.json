@@ -20,6 +20,7 @@
     "verify:fixture": "node scripts/verifyFixtureParity.mjs",
     "recover:rejected-invoice": "node scripts/runElectronNode.mjs scripts/requeueRejectedInvoice.ts --",
     "verify:cp3g5-package": "node scripts/verifyCp3g5PackageBoundary.mjs",
+    "verify:print-boundary": "node scripts/verifyPrintBoundary.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "dev:linux": "electron-vite dev -- --ozone-platform=x11",
@@ -36,7 +37,9 @@
     "@electron-toolkit/utils": "^4.0.0",
     "better-sqlite3": "^12.11.1",
     "electron-updater": "^6.3.9",
+    "jsqr": "1.4.0",
     "pinia": "^4.0.2",
+    "qrcode-generator": "2.0.4",
     "vue-i18n": "^11.4.9",
     "vue-router": "^5.2.0",
     "zod": "^4.4.3"

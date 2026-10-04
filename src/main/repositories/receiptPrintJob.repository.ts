@@ -261,19 +261,58 @@ export class ReceiptPrintJobRepository {
       .run(layoutJson, layoutSha256, jobUuid, workerLeaseId).changes
   }
 
-  /** T7: preparing -> dispatching. Returns changes=0 (no `print()` call should follow) if stale. */
+  /**
+   * POS improvements, Stage 6: preparation proved the rendered QR decodes to the expected payload.
+   * Written under the worker lease, while still preparing; `beginDispatching` requires it.
+   */
+  recordQrVerified(jobUuid: string, workerLeaseId: string, qrSha256: string): number {
+    if (!this.hasQrColumn()) {
+      return 0
+    }
+    return this.database
+      .prepare(
+        `UPDATE receipt_print_jobs SET qr_verified_sha256 = ?
+         WHERE job_uuid = ? AND worker_lease_id = ? AND status = 'preparing' AND qr_verified_sha256 IS NULL`
+      )
+      .run(qrSha256, jobUuid, workerLeaseId).changes
+  }
+
+  /**
+   * T7: preparing -> dispatching. Returns changes=0 (no `print()` call should follow) if stale.
+   * Stage 6: a sale or refund job also needs its verified QR; this one conditional statement is the
+   * fence's state, lease, cancellation and QR check.
+   */
   beginDispatching(
     jobUuid: string,
     workerLeaseId: string,
     dispatchToken: string,
     now: string
   ): number {
+    const qrClause = this.hasQrColumn()
+      ? " AND (document_kind = 'test' OR qr_verified_sha256 IS NOT NULL)"
+      : ''
     return this.database
       .prepare(
         `UPDATE receipt_print_jobs SET status='dispatching', dispatch_token=?, dispatched_at=?
-         WHERE job_uuid = ? AND worker_lease_id = ? AND status = 'preparing' AND layout_json IS NOT NULL`
+         WHERE job_uuid = ? AND worker_lease_id = ? AND status = 'preparing' AND layout_json IS NOT NULL${qrClause}`
       )
       .run(dispatchToken, now, jobUuid, workerLeaseId).changes
+  }
+
+  private qrColumn: boolean | null = null
+
+  /** The 0024 column; absent on older schemas that migration suites read through. */
+  private hasQrColumn(): boolean {
+    if (this.qrColumn === null) {
+      this.qrColumn =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM pragma_table_info('receipt_print_jobs') WHERE name = 'qr_verified_sha256'"
+          )
+          .pluck()
+          .get() === 1
+    }
+    return this.qrColumn
   }
 
   /** T9: dispatching -> submitted (also handles a late T14 success from outcome_unknown). */

@@ -186,3 +186,79 @@ describe('buildReceiptHtml', () => {
     expect(html58).not.toContain('style="width:72mm"')
   })
 })
+
+describe('POS improvements Stage 6: fiscal receipt (template v2)', () => {
+  const zatca = {
+    kind: 'zatca-sale' as const,
+    title: 'Simplified Tax Invoice / فاتورة ضريبية مبسطة',
+    seller: {
+      name: 'Harbour Coffee Trading LLC',
+      vatLabel: 'VAT No.',
+      vatNumber: '310122393500003',
+      addressLines: ['1 Corniche Road', 'Jeddah 23511', 'Saudi Arabia']
+    },
+    reference: null,
+    historicalNote: null,
+    qr: {
+      type: 'zatca-p1' as const,
+      payload:
+        'AQxCb2JzIFJlY29yZHMCDzMxMDEyMjM5MzUwMDAwMwMUMjAyMi0wNC0yNVQxNTozMDowMFoEBzEwMDAuMDAFBjE1MC4wMA=='
+    },
+    breakdown: [{ label: 'Standard 15% · excl.', netText: '$10.00', taxText: '$1.50' }],
+    netTotalLabel: 'Total excl. VAT',
+    netTotalText: '$10.00',
+    vatTotalLabel: 'Total VAT',
+    vatTotalText: '$1.50'
+  }
+
+  it('prints the official title, the required seller fields, the breakdown and the QR', () => {
+    const html = buildReceiptHtml(baseDoc({ fiscal: zatca }), LAYOUT)
+
+    expect(html).toContain('data-receipt-title')
+    expect(html).toContain('Simplified Tax Invoice / فاتورة ضريبية مبسطة')
+    expect(html).toContain('Harbour Coffee Trading LLC')
+    expect(html).toContain('310122393500003')
+    expect(html).toContain('Jeddah 23511')
+    expect(html).toContain('data-receipt-breakdown')
+    expect(html).toContain('Total excl. VAT')
+    expect(html).toMatch(
+      /<div class="qr-block" id="receipt-qr" data-qr-type="zatca-p1"><svg [^>]*width="[\d.]+mm"/
+    )
+  })
+
+  it('prints the seller block even when branding shows no address (required fields have no toggle)', () => {
+    const html = buildReceiptHtml(
+      baseDoc({ fiscal: zatca, header: { ...baseDoc().header, addressLines: [], phone: null } }),
+      LAYOUT
+    )
+    expect(html).toContain('data-receipt-seller')
+    expect(html).toContain('1 Corniche Road')
+  })
+
+  it('a historical copy carries its note and a reference QR, never a seller VAT block', () => {
+    const html = buildReceiptHtml(
+      baseDoc({
+        fiscal: {
+          ...zatca,
+          kind: 'historical',
+          title: 'Receipt – historical copy',
+          seller: null,
+          historicalNote: 'Issued before fiscal data was recorded; this is not a tax invoice.',
+          qr: {
+            type: 'txn-ref-v1',
+            payload:
+              'THINIS-TXN/1;co=11111111-1111-4111-8111-111111111111;doc=sale;id=22222222-2222-4222-8222-222222222222;ts=2026-01-01T10:00:00Z;amt=10.00;cur=USD'
+          }
+        }
+      }),
+      LAYOUT
+    )
+    expect(html).toContain('data-receipt-historical')
+    expect(html).not.toContain('data-receipt-seller')
+    expect(html).toContain('data-qr-type="txn-ref-v1"')
+  })
+
+  it('a receipt without a fiscal block (test print) has no QR', () => {
+    expect(buildReceiptHtml(baseDoc(), LAYOUT)).not.toContain('receipt-qr')
+  })
+})

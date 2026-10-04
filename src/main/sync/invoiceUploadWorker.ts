@@ -254,7 +254,8 @@ export class InvoiceUploadWorker {
       return true
     }
 
-    if (version !== 3) {
+    // The physical-presence contracts: v3, and v5 (v3 with mixed taxes, POS improvements Stage 4).
+    if (version !== 3 && version !== 5) {
       return true
     }
 

@@ -76,7 +76,8 @@ const messageTone = computed(() => (refresh.lastMessage === 'installed' ? 'text-
     >
       <AppSpinner v-if="pending || updating" :size="16" />
       <AppIcon v-else name="sync" :size="18" />
-      <span :class="compact ? '' : 'hidden pills:inline'">{{ label }}</span>
+      <!-- Stage 5: text from 1500px in the top bar (1366px overlap); the accessible name keeps it. -->
+      <span :class="compact ? '' : 'sr-only navlabels:not-sr-only'">{{ label }}</span>
       <span class="sr-only">{{ lastRefreshedLabel }}</span>
     </button>
     <span

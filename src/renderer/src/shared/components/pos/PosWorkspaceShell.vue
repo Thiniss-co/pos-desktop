@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
         >
           <button
             type="button"
-            class="pos-workspace-shell__reset-width pointer-events-auto flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-full border border-control bg-surf text-muted opacity-0 shadow-panel transition-opacity hover:bg-subtle hover:text-ink focus-visible:opacity-100 group-focus-within/resizer:opacity-100 group-hover/resizer:opacity-100"
+            class="pos-workspace-shell__reset-width hover-reveal pointer-events-auto flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-full border border-control bg-surf text-muted opacity-0 shadow-panel transition-opacity hover:bg-subtle hover:text-ink focus-visible:opacity-100 group-focus-within/resizer:opacity-100 group-hover/resizer:opacity-100"
             :aria-label="resetWidthLabel"
             :title="resetWidthLabel"
             @click="resetFromButton"

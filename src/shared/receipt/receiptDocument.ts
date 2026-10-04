@@ -30,6 +30,37 @@ export interface ReceiptPaymentLine {
   readonly maskedReference: string | null
 }
 
+/**
+ * POS improvements, Stage 6 — the fiscal part of a receipt, built from the document's FROZEN fiscal
+ * context. The QR is mandatory on every sale and refund receipt; its type follows the frozen regime.
+ */
+export interface ReceiptFiscalBlock {
+  readonly kind: 'zatca-sale' | 'zatca-credit-note' | 'receipt' | 'refund-receipt' | 'historical'
+  readonly title: string
+  /** Required ZATCA seller fields — always printed for a ZATCA document, whatever the branding. */
+  readonly seller: {
+    readonly name: string
+    readonly vatLabel: string
+    readonly vatNumber: string
+    readonly addressLines: readonly string[]
+  } | null
+  /** Credit note: "This credit note relates to invoice number (N), issued on D". */
+  readonly reference: string | null
+  /** Historical copy: "Issued before fiscal data was recorded; this is not a tax invoice". */
+  readonly historicalNote: string | null
+  readonly qr: { readonly type: 'zatca-p1' | 'txn-ref-v1'; readonly payload: string }
+  /** VAT breakdown keyed by (category, rate, mode). */
+  readonly breakdown: ReadonlyArray<{
+    readonly label: string
+    readonly netText: string
+    readonly taxText: string
+  }>
+  readonly netTotalLabel: string
+  readonly netTotalText: string
+  readonly vatTotalLabel: string
+  readonly vatTotalText: string
+}
+
 export interface ReceiptDocument {
   readonly kind: 'sale' | 'refund' | 'test'
   readonly templateVersion: number
@@ -48,7 +79,12 @@ export interface ReceiptDocument {
      * `document_json`; main resolves them separately, at render time, from the company-scoped
      * asset store.
      */
-    readonly logo: { readonly sha256: string; readonly included: boolean } | null
+    readonly logo: {
+      readonly sha256: string
+      readonly included: boolean
+      /** Stage 6 (profile v2): absent on v1 versions (medium). */
+      readonly size?: 'small' | 'medium' | 'large'
+    } | null
   }
   readonly meta: {
     readonly receiptNumberLabel: string
@@ -83,4 +119,6 @@ export interface ReceiptDocument {
   } | null
   readonly notices: readonly string[]
   readonly footer: readonly string[]
+  /** Stage 6 (template v2): absent on test receipts and on documents claimed before v2. */
+  readonly fiscal?: ReceiptFiscalBlock | null
 }

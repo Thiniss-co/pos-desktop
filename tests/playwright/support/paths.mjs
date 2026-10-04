@@ -10,4 +10,7 @@ export const BACKEND_ROOT = process.env.PW_BACKEND_ROOT
   ? resolve(process.env.PW_BACKEND_ROOT)
   : resolve(DESKTOP_ROOT, '..', 'pos-backend')
 export const SANDBOX_SUPPORT = join(DESKTOP_ROOT, 'tests', 'electron', 'support', 'sandbox')
-export const EVIDENCE_ROOT = join(DESKTOP_ROOT, 'docs', 'audits', 'pp-selling-integration')
+// PW_EVIDENCE_ROOT redirects journey evidence to another audit folder; pp-selling-integration is the default.
+export const EVIDENCE_ROOT = process.env.PW_EVIDENCE_ROOT
+  ? resolve(process.env.PW_EVIDENCE_ROOT)
+  : join(DESKTOP_ROOT, 'docs', 'audits', 'pp-selling-integration')

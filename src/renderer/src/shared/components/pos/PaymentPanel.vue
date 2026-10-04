@@ -125,8 +125,11 @@ const props = withDefaults(
     printKeyHint?: string
     /** `aria-describedby` text per commit-class control, e.g. "Press F9 to complete the sale". */
     keyDescriptions?: PaymentCommitKeyDescriptions
+    /** POS improvements, Stage 5: touch mode shows an on-screen keypad under the amount field. */
+    keypadLabels?: { backspace: string; clear: string; decimal: string } | null
   }>(),
   {
+    keypadLabels: null,
     discountLabel: undefined,
     discount: undefined,
     draftMethodLabel: undefined,
@@ -589,6 +592,8 @@ defineExpose({ activatePrimary, activateExactCash, activatePrint })
           completedNote
         }}</span>
       </p>
+      <!-- POS improvements, Stage 7: the automatic print of this sale (owned by the page). -->
+      <slot name="done-extra" />
       <div
         v-if="rows.length > 0"
         class="numeric flex flex-col gap-1.5 rounded-notice border border-line px-3.5 py-3 text-sm"
@@ -727,6 +732,7 @@ defineExpose({ activatePrimary, activateExactCash, activatePrint })
             :model-value="draftAmount"
             :error="draftAmountError"
             :prefix="currencyLabel"
+            :keypad-labels="keypadLabels"
             @update:model-value="emit('update:draftAmount', $event)"
             @keydown="onDraftFieldKeydown"
           >

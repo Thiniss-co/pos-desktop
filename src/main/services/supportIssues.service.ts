@@ -52,7 +52,7 @@ const QUANTITY = /^\d{1,9}(\.\d{1,3})?$/
  * A stable, non-secret reference a cashier can read to support: a two-letter source prefix and the
  * first twelve hex digits of the request/attempt identity. Neither identity is a credential.
  */
-export function supportReference(prefix: 'AD' | 'SA' | 'IN', identity: string): string {
+export function supportReference(prefix: 'AD' | 'SA' | 'IN' | 'QC', identity: string): string {
   const hex = identity.replace(/[^0-9a-f]/gi, '').toUpperCase()
   return `${prefix}-${hex.slice(0, 12).padEnd(12, '0')}`
 }
@@ -166,6 +166,22 @@ export class SupportIssuesService {
     row: ReturnType<UploadDependencyRepository['listHeld']>[number],
     userUuid: string
   ): SupportIssue {
+    if (row.entity) {
+      return {
+        kind: 'upload-held-by-entity',
+        reference: supportReference('IN', row.invoiceLocalUuid),
+        traceId: null,
+        occurredAt: row.createdAt,
+        updatedAt: null,
+        ownedByCurrentUser: row.userUuid === userUuid,
+        lines: null,
+        sendCount: null,
+        nextAttemptAfter: null,
+        relatedReference: row.entity.requestKey
+          ? supportReference('QC', row.entity.requestKey)
+          : null
+      }
+    }
     return {
       kind: 'upload-held-by-predecessor',
       reference: supportReference('IN', row.invoiceLocalUuid),

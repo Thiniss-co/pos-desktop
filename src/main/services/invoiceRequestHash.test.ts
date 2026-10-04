@@ -34,7 +34,10 @@ describe('immutable invoice request hash cross-language golden vector', () => {
       'non-ascii-notes-and-barcode',
       'forward-slash-reference',
       'multi-line-multi-allocation-discounted',
-      'positive-offset-sold-at'
+      'positive-offset-sold-at',
+      'v3-physical-presence-uniform',
+      'v4-mixed-tax-allocation',
+      'v5-mixed-tax-physical-presence'
     ])
   })
 

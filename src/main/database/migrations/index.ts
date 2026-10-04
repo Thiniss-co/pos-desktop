@@ -17,6 +17,12 @@ import { allocationDispatchEvidenceMigration } from './0016_allocation_dispatch_
 import { offlineSaleAuthorityWarehouseMigration } from './0017_offline_sale_authority_warehouse'
 import { productImagesMigration } from './0018_product_images'
 import { companyBrandingMigration } from './0019_company_branding'
+import { bootstrapCapabilitiesMigration } from './0020_bootstrap_capabilities'
+import { quickCreateMigration } from './0021_quick_create'
+import { mixedTaxMigration } from './0022_mixed_tax'
+import { userPreferencesMigration } from './0023_user_preferences'
+import { fiscalReceiptsMigration } from './0024_fiscal_receipts'
+import { autoPrintMigration } from './0025_auto_print'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -37,5 +43,11 @@ export const databaseMigrations = [
   allocationDispatchEvidenceMigration,
   offlineSaleAuthorityWarehouseMigration,
   productImagesMigration,
-  companyBrandingMigration
+  companyBrandingMigration,
+  bootstrapCapabilitiesMigration,
+  quickCreateMigration,
+  mixedTaxMigration,
+  userPreferencesMigration,
+  fiscalReceiptsMigration,
+  autoPrintMigration
 ] as const

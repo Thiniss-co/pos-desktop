@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
 import {
   refundsCancelPreparedInputSchema,
+  refundsGetAccessInputSchema,
   refundsGetRefundableInputSchema,
   refundsPreviewInputSchema,
   refundsResumeInputSchema,
@@ -139,6 +140,18 @@ export function registerRefundsIpcHandlers(services: ApplicationServices): void 
 
       return detail
     })
+  })
+
+  ipcMain.handle(IPC_CHANNELS.refundsGetAccess, (event, input: unknown) => {
+    try {
+      assertTrustedSender(event)
+    } catch (error) {
+      return isPublicAppError(error) ? ipcFailure(error) : ipcFailure(unexpectedError)
+    }
+
+    return handleIpcRequest(input, refundsGetAccessInputSchema, () => ({
+      allowed: services.refundAccess.canRefund()
+    }))
   })
 
   ipcMain.handle(IPC_CHANNELS.refundsGetRefundable, (event, input: unknown) => {

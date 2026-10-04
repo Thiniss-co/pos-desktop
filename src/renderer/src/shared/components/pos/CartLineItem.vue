@@ -15,11 +15,13 @@ withDefaults(
     removeLabel: string
     quantityLabel?: string
     disabled?: boolean
+    /** POS improvements, Stage 5: touch mode — the quantity opens a keypad. */
+    editQuantityLabel?: string | null
   }>(),
-  { quantityLabel: undefined, disabled: false }
+  { quantityLabel: undefined, disabled: false, editQuantityLabel: null }
 )
 
-const emit = defineEmits<{ decrease: []; increase: []; remove: [] }>()
+const emit = defineEmits<{ decrease: []; increase: []; remove: []; editQuantity: [] }>()
 </script>
 
 <template>
@@ -50,8 +52,10 @@ const emit = defineEmits<{ decrease: []; increase: []; remove: [] }>()
       :increase-label="increaseLabel"
       :group-label="quantityLabel"
       :disabled="disabled"
+      :edit-label="editQuantityLabel"
       @decrease="emit('decrease')"
       @increase="emit('increase')"
+      @edit="emit('editQuantity')"
     />
     <span class="cart-line-item__total numeric text-end text-base font-bold whitespace-nowrap">{{
       line.lineTotal

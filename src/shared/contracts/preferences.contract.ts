@@ -25,3 +25,27 @@ export const posCartWidthSchema = z.number().int().min(POS_CART_WIDTH_MIN).max(P
 export const posCartWidthPreferenceSchema = posCartWidthSchema.nullable()
 
 export type PosCartWidthPreference = z.infer<typeof posCartWidthPreferenceSchema>
+
+/**
+ * POS improvements, Stage 5: per-user preferences on this workstation. The identity is always the
+ * main-process session's; the renderer only names a key and a boolean.
+ */
+export const userPreferenceKeySchema = z.enum(['ui.touchMode', 'printing.autoPrint'])
+
+export type UserPreferenceKey = z.infer<typeof userPreferenceKeySchema>
+
+export const userPreferencesSchema = z
+  .object({
+    touchMode: z.boolean(),
+    /** D3: ON unless this user turned it off; an old workstation-level "off" is not an opt-out. */
+    autoPrint: z.boolean()
+  })
+  .strict()
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>
+
+export const setUserPreferenceInputSchema = z
+  .object({ key: userPreferenceKeySchema, value: z.boolean() })
+  .strict()
+
+export type SetUserPreferenceInput = z.infer<typeof setUserPreferenceInputSchema>

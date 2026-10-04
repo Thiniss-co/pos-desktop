@@ -41,6 +41,11 @@ const ITEM_KEYS = [
   'tax_revision',
   'discount_type',
   'discount_value',
+  // `UploadDesktopInvoiceRequest::rules()` declares it between `discount_value` and `allocations`,
+  // so `validated()` rebuilds a v3/v5 line in this order. Absent on v1/v2/v4 lines, where it is
+  // prohibited, so those bytes are unchanged. (POS improvements, Stage 4: it was missing here, so
+  // every v3 hash differed from the server's — pinned now by the v3/v5 golden vectors.)
+  'stock_authorization',
   'allocations'
 ] as const
 
@@ -268,6 +273,12 @@ export function invoiceHashableArray(payload: JsonRecord): JsonRecord {
   if (clientContractVersion !== null) {
     hashable.clientContractVersion = clientContractVersion
     hashable.shiftUuid = payload.shift_uuid ?? null
+  }
+
+  // `UploadDesktopInvoiceData::toHashableArray()` appends the authority for the physical-presence
+  // contracts: v3, and v5 (v3 with mixed taxes). v4 keeps the v2 shape.
+  if (clientContractVersion === 3 || clientContractVersion === 5) {
+    hashable.offlineSaleAuthorityUuid = payload.offline_sale_authority_uuid ?? null
   }
 
   return hashable

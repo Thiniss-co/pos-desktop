@@ -5,6 +5,7 @@ import type { ApplicationServices } from '../app/applicationServices'
 import type { ReceiptAccessService } from '../receipt/receiptAccess.service'
 import type { PrinterSettingsService } from '../receipt/printerSettings.service'
 import type { ReceiptPrintingService } from '../receipt/receiptPrinting.service'
+import type { AutoPrintAdmissionService } from '../receipt/autoPrint.service'
 
 const { handlers } = vi.hoisted(() => ({
   handlers: new Map<
@@ -60,6 +61,12 @@ function buildServices(overrides: Partial<ApplicationServices> = {}): Applicatio
       cancelJob: vi.fn(),
       latestForDocument: vi.fn()
     } as unknown as ReceiptPrintingService,
+    autoPrint: {
+      statusForSale: vi.fn(() => ({ state: 'pending', job: null })),
+      setup: vi.fn(async () => ({ autoPrint: true, printerName: null, needsSetup: 'no_printer' })),
+      noticesFor: vi.fn(() => []),
+      dismissNotices: vi.fn()
+    } as unknown as AutoPrintAdmissionService,
     ...overrides
   } as ApplicationServices
 }
@@ -191,5 +198,109 @@ describe('printing IPC', () => {
 
     expect(result.ok).toBe(false)
     expect(services.printerSettings.save).not.toHaveBeenCalled()
+  })
+})
+
+describe('POS improvements Stage 7: automatic-printing IPC', () => {
+  const SALE = '00000000-0000-4000-8000-000000000002'
+
+  it('reads one sale state for the resolved caller only', async () => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const services = buildServices()
+    handlers.clear()
+    registerPrintingIpcHandlers(services)
+
+    const result = await handlers.get(IPC_CHANNELS.printingAutoPrintStatus)?.(fakeEvent(), {
+      invoiceLocalUuid: SALE
+    })
+
+    expect(result).toMatchObject({ ok: true, data: { state: 'pending', job: null } })
+    expect(services.autoPrint.statusForSale).toHaveBeenCalledWith(OWNER, SALE)
+  })
+
+  it.each([
+    ['a non-uuid sale', { invoiceLocalUuid: 'inv-1' }],
+    ['an extra owner field', { invoiceLocalUuid: SALE, userUuid: 'user-2' }],
+    ['no payload', undefined]
+  ])('refuses %s before reading anything', async (_label, payload) => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const services = buildServices()
+    handlers.clear()
+    registerPrintingIpcHandlers(services)
+
+    const result = (await handlers.get(IPC_CHANNELS.printingAutoPrintStatus)?.(
+      fakeEvent(),
+      payload
+    )) as { ok: boolean; error?: { category: string } }
+
+    expect(result.ok).toBe(false)
+    expect(result.error?.category).toBe('validation')
+    expect(services.autoPrint.statusForSale).not.toHaveBeenCalled()
+  })
+
+  it('refuses every automatic-printing channel from an untrusted sender', async () => {
+    assertTrustedSender.mockImplementation(() => {
+      throw { category: 'authorization', message: 'untrusted', retryable: false }
+    })
+    const services = buildServices()
+    handlers.clear()
+    registerPrintingIpcHandlers(services)
+
+    for (const channel of [
+      IPC_CHANNELS.printingAutoPrintStatus,
+      IPC_CHANNELS.printingAutoPrintSetup,
+      IPC_CHANNELS.printingAutoPrintNotices,
+      IPC_CHANNELS.printingAutoPrintDismissNotices
+    ]) {
+      const result = await handlers.get(channel)?.(fakeEvent(), undefined)
+      expect(result).toMatchObject({ ok: false, error: { category: 'authorization' } })
+    }
+    expect(services.autoPrint.setup).not.toHaveBeenCalled()
+    expect(services.autoPrint.noticesFor).not.toHaveBeenCalled()
+    expect(services.autoPrint.dismissNotices).not.toHaveBeenCalled()
+  })
+
+  it('setup, notices and dismiss require a signed-in caller with pos.view', async () => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const services = buildServices({
+      receiptAccess: {
+        resolveCaller: vi.fn(() => {
+          throw { category: 'authorization', message: 'no pos.view', retryable: false }
+        })
+      } as unknown as ReceiptAccessService
+    })
+    handlers.clear()
+    registerPrintingIpcHandlers(services)
+
+    for (const channel of [
+      IPC_CHANNELS.printingAutoPrintSetup,
+      IPC_CHANNELS.printingAutoPrintNotices,
+      IPC_CHANNELS.printingAutoPrintDismissNotices
+    ]) {
+      const result = (await handlers.get(channel)?.(fakeEvent(), undefined)) as { ok: boolean }
+      expect(result.ok).toBe(false)
+    }
+    expect(services.autoPrint.setup).not.toHaveBeenCalled()
+    expect(services.autoPrint.dismissNotices).not.toHaveBeenCalled()
+  })
+
+  it('setup and notices take no arguments', async () => {
+    assertTrustedSender.mockImplementation(() => undefined)
+    const services = buildServices()
+    handlers.clear()
+    registerPrintingIpcHandlers(services)
+
+    const refused = (await handlers.get(IPC_CHANNELS.printingAutoPrintSetup)?.(fakeEvent(), {
+      printerName: 'x'
+    })) as { ok: boolean }
+    const setup = await handlers.get(IPC_CHANNELS.printingAutoPrintSetup)?.(fakeEvent(), undefined)
+    const notices = await handlers.get(IPC_CHANNELS.printingAutoPrintNotices)?.(
+      fakeEvent(),
+      undefined
+    )
+
+    expect(refused.ok).toBe(false)
+    expect(setup).toMatchObject({ ok: true, data: { needsSetup: 'no_printer' } })
+    expect(notices).toMatchObject({ ok: true, data: [] })
   })
 })

@@ -111,7 +111,10 @@ export const supportIssueKindSchema = z.enum([
   'allocation-request-pending',
   // Rev 4 §10.4: a completed sale held from upload because an earlier sale on the same stock
   // reservation was not accepted (or its sequence is broken). Nothing is re-sent or rewritten.
-  'upload-held-by-predecessor'
+  'upload-held-by-predecessor',
+  // POS improvements, Stage 2: a completed sale whose customer was created on this register and
+  // whose create request was refused or needs permission. The sale is kept unchanged and waits.
+  'upload-held-by-entity'
 ])
 
 export const supportIssueLineSchema = z

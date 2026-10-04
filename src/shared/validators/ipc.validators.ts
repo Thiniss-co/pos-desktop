@@ -19,7 +19,8 @@ import {
 import {
   localeCodeSchema,
   posCartWidthPreferenceSchema,
-  themePreferenceSchema
+  themePreferenceSchema,
+  setUserPreferenceInputSchema
 } from '@shared/contracts/preferences.contract'
 import { syncListFailuresInputSchema as syncListFailuresContractSchema } from '@shared/contracts/sync.contract'
 import {
@@ -29,6 +30,7 @@ import {
   printingGetJobInputSchema as printingGetJobContractSchema,
   printingCancelJobInputSchema as printingCancelJobContractSchema,
   printingLatestForDocumentInputSchema as printingLatestForDocumentContractSchema,
+  printingAutoPrintStatusInputSchema as printingAutoPrintStatusContractSchema,
   receiptProfilePublishInputSchema as receiptProfilePublishContractSchema
 } from '@shared/contracts/printing.contract'
 import {
@@ -124,6 +126,9 @@ export const preferencesGetPosCartWidthInputSchema = z.undefined()
 // Integer px in [320, 960], or null to restore the design default. Layout-only: no transaction
 // state can ride on this channel.
 export const preferencesSetPosCartWidthInputSchema = posCartWidthPreferenceSchema
+// Stage 5: the identity is the session's; the renderer names only a closed key and a boolean.
+export const preferencesGetUserInputSchema = z.undefined()
+export const preferencesSetUserInputSchema = setUserPreferenceInputSchema
 export const companyUsersGetAccessInputSchema = z.undefined()
 export const companyUsersListInputSchema = listUsersInputSchema
 export const companyUsersGetInputSchema = companyUserIdInputSchema
@@ -149,6 +154,10 @@ export const printingDispatchInputSchema = printingDispatchContractSchema
 export const printingGetJobInputSchema = printingGetJobContractSchema
 export const printingCancelJobInputSchema = printingCancelJobContractSchema
 export const printingLatestForDocumentInputSchema = printingLatestForDocumentContractSchema
+export const printingAutoPrintStatusInputSchema = printingAutoPrintStatusContractSchema
+export const printingAutoPrintSetupInputSchema = z.undefined()
+export const printingAutoPrintNoticesInputSchema = z.undefined()
+export const printingAutoPrintDismissNoticesInputSchema = z.undefined()
 
 // Receipt-printing plan §D-11: get and choose-logo take no argument at all -- the renderer can never
 // name a file path, an owner or a company. Publish is the strict editor contract.
@@ -156,3 +165,19 @@ export const receiptProfileGetInputSchema = z.undefined()
 export const brandingGetInputSchema = z.undefined()
 export const receiptProfileChooseLogoInputSchema = z.undefined()
 export const receiptProfilePublishInputSchema = receiptProfilePublishContractSchema
+
+/** POS improvements, Stage 1: `quick-create:get-access` takes no input. */
+export const quickCreateGetAccessInputSchema = z.undefined()
+
+/** POS improvements, Stage 2: quick-create inputs (the contracts live in quickCreate.contract.ts). */
+export {
+  quickCreateCustomerInputSchema,
+  quickCreateSupplierInputSchema,
+  quickCreateProductInputSchema,
+  quickCreateRequestKeyInputSchema,
+  quickCreateResubmitInputSchema
+} from '../contracts/quickCreate.contract'
+export const quickCreateNoInputSchema = z.undefined()
+
+/** POS improvements, Stage 3: `refunds:get-access` takes no input. */
+export const refundsGetAccessInputSchema = z.undefined()

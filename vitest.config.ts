@@ -7,7 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@renderer': resolve('src/renderer/src'),
-      '@shared': resolve('src/shared')
+      '@shared': resolve('src/shared'),
+      // Unit tests never reach an OS spooler (src/main/receipt/printBoundary.types.ts).
+      '@printBoundary': resolve('src/main/receipt/printBoundary.virtual.ts')
     }
   },
   test: {

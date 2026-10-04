@@ -13,7 +13,8 @@
     "types": ["electron-vite/node", "node"],
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["src/shared/*"]
+      "@shared/*": ["src/shared/*"],
+      "@printBoundary": ["src/main/receipt/printBoundary.os.ts"]
     }
   }
 }

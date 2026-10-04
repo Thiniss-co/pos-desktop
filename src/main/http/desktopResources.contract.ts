@@ -6,6 +6,28 @@ const isoSecondTimestampSchema = z
 const sha256RevisionSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const currencySchema = z.string().regex(/^[A-Z]{3}$/)
 const taxModeSchema = z.enum(['none', 'inclusive', 'exclusive'])
+
+/**
+ * POS improvements, Stage 6: the company's current fiscal identity (`fiscal_identity_version=1`).
+ * Frozen by the register into each sale's fiscal context at commit.
+ */
+const nullableFiscalText = z.string().max(255).nullable()
+export const fiscalIdentityBlockSchema = z
+  .object({
+    regime: z.enum(['none', 'sa_zatca_phase1']),
+    seller_name: nullableFiscalText,
+    vat_number: z.string().max(64).nullable(),
+    seller_address: z
+      .object({
+        street: nullableFiscalText,
+        city: z.string().max(120).nullable(),
+        postal_code: z.string().max(16).nullable(),
+        country: z.string().max(120).nullable()
+      })
+      .strict(),
+    revision: z.number().int().min(0)
+  })
+  .strict()
 const shiftMoneySchema = z.number().int().min(0).max(2_147_483_647)
 const signedShiftMoneySchema = z.number().int().min(-2_147_483_648).max(2_147_483_647)
 
@@ -230,7 +252,9 @@ const productResourceSchema = z
         id: z.uuid().nullable(),
         mode: taxModeSchema,
         rate_basis_points: z.number().int().min(0).max(10_000),
-        revision: sha256RevisionSchema
+        revision: sha256RevisionSchema,
+        // Stage 4: present (possibly null = unspecified) only under `catalog_tax_policy_version=2`.
+        category: z.enum(['standard', 'zero_rated', 'exempt']).nullable().optional()
       })
       .strict()
       .nullable(),
@@ -562,6 +586,20 @@ export const companyBrandAssetResponseSchema = z
  * `receipt_profile` block. `profile: null` means the company has never published a profile — the
  * server still says whether this user may create one.
  */
+export const receiptDisplayOptionsSchema = z
+  .object({
+    show_branch: z.boolean(),
+    show_address: z.boolean(),
+    show_phone: z.boolean(),
+    show_cashier: z.boolean(),
+    show_customer: z.boolean(),
+    show_footer: z.boolean(),
+    logo_size: z.enum(['small', 'medium', 'large'])
+  })
+  .strict()
+
+export type ReceiptDisplayOptions = z.infer<typeof receiptDisplayOptionsSchema>
+
 export const companyReceiptProfileResourceSchema = z
   .object({
     can_manage: z.boolean(),
@@ -574,7 +612,9 @@ export const companyReceiptProfileResourceSchema = z
         tax_identifier_label: z.string().max(24).nullable(),
         tax_identifier_value: z.string().max(40).nullable(),
         footer_lines: z.array(z.string().max(80)).max(3),
-        logo: z.object(receiptProfileLogoMetadataShape).strict().nullable()
+        logo: z.object(receiptProfileLogoMetadataShape).strict().nullable(),
+        // POS improvements, Stage 6 (receipt_profile_version=2): optional decoration choices.
+        display_options: receiptDisplayOptionsSchema.nullable().optional()
       })
       .strict()
       .nullable()
@@ -624,9 +664,13 @@ export const desktopBootstrapResourceSchema = z
         maximum_unit_price: z.literal(1_000_000_000),
         maximum_line_total: z.literal(900_000_000_000_000),
         maximum_invoice_total: z.literal(900_000_000_000_000),
-        mixed_tax_mode_policy: z.literal('single_invoice_mode')
+        // POS improvements, Stage 4: `per_line` only when this register negotiated
+        // `catalog_tax_policy_version=2` (and the server's issuance gate is on).
+        mixed_tax_mode_policy: z.enum(['single_invoice_mode', 'per_line'])
       })
       .strict(),
+    // POS improvements, Stage 6: present only under `fiscal_identity_version=1`.
+    fiscal_identity: fiscalIdentityBlockSchema.optional(),
     sync: z
       .object({
         snapshot_version: z.string(),
@@ -671,6 +715,13 @@ export const desktopBootstrapResourceSchema = z
     // Owner UX plan P9: present only when this request negotiated `company_branding_version=1`.
     // ABSENT says nothing about branding: the stored identity is kept.
     company_branding: companyBrandingBlockSchema.optional(),
+    // POS improvements, Stage 1: present only when this request negotiated `quick_create_version=1`.
+    // It says the server HAS the register quick-create endpoints; who may use them is `permissions`.
+    // ABSENT (an older backend) means the capability is unavailable, never "allowed".
+    quick_create: z
+      .object({ version: z.literal(1) })
+      .strict()
+      .optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),
@@ -962,6 +1013,23 @@ export type DesktopInvoiceShowResource = z.infer<typeof desktopInvoiceShowResour
  * Note the refund is keyed as `id`, not `uuid` -- the backend resource intentionally differs from
  * the invoice upload resource's own `id` key shape here (see plan §2c).
  */
+/** POS improvements, Stage 6: the backend's `pos_refunds.fiscal_snapshot`. */
+export const refundFiscalBlockSchema = fiscalIdentityBlockSchema
+  .extend({
+    issued_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
+    refund_number: z.string().max(255),
+    original_invoice: z
+      .object({
+        number: z.string().max(255).nullable(),
+        issued_at: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
+          .nullable()
+      })
+      .strict()
+  })
+  .strict()
+
 export const desktopRefundUploadResourceSchema = z
   .object({
     id: z.uuid(),
@@ -974,7 +1042,10 @@ export const desktopRefundUploadResourceSchema = z
     tax_total_amount: invoiceMoneySchema,
     grand_total_amount: invoiceMoneySchema,
     refunded_total_amount: invoiceMoneySchema,
-    refunded_at: isoSecondTimestampSchema.nullable()
+    refunded_at: isoSecondTimestampSchema.nullable(),
+    // POS improvements, Stage 6: the credit note's facts frozen at acceptance (`?fiscal_contract_version=1`);
+    // null for a refund accepted before the backend froze them.
+    fiscal: refundFiscalBlockSchema.nullable().optional()
   })
   .passthrough()
 

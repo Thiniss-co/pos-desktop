@@ -41,7 +41,8 @@ const KIND_ICON: Record<SupportIssueKind, IconName> = {
   'allocation-request-invalid': 'sync_problem',
   'legacy-dispatch-uncertainty': 'help',
   'allocation-request-pending': 'hourglass_top',
-  'upload-held-by-predecessor': 'pause_circle'
+  'upload-held-by-predecessor': 'pause_circle',
+  'upload-held-by-entity': 'person_off'
 }
 
 function when(iso: string | null): string {
