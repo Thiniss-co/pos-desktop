@@ -671,6 +671,12 @@ export const desktopBootstrapResourceSchema = z
     // Owner UX plan P9: present only when this request negotiated `company_branding_version=1`.
     // ABSENT says nothing about branding: the stored identity is kept.
     company_branding: companyBrandingBlockSchema.optional(),
+    // Owner receipt copies: present only when this request negotiated `receipt_snapshot_version=1` and
+    // the server stores snapshots of that version. ABSENT: the register sends none.
+    receipt_snapshot: z
+      .object({ version: z.number().int().min(1) })
+      .strict()
+      .optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),
@@ -1093,3 +1099,14 @@ export const prepareOperationResourceSchema = z
 
 export type PrepareOperationResource = z.infer<typeof prepareOperationResourceSchema>
 export type PreparePlanProductOutcome = z.infer<typeof preparePlanProductOutcomeSchema>
+
+/** Owner receipt copies: the server's confirmation that a sale's receipt snapshot is stored. */
+export const receiptSnapshotStoredSchema = z
+  .object({
+    local_invoice_uuid: z.string().uuid(),
+    snapshot_version: z.number().int(),
+    template_version: z.number().int(),
+    content_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    received_at: z.string()
+  })
+  .strict()

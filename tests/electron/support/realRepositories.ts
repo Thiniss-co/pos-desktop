@@ -16,6 +16,8 @@ import { PreparationRepository } from '../../../src/main/repositories/preparatio
 import { ProductImageRepository } from '../../../src/main/repositories/productImage.repository'
 import { CompanyBrandingRepository } from '../../../src/main/repositories/companyBranding.repository'
 import { ReceiptContextRepository } from '../../../src/main/repositories/receiptContext.repository'
+import { ReceiptSnapshotRepository } from '../../../src/main/repositories/receiptSnapshot.repository'
+import { BootstrapCapabilityRepository } from '../../../src/main/repositories/bootstrapCapability.repository'
 import { ReceiptProfileRepository } from '../../../src/main/repositories/receiptProfile.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
 import { SecureSecretsRepository } from '../../../src/main/repositories/secureSecrets.repository'
@@ -54,6 +56,9 @@ export interface RealRepositories {
   readonly receiptProfile: ReceiptProfileRepository
   /** Receipt-printing plan §D-2/§D-8: the immutable receipt context (issuer/cashier/profile). */
   readonly receiptContext: ReceiptContextRepository
+  /** Owner receipt copies (migration 0030): frozen sale receipt snapshots and their upload state. */
+  readonly receiptSnapshots: ReceiptSnapshotRepository
+  readonly bootstrapCapabilities: BootstrapCapabilityRepository
   readonly saleAttempts: SaleAttemptRepository
   readonly secureSecrets: SecureSecretsRepository
   readonly sessionEpoch: SessionEpochRepository
@@ -109,6 +114,8 @@ export function realRepositories(
     companyBranding,
     receiptProfile: new ReceiptProfileRepository(database),
     receiptContext: new ReceiptContextRepository(database),
+    receiptSnapshots: new ReceiptSnapshotRepository(database),
+    bootstrapCapabilities: new BootstrapCapabilityRepository(database),
     saleAttempts: new SaleAttemptRepository(database),
     secureSecrets: new SecureSecretsRepository(database),
     sessionEpoch: new SessionEpochRepository(database),
@@ -140,6 +147,8 @@ export function realRepositories(
   assert.ok(repositories.preparation instanceof PreparationRepository)
   assert.ok(repositories.receiptProfile instanceof ReceiptProfileRepository)
   assert.ok(repositories.receiptContext instanceof ReceiptContextRepository)
+  assert.ok(repositories.receiptSnapshots instanceof ReceiptSnapshotRepository)
+  assert.ok(repositories.bootstrapCapabilities instanceof BootstrapCapabilityRepository)
   assert.ok(repositories.stockAllocations instanceof StockAllocationRepository)
   assert.ok(repositories.syncQueue instanceof SyncQueueRepository)
   assert.ok(repositories.uploadDependencies instanceof UploadDependencyRepository)

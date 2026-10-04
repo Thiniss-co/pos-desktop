@@ -94,7 +94,11 @@ const expectedTables = [
   'product_image_assets',
   // Owner UX plan P9 (migration 0019): the company identity and its logo bytes.
   'company_branding',
-  'company_brand_assets'
+  'company_brand_assets',
+  // Owner receipt copies (migration 0030): capabilities, frozen sale receipt snapshots, upload state.
+  'bootstrap_capabilities',
+  'local_invoice_receipt_snapshot',
+  'receipt_snapshot_uploads'
 ]
 
 databaseTest(
@@ -164,6 +168,7 @@ databaseTest(
       'idx_receipt_print_jobs_document',
       'idx_receipt_print_jobs_reservation',
       'idx_receipt_profile_versions_company',
+      'idx_receipt_snapshot_uploads_state',
       'idx_sale_attempts_one_blocking',
       'idx_sale_attempts_owner_state',
       'idx_stock_allocation_grants_available',

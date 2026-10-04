@@ -945,7 +945,10 @@
     "RECEIPT_PROFILE_ASSET_INVALID": "The logo file could not be used. Choose a different image.",
     "RECEIPT_PROFILE_ASSET_NOT_FOUND": "The logo could not be found on the server. Choose it again.",
     "POLICY_REVISION_STALE": "The offline stock policy changed. Preparing again will use the current policy.",
-    "DESKTOP_PREPARATION_UNAVAILABLE": "Offline stock preparation is not available for this workstation right now."
+    "DESKTOP_PREPARATION_UNAVAILABLE": "Offline stock preparation is not available for this workstation right now.",
+    "RECEIPT_SNAPSHOT_INVALID": "The server refused this sale's receipt record; the receipt itself is unaffected.",
+    "RECEIPT_SNAPSHOT_CONFLICT": "The server already holds a different receipt record for this sale; it was kept.",
+    "INVOICE_NOT_UPLOADED": "The server has not accepted this sale from this workstation yet."
   },
   "offlineSale": {
     "title": "Offline selling",

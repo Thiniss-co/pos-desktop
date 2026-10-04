@@ -65,6 +65,11 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * `receipt_profile`, and this app mirrors nothing and hides the branding editor.
    */
   /**
+   * Owner receipt copies: `receipt_snapshot_version=1` asks whether the server stores sale receipt
+   * snapshots (`receipt_snapshot: {version: 1}`). A backend that predates it ignores the parameter and
+   * answers without the block; the register then keeps its snapshots pending and sends none.
+   */
+  /**
    * Owner UX plan P9: `company_branding_version=1` additionally asks for the `company_branding`
    * block (logo and primary colour); an older backend ignores it and the default brand is shown.
    */
@@ -79,13 +84,13 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * the client then uses `bootstrapOfflineSaleV1` (identical except for the version).
    */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=1&product_image_version=1&company_branding_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=1&product_image_version=1&company_branding_version=1&receipt_snapshot_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
   },
   bootstrapOfflineSaleV1: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1&product_image_version=1&company_branding_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1&product_image_version=1&company_branding_version=1&receipt_snapshot_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
@@ -312,6 +317,16 @@ export function companyBrandAssetRoute(sha256: string): DesktopApiRoute {
   return {
     path: `/company-branding/assets/${sha256}`,
     method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  }
+}
+
+/** Owner receipt copies: the frozen receipt snapshot of one of this register's accepted sale uploads. */
+export function invoiceReceiptSnapshotRoute(invoiceLocalUuid: string): DesktopApiRoute {
+  return {
+    path: `/invoices/${encodeURIComponent(invoiceLocalUuid)}/receipt-snapshot`,
+    method: 'POST',
     requiresAuth: true,
     requiresDeviceUuid: true
   }

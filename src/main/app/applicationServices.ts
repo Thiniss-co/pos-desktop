@@ -1,3 +1,6 @@
+import { BootstrapCapabilityRepository } from '../repositories/bootstrapCapability.repository'
+import { ReceiptSnapshotRepository } from '../repositories/receiptSnapshot.repository'
+import { ReceiptSnapshotUploadService } from '../sync/receiptSnapshotUpload.service'
 import { app, BrowserWindow, dialog, net, powerMonitor, safeStorage, webContents } from 'electron'
 import { CompanyBrandingRepository } from '../repositories/companyBranding.repository'
 import { CompanyBrandSyncService } from '../services/companyBrandSync.service'
@@ -412,6 +415,15 @@ export function createApplicationServices(): ApplicationServices {
     onStored: () => broadcastCatalogChanged({ reason: 'stock', revision: null }),
     log: (line) => console.log(line)
   })
+  // Owner receipt copies: each accepted sale's frozen receipt snapshot, uploaded once (no timer).
+  const receiptSnapshots = new ReceiptSnapshotRepository(database)
+  const receiptSnapshotUploads = new ReceiptSnapshotUploadService({
+    repository: receiptSnapshots,
+    capabilities: new BootstrapCapabilityRepository(database),
+    apiClient,
+    contextKey: ownerContextKey,
+    log: (line) => console.log(line)
+  })
   const companyBrandSync = new CompanyBrandSyncService({
     repository: companyBranding,
     apiClient,
@@ -519,7 +531,7 @@ export function createApplicationServices(): ApplicationServices {
     // session user only; never fails or delays bootstrap (see BootstrapReceiptProfileSync).
     sessionMetadata,
     receiptProfileSync,
-    { owner: renewalOwner, installGate, productImageSync, companyBrandSync }
+    { owner: renewalOwner, installGate, productImageSync, companyBrandSync, receiptSnapshotUploads }
   )
   // Rev 4 §7: the single owner of license validation and renewal timing. The catalog leg here only
   // installs when the catalog is missing or stale (selling is impossible anyway); the gated
@@ -605,6 +617,8 @@ export function createApplicationServices(): ApplicationServices {
   const receiptContextRepository = new ReceiptContextRepository(database)
   const receiptContextCapture = new ReceiptContextCaptureService({
     receiptContext: receiptContextRepository,
+    receiptSnapshots,
+    log: (line) => console.log(line),
     bootstrapSnapshot,
     sessionMetadata,
     customers: {
@@ -784,6 +798,8 @@ export function createApplicationServices(): ApplicationServices {
     // race must never surface as a worker fault.
     onStatusChanged: () => {
       broadcastSyncChanged(invoiceUploads.getStatus())
+      // An accepted sale may now carry its receipt snapshot (single-flight; nothing due is a no-op).
+      void receiptSnapshotUploads.sweep()
     }
   })
   const invoiceUploadFailures = new InvoiceUploadFailureReader({
