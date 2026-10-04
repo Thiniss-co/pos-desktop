@@ -1,4 +1,5 @@
 import { normalizeCatalogSearch } from '@shared/catalog/normalization'
+import type { ProductImageAssetMetadata, ProductImageRepository } from './productImage.repository'
 import { publicAppErrorSchema } from '@shared/contracts/api.contract'
 import type {
   DesktopBootstrapResource,
@@ -346,7 +347,8 @@ export class BootstrapSnapshotRepository {
     private readonly allocationReconciliation?: Pick<
       AllocationReconciliationService,
       'applyBootstrap'
-    >
+    >,
+    private readonly productImages?: Pick<ProductImageRepository, 'applyFullBlock'>
   ) {}
 
   persistSnapshot(
@@ -390,6 +392,8 @@ export class BootstrapSnapshotRepository {
           this.persistBootstrapContext(resource, fetchedAt)
           this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
           this.persistOfflineSaleAuthority(resource, fetchedAt)
+          // P8: image changes leave the catalog revision unchanged, so the fast path applies them too.
+          this.persistProductImages(resource, fetchedAt)
           this.database
             .prepare('UPDATE catalog_metadata SET fetched_at = ? WHERE id = 1')
             .run(fetchedAt)
@@ -600,6 +604,7 @@ export class BootstrapSnapshotRepository {
 
       this.persistAllocationSnapshot(allocationSnapshot, fetchedAt)
       this.persistOfflineSaleAuthority(resource, fetchedAt)
+      this.persistProductImages(resource, fetchedAt)
 
       if (!this.isCatalogIntact(manifest)) {
         throw catalogSnapshotError(
@@ -874,6 +879,31 @@ export class BootstrapSnapshotRepository {
    * Re-observing is deliberately NOT renewing (§14.3): the window never resets on launch,
    * navigation, a refresh-only cycle, a retry, or a clock rollback.
    */
+  /**
+   * Owner UX plan P8: the negotiated `product_images` block, inside the persist transaction. Absent
+   * says nothing (references are kept). The desktop requests full bootstraps only; a `delta` block is
+   * applied entry by entry without removals.
+   */
+  private persistProductImages(resource: DesktopBootstrapResource, fetchedAt: string): void {
+    const block = resource.product_images
+    if (!this.productImages || block === undefined) {
+      return
+    }
+    const entries = block.entries.map((entry) => ({
+      productUuid: entry.product_uuid,
+      revision: entry.revision,
+      image: entry.image
+        ? {
+            thumb: assetMetadata(entry.image.thumb),
+            display: assetMetadata(entry.image.display)
+          }
+        : null
+    }))
+    const persisted =
+      block.scope === 'full' ? (resource.products ?? []).map((product) => product.uuid) : null
+    this.productImages.applyFullBlock(resource.company.id, entries, persisted, fetchedAt)
+  }
+
   private persistOfflineSaleAuthority(resource: DesktopBootstrapResource, fetchedAt: string): void {
     const published = (resource as { offline_sale_authority?: unknown }).offline_sale_authority
 
@@ -1120,5 +1150,21 @@ export class BootstrapSnapshotRepository {
         subscription.grace_ends_at,
         fetchedAt
       )
+  }
+}
+
+function assetMetadata(asset: {
+  readonly sha256: string
+  readonly byte_length: number
+  readonly width_px: number
+  readonly height_px: number
+  readonly media_type: string
+}): ProductImageAssetMetadata {
+  return {
+    sha256: asset.sha256,
+    byteLength: asset.byte_length,
+    widthPx: asset.width_px,
+    heightPx: asset.height_px,
+    mediaType: asset.media_type
   }
 }

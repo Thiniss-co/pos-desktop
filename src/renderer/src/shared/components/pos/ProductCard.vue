@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /**
- * V3 product card: pastel band with the monogram (and an in-cart quantity badge), then name
- * (2 lines), unit · SKU, price and the stock pill. There are no product photos — the catalog
- * contract has no image (IMPLEMENTATION.md D-05). Stock is information only: no stock figure or
+ * V3 product card: the product image or the pastel band with the monogram (and an in-cart quantity
+ * badge), then name (2 lines), unit · SKU, price and the stock pill. D-05 (revised, owner UX plan
+ * P8): the card shows the product image when the server delivered one and its bytes were verified
+ * locally; otherwise — and when the image fails to draw — the pastel monogram band, in the same box,
+ * so nothing shifts. Stock is information only: no stock figure or
  * reservation ever disables or dims the card, in any mode, online or offline. Only `disabled` (a
  * non-stock reason, e.g. no open shift) does.
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import StockStatus from './StockStatus.vue'
 import type { DisplayProduct } from './types'
 
@@ -31,6 +33,12 @@ const TONE_INK = [
   'text-cat-ink-5'
 ]
 const tone = computed(() => (props.product.tone ?? 0) % 6)
+const imageFailed = ref(false)
+watch(
+  () => props.product.imageUrl,
+  () => (imageFailed.value = false)
+)
+const showImage = computed(() => Boolean(props.product.imageUrl) && !imageFailed.value)
 </script>
 
 <template>
@@ -38,8 +46,22 @@ const tone = computed(() => (props.product.tone ?? 0) % 6)
     class="product-card-frame relative flex min-w-0 flex-col overflow-hidden rounded-lg border bg-surf"
     :class="product.inCartQuantity ? 'border-pri' : 'border-line'"
   >
-    <div class="relative h-22 short:h-16" :class="TONE_BG[tone]" aria-hidden="true">
+    <div
+      class="relative h-22 short:h-16"
+      :class="showImage ? 'bg-surf' : TONE_BG[tone]"
+      aria-hidden="true"
+    >
+      <img
+        v-if="showImage"
+        :src="product.imageUrl"
+        alt=""
+        class="absolute inset-0 h-full w-full object-contain"
+        decoding="async"
+        data-testid="product-card-image"
+        @error="imageFailed = true"
+      />
       <span
+        v-else
         class="absolute inset-0 flex items-center justify-center text-2xl font-bold"
         :class="TONE_INK[tone]"
         >{{ product.monogram }}</span

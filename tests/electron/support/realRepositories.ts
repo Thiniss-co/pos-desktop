@@ -13,6 +13,7 @@ import { LocalSaleRepository } from '../../../src/main/repositories/localSale.re
 import { LocalRefundRepository } from '../../../src/main/repositories/localRefund.repository'
 import { LocalStockRepository } from '../../../src/main/repositories/localStock.repository'
 import { PreparationRepository } from '../../../src/main/repositories/preparation.repository'
+import { ProductImageRepository } from '../../../src/main/repositories/productImage.repository'
 import { ReceiptContextRepository } from '../../../src/main/repositories/receiptContext.repository'
 import { ReceiptProfileRepository } from '../../../src/main/repositories/receiptProfile.repository'
 import { SaleAttemptRepository } from '../../../src/main/repositories/saleAttempt.repository'
@@ -44,6 +45,8 @@ export interface RealRepositories {
   readonly offlineSaleAuthorities: OfflineSaleAuthorityRepository
   /** CP3: durable preparation cycles and operations. */
   readonly preparation: PreparationRepository
+  /** Owner UX plan P8: product image references and verified bytes. */
+  readonly productImages: ProductImageRepository
   /** Receipt-printing plan §D-11: the company receipt-profile mirror. */
   readonly receiptProfile: ReceiptProfileRepository
   /** Receipt-printing plan §D-2/§D-8: the immutable receipt context (issuer/cashier/profile). */
@@ -76,6 +79,7 @@ export function realRepositories(
     stockAllocations,
     allocationRecoveries
   })
+  const productImages = new ProductImageRepository(database)
   const repositories = {
     appSettings: new AppSettingsRepository(database),
     allocationDispatches: new AllocationDispatchRepository(database),
@@ -83,7 +87,8 @@ export function realRepositories(
     bootstrapSnapshot: new BootstrapSnapshotRepository(
       database,
       stockAllocations,
-      allocationReconciliation
+      allocationReconciliation,
+      productImages
     ),
     bootstrapState: new BootstrapStateRepository(database),
     catalog: new CatalogRepository(database),
@@ -95,6 +100,7 @@ export function realRepositories(
     localStock: new LocalStockRepository(database),
     offlineSaleAuthorities: new OfflineSaleAuthorityRepository(database),
     preparation: new PreparationRepository(database, now),
+    productImages,
     receiptProfile: new ReceiptProfileRepository(database),
     receiptContext: new ReceiptContextRepository(database),
     saleAttempts: new SaleAttemptRepository(database),

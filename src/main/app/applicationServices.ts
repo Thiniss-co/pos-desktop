@@ -1,4 +1,6 @@
 import { app, BrowserWindow, dialog, net, powerMonitor, safeStorage, webContents } from 'electron'
+import { ProductImageRepository } from '../repositories/productImage.repository'
+import { ProductImageSyncService } from '../services/productImageSync.service'
 import { AttemptSettlementService } from '../services/attemptSettlement.service'
 import { broadcastAttemptsChanged } from '../ipc/checkout.ipc'
 import { CatalogInstallGate, InstallDeferredError } from '../services/catalogInstallGate.service'
@@ -215,10 +217,14 @@ export function createApplicationServices(): ApplicationServices {
     stockAllocations,
     allocationRecoveries: allocationRecoveryRepository
   })
+  // Owner UX plan P8: product image references (applied inside the bootstrap persist transaction)
+  // and their verified bytes.
+  const productImages = new ProductImageRepository(database)
   const bootstrapSnapshot = new BootstrapSnapshotRepository(
     database,
     stockAllocations,
-    allocationReconciliation
+    allocationReconciliation,
+    productImages
   )
   const catalogRepository = new CatalogRepository(database)
   const syncQueue = new SyncQueueRepository(database)
@@ -369,7 +375,8 @@ export function createApplicationServices(): ApplicationServices {
     catalogRepository,
     catalogReadAccess,
     catalogClock,
-    stockAllocations
+    stockAllocations,
+    { repository: productImages, companyUuid: () => sessionMetadata.getContext().companyUuid }
   )
   // Receipt-printing plan §D-11 -- constructed before `bootstrap` because printing's branding
   // rendering reads the mirror the sync service will later populate; wired here so the mirror
@@ -378,6 +385,24 @@ export function createApplicationServices(): ApplicationServices {
   const receiptProfileSync = new ReceiptProfileSyncService({
     repository: receiptProfileRepository,
     apiClient
+  })
+  // Owner UX plan P8: background image downloads after a persisted bootstrap. The context token is
+  // the signed-in owner; any change (sign-out, another user, company or device, a new epoch) stops a
+  // sweep and discards what it fetched.
+  const productImageSync = new ProductImageSyncService({
+    repository: productImages,
+    apiClient,
+    contextKey: () => {
+      const context = sessionMetadata.getContext()
+      return context.isAuthenticated &&
+        context.companyUuid &&
+        context.deviceUuid &&
+        context.userUuid
+        ? `${context.companyUuid}|${context.deviceUuid}|${context.userUuid}|${sessionEpoch.current()}`
+        : null
+    },
+    onStored: () => broadcastCatalogChanged({ reason: 'stock', revision: null }),
+    log: (line) => console.log(line)
   })
   let settleAfterInstall: () => void = () => undefined
   // Rev 4 §8: the catalog-install lifecycle. Late-bound to the completion service (built below).
@@ -458,7 +483,7 @@ export function createApplicationServices(): ApplicationServices {
     // session user only; never fails or delays bootstrap (see BootstrapReceiptProfileSync).
     sessionMetadata,
     receiptProfileSync,
-    { owner: renewalOwner, installGate }
+    { owner: renewalOwner, installGate, productImageSync }
   )
   // Rev 4 §7: the single owner of license validation and renewal timing. The catalog leg here only
   // installs when the catalog is missing or stale (selling is impossible anyway); the gated

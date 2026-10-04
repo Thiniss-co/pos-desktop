@@ -27,8 +27,10 @@ export interface DisplayProduct {
   categoryId?: string
   /** Sale unit as recorded in the catalog (e.g. "1L"); omitted when the catalog has none. */
   unit?: string
-  /** Two-letter monogram shown on the pastel band (the catalog has no product images). */
+  /** Two-letter monogram shown on the pastel band when the product has no verified image. */
   monogram?: string
+  /** The product's verified thumbnail as a `data:` URL (P8); the monogram band is used without one. */
+  imageUrl?: string
   /** Pastel tone 0–5, cycled from the product's category position — never a status. */
   tone?: number
   /** Quantity already in the cart, pre-formatted; omitted when the product is not in the cart. */

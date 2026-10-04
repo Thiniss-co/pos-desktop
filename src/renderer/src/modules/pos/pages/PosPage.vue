@@ -333,6 +333,7 @@ function displayProduct(product: CatalogProduct): DisplayProduct {
     categoryId: product.categoryUuid,
     unit: product.unit ?? undefined,
     monogram: monogram(product.name),
+    imageUrl: product.image?.thumbDataUrl,
     tone: product.categoryUuid ? (categoryTone.value.get(product.categoryUuid) ?? 0) : 0,
     inCartQuantity: quantity
       ? formatNumber(quantity, localeStore.locale as LocaleCode, { maximumFractionDigits: 3 })

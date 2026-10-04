@@ -43,6 +43,11 @@ export interface BootstrapServiceOptions {
   /** Rev 4 §7.1: the renewal owner, captured before the request and re-checked inside the write. */
   readonly owner?: () => RenewalOwner | null
   /**
+   * Owner UX plan P8: the background product-image worker, started after the snapshot was persisted
+   * and the install hold settled. Fire-and-forget: never awaited, never able to fail a bootstrap.
+   */
+  readonly productImageSync?: { sweep(companyUuid: string): Promise<void> }
+  /**
    * Rev 4 §8: the catalog-install lifecycle. `acquire()` runs after the fetch and before any write
    * (the renderer hold handshake); `beforeWrite()` is the synchronous final check inside the
    * persist transaction; `settle()` records the outcome and releases the hold.
@@ -276,6 +281,10 @@ export class BootstrapService {
       } catch {
         // A receipt-profile sync failure must never fail an otherwise-successful bootstrap.
       }
+    }
+
+    if (this.options.productImageSync) {
+      void this.options.productImageSync.sweep(resource.company.id).catch(() => undefined)
     }
 
     return bootstrapResultSchema.parse({

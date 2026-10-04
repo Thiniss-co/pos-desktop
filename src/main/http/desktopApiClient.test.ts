@@ -406,6 +406,53 @@ describe('DesktopApiClient connectivity outcome reporting', () => {
     expect(onRequestOutcome).toHaveBeenCalledWith({ kind: 'http_response', status: 200 })
   })
 
+  it('with reportOutcome false, skips only the connectivity feedback; an authenticated failure is still reported', async () => {
+    const onRequestOutcome = vi.fn()
+    const onAuthenticatedFailure = vi.fn()
+    const route = {
+      path: '/product-image-assets/' + 'a'.repeat(64),
+      method: 'GET',
+      requiresAuth: true,
+      requiresDeviceUuid: true
+    } as const
+    const transport = createClient({
+      onRequestOutcome,
+      onAuthenticatedFailure,
+      getAccessToken: () => 'token',
+      getDeviceUuid: () => '00000000-0000-4000-8000-000000000001',
+      fetchImplementation: vi.fn(async () => {
+        throw new Error('ECONNREFUSED 127.0.0.1:8000')
+      }) as typeof fetch
+    })
+    await expect(
+      transport.request(route, undefined, { reportOutcome: false })
+    ).rejects.toMatchObject({ category: 'transport' })
+
+    const revoked = createClient({
+      onRequestOutcome,
+      onAuthenticatedFailure,
+      getAccessToken: () => 'token',
+      getDeviceUuid: () => '00000000-0000-4000-8000-000000000001',
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Revoked.',
+            code: 'UNAUTHENTICATED',
+            errors: {},
+            meta: {}
+          }),
+          { status: 401, headers: { 'content-type': 'application/json' } }
+        )
+    })
+    await expect(revoked.request(route, undefined, { reportOutcome: false })).rejects.toMatchObject(
+      { category: 'authentication' }
+    )
+
+    expect(onRequestOutcome).not.toHaveBeenCalled()
+    expect(onAuthenticatedFailure).toHaveBeenCalledTimes(2)
+  })
+
   it('cannot corrupt the business result if the connectivity callback throws', async () => {
     const client = createClient({
       onRequestOutcome: () => {

@@ -56,7 +56,15 @@ export const catalogProductSchema = z
         rateBasisPoints: z.number().int().min(0).max(10_000),
         revision: revisionSchema
       })
+      .strict(),
+    /**
+     * Owner UX plan P8: the verified thumbnail as a `data:` URL (CSP `img-src 'self' data:`), present
+     * only when its bytes are stored locally. Display-only: never part of a cart line or a sale.
+     */
+    image: z
+      .object({ thumbDataUrl: z.string().regex(/^data:image\/webp;base64,[A-Za-z0-9+/]+={0,2}$/) })
       .strict()
+      .optional()
   })
   .strict()
 

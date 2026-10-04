@@ -88,7 +88,10 @@ const expectedTables = [
   'legacy_dispatch_uncertainties',
   'stock_allocation_validation_marks',
   // Physical-presence selling integration (migration 0017): append-only authority conflicts.
-  'offline_sale_authority_conflicts'
+  'offline_sale_authority_conflicts',
+  // Owner UX plan P8 (migration 0018): product image references and verified bytes.
+  'catalog_product_images',
+  'product_image_assets'
 ]
 
 databaseTest(
@@ -153,6 +156,7 @@ databaseTest(
       'idx_prepare_operations_owner',
       'idx_product_barcodes_barcode',
       'idx_product_barcodes_product_id',
+      'idx_product_image_assets_pending',
       'idx_receipt_print_jobs_auto',
       'idx_receipt_print_jobs_document',
       'idx_receipt_print_jobs_reservation',

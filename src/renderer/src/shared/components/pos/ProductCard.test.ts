@@ -36,4 +36,27 @@ describe('ProductCard — Rev 4 §4.3', () => {
     expect(wrapper.html()).not.toContain('opacity-60')
     wrapper.unmount()
   })
+
+  it('shows the verified image when there is one, and falls back to the monogram when it fails to draw (P8)', async () => {
+    const wrapper = mount(ProductCard, {
+      props: {
+        product: product({ imageUrl: 'data:image/webp;base64,UklGRg==' }),
+        stockLabel: 'Recorded 0'
+      }
+    })
+    expect(wrapper.find('[data-testid="product-card-image"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('WB')
+
+    await wrapper.find('[data-testid="product-card-image"]').trigger('error')
+    expect(wrapper.find('[data-testid="product-card-image"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('WB')
+    wrapper.unmount()
+  })
+
+  it('without an image keeps the monogram band', () => {
+    const wrapper = mount(ProductCard, { props: { product: product(), stockLabel: 'Recorded 0' } })
+    expect(wrapper.find('[data-testid="product-card-image"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('WB')
+    wrapper.unmount()
+  })
 })

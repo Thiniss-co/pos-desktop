@@ -67,8 +67,11 @@ function mergeKey(product: CatalogProduct, catalogRevision: string): string {
 }
 
 function immutableProductSnapshot(product: CatalogProduct): CatalogProduct {
+  // P8: a product image is display-only and never part of a cart line (or anything sent to checkout).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { image: _image, ...rest } = product
   return Object.freeze({
-    ...product,
+    ...rest,
     price: Object.freeze({ ...product.price }),
     tax: Object.freeze({ ...product.tax })
   })

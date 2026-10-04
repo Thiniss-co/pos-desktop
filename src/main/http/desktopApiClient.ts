@@ -29,6 +29,16 @@ export interface DesktopApiClientDependencies {
   readonly onRequestOutcome?: (outcome: ConnectivityRequestOutcome) => void
 }
 
+/**
+ * Per-request options. `reportOutcome: false` skips ONLY the connectivity feedback (`onRequestOutcome`)
+ * for a background request whose failure says nothing about the till being online (product image
+ * downloads, owner UX plan P8). Authentication and revocation handling (`onAuthenticatedFailure`) and
+ * normal error handling still run.
+ */
+export interface DesktopApiRequestOptions {
+  readonly reportOutcome?: boolean
+}
+
 export interface DesktopApiResponse<T> {
   readonly data: T
   readonly meta: Record<string, unknown>
@@ -77,11 +87,20 @@ export class DesktopApiClient {
     this.tracer = dependencies.tracer ?? createApiTracer()
   }
 
-  async request<T>(route: DesktopApiRoute, body?: unknown): Promise<T> {
-    return (await this.requestWithMeta<T>(route, body)).data
+  async request<T>(
+    route: DesktopApiRoute,
+    body?: unknown,
+    options: DesktopApiRequestOptions = {}
+  ): Promise<T> {
+    return (await this.requestWithMeta<T>(route, body, options)).data
   }
 
-  async requestWithMeta<T>(route: DesktopApiRoute, body?: unknown): Promise<DesktopApiResponse<T>> {
+  async requestWithMeta<T>(
+    route: DesktopApiRoute,
+    body?: unknown,
+    options: DesktopApiRequestOptions = {}
+  ): Promise<DesktopApiResponse<T>> {
+    const reportOutcome = options.reportOutcome !== false
     this.assertRequestPreconditions(route)
 
     const apiOrigin = this.dependencies.apiOrigin
@@ -124,7 +143,9 @@ export class DesktopApiClient {
         signal: controller.signal
       })
       receivedHttpResponse = true
-      this.reportRequestOutcome({ kind: 'http_response', status: response.status })
+      if (reportOutcome) {
+        this.reportRequestOutcome({ kind: 'http_response', status: response.status })
+      }
 
       if (RETRY_AFTER_STATUSES.has(response.status)) {
         retryAfterContext = {
@@ -174,7 +195,7 @@ export class DesktopApiClient {
         message: envelope.message
       }
     } catch (error) {
-      if (!receivedHttpResponse) {
+      if (!receivedHttpResponse && reportOutcome) {
         this.reportRequestOutcome({ kind: 'transport_failure' })
       }
 

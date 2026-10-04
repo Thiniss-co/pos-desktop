@@ -65,18 +65,23 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * `receipt_profile`, and this app mirrors nothing and hides the branding editor.
    */
   /**
+   * Owner UX plan P8: `product_image_version=1` additionally asks for the `product_images` block.
+   * A backend that predates it ignores the parameter and answers without the block; this app then
+   * keeps whatever references it holds (none on a first run) and shows monograms.
+   */
+  /**
    * Rev 4 §6.3: `offline_sale_contract_version=2` asks for the warehouse-bound authority
    * representation. A backend that supports only v1 answers 422 on that field before any work, and
    * the client then uses `bootstrapOfflineSaleV1` (identical except for the version).
    */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=1&product_image_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
   },
   bootstrapOfflineSaleV1: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=1&product_image_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
@@ -271,6 +276,23 @@ export function receiptProfileAssetRoute(sha256: string): DesktopApiRoute {
 
   return {
     path: `/receipt-profile/assets/${sha256}`,
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  }
+}
+
+/**
+ * Owner UX plan P8 — `GET /api/v1/desktop/product-image-assets/{sha256}`. The sha must already be a
+ * lowercase 64-hex string (as recorded from the bootstrap block), validated before it reaches a path.
+ */
+export function productImageAssetRoute(sha256: string): DesktopApiRoute {
+  if (!/^[a-f0-9]{64}$/.test(sha256)) {
+    throw new Error('A valid asset sha256 is required')
+  }
+
+  return {
+    path: `/product-image-assets/${sha256}`,
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true

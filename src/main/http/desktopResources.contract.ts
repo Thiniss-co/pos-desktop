@@ -460,6 +460,64 @@ export const receiptProfileAssetResponseSchema = z
 export type ReceiptProfileAssetResponse = z.infer<typeof receiptProfileAssetResponseSchema>
 
 /**
+ * Owner UX plan P8 — product images. The bounds mirror the backend's processing (display WebP within
+ * 640 px ≤ 160 KiB, thumbnail within 160 px ≤ 24 KiB) with headroom, and `0018_product_images`
+ * enforces the same limits as CHECK constraints.
+ */
+const productImageAssetMetadataShape = {
+  sha256: receiptProfileSha256Schema,
+  byte_length: z.number().int().min(1).max(262_144),
+  width_px: z.number().int().min(1).max(640),
+  height_px: z.number().int().min(1).max(640),
+  media_type: z.literal('image/webp')
+}
+
+export const productImagesBlockSchema = z
+  .object({
+    scope: z.enum(['full', 'delta']),
+    since: z.string().nullable(),
+    last_changed_at: z.string().nullable(),
+    entries: z.array(
+      z
+        .object({
+          product_uuid: z.uuid(),
+          revision: z.number().int().nonnegative(),
+          image: z
+            .object({
+              thumb: z.object(productImageAssetMetadataShape).strict(),
+              display: z.object(productImageAssetMetadataShape).strict()
+            })
+            .strict()
+            .nullable()
+        })
+        .strict()
+    )
+  })
+  .strict()
+
+export type ProductImagesBlock = z.infer<typeof productImagesBlockSchema>
+
+/** 256 KiB of bytes is at most 349 528 base64 characters: checked before anything is decoded. */
+export const PRODUCT_IMAGE_MAX_BASE64_LENGTH = 349_528
+
+/** `GET product-image-assets/{sha256}`. Untrusted until `verifyProductImageAssetBytes` agrees. */
+export const productImageAssetResponseSchema = z
+  .object({
+    sha256: receiptProfileSha256Schema,
+    media_type: z.literal('image/webp'),
+    width_px: z.number().int().min(1).max(640),
+    height_px: z.number().int().min(1).max(640),
+    byte_length: z.number().int().min(1).max(262_144),
+    content_base64: z
+      .string()
+      .max(PRODUCT_IMAGE_MAX_BASE64_LENGTH)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+  })
+  .strict()
+
+export type ProductImageAssetResponse = z.infer<typeof productImageAssetResponseSchema>
+
+/**
  * The `{can_manage, profile}` wrapper shared by `PUT receipt-profile` and the negotiated bootstrap
  * `receipt_profile` block. `profile: null` means the company has never published a profile — the
  * server still says whether this user may create one.
@@ -567,6 +625,9 @@ export const desktopBootstrapResourceSchema = z
     // backend) and is never read as "no profile"; `ReceiptProfileSyncService.ingestFromBootstrap`
     // treats `undefined` as a no-op for exactly that reason.
     receipt_profile: companyReceiptProfileResourceSchema.optional(),
+    // Owner UX plan P8: present only when this request negotiated `product_image_version=1` and the
+    // response carries products. ABSENT says nothing about images: the stored references are kept.
+    product_images: productImagesBlockSchema.optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),

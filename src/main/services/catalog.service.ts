@@ -1,4 +1,5 @@
 import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api.contract'
+import type { ProductImageRepository } from '../repositories/productImage.repository'
 import {
   catalogBarcodeLookupSchema,
   catalogProductPageSchema,
@@ -61,7 +62,12 @@ export class CatalogService {
     private readonly stockAllocations?: Pick<
       StockAllocationRepository,
       'usableGrantsForProduct' | 'spendableMilli'
-    >
+    >,
+    /** Owner UX plan P8: verified thumbnails for the signed-in company (display only). */
+    private readonly images?: {
+      readonly repository: Pick<ProductImageRepository, 'thumbnailsFor'>
+      readonly companyUuid: () => string | null
+    }
   ) {}
 
   markPublished(revision: string): void {
@@ -87,10 +93,36 @@ export class CatalogService {
 
     return catalogProductPageSchema.parse({
       ...result,
+      items: this.withThumbnails(result.items),
       limit: input.limit,
       offset: input.offset,
       contract: snapshot.contract
     })
+  }
+
+  /** Attaches the verified thumbnail of each product that has one; never fails a catalog read. */
+  private withThumbnails<T extends { readonly uuid: string }>(items: readonly T[]): T[] {
+    const companyUuid = this.images?.companyUuid() ?? null
+    if (!this.images || companyUuid === null || items.length === 0) {
+      return [...items]
+    }
+    try {
+      const thumbnails = this.images.repository.thumbnailsFor(
+        companyUuid,
+        items.map((item) => item.uuid)
+      )
+      return items.map((item) => {
+        const bytes = thumbnails.get(item.uuid)
+        return bytes
+          ? {
+              ...item,
+              image: { thumbDataUrl: `data:image/webp;base64,${bytes.toString('base64')}` }
+            }
+          : item
+      })
+    } catch {
+      return [...items]
+    }
   }
 
   getProduct(uuid: string): CatalogProduct {
