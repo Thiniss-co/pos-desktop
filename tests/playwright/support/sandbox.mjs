@@ -1,0 +1,164 @@
+/**
+ * Disposable Laravel backend for Playwright journeys.
+ *
+ * Every write goes through the repository's guarded PHP entry points (`guardedArtisan.php`,
+ * `guiFixture.php`), which re-verify the resolved connection in the writing process and refuse the
+ * business databases, repository paths and real workstation profiles. The child environment is built
+ * from scratch — never `...process.env` — so no `.env`, DB_URL or config cache can redirect it.
+ */
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdirSync, realpathSync, writeFileSync, openSync } from 'node:fs'
+import { createServer } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { BACKEND_ROOT, SANDBOX_SUPPORT } from './paths.mjs'
+
+const FORBIDDEN = ['thinis_pos', 'thinis_pos_testing']
+
+export async function freePort() {
+  return await new Promise((resolvePort, rejectPort) => {
+    const server = createServer()
+    server.on('error', rejectPort)
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address()
+      server.close(() => resolvePort(port))
+    })
+  })
+}
+
+function assertDisposable(databasePath) {
+  const temporaryRoot = realpathSync(tmpdir())
+  if (!databasePath.startsWith(`${temporaryRoot}/`)) {
+    throw new Error(`refusing: ${databasePath} is outside the system temporary directory`)
+  }
+  const stem = databasePath
+    .split('/')
+    .pop()
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase()
+  if (FORBIDDEN.includes(stem)) {
+    throw new Error('refusing: business database name')
+  }
+  if (databasePath.includes('/.config/pos-desktop')) {
+    throw new Error('refusing: real workstation profile path')
+  }
+}
+
+export async function startSandbox({
+  runDir,
+  name = 'backend',
+  flags = {},
+  port = null,
+  guardHttp = process.env.POS_SANDBOX_GUARD_HTTP === '1'
+} = {}) {
+  const dir = join(runDir, name)
+  mkdirSync(dir, { recursive: true })
+  const databasePath = join(realpathSync(dir), 'sandbox.sqlite')
+  assertDisposable(databasePath)
+  writeFileSync(databasePath, '')
+
+  const env = {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    LANG: 'C.UTF-8',
+    APP_ENV: 'testing',
+    DB_CONNECTION: 'sqlite',
+    DB_DATABASE: databasePath,
+    POS_SANDBOX_EXPECTED_DB: databasePath,
+    APP_CONFIG_CACHE: join(realpathSync(dir), 'laravel-config-cache.php'),
+    SESSION_DRIVER: 'database',
+    ...flags
+  }
+
+  const php = (args) => {
+    const result = spawnSync('php', args, { cwd: BACKEND_ROOT, env, encoding: 'utf8' })
+    if (result.status !== 0) {
+      throw new Error(
+        `php ${args.slice(1).join(' ')} failed (${result.status}):\n${result.stdout}\n${result.stderr}`
+      )
+    }
+    return result.stdout
+  }
+
+  php([join(SANDBOX_SUPPORT, 'guardedArtisan.php'), BACKEND_ROOT, 'migrate'])
+  php([
+    join(SANDBOX_SUPPORT, 'guardedArtisan.php'),
+    BACKEND_ROOT,
+    'db:seed',
+    'DesktopMvpSmokeSeeder'
+  ])
+
+  const listenPort = port ?? (await freePort())
+  const origin = `http://127.0.0.1:${listenPort}`
+  let server = null
+
+  const sandbox = {
+    dir,
+    databasePath,
+    env,
+    origin,
+    port: listenPort,
+    guardHttp,
+    fixture(operation, argument = '') {
+      const output = php([
+        join(SANDBOX_SUPPORT, 'guiFixture.php'),
+        BACKEND_ROOT,
+        operation,
+        argument
+      ])
+      const line = output.trim().split('\n').pop()
+      return JSON.parse(line)
+    },
+    async start() {
+      if (server && server.exitCode === null) return
+      const logFd = openSync(join(dir, 'server.log'), 'a')
+      // POS_SANDBOX_GUARD_HTTP=1: every HTTP request is served through guardedHttpRouter.php, which
+      // re-verifies the resolved database inside the serving process before handling it.
+      const args = guardHttp
+        ? [
+            '-S',
+            `127.0.0.1:${listenPort}`,
+            '-t',
+            join(BACKEND_ROOT, 'public'),
+            join(SANDBOX_SUPPORT, 'guardedHttpRouter.php')
+          ]
+        : ['artisan', 'serve', '--host=127.0.0.1', `--port=${listenPort}`, '--no-reload']
+      server = spawn('php', args, {
+        cwd: BACKEND_ROOT,
+        env: { ...env, PHP_CLI_SERVER_WORKERS: '1', POS_SANDBOX_BACKEND_ROOT: BACKEND_ROOT },
+        detached: true,
+        stdio: ['ignore', logFd, logFd]
+      })
+      const deadline = Date.now() + 60_000
+      while (Date.now() < deadline) {
+        try {
+          const response = await fetch(new URL('/up', origin))
+          if (response.status > 0) return
+        } catch {
+          await new Promise((r) => setTimeout(r, 200))
+        }
+      }
+      throw new Error('sandbox backend never became ready')
+    },
+    async stop() {
+      if (!server || server.exitCode !== null) return
+      try {
+        process.kill(-server.pid, 'SIGTERM')
+      } catch {
+        // already gone
+      }
+      const deadline = Date.now() + 10_000
+      while (Date.now() < deadline) {
+        try {
+          await fetch(new URL('/up', origin))
+          await new Promise((r) => setTimeout(r, 200))
+        } catch {
+          return
+        }
+      }
+    }
+  }
+
+  await sandbox.start()
+  return sandbox
+}

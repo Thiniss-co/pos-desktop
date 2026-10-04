@@ -44,7 +44,8 @@ export default defineConfig(
     // (files: ['*.js', '*.mjs'], which is non-recursive); this restates that same exemption for
     // scripts/, where these files actually live — plain ESM scripts have no TS pipeline and cannot
     // carry return-type annotations.
-    files: ['scripts/**/*.{js,mjs}'],
+    // tests/playwright/ holds the same kind of plain ESM driver (Playwright ↔ Electron journeys).
+    files: ['scripts/**/*.{js,mjs}', 'tests/playwright/**/*.mjs'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off'
     }
