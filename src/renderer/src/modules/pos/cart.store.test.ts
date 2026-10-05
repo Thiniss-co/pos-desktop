@@ -82,9 +82,73 @@ describe('useCartStore', () => {
     expect(store.addProduct(taxed)).toBe(false)
     expect(store.lines).toHaveLength(1)
     expect(store.calculation?.grandTotalAmount).toBe(1000)
-    expect(store.error).toBe('Products with different tax modes cannot share this cart.')
+    expect(store.error).toBe(
+      "This register's catalog does not allow different tax modes in one sale. Refresh workstation data; if this stays, the server has not enabled mixed-tax sales."
+    )
     i18n.global.locale.value = 'ar'
-    expect(store.error).toBe('لا يمكن جمع منتجات ذات أوضاع ضريبية مختلفة في هذه السلة.')
+    expect(store.error).toBe(
+      'كتالوج هذه النقطة لا يسمح بأوضاع ضريبية مختلفة في عملية بيع واحدة. حدّث بيانات محطة العمل؛ وإن استمر ذلك فالخادم لم يفعّل البيع بضرائب مختلفة.'
+    )
+  })
+
+  it('keeps every line of a mixed-tax cart under a per_line contract through each cart action', () => {
+    const perLine: CatalogContract = { ...contract, mixedTaxModePolicy: 'per_line' }
+    const untaxed = product()
+    const inclusive = product({
+      uuid: '55555555-5555-4555-8555-555555555555',
+      price: { ...product().price, amount: 1150 },
+      tax: {
+        id: '66666666-6666-4666-8666-666666666666',
+        mode: 'inclusive',
+        rateBasisPoints: 1500,
+        revision: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+      }
+    })
+    const exclusive = product({
+      uuid: '77777777-7777-4777-8777-777777777777',
+      tax: {
+        id: '88888888-8888-4888-8888-888888888888',
+        mode: 'exclusive',
+        rateBasisPoints: 500,
+        revision: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+      }
+    })
+    const store = useCartStore()
+    store.setContract(perLine)
+
+    // Either order is one cart; each line keeps its own mode and rate.
+    for (const order of [
+      [untaxed, inclusive, exclusive],
+      [exclusive, inclusive, untaxed]
+    ]) {
+      store.clear()
+      for (const item of order) expect(store.addProduct(item)).toBe(true)
+      expect(store.error).toBeNull()
+      expect(store.lines.map((line) => line.product.tax.mode)).toEqual(
+        order.map((item) => item.tax.mode)
+      )
+      // 10.00 untaxed + 11.50 incl. (1.50 VAT) + 10.00 + 0.50 excl. VAT.
+      expect(store.calculation?.taxTotalAmount).toBe(200)
+      expect(store.calculation?.grandTotalAmount).toBe(3200)
+    }
+
+    const exclusiveLine = store.lines.find((line) => line.product.uuid === exclusive.uuid)!
+    expect(store.incrementQuantity(exclusiveLine.id)).toBe(true)
+    expect(store.calculation?.taxTotalAmount).toBe(250)
+    expect(store.calculation?.grandTotalAmount).toBe(4250)
+
+    const untaxedLine = store.lines.find((line) => line.product.uuid === untaxed.uuid)!
+    expect(store.remove(untaxedLine.id)).toBe(true)
+    expect(store.calculation?.grandTotalAmount).toBe(3250)
+
+    const held = store.holdDraft()
+    expect(held?.grandTotalAmount).toBe(3250)
+    expect(store.lines).toHaveLength(0)
+    expect(store.recallDraft(held!.id)).not.toBeNull()
+    expect(store.error).toBeNull()
+    expect(store.lines.map((line) => line.product.tax.mode)).toEqual(['exclusive', 'inclusive'])
+    expect(store.calculation?.taxTotalAmount).toBe(250)
+    expect(store.calculation?.grandTotalAmount).toBe(3250)
   })
 
   it('retains a frozen draft and marks it catalog-changed when a new revision is installed', () => {

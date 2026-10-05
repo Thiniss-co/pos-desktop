@@ -344,7 +344,7 @@
     "errors": {
       "CART_QUANTITY_INVALID": "Use a quantity with no more than three decimal places.",
       "CART_QUANTITY_OUT_OF_RANGE": "This quantity is outside the published catalog limits.",
-      "CART_MIXED_TAX_MODE": "Products with different tax modes cannot share this cart.",
+      "CART_MIXED_TAX_MODE": "This register's catalog does not allow different tax modes in one sale. Refresh workstation data; if this stays, the server has not enabled mixed-tax sales.",
       "CART_MIXED_CURRENCY": "Products with different currencies cannot share this cart.",
       "CART_PRODUCT_SNAPSHOT_INVALID": "This product snapshot cannot be calculated safely.",
       "CART_LINE_TOTAL_LIMIT": "This line exceeds the published monetary limit.",

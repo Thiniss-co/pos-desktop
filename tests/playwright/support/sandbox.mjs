@@ -110,7 +110,9 @@ export async function startSandbox({
       return JSON.parse(line)
     },
     async start() {
-      if (server && server.exitCode === null) return
+      // A child killed by a signal keeps `exitCode === null` (its `signalCode` is set instead).
+      const running = () => server && server.exitCode === null && server.signalCode === null
+      if (running()) return
       const logFd = openSync(join(dir, 'server.log'), 'a')
       // POS_SANDBOX_GUARD_HTTP=1: every HTTP request is served through guardedHttpRouter.php, which
       // re-verifies the resolved database inside the serving process before handling it.
@@ -141,12 +143,15 @@ export async function startSandbox({
       throw new Error('sandbox backend never became ready')
     },
     async stop() {
-      if (!server || server.exitCode !== null) return
+      if (!server || server.exitCode !== null || server.signalCode !== null) return
+      // A restart must wait for the exit event itself, not only for `/up` to stop answering.
+      const exited = new Promise((resolve) => server.once('exit', resolve))
       try {
         process.kill(-server.pid, 'SIGTERM')
       } catch {
         // already gone
       }
+      await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 10_000))])
       const deadline = Date.now() + 10_000
       while (Date.now() < deadline) {
         try {

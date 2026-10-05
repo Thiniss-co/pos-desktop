@@ -656,6 +656,10 @@ $result = match ($operation) {
                 'offline_sale_authority' => $invoice->offline_sale_authority_id !== null,
                 'subtotal' => (int) $invoice->subtotal_amount, 'discount' => (int) $invoice->discount_total_amount,
                 'tax' => (int) $invoice->tax_total_amount, 'grand' => (int) $invoice->grand_total_amount,
+                // Side effects a replayed upload must never repeat (read-only counts).
+                'sync_records' => DB::table('desktop_invoice_syncs')->where('local_invoice_uuid', $invoice->idempotency_key)->count(),
+                'stock_movements' => DB::table('stock_movements')->where('pos_invoice_id', $invoice->id)->count(),
+                'accounting_journals' => DB::table('accounting_journals')->where('source_type', 'pos_invoice')->where('source_id', $invoice->id)->count(),
                 'items' => DB::table('pos_invoice_items')->where('pos_invoice_id', $invoice->id)->orderBy('id')
                     ->get(['product_uuid', 'tax_mode', 'tax_category', 'tax_amount', 'total_amount', 'discount_amount', 'subtotal_amount'])
                     ->map(fn ($row): array => (array) $row)->all(),
