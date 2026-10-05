@@ -7,3 +7,4 @@ out
 .eslintcache
 *.log*
 !.env.example
+docs
