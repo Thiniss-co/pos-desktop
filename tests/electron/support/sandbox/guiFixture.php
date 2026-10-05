@@ -132,7 +132,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'receipt-snapshots', 'fiscal-zatca'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -155,6 +155,15 @@ if ($operation === 'quick-create-grant'
 // POS improvements, Stage 4: a labelled precondition (categorized taxes and mixed-mode products) and a
 // READ-ONLY report of mixed-tax upload effects; neither takes an argument.
 if (in_array($operation, ['mixed-tax-catalog', 'mixed-tax-report'], true) && $argument !== '') {
+    sandboxRefuse($operation.' takes no argument');
+}
+
+// Owner expansion Phase E: a labelled precondition (the business time zone and one live 10% register offer on a
+// SKU, started an hour ago), the owner ending it, and a READ-ONLY report of offered upload effects.
+if ($operation === 'offer-start' && preg_match('/^[A-Z0-9-]{1,40}$/', $argument) !== 1) {
+    sandboxRefuse('offer-start needs <SKU>');
+}
+if (in_array($operation, ['offer-end', 'offer-report'], true) && $argument !== '') {
     sandboxRefuse($operation.' takes no argument');
 }
 
@@ -641,6 +650,47 @@ $result = match ($operation) {
         }
 
         return ['products' => $products, 'precondition' => true];
+    })(),
+    'offer-start' => (function () use ($argument, $company, $actor): array {
+        if (($company->timezone ?? null) === null) {
+            $company->forceFill(['timezone' => 'Asia/Riyadh'])->save();
+        }
+        $product = Product::query()->where('company_id', $company->id)->where('sku', $argument)->firstOrFail();
+        $start = Carbon\CarbonImmutable::now('Asia/Riyadh')->subHour()->format('Y-m-d\\TH:i');
+        $offer = app(App\Modules\Offers\Actions\SaveOfferAction::class)->create($company->id, $actor, new App\Modules\Offers\Data\OfferData(
+            name: 'Journey 10% off', type: App\Modules\Offers\Enums\OfferType::Percentage, value: 1000, priority: 0,
+            appliesToPos: true, appliesToInvoices: false, allProducts: false, startsLocal: $start, endsLocal: null,
+            productIds: [$product->id], categoryIds: [],
+        ));
+        $offer = app(App\Modules\Offers\Actions\ActivateOfferAction::class)->execute($offer, $actor, (int) $offer->revision);
+
+        return ['offer' => $offer->uuid, 'revision' => DB::table('offer_revisions')->where('id', $offer->current_revision_id)->value('uuid'),
+            'timezone' => $company->fresh()->timezone, 'starts_local' => $start, 'product' => $product->uuid, 'precondition' => true];
+    })(),
+    'offer-end' => (function () use ($company, $actor): array {
+        $offer = App\Modules\Offers\Models\Offer::query()->where('company_id', $company->id)->where('status', 'active')->orderByDesc('id')->firstOrFail();
+        $ended = app(App\Modules\Offers\Actions\EndOfferAction::class)->execute($offer, $actor, (int) $offer->revision);
+
+        return ['offer' => $ended->uuid, 'status' => $ended->status->value,
+            'revoked_at' => DB::table('offer_revisions')->where('id', $ended->current_revision_id)->value('revoked_at')];
+    })(),
+    'offer-report' => (function () use ($company): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->orderByDesc('id')->firstOrFail();
+
+        return [
+            'contracts' => DB::table('desktop_catalog_contracts')->where('desktop_device_id', $device->id)->orderBy('id')->get(['revision', 'offer_revisions'])
+                ->map(fn ($row): array => ['revision' => $row->revision, 'offers' => array_keys((array) json_decode((string) ($row->offer_revisions ?? 'null'), true))])->all(),
+            'revisions' => DB::table('offer_revisions')->where('company_id', $company->id)->orderBy('id')->get(['uuid', 'revoked_at'])->map(fn ($row): array => (array) $row)->all(),
+            'invoices' => DB::table('pos_invoices')->where('desktop_device_id', $device->id)->orderBy('id')->get()->map(fn ($invoice): array => [
+                'idempotency_key' => $invoice->idempotency_key,
+                'contract_version' => DB::table('desktop_invoice_syncs')->where('pos_invoice_id', $invoice->id)->value('client_contract_version'),
+                'sync_records' => DB::table('desktop_invoice_syncs')->where('local_invoice_uuid', $invoice->idempotency_key)->count(),
+                'grand' => (int) $invoice->grand_total_amount, 'discount' => (int) $invoice->discount_total_amount,
+                'items' => DB::table('pos_invoice_items')->where('pos_invoice_id', $invoice->id)->orderBy('id')
+                    ->get(['product_uuid', 'discount_type', 'discount_value', 'discount_amount', 'total_amount', 'offer_snapshot'])
+                    ->map(fn ($row): array => [...(array) $row, 'offer_snapshot' => json_decode((string) ($row->offer_snapshot ?? 'null'), true)])->all(),
+            ])->all(),
+        ];
     })(),
     'mixed-tax-report' => (function () use ($company): array {
         $device = DesktopDevice::query()->where('company_id', $company->id)->orderByDesc('id')->firstOrFail();
