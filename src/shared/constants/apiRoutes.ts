@@ -84,14 +84,18 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * representation. A backend that supports only v1 answers 422 on that field before any work, and
    * the client then uses `bootstrapOfflineSaleV1` (identical except for the version).
    */
+  /**
+   * Owner expansion Phase E: `offers_version=1` asks for the `offers` block (the register offers the
+   * catalog contract carries). A backend that predates it ignores the parameter; no offers apply.
+   */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2&offers_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
   },
   bootstrapOfflineSaleV1: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2&offers_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true

@@ -35,7 +35,9 @@ const BYTE_PARITY_ARTIFACTS = [
   'stock-allocation-journal-v1.json',
   'desktop-invoice-request-hash-golden.json',
   // POS improvements, Stage 6: the ZATCA Phase 1 QR payload (PHP ZatcaPhase1Qr ↔ shared fiscalQr.ts).
-  'zatca-phase1-qr-golden.json'
+  'zatca-phase1-qr-golden.json',
+  // Owner expansion Phase E: the offer rule (PHP OfferDiscountRule/OfferSelector ↔ shared offerRule.ts).
+  'pos-offer-golden.json'
 ]
 const ALLOCATION_ARTIFACT = 'stock-allocation-envelope-golden.json'
 const ALLOCATION_RAW_SHA256 = '7e97d81588eaad60c25e196a613b067a58811560abcc107f84038d73f45be365'

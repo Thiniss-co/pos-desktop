@@ -5,6 +5,7 @@ import type {
   ShiftUnavailableState
 } from '@shared/contracts/checkout.contract'
 import { calculateCart } from '@shared/pos/posCalculator'
+import { applyOffers } from '@shared/pos/offerRule'
 import {
   calculatePayments,
   type PaymentInputRow,
@@ -99,12 +100,40 @@ export class CheckoutPreviewService {
     }
 
     const productsByUuid = new Map(resolution.products.map((product) => [product.uuid, product]))
+    // Owner expansion Phase E: the contract's offers as of now. The commit re-evaluates them at the
+    // sale instant; an offer the renderer did not show (or showed but no longer applies) is refused
+    // here so the cashier sees the corrected cart before tendering.
+    const offers = applyOffers(
+      intent.items.map((item) => ({
+        id: item.id,
+        productUuid: item.productUuid,
+        quantity: item.quantity,
+        unitPriceAmount: productsByUuid.get(item.productUuid)?.price.amount ?? 0,
+        discountType: item.discountType,
+        discountValue: item.discountValue
+      })),
+      resolution.contract.offers,
+      this.now()
+    )
+    if (
+      intent.items.some(
+        (item) => (item.offerRevisionUuid ?? null) !== (offers.get(item.id)?.revisionUuid ?? null)
+      )
+    ) {
+      return {
+        outcome: 'invalid',
+        code: 'CART_OFFERS_CHANGED',
+        field: null,
+        draftRevision: intent.draftRevision
+      }
+    }
     const cart = calculateCart(
       intent.items.map((item) => {
         const product = productsByUuid.get(item.productUuid)
         if (!product) {
           throw new Error('resolveForCheckout returned an incomplete product set')
         }
+        const offer = offers.get(item.id)
 
         return {
           id: item.id,
@@ -112,8 +141,8 @@ export class CheckoutPreviewService {
           quantity: item.quantity,
           unitPriceAmount: product.price.amount,
           currency: product.price.currency,
-          discountType: item.discountType,
-          discountValue: item.discountValue,
+          discountType: offer ? offer.discountType : item.discountType,
+          discountValue: offer ? offer.discountValue : item.discountValue,
           taxMode: product.tax.mode,
           taxRateBasisPoints: product.tax.rateBasisPoints
         }

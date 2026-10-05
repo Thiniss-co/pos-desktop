@@ -11,6 +11,7 @@ import {
   type CatalogCustomer,
   type CatalogCustomerPage,
   type CatalogCustomerSearchInput,
+  type CatalogOfferRecord,
   type CatalogPaymentMethod,
   type CatalogProduct,
   type CatalogSearchInput,
@@ -133,13 +134,80 @@ export class CatalogRepository {
           maximumUnitPrice: row.maximum_unit_price,
           maximumLineTotal: row.maximum_line_total,
           maximumInvoiceTotal: row.maximum_invoice_total,
-          mixedTaxModePolicy: row.mixed_tax_mode_policy
+          mixedTaxModePolicy: row.mixed_tax_mode_policy,
+          ...this.contractOffers()
         }),
         fetchedAt: z.iso.datetime({ offset: true }).parse(row.fetched_at),
         manifest: catalogManifestSchema.parse(JSON.parse(row.expected_counts_json))
       }
     } catch {
       return null
+    }
+  }
+
+  private offerTables: boolean | null = null
+
+  /**
+   * Owner expansion Phase E: the offers installed with the active contract, as `{ offers }` only when
+   * there is at least one (the key is otherwise absent, so the contract reads exactly as before).
+   */
+  private contractOffers(): { offers?: CatalogOfferRecord[] } {
+    if (this.offerTables === null) {
+      this.offerTables =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('catalog_offers', 'catalog_offer_products')"
+          )
+          .pluck()
+          .get() === 2
+    }
+    if (!this.offerTables) {
+      return {}
+    }
+
+    const rows = this.database
+      .prepare(
+        `SELECT revision_uuid, name, type, value, priority, ordinal, starts_at, ends_at
+         FROM catalog_offers ORDER BY revision_uuid`
+      )
+      .all() as {
+      revision_uuid: string
+      name: string
+      type: CatalogOfferRecord['type']
+      value: number
+      priority: number
+      ordinal: number
+      starts_at: string
+      ends_at: string | null
+    }[]
+    if (rows.length === 0) {
+      return {}
+    }
+
+    const targets = this.database
+      .prepare(
+        'SELECT revision_uuid, product_uuid FROM catalog_offer_products ORDER BY revision_uuid, product_uuid'
+      )
+      .all() as { revision_uuid: string; product_uuid: string }[]
+    const productsByRevision = new Map<string, string[]>()
+    for (const target of targets) {
+      const list = productsByRevision.get(target.revision_uuid) ?? []
+      list.push(target.product_uuid)
+      productsByRevision.set(target.revision_uuid, list)
+    }
+
+    return {
+      offers: rows.map((row) => ({
+        revisionUuid: row.revision_uuid,
+        name: row.name,
+        type: row.type,
+        value: row.value,
+        priority: row.priority,
+        ordinal: row.ordinal,
+        startsAt: row.starts_at,
+        endsAt: row.ends_at,
+        productUuids: productsByRevision.get(row.revision_uuid) ?? []
+      }))
     }
   }
 

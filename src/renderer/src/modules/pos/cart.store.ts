@@ -9,6 +9,7 @@ import {
   type CartCalculationErrorCode,
   type DiscountType
 } from '@shared/pos/posCalculator'
+import { applyOffers, type AppliedOffer } from '@shared/pos/offerRule'
 import { i18n } from '@renderer/i18n'
 
 export interface CartLineSnapshot {
@@ -103,6 +104,13 @@ export const useCartStore = defineStore('cart', () => {
    * screen can never diverge from the frozen intent main holds for that attempt.
    */
   const locked = ref(false)
+  /**
+   * Owner expansion Phase E: the offer each line is shown with, evaluated from the installed
+   * contract's offers whenever the cart is (re)calculated. Main re-evaluates them on preview and at
+   * the sale instant; the intent only names what was shown here.
+   */
+  const appliedOffers = ref<ReadonlyMap<string, AppliedOffer>>(new Map())
+  let candidateOffers: ReadonlyMap<string, AppliedOffer> = new Map()
 
   const error = computed(() =>
     rejectionCode.value ? String(i18n.global.t(`pos.errors.${rejectionCode.value}`)) : null
@@ -157,6 +165,18 @@ export const useCartStore = defineStore('cart', () => {
       return { kind: 'empty' }
     }
 
+    candidateOffers = applyOffers(
+      nextLines.map((line) => ({
+        id: line.id,
+        productUuid: line.product.uuid,
+        quantity: line.quantity,
+        unitPriceAmount: line.product.price.amount,
+        discountType: line.discountType,
+        discountValue: line.discountValue
+      })),
+      contract.value.offers,
+      new Date()
+    )
     const result = calculateCart(
       nextLines.map((line) => ({
         id: line.id,
@@ -164,8 +184,8 @@ export const useCartStore = defineStore('cart', () => {
         quantity: line.quantity,
         unitPriceAmount: line.product.price.amount,
         currency: line.product.price.currency,
-        discountType: line.discountType,
-        discountValue: line.discountValue,
+        discountType: candidateOffers.get(line.id)?.discountType ?? line.discountType,
+        discountValue: candidateOffers.get(line.id)?.discountValue ?? line.discountValue,
         taxMode: line.product.tax.mode,
         taxRateBasisPoints: line.product.tax.rateBasisPoints
       })),
@@ -194,6 +214,7 @@ export const useCartStore = defineStore('cart', () => {
     invoiceDiscountType.value = nextInvoiceDiscountType
     invoiceDiscountValue.value = nextInvoiceDiscountValue
     cartState.value = next
+    appliedOffers.value = next.kind === 'valid' ? candidateOffers : new Map()
     if (next.kind === 'valid') {
       lastValid.value = next.totals
     }
@@ -236,6 +257,7 @@ export const useCartStore = defineStore('cart', () => {
     const evaluated = candidate(lines.value)
     if (evaluated.kind === 'valid') {
       cartState.value = evaluated
+      appliedOffers.value = candidateOffers
       lastValid.value = evaluated.totals
       rejectionCode.value = null
     } else if (evaluated.kind === 'invalid') {
@@ -437,9 +459,36 @@ export const useCartStore = defineStore('cart', () => {
     catalogChanged.value = false
     lastValid.value = null
     cartState.value = { kind: 'empty' }
+    appliedOffers.value = new Map()
     rejectionCode.value = null
     draftRevision.value += 1
     saleId.value = crypto.randomUUID()
+  }
+
+  /** Phase E: the offer a line is currently shown with, if any. */
+  function offerFor(lineId: string): AppliedOffer | null {
+    return appliedOffers.value.get(lineId) ?? null
+  }
+
+  /**
+   * Phase E: re-evaluates the offers now (main reported that its own evaluation differs, e.g. an
+   * offer window opened or closed while the cart sat). Recalculates — and so starts a new draft
+   * revision — only when the shown offers actually change, so a disagreement it cannot resolve is
+   * left visible instead of looping.
+   */
+  function repriceOffers(): boolean {
+    if (locked.value || lines.value.length === 0 || catalogChanged.value || !contract.value) {
+      return false
+    }
+    const before = appliedOffers.value
+    const next = candidate(lines.value)
+    const same =
+      next.kind === 'valid' &&
+      before.size === candidateOffers.size &&
+      [...candidateOffers].every(
+        ([lineId, offer]) => before.get(lineId)?.revisionUuid === offer.revisionUuid
+      )
+    return same ? false : commit([...lines.value])
   }
 
   /** Reset transient draft state on logout, session revocation, device recovery, or shift/company change. */
@@ -625,6 +674,9 @@ export const useCartStore = defineStore('cart', () => {
     discardHeldDraft,
     captureContext,
     isCurrentContext,
-    rebuildFromCatalog
+    rebuildFromCatalog,
+    appliedOffers,
+    offerFor,
+    repriceOffers
   }
 })

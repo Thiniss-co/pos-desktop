@@ -37,7 +37,20 @@ export function buildUploadPayload(
   // a `per_line` contract) selects v4 (allocation-backed) or v5 (physical presence). A uniform cart
   // keeps v2/v3 and its exact bytes. Like v3, this is a property of the committed row alone.
   const isMixed = invoice.taxMode === 'mixed'
-  const contractVersion = isPhysicalPresence ? (isMixed ? 5 : 3) : isMixed ? 4 : 2
+  // Owner expansion Phase E: a sale with at least one offered line selects v6 (allocation-backed) or
+  // v7 (physical presence), either tax header. A sale without offers keeps v2–v5 and its exact bytes.
+  const hasOffer = items.some((item) => (item.offerRevisionUuid ?? null) !== null)
+  const contractVersion = hasOffer
+    ? isPhysicalPresence
+      ? 7
+      : 6
+    : isPhysicalPresence
+      ? isMixed
+        ? 5
+        : 3
+      : isMixed
+        ? 4
+        : 2
 
   return {
     idempotency_key: invoice.localUuid,
@@ -72,6 +85,10 @@ export function buildUploadPayload(
           tax_revision: item.taxRevision,
           discount_type: item.discountType,
           discount_value: item.discountValue,
+          // Phase E: only on an offered line (prohibited on every other line and version).
+          ...((item.offerRevisionUuid ?? null) !== null
+            ? { offer_revision_uuid: item.offerRevisionUuid }
+            : {}),
           // §6.7: the per-line intent, hashed. Without it a v2 client that DROPS its allocations —
           // through a bug, truncation or tampering — would be indistinguishable from a deliberate
           // physical-presence sale. Derived from the committed split on the row, never guessed.

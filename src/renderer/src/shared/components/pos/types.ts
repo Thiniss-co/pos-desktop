@@ -59,6 +59,8 @@ export interface DisplayCartLine {
   lineTotal: string
   /** Pre-formatted "EGP 42.50 each" line; falls back to `unitPrice`. */
   eachLabel?: string
+  /** Phase E: the offer this line is sold under, pre-formatted ("Weekend deal · −EGP 3.00"). */
+  offerLabel?: string
 }
 
 export interface DisplayCustomer {

@@ -44,7 +44,13 @@ const checkoutItemIntentSchema = z
     id: z.string().min(1).max(64),
     productUuid: z.uuid(),
     quantity: z.string().max(16),
-    ...discountShape
+    ...discountShape,
+    /**
+     * Owner expansion Phase E: the offer the renderer showed for this line (present only on an
+     * offered line). It authorizes nothing: main re-evaluates the offers itself and refuses the
+     * attempt when its own choice differs, so a cart is never charged other than as displayed.
+     */
+    offerRevisionUuid: z.uuid().optional()
   })
   .strict()
   .superRefine(checkDiscountBounds)
@@ -218,6 +224,9 @@ const saleInvoiceItemResultSchema = z
     taxRevision: z.string(),
     discountType: z.enum(['fixed', 'percentage']).nullable(),
     discountValue: z.number().int().min(0),
+    // Owner expansion Phase E: the offer this line was sold under (null/absent: none).
+    offerRevisionUuid: z.uuid().nullable().optional(),
+    offerName: z.string().nullable().optional(),
     subtotalAmount: z.number().int(),
     discountAmount: z.number().int(),
     taxAmount: z.number().int(),

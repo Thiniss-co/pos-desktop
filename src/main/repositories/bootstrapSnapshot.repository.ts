@@ -414,6 +414,7 @@ export class BootstrapSnapshotRepository {
           // P8: image changes leave the catalog revision unchanged, so the fast path applies them too.
           this.persistProductImages(resource, fetchedAt)
           this.persistCompanyBranding(resource, fetchedAt)
+          this.replaceOffers(resource)
           this.database
             .prepare('UPDATE catalog_metadata SET fetched_at = ? WHERE id = 1')
             .run(fetchedAt)
@@ -642,6 +643,7 @@ export class BootstrapSnapshotRepository {
       this.persistOfflineSaleAuthority(resource, fetchedAt)
       this.persistProductImages(resource, fetchedAt)
       this.persistCompanyBranding(resource, fetchedAt)
+      this.replaceOffers(resource)
 
       if (!this.isCatalogIntact(manifest)) {
         throw catalogSnapshotError(
@@ -831,6 +833,84 @@ export class BootstrapSnapshotRepository {
     }
 
     return rows.length
+  }
+
+  private offerTables: boolean | null = null
+
+  /** Whether migration 0032 exists in this database (older schemas exist only in migration suites). */
+  private hasOfferTables(): boolean {
+    if (this.offerTables === null) {
+      this.offerTables =
+        this.database
+          .prepare(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('catalog_offers', 'catalog_offer_products')"
+          )
+          .pluck()
+          .get() === 2
+    }
+    return this.offerTables
+  }
+
+  /**
+   * Owner expansion Phase E: the register offers belong to the applied catalog contract (its revision
+   * hash covers them), so they are replaced with every applied catalog. An absent block (an older
+   * backend, or offers not negotiated) leaves none: an offer is never carried over to a contract that
+   * did not issue it. Every targeted product must be a sellable product of this same contract.
+   */
+  private replaceOffers(resource: DesktopBootstrapResource): void {
+    if (!this.hasOfferTables()) {
+      return
+    }
+
+    this.database.prepare('DELETE FROM catalog_offer_products').run()
+    this.database.prepare('DELETE FROM catalog_offers').run()
+
+    const revisions = resource.offers?.revisions ?? []
+    if (revisions.length === 0) {
+      return
+    }
+
+    const sellable = new Set(
+      (resource.products ?? [])
+        .filter((product) => product.is_active && product.status === 'active')
+        .map((product) => product.uuid)
+    )
+    const insertOffer = this.database.prepare(
+      `INSERT INTO catalog_offers (revision_uuid, name, type, value, priority, ordinal, starts_at, ends_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    const insertTarget = this.database.prepare(
+      'INSERT INTO catalog_offer_products (revision_uuid, product_uuid) VALUES (?, ?)'
+    )
+
+    for (const revision of revisions) {
+      const endsAt = revision.ends_at === null ? null : Date.parse(revision.ends_at)
+      if (
+        (endsAt !== null && endsAt <= Date.parse(revision.starts_at)) ||
+        (revision.type === 'percentage' && revision.value > 10_000) ||
+        revision.product_uuids.length === 0 ||
+        revision.product_uuids.some((uuid) => !sellable.has(uuid))
+      ) {
+        throw catalogSnapshotError(
+          'CATALOG_OFFERS_INVALID',
+          'The downloaded catalog offers do not match its products and were not applied.'
+        )
+      }
+
+      insertOffer.run(
+        revision.id,
+        revision.name,
+        revision.type,
+        revision.value,
+        revision.priority,
+        revision.ordinal,
+        new Date(revision.starts_at).toISOString(),
+        revision.ends_at === null ? null : new Date(revision.ends_at).toISOString()
+      )
+      for (const productUuid of new Set(revision.product_uuids)) {
+        insertTarget.run(revision.id, productUuid)
+      }
+    }
   }
 
   private clearSellableCatalogue(): void {

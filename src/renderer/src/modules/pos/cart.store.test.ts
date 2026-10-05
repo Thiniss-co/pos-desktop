@@ -373,3 +373,59 @@ describe('useCartStore — POS reliability rev 3 (sale identity, attempt lock, r
     expect(store.lines[0].catalogRevision).toBe('d'.repeat(64))
   })
 })
+
+describe('useCartStore offers (owner expansion Phase E)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  const offerUuid = '55555555-5555-4555-8555-555555555555'
+  const offered = (endsAt: string | null = null): CatalogContract => ({
+    ...contract,
+    offers: [
+      {
+        revisionUuid: offerUuid,
+        name: 'Ten off',
+        type: 'percentage',
+        value: 1000,
+        priority: 0,
+        ordinal: 1,
+        startsAt: '2000-01-01T00:00:00.000Z',
+        endsAt,
+        productUuids: [product().uuid]
+      }
+    ]
+  })
+
+  it('shows the live offer on a line without a manual discount', () => {
+    const store = useCartStore()
+    store.setContract(offered())
+    store.addProduct(product())
+    const line = store.lines[0]!
+
+    expect(store.offerFor(line.id)).toMatchObject({ revisionUuid: offerUuid, amount: 100 })
+    expect(store.calculation?.grandTotalAmount).toBe(900)
+    // The line itself keeps no manual discount; the offer is evaluated, not stored on the draft.
+    expect(line.discountType).toBeNull()
+  })
+
+  it('drops the offer when the cashier sets a manual discount', () => {
+    const store = useCartStore()
+    store.setContract(offered())
+    store.addProduct(product())
+    const line = store.lines[0]!
+    store.setLineDiscount(line.id, 'fixed', 50)
+
+    expect(store.offerFor(line.id)).toBeNull()
+    expect(store.calculation?.grandTotalAmount).toBe(950)
+  })
+
+  it('ignores an offer whose window has closed and re-prices only on a real change', () => {
+    const store = useCartStore()
+    store.setContract(offered('2001-01-01T00:00:00.000Z'))
+    store.addProduct(product())
+    const revision = store.draftRevision
+
+    expect(store.offerFor(store.lines[0]!.id)).toBeNull()
+    expect(store.repriceOffers()).toBe(false)
+    expect(store.draftRevision).toBe(revision)
+  })
+})

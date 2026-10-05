@@ -57,8 +57,8 @@ export const dispositionResultSchema = z
         idempotency_key: z.string(),
         local_invoice_uuid: z.string(),
         request_hash: z.string().length(64),
-        // v3, or v5 (v3 with mixed taxes, POS improvements Stage 4).
-        client_contract_version: z.union([z.literal(3), z.literal(5)]),
+        // v3, v5 (v3 with mixed taxes, POS improvements Stage 4) or v7 (v3 with offers).
+        client_contract_version: z.union([z.literal(3), z.literal(5), z.literal(7)]),
         offline_sale_authority_uuid: z.string().nullable()
       })
       .strict(),

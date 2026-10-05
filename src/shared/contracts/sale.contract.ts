@@ -184,6 +184,13 @@ export interface LocalInvoiceItemRow {
   readonly taxRevision: string
   readonly discountType: InvoiceDiscountType | null
   readonly discountValue: number
+  /**
+   * Owner expansion Phase E: the offer this line was sold under. Its discount is then the offer's
+   * (`discountType`/`discountValue`), and the line uploads with `offer_revision_uuid` as v6/v7.
+   * Null (or absent on pre-0032 rows) for every other line.
+   */
+  readonly offerRevisionUuid?: string | null
+  readonly offerName?: string | null
   readonly subtotalAmount: number
   readonly discountAmount: number
   readonly taxAmount: number

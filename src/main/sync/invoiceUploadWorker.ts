@@ -2,6 +2,7 @@ import type { PublicAppError } from '@shared/contracts/api.contract'
 import type { SyncStatus } from '@shared/contracts/sync.contract'
 import { isPublicAppError } from '../http/apiError'
 import { payloadHash } from '../services/localSale.fingerprint'
+import { isPhysicalPresenceContractVersion } from '../services/invoiceRequestHash'
 import type {
   ClaimedInvoiceUpload,
   InvoiceUploadCandidate,
@@ -254,8 +255,9 @@ export class InvoiceUploadWorker {
       return true
     }
 
-    // The physical-presence contracts: v3, and v5 (v3 with mixed taxes, POS improvements Stage 4).
-    if (version !== 3 && version !== 5) {
+    // The physical-presence contracts: v3, v5 (v3 with mixed taxes, POS improvements Stage 4) and
+    // v7 (v3 with offers, owner expansion Phase E).
+    if (!isPhysicalPresenceContractVersion(version)) {
       return true
     }
 

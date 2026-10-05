@@ -131,7 +131,8 @@ const {
   invoiceDiscountValue,
   draftRevision: cartDraftRevision,
   heldDrafts,
-  catalogChanged: cartCatalogStale
+  catalogChanged: cartCatalogStale,
+  appliedOffers
 } = storeToRefs(cart)
 const {
   activeShiftUuid,
@@ -492,7 +493,19 @@ const cartDisplayLines = computed(() =>
     eachLabel: t('pos.cart.each', {
       price: money(line.product.price.amount, line.product.price.currency)
     }),
-    lineTotal: money(calculation.value?.lines[index]?.totalAmount ?? 0, line.product.price.currency)
+    lineTotal: money(
+      calculation.value?.lines[index]?.totalAmount ?? 0,
+      line.product.price.currency
+    ),
+    // Owner expansion Phase E: the offer the line is shown with, and what it takes off.
+    ...(appliedOffers.value.get(line.id)
+      ? {
+          offerLabel: t('pos.cart.offer', {
+            name: appliedOffers.value.get(line.id)!.name,
+            amount: money(appliedOffers.value.get(line.id)!.amount, line.product.price.currency)
+          })
+        }
+      : {})
   }))
 )
 const rebuildPreviewRows = computed(() => {
@@ -598,7 +611,9 @@ const checkoutIntent = computed<CheckoutIntent | null>(() => {
       productUuid: line.product.uuid,
       quantity: line.quantity,
       discountType: line.discountType,
-      discountValue: line.discountValue
+      discountValue: line.discountValue,
+      // Phase E: the offer this line is shown with (main re-evaluates and refuses a difference).
+      ...(cart.offerFor(line.id) ? { offerRevisionUuid: cart.offerFor(line.id)!.revisionUuid } : {})
     })),
     invoiceDiscount: {
       discountType: invoiceDiscountType.value,
@@ -1509,6 +1524,13 @@ function commitPaymentDraft(): void {
 }
 
 watch(checkoutIntent, () => schedulePaymentPreview(), { deep: true })
+// Owner expansion Phase E: main's offer evaluation differs from the one shown (a window opened or
+// closed while the cart sat) — re-price the cart now, which starts a new preview.
+watch(previewOutcome, (outcome) => {
+  if (outcome?.outcome === 'invalid' && outcome.code === 'CART_OFFERS_CHANGED') {
+    cart.repriceOffers()
+  }
+})
 watch(paymentPanelOpen, (isOpen) => {
   if (isOpen) {
     schedulePaymentPreview()

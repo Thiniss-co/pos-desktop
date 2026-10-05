@@ -347,3 +347,86 @@ describe('CheckoutPreviewService.validate', () => {
     }
   })
 })
+
+describe('CheckoutPreviewService offers (owner expansion Phase E)', () => {
+  const OFFER_UUID = '00000000-0000-4000-8000-0000000000aa'
+  const withOffer = (): CheckoutResolution => {
+    const base = resolution()
+    return {
+      ...base,
+      contract: {
+        ...base.contract,
+        offers: [
+          {
+            revisionUuid: OFFER_UUID,
+            name: 'Ten off',
+            type: 'percentage',
+            value: 1000,
+            priority: 0,
+            ordinal: 1,
+            startsAt: '2026-01-01T00:00:00.000Z',
+            endsAt: null,
+            productUuids: [PRODUCT_UUID]
+          }
+        ]
+      }
+    }
+  }
+
+  it('prices the offered line with the offer the renderer showed', () => {
+    const { service } = harness({ resolutionSequence: [withOffer()] })
+    const outcome = service.validate(
+      baseIntent({
+        items: [
+          {
+            id: 'item-1',
+            productUuid: PRODUCT_UUID,
+            quantity: '1.000',
+            discountType: null,
+            discountValue: 0,
+            offerRevisionUuid: OFFER_UUID
+          }
+        ],
+        payments: [
+          { id: 'payment-1', paymentMethodUuid: METHOD_UUID, amount: 900, reference: null }
+        ]
+      })
+    )
+
+    expect(outcome.outcome).toBe('valid')
+    expect(outcome.outcome === 'valid' && outcome.totals.grandTotalAmount).toBe(900)
+  })
+
+  it('refuses with CART_OFFERS_CHANGED when the shown offer differs from main', () => {
+    const { service } = harness({ resolutionSequence: [withOffer()] })
+
+    expect(service.validate(baseIntent())).toEqual({
+      outcome: 'invalid',
+      code: 'CART_OFFERS_CHANGED',
+      field: null,
+      draftRevision: 5
+    })
+  })
+
+  it('never applies an offer over a manual discount', () => {
+    const { service } = harness({ resolutionSequence: [withOffer()] })
+    const outcome = service.validate(
+      baseIntent({
+        items: [
+          {
+            id: 'item-1',
+            productUuid: PRODUCT_UUID,
+            quantity: '1.000',
+            discountType: 'fixed',
+            discountValue: 50
+          }
+        ],
+        payments: [
+          { id: 'payment-1', paymentMethodUuid: METHOD_UUID, amount: 950, reference: null }
+        ]
+      })
+    )
+
+    expect(outcome.outcome === 'valid' && outcome.totals.grandTotalAmount).toBe(950)
+  })
+})

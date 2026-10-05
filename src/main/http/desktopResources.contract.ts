@@ -623,6 +623,33 @@ export const companyReceiptProfileResourceSchema = z
 
 export type CompanyReceiptProfileResource = z.infer<typeof companyReceiptProfileResourceSchema>
 
+/** Owner expansion Phase E: one offer revision as the catalog contract froze it. */
+export const offerRevisionResourceSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().min(1),
+    type: z.enum(['percentage', 'amount_off', 'fixed_price']),
+    value: z.number().int().nonnegative(),
+    priority: z.number().int(),
+    ordinal: z.number().int().positive(),
+    starts_at: z.string().refine((value) => Number.isFinite(Date.parse(value))),
+    ends_at: z
+      .string()
+      .refine((value) => Number.isFinite(Date.parse(value)))
+      .nullable(),
+    product_uuids: z.array(z.string().uuid())
+  })
+  .strict()
+
+export type OfferRevisionResource = z.infer<typeof offerRevisionResourceSchema>
+
+export const offersBlockSchema = z
+  .object({
+    version: z.literal(1),
+    revisions: z.array(offerRevisionResourceSchema)
+  })
+  .strict()
+
 export const desktopBootstrapResourceSchema = z
   .object({
     server_time: isoSecondTimestampSchema,
@@ -728,6 +755,11 @@ export const desktopBootstrapResourceSchema = z
       .object({ version: z.number().int().min(1) })
       .strict()
       .optional(),
+    // Owner expansion Phase E: present only when this request negotiated `offers_version=1`. The
+    // revisions are exactly those the catalog contract carries (and its revision hash covers), so an
+    // offered line is later validated against this same copy. ABSENT (an older backend) and an empty
+    // list both mean the register applies no offers.
+    offers: offersBlockSchema.optional(),
     categories: z.array(categoryResourceSchema).optional(),
     products: z.array(productResourceSchema).optional(),
     product_barcodes: z.array(productBarcodeResourceSchema).optional(),

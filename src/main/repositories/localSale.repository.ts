@@ -63,6 +63,9 @@ export interface NewLocalInvoiceItem {
   readonly taxRevision: string
   readonly discountType: LocalInvoiceItemRow['discountType']
   readonly discountValue: number
+  /** Owner expansion Phase E: optional so existing callers keep compiling; omitted means no offer. */
+  readonly offerRevisionUuid?: string | null
+  readonly offerName?: string | null
   readonly subtotalAmount: number
   readonly discountAmount: number
   readonly taxAmount: number
@@ -161,6 +164,13 @@ function mapItemRow(row: Record<string, unknown>): LocalInvoiceItemRow {
     taxRevision: row.tax_revision as string,
     discountType: row.discount_type as LocalInvoiceItemRow['discountType'],
     discountValue: row.discount_value as number,
+    // Present only on an offered line, so every other row maps exactly as before.
+    ...(typeof row.offer_revision_uuid === 'string'
+      ? {
+          offerRevisionUuid: row.offer_revision_uuid,
+          offerName: (row.offer_name ?? null) as string | null
+        }
+      : {}),
     subtotalAmount: row.subtotal_amount as number,
     discountAmount: row.discount_amount as number,
     taxAmount: row.tax_amount as number,
@@ -324,6 +334,16 @@ export class LocalSaleRepository {
       this.database
         .prepare('UPDATE local_invoice_items SET tax_category = ? WHERE local_uuid = ?')
         .run(item.taxCategory, item.localUuid)
+    }
+
+    // Owner expansion Phase E: the offer, likewise a separate statement (pre-0032 schemas have no
+    // column; an offered line can only be rung on a schema that installed offers).
+    if ((item.offerRevisionUuid ?? null) !== null) {
+      this.database
+        .prepare(
+          'UPDATE local_invoice_items SET offer_revision_uuid = ?, offer_name = ? WHERE local_uuid = ?'
+        )
+        .run(item.offerRevisionUuid, item.offerName ?? null, item.localUuid)
     }
 
     const row = this.database

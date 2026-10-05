@@ -1,0 +1,283 @@
+{
+    "schemaVersion": 1,
+    "ruleVersion": "e1-offer-v1",
+    "cases": [
+        {
+            "name": "no-offers",
+            "input": {
+                "quantity": "1.000",
+                "unitPriceAmount": 1000,
+                "offers": []
+            },
+            "expected": null
+        },
+        {
+            "name": "percentage-rounds-half-up",
+            "input": {
+                "quantity": "1.500",
+                "unitPriceAmount": 333,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000001",
+                        "type": "percentage",
+                        "value": 1250,
+                        "priority": 0,
+                        "ordinal": 1
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000001",
+                "discountType": "percentage",
+                "discountValue": 1250,
+                "amount": 63
+            }
+        },
+        {
+            "name": "amount-off-per-unit-fractional",
+            "input": {
+                "quantity": "2.250",
+                "unitPriceAmount": 1000,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000002",
+                        "type": "amount_off",
+                        "value": 150,
+                        "priority": 0,
+                        "ordinal": 2
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000002",
+                "discountType": "fixed",
+                "discountValue": 338,
+                "amount": 338
+            }
+        },
+        {
+            "name": "amount-off-capped-at-the-line",
+            "input": {
+                "quantity": "1.000",
+                "unitPriceAmount": 300,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000003",
+                        "type": "amount_off",
+                        "value": 500,
+                        "priority": 0,
+                        "ordinal": 3
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000003",
+                "discountType": "fixed",
+                "discountValue": 300,
+                "amount": 300
+            }
+        },
+        {
+            "name": "fixed-price-below-catalog",
+            "input": {
+                "quantity": "3.000",
+                "unitPriceAmount": 1000,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000004",
+                        "type": "fixed_price",
+                        "value": 750,
+                        "priority": 0,
+                        "ordinal": 4
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000004",
+                "discountType": "fixed",
+                "discountValue": 750,
+                "amount": 750
+            }
+        },
+        {
+            "name": "fixed-price-not-below-catalog-does-not-apply",
+            "input": {
+                "quantity": "1.000",
+                "unitPriceAmount": 1000,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000005",
+                        "type": "fixed_price",
+                        "value": 1000,
+                        "priority": 0,
+                        "ordinal": 5
+                    }
+                ]
+            },
+            "expected": null
+        },
+        {
+            "name": "fixed-price-fractional",
+            "input": {
+                "quantity": "0.333",
+                "unitPriceAmount": 999,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000006",
+                        "type": "fixed_price",
+                        "value": 1,
+                        "priority": 0,
+                        "ordinal": 6
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000006",
+                "discountType": "fixed",
+                "discountValue": 333,
+                "amount": 333
+            }
+        },
+        {
+            "name": "priority-beats-size",
+            "input": {
+                "quantity": "1.000",
+                "unitPriceAmount": 1000,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000007",
+                        "type": "percentage",
+                        "value": 5000,
+                        "priority": 1,
+                        "ordinal": 7
+                    },
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000008",
+                        "type": "amount_off",
+                        "value": 10,
+                        "priority": 2,
+                        "ordinal": 8
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000008",
+                "discountType": "fixed",
+                "discountValue": 10,
+                "amount": 10
+            }
+        },
+        {
+            "name": "size-breaks-equal-priority",
+            "input": {
+                "quantity": "2.000",
+                "unitPriceAmount": 1000,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000009",
+                        "type": "percentage",
+                        "value": 1000,
+                        "priority": 3,
+                        "ordinal": 9
+                    },
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000010",
+                        "type": "amount_off",
+                        "value": 150,
+                        "priority": 3,
+                        "ordinal": 10
+                    },
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000011",
+                        "type": "fixed_price",
+                        "value": 950,
+                        "priority": 3,
+                        "ordinal": 11
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000010",
+                "discountType": "fixed",
+                "discountValue": 300,
+                "amount": 300
+            }
+        },
+        {
+            "name": "lowest-ordinal-breaks-equal-size",
+            "input": {
+                "quantity": "1.000",
+                "unitPriceAmount": 1000,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000012",
+                        "type": "percentage",
+                        "value": 1000,
+                        "priority": 0,
+                        "ordinal": 40
+                    },
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000013",
+                        "type": "amount_off",
+                        "value": 100,
+                        "priority": 0,
+                        "ordinal": 20
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000013",
+                "discountType": "fixed",
+                "discountValue": 100,
+                "amount": 100
+            }
+        },
+        {
+            "name": "zero-amount-offer-skipped",
+            "input": {
+                "quantity": "0.001",
+                "unitPriceAmount": 1,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000014",
+                        "type": "percentage",
+                        "value": 100,
+                        "priority": 0,
+                        "ordinal": 14
+                    },
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000015",
+                        "type": "amount_off",
+                        "value": 1,
+                        "priority": 0,
+                        "ordinal": 15
+                    }
+                ]
+            },
+            "expected": null
+        },
+        {
+            "name": "full-percentage",
+            "input": {
+                "quantity": "4.000",
+                "unitPriceAmount": 2575,
+                "offers": [
+                    {
+                        "revisionUuid": "00000000-0000-4000-8000-000000000016",
+                        "type": "percentage",
+                        "value": 10000,
+                        "priority": 0,
+                        "ordinal": 16
+                    }
+                ]
+            },
+            "expected": {
+                "revisionUuid": "00000000-0000-4000-8000-000000000016",
+                "discountType": "percentage",
+                "discountValue": 10000,
+                "amount": 10300
+            }
+        }
+    ],
+    "sha256": "5302a6df8859eee7bfd7e20bd8c9b33805eb9e9eacd9e6a1ec05d7713b2365cb"
+}

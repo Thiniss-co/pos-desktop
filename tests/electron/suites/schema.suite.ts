@@ -109,7 +109,10 @@ const expectedTables = [
   'auto_print_admissions',
   // Owner receipt copies (migration 0030): frozen sale receipt snapshots and their upload state.
   'local_invoice_receipt_snapshot',
-  'receipt_snapshot_uploads'
+  'receipt_snapshot_uploads',
+  // Owner expansion Phase E (migration 0032): the register offers of the installed contract.
+  'catalog_offers',
+  'catalog_offer_products'
 ]
 
 databaseTest(
@@ -141,6 +144,7 @@ databaseTest(
       'idx_catalog_customers_active_name',
       'idx_catalog_customers_search_name',
       'idx_catalog_customers_search_phone',
+      'idx_catalog_offer_products_product',
       'idx_catalog_product_barcodes_lookup',
       'idx_catalog_products_barcode',
       'idx_catalog_products_browse',

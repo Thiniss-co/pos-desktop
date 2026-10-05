@@ -12,6 +12,7 @@ import type {
   StockAllocationGrantRow
 } from '@shared/contracts/sale.contract'
 import { calculateCart } from '@shared/pos/posCalculator'
+import { applyOffers } from '@shared/pos/offerRule'
 import { calculatePayments, type ResolvedPaymentMethod } from '@shared/pos/paymentCalculator'
 import type { SqliteDatabase } from '../database/connection'
 import { runSerializedWrite } from '../database/serializedWrite'
@@ -1205,6 +1206,29 @@ export class LocalSaleService {
 
     const productsByUuid = new Map(resolution.products.map((product) => [product.uuid, product]))
 
+    // Owner expansion Phase E: the offers of the installed contract, evaluated at the sale instant
+    // itself (the `sold_at` the backend re-checks the window against). The cart must have been shown
+    // with exactly these offers; otherwise nothing is written.
+    const offers = applyOffers(
+      intent.items.map((item) => ({
+        id: item.id,
+        productUuid: item.productUuid,
+        quantity: item.quantity,
+        unitPriceAmount: productsByUuid.get(item.productUuid)?.price.amount ?? 0,
+        discountType: item.discountType,
+        discountValue: item.discountValue
+      })),
+      resolution.contract.offers,
+      t1
+    )
+    if (
+      intent.items.some(
+        (item) => (item.offerRevisionUuid ?? null) !== (offers.get(item.id)?.revisionUuid ?? null)
+      )
+    ) {
+      return { ok: false, code: 'invalid-request' }
+    }
+
     // 7. calculateCart from RESOLVED rows only.
     const cart = calculateCart(
       intent.items.map((item) => {
@@ -1212,6 +1236,7 @@ export class LocalSaleService {
         if (!product) {
           throw new Error('resolveForSale returned an incomplete product set')
         }
+        const offer = offers.get(item.id)
 
         return {
           id: item.id,
@@ -1219,8 +1244,8 @@ export class LocalSaleService {
           quantity: item.quantity,
           unitPriceAmount: product.price.amount,
           currency: product.price.currency,
-          discountType: item.discountType,
-          discountValue: item.discountValue,
+          discountType: offer ? offer.discountType : item.discountType,
+          discountValue: offer ? offer.discountValue : item.discountValue,
           taxMode: product.tax.mode,
           taxRateBasisPoints: product.tax.rateBasisPoints
         }
@@ -1491,8 +1516,18 @@ export class LocalSaleService {
         taxRevision: product.tax.revision,
         // Stage 4: frozen from the installed catalog at commit; never back-filled or inferred.
         taxCategory: product.tax.category ?? null,
-        discountType: item.discountType,
-        discountValue: item.discountType === null ? 0 : item.discountValue,
+        // Owner expansion Phase E: an offered line stores the offer's discount and the offer itself.
+        ...(offers.has(item.id)
+          ? {
+              discountType: offers.get(item.id)!.discountType,
+              discountValue: offers.get(item.id)!.discountValue,
+              offerRevisionUuid: offers.get(item.id)!.revisionUuid,
+              offerName: offers.get(item.id)!.name
+            }
+          : {
+              discountType: item.discountType,
+              discountValue: item.discountType === null ? 0 : item.discountValue
+            }),
         subtotalAmount: line.subtotalAmount,
         discountAmount: line.discountAmount,
         taxAmount: line.taxAmount,

@@ -3,6 +3,7 @@
  * V3 cart line: the name wraps (never truncated), remove at the inline end; beneath, the unit
  * price, the stepper and the line amount. Amounts arrive pre-computed and pre-formatted.
  */
+import AppIcon from '@renderer/shared/components/common/AppIcon.vue'
 import AppIconButton from '@renderer/shared/components/common/AppIconButton.vue'
 import QuantityControl from './QuantityControl.vue'
 import type { DisplayCartLine } from './types'
@@ -34,6 +35,12 @@ const emit = defineEmits<{ decrease: []; increase: []; remove: []; editQuantity:
         >{{ line.name }}</span
       >
       <span class="cart-line-item__sku sr-only">{{ line.sku }}</span>
+      <span
+        v-if="line.offerLabel"
+        class="cart-line-item__offer mt-0.5 flex items-center gap-1 text-xs font-medium text-ok"
+        data-testid="cart-line-offer"
+        ><AppIcon name="sell" :size="14" aria-hidden="true" />{{ line.offerLabel }}</span
+      >
     </div>
     <div class="justify-self-end">
       <AppIconButton

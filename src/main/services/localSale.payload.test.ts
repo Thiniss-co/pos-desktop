@@ -349,3 +349,64 @@ describe('buildUploadPayload', () => {
     })
   })
 })
+
+describe('buildUploadPayload offers (owner expansion Phase E)', () => {
+  const offerUuid = '11111111-2222-4333-8444-555555555555'
+  const offered = (): LocalInvoiceItemRow =>
+    item({
+      localUuid: 'item-offer',
+      lineIndex: 1,
+      productUuid: 'product-offer',
+      discountType: 'percentage',
+      discountValue: 1000,
+      offerRevisionUuid: offerUuid,
+      offerName: 'Weekend'
+    })
+
+  it('selects v6 and sends offer_revision_uuid on the offered line only', () => {
+    const payload = buildUploadPayload(
+      invoice(),
+      [item(), offered()],
+      [payment()],
+      new Map(),
+      new Map()
+    )
+    const [plain, withOffer] = payload.items as Array<Record<string, unknown>>
+
+    expect(payload.client_contract_version).toBe(6)
+    expect('offer_revision_uuid' in plain).toBe(false)
+    expect(withOffer).toMatchObject({
+      discount_type: 'percentage',
+      discount_value: 1000,
+      offer_revision_uuid: offerUuid
+    })
+    // Declared right after discount_value, the order the backend's rules (and the hash) use.
+    const keys = Object.keys(withOffer)
+    expect(keys[keys.indexOf('discount_value') + 1]).toBe('offer_revision_uuid')
+  })
+
+  it('selects v7 for a physical-presence sale with an offer, mixed header or not', () => {
+    for (const taxMode of ['none', 'mixed'] as const) {
+      const payload = buildUploadPayload(
+        invoice({ offlineSaleAuthorityUuid: 'authority-uuid', taxMode }),
+        [offered()],
+        [payment()],
+        new Map(),
+        new Map()
+      )
+      expect(payload.client_contract_version).toBe(7)
+      expect(payload.offline_sale_authority_uuid).toBe('authority-uuid')
+    }
+  })
+
+  it('keeps v4 for a mixed sale without offers', () => {
+    const payload = buildUploadPayload(
+      invoice({ taxMode: 'mixed' }),
+      [item()],
+      [payment()],
+      new Map(),
+      new Map()
+    )
+    expect(payload.client_contract_version).toBe(4)
+  })
+})

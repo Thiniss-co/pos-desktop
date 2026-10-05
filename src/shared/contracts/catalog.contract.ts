@@ -19,9 +19,30 @@ export const catalogContractSchema = z
     maximumInvoiceTotal: z.literal(900_000_000_000_000),
     // POS improvements, Stage 4: `per_line` is issued only to a register that negotiated
     // `catalog_tax_policy_version=2`; a cart may then mix tax modes and uploads as v4/v5.
-    mixedTaxModePolicy: z.enum(['single_invoice_mode', 'per_line'])
+    mixedTaxModePolicy: z.enum(['single_invoice_mode', 'per_line']),
+    /**
+     * Owner expansion Phase E: the register offers this contract carries (its revision covers them).
+     * Present only when there is at least one, so a register without offers reads exactly as before.
+     */
+    offers: z.array(z.lazy(() => catalogOfferSchema)).optional()
   })
   .strict()
+
+export const catalogOfferSchema = z
+  .object({
+    revisionUuid: z.uuid(),
+    name: z.string(),
+    type: z.enum(['percentage', 'amount_off', 'fixed_price']),
+    value: z.number().int().min(0),
+    priority: z.number().int(),
+    ordinal: z.number().int().positive(),
+    startsAt: isoDateTimeSchema,
+    endsAt: isoDateTimeSchema.nullable(),
+    productUuids: z.array(z.uuid())
+  })
+  .strict()
+
+export type CatalogOfferRecord = z.infer<typeof catalogOfferSchema>
 
 export const catalogCategorySchema = z
   .object({

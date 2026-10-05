@@ -37,7 +37,9 @@ describe('immutable invoice request hash cross-language golden vector', () => {
       'positive-offset-sold-at',
       'v3-physical-presence-uniform',
       'v4-mixed-tax-allocation',
-      'v5-mixed-tax-physical-presence'
+      'v5-mixed-tax-physical-presence',
+      'v6-offered-line-allocation',
+      'v7-offered-line-physical-presence-mixed'
     ])
   })
 

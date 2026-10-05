@@ -531,3 +531,45 @@ describe('desktopShiftResourceSchema', () => {
     ).toBe(false)
   })
 })
+
+describe('bootstrap offers block (owner expansion Phase E)', () => {
+  const revision = {
+    id: '7f000000-0000-4000-8000-000000000001',
+    name: 'Ten off',
+    type: 'percentage',
+    value: 1000,
+    priority: 0,
+    ordinal: 3,
+    starts_at: '2026-10-01T00:00:00+00:00',
+    ends_at: null,
+    product_uuids: ['7f000000-0000-4000-8000-000000000002']
+  }
+
+  it('accepts a negotiated block and its absence', () => {
+    expect(
+      desktopBootstrapResourceSchema.safeParse({
+        ...desktopBootstrapFixture(),
+        offers: { version: 1, revisions: [revision] }
+      }).success
+    ).toBe(true)
+    expect(
+      desktopBootstrapResourceSchema.safeParse({
+        ...desktopBootstrapFixture(),
+        offers: { version: 1, revisions: [] }
+      }).success
+    ).toBe(true)
+    expect(desktopBootstrapResourceSchema.safeParse(desktopBootstrapFixture()).success).toBe(true)
+  })
+
+  it('rejects an unknown version, type or key', () => {
+    for (const offers of [
+      { version: 2, revisions: [revision] },
+      { version: 1, revisions: [{ ...revision, type: 'bogo' }] },
+      { version: 1, revisions: [{ ...revision, extra: true }] }
+    ]) {
+      expect(
+        desktopBootstrapResourceSchema.safeParse({ ...desktopBootstrapFixture(), offers }).success
+      ).toBe(false)
+    }
+  })
+})

@@ -368,7 +368,8 @@
       "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit.",
       "CART_HOLD_LIMIT": "Too many held sales. Recall or discard one first.",
       "CART_ATTEMPT_LOCKED": "This cart belongs to a payment that is still in progress. Resolve the payment first.",
-      "FISCAL_SETUP_INCOMPLETE": "ZATCA receipts need the company's legal name, VAT number and seller address. Ask the owner to complete them, then refresh the workstation."
+      "FISCAL_SETUP_INCOMPLETE": "ZATCA receipts need the company's legal name, VAT number and seller address. Ask the owner to complete them, then refresh the workstation.",
+      "CART_OFFERS_CHANGED": "Offers changed since this cart was priced. The cart has been updated; check the total and try again."
     },
     "catalogRefresh": {
       "action": "Refresh workstation data",
@@ -462,7 +463,8 @@
       "payShort": "Pay",
       "shortcutsHint": "F1 Shortcuts · F2 Search",
       "viewCart": "View cart",
-      "closeCart": "Close cart"
+      "closeCart": "Close cart",
+      "offer": "{name} · −{amount}"
     },
     "clearDialog": {
       "title": "Clear the cart?",

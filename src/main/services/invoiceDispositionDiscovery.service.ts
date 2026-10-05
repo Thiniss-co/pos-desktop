@@ -7,7 +7,7 @@ import {
 } from '@shared/contracts/dispositionDiscovery.contract'
 import type { SqliteDatabase } from '../database/connection'
 import { runSerializedWrite } from '../database/serializedWrite'
-import { invoiceRequestHash } from './invoiceRequestHash'
+import { invoiceRequestHash, isPhysicalPresenceContractVersion } from './invoiceRequestHash'
 
 /** The exact quarantine reasons a disposition may act on (§7.3a.2). Closed on purpose. */
 export const ELIGIBLE_QUARANTINE_REASONS: ReadonlySet<string> = new Set([
@@ -173,8 +173,8 @@ export class InvoiceDispositionDiscoveryService {
       }
 
       if (
-        // v3, or v5 (v3 with mixed taxes, POS improvements Stage 4): the physical-presence contracts.
-        (payload.client_contract_version !== 3 && payload.client_contract_version !== 5) ||
+        // v3, v5 (mixed taxes) or v7 (offers): the physical-presence contracts.
+        !isPhysicalPresenceContractVersion(payload.client_contract_version) ||
         typeof payload.offline_sale_authority_uuid !== 'string'
       ) {
         continue

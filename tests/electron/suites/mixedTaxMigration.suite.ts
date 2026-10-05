@@ -48,9 +48,17 @@ databaseTest(
 
       for (const table of DEPENDENT_TABLES) {
         const after = readCommitted(sandbox, `SELECT * FROM ${table} ORDER BY 1`).map((row) => {
-          // The two additive columns are new; everything that existed is unchanged.
-          const { tax_category: _category, ...rest } = row as Record<string, unknown>
+          // The additive columns are new (0022's categories; 0032's offers); everything that existed
+          // is unchanged.
+          const {
+            tax_category: _category,
+            offer_revision_uuid: _offer,
+            offer_name: _offerName,
+            ...rest
+          } = row as Record<string, unknown>
           void _category
+          void _offer
+          void _offerName
           return rest
         })
         deepEqual(after, before[table], `${table} changed across migration 0022`)

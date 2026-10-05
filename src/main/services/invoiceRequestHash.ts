@@ -41,6 +41,10 @@ const ITEM_KEYS = [
   'tax_revision',
   'discount_type',
   'discount_value',
+  // Owner expansion Phase E: the line's offer revision, declared right after `discount_value`. Sent
+  // only on an offered line of a v6/v7 request (prohibited on every other version), so every older
+  // request's bytes are unchanged.
+  'offer_revision_uuid',
   // `UploadDesktopInvoiceRequest::rules()` declares it between `discount_value` and `allocations`,
   // so `validated()` rebuilds a v3/v5 line in this order. Absent on v1/v2/v4 lines, where it is
   // prohibited, so those bytes are unchanged. (POS improvements, Stage 4: it was missing here, so
@@ -276,12 +280,17 @@ export function invoiceHashableArray(payload: JsonRecord): JsonRecord {
   }
 
   // `UploadDesktopInvoiceData::toHashableArray()` appends the authority for the physical-presence
-  // contracts: v3, and v5 (v3 with mixed taxes). v4 keeps the v2 shape.
-  if (clientContractVersion === 3 || clientContractVersion === 5) {
+  // contracts: v3, v5 (v3 with mixed taxes) and v7 (v3 with offers). v4 and v6 keep the v2 shape.
+  if (isPhysicalPresenceContractVersion(clientContractVersion)) {
     hashable.offlineSaleAuthorityUuid = payload.offline_sale_authority_uuid ?? null
   }
 
   return hashable
+}
+
+/** The physical-presence upload contracts: v3, v5 (mixed taxes) and v7 (offers). */
+export function isPhysicalPresenceContractVersion(version: unknown): boolean {
+  return version === 3 || version === 5 || version === 7
 }
 
 /** The bytes the backend hashes, as an exact string. */
