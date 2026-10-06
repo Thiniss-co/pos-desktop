@@ -81,6 +81,15 @@ Stop and ask (or report a blocker) instead of proceeding when:
 - Verification commands (`typecheck`/`lint`/`test`) fail and the fix is non-obvious or out of
   scope for the current task.
 
+## Workspace and Worktrees
+
+Follow `.ai/guidelines/workspace-policy.md` and the shared registry `/var/www/html/thinis-pos/WORKSPACES.md`:
+the canonical checkout stays on `main`; at most two reusable editing slots for this repository, one session per
+slot, claimed and released in the registry; reuse a slot only when it is released, clean and its branch and
+data are preserved; absolute working directories and a branch check before every edit or commit; isolated
+profiles, SQLite files and ports; never `git worktree remove --force`, `git clean` or `reset --hard`, and never
+delete a branch when retiring its worktree.
+
 ## How to Report Results
 
 Every task report should state, plainly:

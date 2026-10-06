@@ -126,3 +126,12 @@ Before finishing a task:
 - [ ] Report follows the format in `CLAUDE.md` §14 / `AGENTS.md` "How to Report Results".
 
 Do not create a git commit unless explicitly asked to.
+
+## Workspace and Worktrees (all agents)
+
+Follow `.ai/guidelines/workspace-policy.md` and the shared registry `/var/www/html/thinis-pos/WORKSPACES.md`:
+the canonical checkout stays on `main`; at most two reusable editing slots for this repository, one session per
+slot, claimed and released in the registry; reuse a slot only when it is released, clean and its branch and
+data are preserved; absolute working directories and a branch check before every edit or commit; isolated
+profiles, SQLite files and ports; never `git worktree remove --force`, `git clean` or `reset --hard`, and never
+delete a branch when retiring its worktree.

@@ -175,3 +175,24 @@ At the end of any non-trivial task, report:
 5. Any missing scripts/tooling discovered, and where that's tracked.
 6. Confirmation that no backend code and no forbidden action (Section 13) occurred.
 7. Recommended next step/phase.
+
+## 15. Workspace and Worktree Policy
+
+Full detail: [.ai/guidelines/workspace-policy.md](.ai/guidelines/workspace-policy.md). Registry:
+`/var/www/html/thinis-pos/WORKSPACES.md` (outside every worktree).
+
+- The canonical checkout `/var/www/html/thinis-pos/pos-desktop` stays on `main` while it serves the
+  running app; never switch its branch underneath it.
+- At most **two** reusable editing worktree slots for this repository, allocated only when needed.
+  Reuse existing slots; never create a folder per feature, phase, review or test run. A third slot
+  needs the user's explicit approval.
+- One editing session per slot; claim it in the registry first, release it there when done. Two
+  sessions never edit or switch branches in the same directory.
+- Reuse a slot only when its previous session released it, it is clean, its work is committed on a
+  named branch and its untracked/ignored data (evidence, SQLite files, profiles) is accounted for.
+  Switching a slot's branch never deletes the old branch; do not merge just to free a slot.
+- Absolute working directories in every command; verify the branch before every edit and commit.
+- Isolated Electron profiles, SQLite files, backend fixtures, ports and caches per session; never
+  the real profile, the canonical `.env` or the backend's normal databases.
+- Retire worktrees one at a time with `git worktree remove` (never `--force`), only after their
+  unique data is preserved; never delete the branch with it.
