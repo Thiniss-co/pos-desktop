@@ -110,7 +110,7 @@ const CONFLICT_CODES = new Set(['IDEMPOTENCY_CONFLICT', 'CONFLICT'])
  * device: pausing the worker would stop the uploads the server is accepting. The item is retried on its own,
  * no sooner than this, and succeeds once the suspension is lifted.
  */
-const COMPANY_SUSPENDED_RETRY_MS = 10 * 60 * 1_000
+export const COMPANY_SUSPENDED_RETRY_MS = 10 * 60 * 1_000
 
 const PAUSE_REASON_BY_CODE: Readonly<Record<string, SyncPauseReason>> = {
   UNAUTHENTICATED: 'session-invalid',

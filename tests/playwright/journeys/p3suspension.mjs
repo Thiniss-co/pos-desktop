@@ -5,6 +5,7 @@ import {
   openSandboxAndApp,
   payExactCash,
   refreshWorkstation,
+  relaunch,
   scan,
   setupPhysicalPresenceTill,
   signIn,
@@ -23,11 +24,13 @@ import { queryLocal } from '../support/localDb.mjs'
  *    register keeps its existing authority — offline limits stay DISABLED, nothing is shortened).
  * 2. Reconnect: every queued sale uploads and is accepted exactly once; the ones rung after the
  *    suspension are flagged for review. One upload is delivered twice: the replay creates nothing.
- * 3. The till observes the suspension: banner, new sales refused locally, no session ended, no data
- *    cleared. Shift close and sign-out still work; signing in again (recovery) works and issues no
- *    authority or license.
+ * 3. The till observes the suspension: banner, new sales refused locally with ONE message and the
+ *    cart kept, no session ended, no data cleared. An offline restart keeps the known suspension (it
+ *    is persisted, never re-derived). Shift close and sign-out still work; signing in again
+ *    (recovery) works and issues no authority or license.
  * 4. Resume: the binding ended by the sign-out stays revoked, the live session regains selling without
- *    signing in again, and the offline authority's `not_after` never changed.
+ *    signing in again (the newer-revision `active` state arrives on an ordinary response), and the
+ *    offline authority's `not_after` never changed.
  */
 
 const COLA = '6221000000011'
@@ -56,13 +59,48 @@ async function bannerShown(page) {
   return (await page.getByTestId('company-suspended-banner').count()) > 0
 }
 
+function cartLines(page) {
+  return page.evaluate(
+    () =>
+      document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('cart').lines
+        .length
+  )
+}
+
+const SUSPENSION_TEXT = 'The platform has suspended this company'
+
+/** A refused sale: named for the suspension, said once, nothing committed, the cart kept. */
+async function assertRefused(ctx, session, page, label) {
+  const invoicesBefore = localInvoices(session)
+  await scan(ctx, page, WATER)
+  const linesBefore = await cartLines(page)
+  const attempt = await attemptExactCash(ctx, page)
+  await ctx.shot(page, label)
+  if (localInvoices(session) !== invoicesBefore)
+    throw new Error('a sale was committed while suspended')
+  if (attempt.outcome?.code !== 'company-suspended')
+    throw new Error(`the refusal did not name the suspension: ${JSON.stringify(attempt.outcome)}`)
+  if (attempt.text.includes('assignment changed'))
+    throw new Error('the cashier was told the shift or workstation changed')
+  const mentions = attempt.text.split(SUSPENSION_TEXT).length - 1
+  if (mentions !== 1)
+    throw new Error(`the payment dialog states the suspension ${mentions} times, expected once`)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  const linesAfter = await cartLines(page)
+  if (linesAfter !== linesBefore || linesAfter < 1)
+    throw new Error(`the cart was not kept (${linesBefore} -> ${linesAfter})`)
+  if (!(await bannerShown(page))) throw new Error('the suspension banner disappeared')
+  ctx.step('new sale refused', { outcome: attempt.outcome, mentions, cartLines: linesAfter })
+}
+
 export async function run(ctx) {
   const session = await openSandboxAndApp(ctx, {
     flags: { POS_OFFLINE_PHYSICAL_PRESENCE_ENABLED: 'true' },
     proxy: true
   })
   const { sandbox, proxy } = session
-  const page = session.page
+  let page = session.page
   try {
     const deviceUuid = await setupPhysicalPresenceTill(ctx, session)
     const start = sandbox.fixture('inspect-suspension')
@@ -122,24 +160,31 @@ export async function run(ctx) {
     // 3. The till observed the suspension: banner, selling refused, nothing ended or cleared.
     await page.getByTestId('company-suspended-banner').waitFor({ timeout: 30_000 })
     await ctx.shot(page, '04-suspended-banner')
-    const invoicesBefore = localInvoices(session)
-    await scan(ctx, page, WATER)
-    const attempt = await attemptExactCash(ctx, page)
-    await ctx.shot(page, '05-sale-refused-while-suspended')
-    if (localInvoices(session) !== invoicesBefore)
-      throw new Error('a sale was committed while suspended')
-    ctx.step('new sale refused', { outcome: attempt.outcome })
-    if (attempt.outcome?.code !== 'company-suspended')
-      throw new Error(`the refusal did not name the suspension: ${JSON.stringify(attempt.outcome)}`)
-    if (attempt.text.includes('assignment changed'))
-      throw new Error('the cashier was told the shift or workstation changed')
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await assertRefused(ctx, session, page, '05-sale-refused-while-suspended')
 
-    const shift = await page.evaluate(() => {
+    // 3b. Offline restart: the known suspension is read back from the device, not re-learned.
+    await proxy.offline()
+    await page.evaluate(async () => await window.posApi.connectivity.checkNow())
+    await relaunch(ctx, session)
+    page = session.page
+    await waitForRoute(page, 'pos')
+    await page.getByTestId('company-suspended-banner').waitFor({ timeout: 30_000 })
+    await ctx.shot(page, '05b-offline-restart-still-suspended')
+    await assertRefused(ctx, session, page, '05c-offline-sale-refused-after-restart')
+    await proxy.online()
+    await page.evaluate(async () => await window.posApi.connectivity.checkNow())
+    await page.waitForTimeout(1_000)
+    if (!(await bannerShown(page)))
+      throw new Error('reconnecting while still suspended cleared the suspension')
+    ctx.step('offline restart kept the suspension; reconnecting did not clear it')
+
+    // After the offline restart the store holds only the local authority; read the server's current
+    // shift (a read, allowed while suspended) exactly as the shift screen does.
+    const shift = await page.evaluate(async () => {
       const s = document
         .querySelector('#app')
         .__vue_app__.config.globalProperties.$pinia._s.get('shift')
+      await s?.loadCurrent?.()
       const current = s?.currentShift ?? s?.shift
       return current
         ? {

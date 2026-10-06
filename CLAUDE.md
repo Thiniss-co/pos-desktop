@@ -181,11 +181,12 @@ At the end of any non-trivial task, report:
 Full detail: [.ai/guidelines/workspace-policy.md](.ai/guidelines/workspace-policy.md). Registry:
 `/var/www/html/thinis-pos/WORKSPACES.md` (outside every worktree).
 
-- The canonical checkout `/var/www/html/thinis-pos/pos-desktop` stays on `main` while it serves the
-  running app; never switch its branch underneath it.
-- At most **two** reusable editing worktree slots for this repository, allocated only when needed.
-  Reuse existing slots; never create a folder per feature, phase, review or test run. A third slot
-  needs the user's explicit approval.
+- Prefer the canonical checkout `/var/www/html/thinis-pos/pos-desktop`; while it serves the running
+  app it stays on `main` — never switch its branch underneath it. With a single editing session and
+  no running app disturbed, work there with no worktree.
+- Only when concurrent editing needs one: at most **two** reusable slots, created on demand at
+  `/var/www/html/thinis-pos/pos-desktop-slot-1` and `-slot-2`. Never create a folder per feature,
+  phase, review or test run. A third slot needs the user's explicit approval.
 - One editing session per slot; claim it in the registry first, release it there when done. Two
   sessions never edit or switch branches in the same directory.
 - Reuse a slot only when its previous session released it, it is clean, its work is committed on a

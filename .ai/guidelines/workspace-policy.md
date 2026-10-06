@@ -4,15 +4,17 @@ Applies to every session (Claude, Codex or another agent) that edits this reposi
 
 ## Canonical checkout
 
-- `/var/www/html/thinis-pos/pos-desktop` stays on `main` while it serves the running application (`npm run dev:linux`
-  against the backend's `composer run dev`). Never switch its branch underneath a running app or session, and never
-  develop features in it.
+- Prefer `/var/www/html/thinis-pos/pos-desktop`. While it serves the running application (`npm run dev:linux` against
+  the backend's `composer run dev`) it stays on `main`: never switch its branch underneath a running app or session.
+  When this is the only editing session on the repository and switching its branch disturbs no running app, work there
+  with no worktree.
 
 ## Reusable editing slots
 
-- Worktrees are allowed only as fixed, reusable editing slots: at most **two per repository**, allocated only when a
-  second concurrent session needs one. Reuse an existing slot; never create a new folder per feature, phase, review,
-  integration or test run. A third slot needs the user's explicit approval.
+- Only when concurrent, isolated editing needs one: at most **two reusable slots per repository**, created on demand at
+  the stable paths `/var/www/html/thinis-pos/pos-desktop-slot-1` and `/var/www/html/thinis-pos/pos-desktop-slot-2`,
+  registered before use and reused afterwards. Never create a folder per feature, phase, review, integration or test
+  run. A third slot needs the user's explicit approval.
 - The shared registry `/var/www/html/thinis-pos/WORKSPACES.md` (outside every worktree) records each slot's absolute
   path, branch, owning session and task. Claim a `FREE` slot there before editing and release it there when done. If
   both slots are occupied, wait or coordinate a handoff with the owning session or the user.

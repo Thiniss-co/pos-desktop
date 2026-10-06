@@ -70,7 +70,7 @@ const iconName = computed(() => props.icon ?? DEFAULT_ICON[props.variant])
     <AppIcon :name="iconName" :size="20" class="app-banner__icon mt-px" :class="FG[variant]" />
     <div class="app-banner__content min-w-[200px] flex-1 text-pretty">
       <p v-if="title" class="font-bold" :class="bar ? 'inline' : 'text-base'">{{ title }}</p>
-      <template v-if="bar && title">&#32;</template>
+      <template v-if="bar && title">{{ ' ' }}</template>
       <component :is="bar && title ? 'span' : 'div'" :class="{ 'mt-0.5': title && !bar }"
         ><slot
       /></component>

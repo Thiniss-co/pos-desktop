@@ -721,6 +721,13 @@ const previewIsError = computed(
   () => previewError.value !== null || (previewOutcome.value?.outcome ?? 'valid') !== 'valid'
 )
 const previewMessage = computed<string | undefined>(() => {
+  // Phase 3: once a completion attempt was refused for the suspension, that refusal is the one
+  // message; the preview's access denial says the same thing and is not repeated beside it.
+  const completion = completionOutcome.value
+  if (completion?.outcome === 'failed' && completion.code === 'company-suspended') {
+    return undefined
+  }
+
   if (previewError.value) {
     return previewError.value
   }

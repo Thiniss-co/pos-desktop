@@ -84,8 +84,8 @@ Stop and ask (or report a blocker) instead of proceeding when:
 ## Workspace and Worktrees
 
 Follow `.ai/guidelines/workspace-policy.md` and the shared registry `/var/www/html/thinis-pos/WORKSPACES.md`:
-the canonical checkout stays on `main`; at most two reusable editing slots for this repository, one session per
-slot, claimed and released in the registry; reuse a slot only when it is released, clean and its branch and
+prefer the canonical checkout (it stays on `main` while it serves the running app); only when concurrent editing
+needs one, at most two reusable slots created on demand at `pos-desktop-slot-1`/`-2`, one session per slot, claimed and released in the registry; reuse a slot only when it is released, clean and its branch and
 data are preserved; absolute working directories and a branch check before every edit or commit; isolated
 profiles, SQLite files and ports; never `git worktree remove --force`, `git clean` or `reset --hard`, and never
 delete a branch when retiring its worktree.
