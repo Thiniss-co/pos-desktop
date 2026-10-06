@@ -9,18 +9,20 @@ import { COMPANY_SUSPENDED_RETRY_MS } from '../../../src/main/sync/invoiceUpload
 import { InvoiceUploadOutcomeRecorder } from '../../../src/main/sync/invoiceUploadOutcome'
 import { InvoiceUploadWorker } from '../../../src/main/sync/invoiceUploadWorker'
 import { uploadRefund } from '../../../src/main/sync/refundUpload.client'
-import { databaseTest } from '../support/sandbox'
+import { databaseTest, type DatabaseSandbox } from '../support/sandbox'
 import { openTestDatabase } from '../support/openTestDatabase'
 import { realRepositories, type RealRepositories } from '../support/realRepositories'
 
 /**
  * Phase 3 — a held upload stays on the till and goes through after the company is resumed.
  *
- * Real Electron SQLite (production migrations and repositories), the real `InvoiceUploadWorker`,
- * `uploadInvoice`, `RefundService`, `uploadRefund`, `DesktopApiClient` and `CompanyAccessStateService`.
- * Only the network is scripted: it answers exactly what the Phase 3 backend answers — a retryable
- * `403 COMPANY_SUSPENDED` (with `meta.company_access`) for a held legacy v1 upload or a first refund
- * acceptance while suspended, and the normal 201 (carrying the lifted state) once resumed.
+ * Real Electron SQLite (production migrations and repositories, on a file that is closed and reopened to
+ * model an app restart), the real `InvoiceUploadWorker`, `uploadInvoice`, `RefundService`, `uploadRefund`,
+ * `DesktopApiClient`, and `CompanyAccessStateService` over the real `AppSettingsRepository`. Only the network
+ * is scripted, as a small model of the Phase 3 backend: an exact replay of a committed upload answers first
+ * (200 already uploaded); otherwise a held legacy v1 upload or a first refund acceptance while suspended gets
+ * a retryable `403 COMPANY_SUSPENDED` with `meta.company_access`; once resumed it commits once (201, carrying
+ * the lifted state). One refund answer can be lost after the commit, like a dropped connection.
  */
 
 const HASH_64 = 'a'.repeat(64)
@@ -86,56 +88,87 @@ function invoiceAccepted(localUuid: string, access: unknown): Response {
 
 interface Network {
   suspended: boolean
+  /** Commit the next refund, then drop the connection before the answer arrives. */
+  loseNextRefundAnswer: boolean
   readonly requests: string[]
+  /** The exact request bodies, in order, keyed by route. */
+  readonly bodies: { readonly route: 'invoice' | 'refund'; readonly body: string }[]
+  readonly committedInvoices: Set<string>
+  readonly committedRefunds: Set<string>
   readonly fetchImplementation: typeof fetch
 }
 
-/** Answers like the Phase 3 backend: the held kinds are refused while suspended; the rest is accepted. */
+function refundAnswer(status: 200 | 201, access: unknown): Response {
+  return json(status, {
+    success: true,
+    message: 'Refund uploaded.',
+    code: status === 201 ? 'DESKTOP_REFUND_UPLOADED' : 'DESKTOP_REFUND_ALREADY_UPLOADED',
+    data: {
+      id: uuid('77'),
+      refund_number: 'RF-0001',
+      offline_refund_number: null,
+      status: 'completed',
+      payment_status: 'refunded',
+      subtotal_amount: 1000,
+      discount_total_amount: 0,
+      tax_total_amount: 0,
+      grand_total_amount: 1000,
+      refunded_total_amount: 1000,
+      refunded_at: '2026-10-06T10:30:00Z'
+    },
+    meta: { trace_id: 'trace-refund', company_access: access }
+  })
+}
+
+/** A model of the Phase 3 backend for these two routes (see the suite comment). */
 function network(heldInvoices: ReadonlySet<string>): Network {
   const state: Network = {
     suspended: true,
+    loseNextRefundAnswer: false,
     requests: [],
+    bodies: [],
+    committedInvoices: new Set(),
+    committedRefunds: new Set(),
     fetchImplementation: async (input, init) => {
       const url = new URL(String(input))
-      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+      const raw = String(init?.body ?? '{}')
+      const body = JSON.parse(raw) as Record<string, unknown>
+      const access = state.suspended ? suspendedAccess : activeAccess
 
       if (url.pathname.endsWith('/invoices/upload')) {
         const local = String(body.local_invoice_uuid)
         state.requests.push(`invoice:${local}`)
+        state.bodies.push({ route: 'invoice', body: raw })
 
-        if (state.suspended && heldInvoices.has(local)) {
+        if (state.suspended && heldInvoices.has(local) && !state.committedInvoices.has(local)) {
           return suspendedResponse()
         }
 
-        return invoiceAccepted(local, state.suspended ? suspendedAccess : activeAccess)
+        state.committedInvoices.add(local)
+        return invoiceAccepted(local, access)
       }
 
       if (url.pathname.endsWith('/refunds/upload')) {
-        state.requests.push(`refund:${String(body.idempotency_key)}`)
+        const key = String(body.idempotency_key)
+        state.requests.push(`refund:${key}`)
+        state.bodies.push({ route: 'refund', body: raw })
+
+        if (state.committedRefunds.has(key)) {
+          return refundAnswer(200, access)
+        }
 
         if (state.suspended) {
           return suspendedResponse()
         }
 
-        return json(201, {
-          success: true,
-          message: 'Refund uploaded.',
-          code: 'DESKTOP_REFUND_UPLOADED',
-          data: {
-            id: uuid('77'),
-            refund_number: 'RF-0001',
-            offline_refund_number: null,
-            status: 'completed',
-            payment_status: 'refunded',
-            subtotal_amount: 1000,
-            discount_total_amount: 0,
-            tax_total_amount: 0,
-            grand_total_amount: 1000,
-            refunded_total_amount: 1000,
-            refunded_at: '2026-10-06T10:30:00Z'
-          },
-          meta: { trace_id: 'trace-refund', company_access: activeAccess }
-        })
+        state.committedRefunds.add(key)
+
+        if (state.loseNextRefundAnswer) {
+          state.loseNextRefundAnswer = false
+          throw new TypeError('fetch failed')
+        }
+
+        return refundAnswer(201, access)
       }
 
       return json(404, { success: false, message: 'Not found', code: 'NOT_FOUND', errors: [] })
@@ -154,11 +187,12 @@ interface Harness {
   readonly clock: { now: number }
 }
 
-function harness(database: SqliteDatabase, repositories: RealRepositories, net: Network): Harness {
-  const clock = { now: T0 }
-  const settings = new Map<string, string>()
+/** One app process over the sandbox's SQLite file: everything is rebuilt from what the file holds. */
+function boot(sandbox: DatabaseSandbox, net: Network, clock: { now: number }): Harness {
+  const database = openTestDatabase(sandbox)
+  const repositories = realRepositories(database)
   const access = new CompanyAccessStateService(
-    { get: (key) => settings.get(key) ?? null, set: (key, value) => void settings.set(key, value) },
+    repositories.appSettings,
     { getContext: () => ({ isAuthenticated: true, companyUuid: COMPANY }) },
     () => new Date(clock.now)
   )
@@ -167,10 +201,17 @@ function harness(database: SqliteDatabase, repositories: RealRepositories, net: 
     getAccessToken: () => 'token',
     getDeviceUuid: () => DEVICE,
     fetchImplementation: net.fetchImplementation,
+    timeoutMs: 5_000,
     onCompanyAccessObserved: (observed) => access.observe(observed)
   })
 
   return { database, repositories, net, apiClient, access, clock }
+}
+
+/** Closes the process's database and boots a new one on the same file (an app restart). */
+function restart(sandbox: DatabaseSandbox, h: Harness): Harness {
+  closeDatabase(h.database)
+  return boot(sandbox, h.net, h.clock)
 }
 
 function worker(h: Harness): InvoiceUploadWorker {
@@ -192,6 +233,20 @@ function worker(h: Harness): InvoiceUploadWorker {
     upload: (payloadJson) => uploadInvoice(h.apiClient, payloadJson),
     now: () => new Date(h.clock.now),
     schedule: () => () => undefined
+  })
+}
+
+function refundService(h: Harness): RefundService {
+  // Resuming an existing refund needs none of the new-refund dependencies.
+  return new RefundService({
+    apiClient: h.apiClient,
+    localSale: h.repositories.localSale,
+    localRefunds: h.repositories.localRefunds,
+    access: undefined as never,
+    shiftAuthority: undefined as never,
+    catalog: { listPaymentMethods: () => [] },
+    now: () => new Date(h.clock.now),
+    uploadRefund
   })
 }
 
@@ -306,15 +361,13 @@ function invoiceSync(database: SqliteDatabase, invoiceUuid: string): string {
 }
 
 databaseTest(
-  'a held legacy upload stays queued with its exact bytes, never pauses the queue, and syncs after resumption',
+  'a held legacy upload keeps its exact bytes across restarts, never pauses the queue, and syncs once after resumption',
   async (sandbox) => {
-    const database = openTestDatabase(sandbox)
+    const legacyUuid = uuid('11')
+    const net = network(new Set([legacyUuid]))
+    let h = boot(sandbox, net, { now: T0 })
 
     try {
-      const repositories = realRepositories(database)
-      const legacyUuid = uuid('11')
-      const net = network(new Set([legacyUuid]))
-      const h = harness(database, repositories, net)
       const legacy = seedQueuedSale(h, '1', true)
       const current = seedQueuedSale(h, '2', false)
       equal(legacy.invoiceUuid, legacyUuid)
@@ -325,57 +378,67 @@ databaseTest(
       deepEqual(net.requests, [`invoice:${legacy.invoiceUuid}`, `invoice:${current.invoiceUuid}`])
       equal(h.access.isSuspended(), true)
 
-      const held = queueRow(database, legacy.queueUuid)
+      const held = queueRow(h.database, legacy.queueUuid)
       equal(held.state, 'retryable_error')
       equal(held.last_error_code, 'COMPANY_SUSPENDED')
       equal(held.attempt_count, 1)
       equal(held.payload_json, legacy.payloadJson)
       ok(Date.parse(held.next_attempt_at ?? '') >= T0 + COMPANY_SUSPENDED_RETRY_MS)
-      equal(invoiceSync(database, legacy.invoiceUuid), 'retryable_error')
-      equal(queueRow(database, current.queueUuid).state, 'synced')
-      equal(repositories.syncQueue.getStatus(null).counts.rejected, 0)
+      equal(invoiceSync(h.database, legacy.invoiceUuid), 'retryable_error')
+      equal(queueRow(h.database, current.queueUuid).state, 'synced')
+      equal(h.repositories.syncQueue.getStatus(null).counts.rejected, 0)
 
-      // 2. Still suspended, before the backoff: nothing is re-sent.
+      // 2. Restart before the back-off, with no network answer: the suspension and the row are read back.
+      h = restart(sandbox, h)
+      equal(h.access.isSuspended(), true)
       h.clock.now = T0 + 60_000
       await worker(h).run()
       equal(net.requests.length, 2)
+      equal(queueRow(h.database, legacy.queueUuid).payload_json, legacy.payloadJson)
 
-      // 3. A fresh worker over the same database (as after a restart), past the backoff: re-sent, held again.
+      // 3. Past the back-off, still suspended: re-sent with the same bytes, held again.
       h.clock.now = T0 + COMPANY_SUSPENDED_RETRY_MS + 1_000
       await worker(h).run()
       equal(net.requests.length, 3)
-      equal(queueRow(database, legacy.queueUuid).state, 'retryable_error')
-      equal(queueRow(database, legacy.queueUuid).attempt_count, 2)
+      equal(queueRow(h.database, legacy.queueUuid).state, 'retryable_error')
+      equal(queueRow(h.database, legacy.queueUuid).attempt_count, 2)
 
-      // 4. Resumed: the next due attempt sends the identical frozen bytes once and syncs; the
-      //    response's `meta.company_access` lifts the suspension on the till.
+      // 4. Resumed, after another restart: the next due attempt sends the identical frozen bytes once and
+      //    syncs; the answer's newer `active` state lifts the suspension on the till.
       net.suspended = false
+      h = restart(sandbox, h)
+      equal(h.access.isSuspended(), true)
       h.clock.now = T0 + 3 * COMPANY_SUSPENDED_RETRY_MS
       const after = await worker(h).run()
       equal(after.uploaded, 1)
       equal(net.requests.length, 4)
-      equal(net.requests[3], `invoice:${legacy.invoiceUuid}`)
-      equal(queueRow(database, legacy.queueUuid).state, 'synced')
-      equal(queueRow(database, legacy.queueUuid).payload_json, legacy.payloadJson)
-      equal(invoiceSync(database, legacy.invoiceUuid), 'synced')
+      const sent = net.bodies.filter(
+        (b) => b.route === 'invoice' && b.body.includes(legacy.invoiceUuid)
+      )
+      equal(sent.length, 3)
+      ok(sent.every((b) => b.body === legacy.payloadJson))
+      equal(queueRow(h.database, legacy.queueUuid).state, 'synced')
+      equal(invoiceSync(h.database, legacy.invoiceUuid), 'synced')
       equal(h.access.isSuspended(), false)
+
+      // 5. Nothing left to send; another run sends nothing.
+      await worker(h).run()
+      equal(net.requests.length, 4)
     } finally {
-      closeDatabase(database)
+      closeDatabase(h.database)
     }
   }
 )
 
 databaseTest(
-  'a held refund stays resumable on the till (never rejected) and is accepted after resumption',
+  'a held refund stays resumable across restarts and, after resumption, is accepted once with the same key and bytes even when an answer is lost',
   async (sandbox) => {
-    const database = openTestDatabase(sandbox)
+    const net = network(new Set())
+    let h = boot(sandbox, net, { now: T0 })
 
     try {
-      const repositories = realRepositories(database)
-      const net = network(new Set())
-      const h = harness(database, repositories, net)
       const sale = seedQueuedSale(h, '3', false)
-      database
+      h.database
         .prepare(
           "UPDATE local_invoices SET sync_status = 'synced', remote_uuid = ?, server_number = 'INV-1', synced_at = ? WHERE local_uuid = ?"
         )
@@ -383,8 +446,8 @@ databaseTest(
 
       const refundUuid = uuid('41')
       const requestJson = JSON.stringify({ idempotency_key: refundUuid, amount: 1000 })
-      const now = '2026-10-06T10:30:00.000Z'
-      repositories.localRefunds.insert(
+      const at = '2026-10-06T10:30:00.000Z'
+      h.repositories.localRefunds.insert(
         {
           localUuid: refundUuid,
           invoiceLocalUuid: sale.invoiceUuid,
@@ -399,14 +462,14 @@ databaseTest(
           discountTotalAmount: 0,
           taxTotalAmount: 0,
           grandTotalAmount: 1000,
-          refundedAt: now,
+          refundedAt: at,
           stockReturned: true,
           reason: null,
           notes: null,
           requestJson,
           requestSha256: HASH_64,
           previewId: uuid('42'),
-          createdAt: now
+          createdAt: at
         },
         [
           {
@@ -423,7 +486,7 @@ databaseTest(
             taxAmount: 0,
             totalAmount: 1000,
             taxMode: 'exclusive',
-            createdAt: now
+            createdAt: at
           }
         ],
         [
@@ -435,47 +498,52 @@ databaseTest(
             type: 'cash',
             amount: 1000,
             reference: null,
-            createdAt: now
+            createdAt: at
           }
         ]
       )
-      // The refund was sent before the suspension and its answer was lost: `unresolved`.
-      repositories.localRefunds.claimForDispatch(refundUuid, now)
-      repositories.localRefunds.markUnresolved(refundUuid, 'transport', 'timeout', now)
+      // Sent before the suspension, its answer lost: `unresolved`.
+      h.repositories.localRefunds.claimForDispatch(refundUuid, at)
+      h.repositories.localRefunds.markUnresolved(refundUuid, 'transport', 'timeout', at)
 
-      // Resuming an existing refund needs none of the new-refund dependencies.
-      const refunds = new RefundService({
-        apiClient: h.apiClient,
-        localSale: repositories.localSale,
-        localRefunds: repositories.localRefunds,
-        access: undefined as never,
-        shiftAuthority: undefined as never,
-        catalog: { listPaymentMethods: () => [] },
-        now: () => new Date(h.clock.now),
-        uploadRefund
-      })
+      // 1. Suspended: the server holds the first acceptance; the till keeps it resumable, twice.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await refundService(h).resumeRefund(refundUuid)
+        const row = h.repositories.localRefunds.findByLocalUuid(refundUuid)
+        equal(row?.submissionState, 'unresolved')
+        equal(row?.lastErrorCode, 'COMPANY_SUSPENDED')
+        equal(row?.requestJson, requestJson)
+      }
+      equal(h.access.isSuspended(), true)
+      equal(net.committedRefunds.size, 0)
 
-      // Suspended: the server holds the first acceptance; the till keeps it resumable.
-      const held = await refunds.resumeRefund(refundUuid)
-      equal(net.requests.length, 1)
-      const heldRow = repositories.localRefunds.findByLocalUuid(refundUuid)
-      equal(heldRow?.submissionState, 'unresolved')
-      equal(heldRow?.lastErrorCode, 'COMPANY_SUSPENDED')
-      equal(heldRow?.requestJson, requestJson)
-      ok(held.localRefundUuid === refundUuid)
+      // 2. Restart while suspended: the refund and the known suspension are read back from the file.
+      h = restart(sandbox, h)
+      equal(h.repositories.localRefunds.findByLocalUuid(refundUuid)?.submissionState, 'unresolved')
       equal(h.access.isSuspended(), true)
 
-      // Resumed: the same frozen bytes are accepted.
+      // 3. Resumed: the server commits, but the answer is lost. Still `unresolved`, never `rejected`.
       net.suspended = false
-      await refunds.resumeRefund(refundUuid)
-      const accepted = repositories.localRefunds.findByLocalUuid(refundUuid)
+      net.loseNextRefundAnswer = true
+      await refundService(h).resumeRefund(refundUuid)
+      equal(h.repositories.localRefunds.findByLocalUuid(refundUuid)?.submissionState, 'unresolved')
+      equal(net.committedRefunds.size, 1)
+
+      // 4. Restart, resume again: the same key and bytes resolve to the committed refund (duplicate answer).
+      h = restart(sandbox, h)
+      await refundService(h).resumeRefund(refundUuid)
+      const accepted = h.repositories.localRefunds.findByLocalUuid(refundUuid)
       equal(accepted?.submissionState, 'accepted')
       equal(accepted?.refundNumber, 'RF-0001')
       equal(accepted?.requestJson, requestJson)
-      equal(net.requests.length, 2)
       equal(h.access.isSuspended(), false)
+
+      const sent = net.bodies.filter((b) => b.route === 'refund')
+      equal(sent.length, 4)
+      ok(sent.every((b) => b.body === requestJson))
+      equal(net.committedRefunds.size, 1)
     } finally {
-      closeDatabase(database)
+      closeDatabase(h.database)
     }
   }
 )

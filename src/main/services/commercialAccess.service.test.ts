@@ -9,6 +9,7 @@ import {
 } from '@shared/contracts/license.contract'
 import { LICENSE_TRUSTED_TIME_ANCHOR_KEY } from '../repositories/licenseMetadata.repository'
 import { CommercialAccessService } from './commercialAccess.service'
+import { RefundAccessService } from './refundAccess.service'
 
 function validLicense(overrides: Partial<LicenseStatus> = {}): LicenseStatus {
   return {
@@ -353,6 +354,22 @@ describe('CommercialAccessService', () => {
         })
       )
     }
+  })
+
+  it('Phase 3: a platform suspension stops a new refund before anything is prepared or sent', () => {
+    const { service, state } = createService({ companySuspended: true })
+    const refunds = new RefundAccessService({
+      commercialAccess: service,
+      permissions: { hasPermission: () => true }
+    })
+
+    expect(refunds.canRefund()).toBe(false)
+    expect(() => refunds.assertCanRefund()).toThrow(
+      expect.objectContaining({ backendCode: 'COMMERCIAL_ACCESS_COMPANY_SUSPENDED' })
+    )
+
+    state.companySuspended = false
+    expect(refunds.canRefund()).toBe(true)
   })
 
   it('Phase 3: a platform suspension stops new sales only; sync (uploads, shift close) stays allowed and inactive still wins', () => {
