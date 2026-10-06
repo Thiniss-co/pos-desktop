@@ -303,6 +303,27 @@ refusalCase(
 )
 
 refusalCase(
+  'the GUI fixture named-product precondition needs a bounded count',
+  'create-named-products needs <count 1-25>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['create-named-products', '26'] }
+)
+
+refusalCase(
+  'the GUI fixture named-product precondition refuses a non-numeric count',
+  'create-named-products needs <count 1-25>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['create-named-products', '-1'] }
+)
+
+refusalCase(
+  'the GUI fixture plain-product precondition needs a bounded count',
+  'create-plain-products needs <count 1-25>',
+  () => {},
+  { script: GUI_FIXTURE, args: ['create-plain-products', '0'] }
+)
+
+refusalCase(
   'the GUI fixture mixed-tax report is read-only and takes no argument',
   'mixed-tax-report takes no argument',
   () => {},
