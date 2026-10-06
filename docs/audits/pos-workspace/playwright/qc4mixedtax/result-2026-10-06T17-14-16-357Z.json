@@ -1,0 +1,290 @@
+{
+  "journey": "qc4mixedtax",
+  "startedAt": "2026-10-06T17:14:44.670Z",
+  "runDir": "/tmp/pos-pw-d8MZsv",
+  "steps": [
+    {
+      "at": "2026-10-06T17:14:47.360Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:42763",
+      "database": "/tmp/pos-pw-d8MZsv/qc4mixedtax/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T17:14:53.785Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T17:14:54.870Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-d8MZsv/qc4mixedtax/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T17:14:55.860Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T17:14:55.927Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:14:56.874Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-06T17:14:58.673Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:14:58.808Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:14:59.002Z",
+      "label": "precondition: categorized taxes and mixed-mode products (fixture)",
+      "products": {
+        "MIX-INC": {
+          "uuid": "3d95308b-cda5-4b7f-8fc6-ac6e8290c025",
+          "barcode": "7780000000011",
+          "tax_mode": "inclusive",
+          "tax_category": "standard"
+        },
+        "MIX-ZERO": {
+          "uuid": "c7e63010-8783-43cd-9b9b-38a9b40db89e",
+          "barcode": "7780000000028",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated"
+        },
+        "MIX-EXEMPT": {
+          "uuid": "ebb4afbd-e0f9-40cf-b638-a5180ee6c4ea",
+          "barcode": "7780000000035",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt"
+        }
+      },
+      "precondition": true
+    },
+    {
+      "at": "2026-10-06T17:14:59.674Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:14:59.724Z",
+      "label": "1: installed contract and categories",
+      "policy": "per_line",
+      "categories": [
+        {
+          "sku": "COLA-CAN",
+          "tax_mode": "exclusive",
+          "tax_category": null
+        },
+        {
+          "sku": "MIX-EXEMPT",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt"
+        },
+        {
+          "sku": "MIX-INC",
+          "tax_mode": "inclusive",
+          "tax_category": "standard"
+        },
+        {
+          "sku": "MIX-ZERO",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:14:59.911Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T17:15:00.129Z",
+      "label": "scanned",
+      "code": "7780000000011"
+    },
+    {
+      "at": "2026-10-06T17:15:00.327Z",
+      "label": "scanned",
+      "code": "7780000000028"
+    },
+    {
+      "at": "2026-10-06T17:15:00.513Z",
+      "label": "scanned",
+      "code": "7780000000028"
+    },
+    {
+      "at": "2026-10-06T17:15:00.724Z",
+      "label": "scanned",
+      "code": "7780000000035"
+    },
+    {
+      "at": "2026-10-06T17:15:01.255Z",
+      "screenshot": "02a-mixed-cart.png"
+    },
+    {
+      "at": "2026-10-06T17:15:01.255Z",
+      "label": "2: mixed cart built",
+      "mixedRefusalShown": false
+    },
+    {
+      "at": "2026-10-06T17:15:01.760Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:15:01.919Z",
+      "screenshot": "02b-sale-complete.png"
+    },
+    {
+      "at": "2026-10-06T17:15:02.036Z",
+      "label": "3: local invoice",
+      "header": "mixed",
+      "version": 5,
+      "totals": {
+        "local_uuid": "6994c86d-be31-4411-af71-b7ec83218cea",
+        "tax_mode": "mixed",
+        "subtotal_amount": 3850,
+        "discount_total_amount": 0,
+        "tax_total_amount": 375,
+        "grand_total_amount": 4075
+      },
+      "lines": [
+        {
+          "product_uuid": "6421c50d-833b-47dd-8c57-13c03802ed76",
+          "tax_mode": "exclusive",
+          "tax_category": null,
+          "tax_amount": 225,
+          "total_amount": 1725
+        },
+        {
+          "product_uuid": "3d95308b-cda5-4b7f-8fc6-ac6e8290c025",
+          "tax_mode": "inclusive",
+          "tax_category": "standard",
+          "tax_amount": 150,
+          "total_amount": 1150
+        },
+        {
+          "product_uuid": "c7e63010-8783-43cd-9b9b-38a9b40db89e",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated",
+          "tax_amount": 0,
+          "total_amount": 500
+        },
+        {
+          "product_uuid": "ebb4afbd-e0f9-40cf-b638-a5180ee6c4ea",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt",
+          "tax_amount": 0,
+          "total_amount": 700
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:15:02.300Z",
+      "label": "4: server invoice",
+      "contracts": [
+        "per_line",
+        "per_line"
+      ],
+      "server": {
+        "idempotency_key": "6994c86d-be31-4411-af71-b7ec83218cea",
+        "tax_mode": "mixed",
+        "contract_version": 5,
+        "offline_sale_authority": true,
+        "subtotal": 3850,
+        "discount": 0,
+        "tax": 375,
+        "grand": 4075,
+        "sync_records": 1,
+        "stock_movements": 1,
+        "accounting_journals": 1,
+        "items": [
+          {
+            "product_uuid": "6421c50d-833b-47dd-8c57-13c03802ed76",
+            "tax_mode": "exclusive",
+            "tax_category": null,
+            "tax_amount": 225,
+            "total_amount": 1725,
+            "discount_amount": 0,
+            "subtotal_amount": 1500
+          },
+          {
+            "product_uuid": "3d95308b-cda5-4b7f-8fc6-ac6e8290c025",
+            "tax_mode": "inclusive",
+            "tax_category": "standard",
+            "tax_amount": 150,
+            "total_amount": 1150,
+            "discount_amount": 0,
+            "subtotal_amount": 1150
+          },
+          {
+            "product_uuid": "c7e63010-8783-43cd-9b9b-38a9b40db89e",
+            "tax_mode": "exclusive",
+            "tax_category": "zero_rated",
+            "tax_amount": 0,
+            "total_amount": 500,
+            "discount_amount": 0,
+            "subtotal_amount": 500
+          },
+          {
+            "product_uuid": "ebb4afbd-e0f9-40cf-b638-a5180ee6c4ea",
+            "tax_mode": "inclusive",
+            "tax_category": "exempt",
+            "tax_amount": 0,
+            "total_amount": 700,
+            "discount_amount": 0,
+            "subtotal_amount": 700
+          }
+        ],
+        "refunds": []
+      }
+    },
+    {
+      "at": "2026-10-06T17:15:02.795Z",
+      "screenshot": "05a-partial-refund.png"
+    },
+    {
+      "at": "2026-10-06T17:15:03.203Z",
+      "screenshot": "05b-refund-accepted.png"
+    },
+    {
+      "at": "2026-10-06T17:15:03.422Z",
+      "label": "5: partial refund",
+      "localRefund": {
+        "submission_state": "accepted",
+        "tax_total_amount": 150,
+        "grand_total_amount": 1400
+      },
+      "serverRefund": {
+        "tax": 150,
+        "grand": 1400,
+        "items": [
+          {
+            "product_uuid": "3d95308b-cda5-4b7f-8fc6-ac6e8290c025",
+            "tax_mode": "inclusive",
+            "tax_category": "standard",
+            "quantity": 1,
+            "tax_amount": 150,
+            "total_amount": 1150
+          },
+          {
+            "product_uuid": "c7e63010-8783-43cd-9b9b-38a9b40db89e",
+            "tax_mode": "exclusive",
+            "tax_category": "zero_rated",
+            "quantity": 1,
+            "tax_amount": 0,
+            "total_amount": 250
+          }
+        ]
+      }
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T17:15:03.475Z"
+}

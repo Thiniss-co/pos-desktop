@@ -1,0 +1,303 @@
+{
+  "journey": "ws3persist",
+  "startedAt": "2026-10-06T15:27:03.537Z",
+  "runDir": "/tmp/pos-pw-QPWgsH",
+  "steps": [
+    {
+      "at": "2026-10-06T15:27:06.599Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:33339",
+      "database": "/tmp/pos-pw-QPWgsH/ws3persist/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T15:27:13.969Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T15:27:15.283Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-QPWgsH/ws3persist/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T15:27:16.557Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T15:27:16.620Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T15:27:18.663Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T15:27:18.832Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T15:27:20.208Z",
+      "label": "A: draft after pointer + keyboard rearrangement",
+      "draft": {
+        "version": 1,
+        "preset": "custom",
+        "cartSide": "start",
+        "cartShare": 67,
+        "density": "compact",
+        "catalogView": "compact",
+        "catalogCollapsed": false,
+        "sections": {
+          "cart": [
+            "scan",
+            "lines",
+            "actions",
+            "totals"
+          ],
+          "catalog": [
+            "search",
+            "categories",
+            "products"
+          ]
+        }
+      }
+    },
+    {
+      "at": "2026-10-06T15:27:20.362Z",
+      "screenshot": "A1-rearranged-draft.png"
+    },
+    {
+      "at": "2026-10-06T15:27:20.461Z",
+      "label": "A: applied",
+      "stored": [
+        {
+          "company_uuid": "96784cdd-9f02-424f-8954-d855f9d8d6b9",
+          "user_uuid": "6e3104db-7c9c-467a-94ea-c8d1516ce1e2",
+          "device_uuid": "569febf6-4bc2-4908-96b1-cc3f04a518c1",
+          "layout_json": {
+            "version": 1,
+            "preset": "custom",
+            "cartSide": "start",
+            "cartShare": 67,
+            "density": "compact",
+            "catalogView": "compact",
+            "catalogCollapsed": false,
+            "sections": {
+              "cart": [
+                "scan",
+                "lines",
+                "actions",
+                "totals"
+              ],
+              "catalog": [
+                "search",
+                "categories",
+                "products"
+              ]
+            }
+          },
+          "schema_version": 1,
+          "updated_at": "2026-10-06T15:27:20.402Z"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T15:27:20.616Z",
+      "screenshot": "A2-applied.png"
+    },
+    {
+      "at": "2026-10-06T15:27:22.036Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-06T15:27:23.718Z",
+      "label": "B: after restart",
+      "appliedFacts": {
+        "preset": "custom",
+        "side": "start",
+        "density": "compact",
+        "catalogMode": "panel",
+        "firstRegion": "cart",
+        "cartOrder": [
+          "scan",
+          "lines",
+          "actions",
+          "totals"
+        ],
+        "catalogOrder": [
+          "search",
+          "categories"
+        ],
+        "cartWidth": 899
+      },
+      "restarted": {
+        "preset": "custom",
+        "side": "start",
+        "density": "compact",
+        "catalogMode": "panel",
+        "firstRegion": "cart",
+        "cartOrder": [
+          "scan",
+          "lines",
+          "actions",
+          "totals"
+        ],
+        "catalogOrder": [
+          "search",
+          "categories"
+        ],
+        "cartWidth": 899
+      }
+    },
+    {
+      "at": "2026-10-06T15:27:23.855Z",
+      "screenshot": "B1-restored-after-restart.png"
+    },
+    {
+      "at": "2026-10-06T15:27:26.138Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-06T15:27:27.668Z",
+      "label": "C: restore defaults survives a restart",
+      "afterRestore": {
+        "preset": "cartFirst",
+        "side": "end",
+        "density": "compact",
+        "catalogMode": "panel",
+        "firstRegion": "catalog",
+        "cartOrder": [
+          "actions",
+          "scan",
+          "lines",
+          "totals"
+        ],
+        "catalogOrder": [
+          "categories",
+          "search"
+        ],
+        "cartWidth": 859
+      }
+    },
+    {
+      "at": "2026-10-06T15:27:28.087Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-06T15:27:28.136Z",
+      "label": "sign-in submitted",
+      "user": "manager@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T15:27:29.433Z",
+      "screenshot": "D1-manager-default.png"
+    },
+    {
+      "at": "2026-10-06T15:27:29.925Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-06T15:27:29.987Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T15:27:31.220Z",
+      "label": "D: per-user layouts",
+      "cashier": "scanner",
+      "managerDefault": "cartFirst",
+      "manager": "balanced",
+      "cashierAgain": "scanner",
+      "rows": [
+        {
+          "user": "6e3104db-7c9c-467a-94ea-c8d1516ce1e2",
+          "device": "569febf6-4bc2-4908-96b1-cc3f04a518c1",
+          "preset": "scanner"
+        },
+        {
+          "user": "bebb33f9-8850-4dc5-9296-bc1c9bc27eae",
+          "device": "569febf6-4bc2-4908-96b1-cc3f04a518c1",
+          "preset": "balanced"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T15:27:31.340Z",
+      "screenshot": "D2-cashier-layout-back.png"
+    },
+    {
+      "at": "2026-10-06T15:27:32.155Z",
+      "screenshot": "E1-shrunk-800x600.png"
+    },
+    {
+      "at": "2026-10-06T15:27:32.664Z",
+      "screenshot": "E2-grown-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T15:27:32.664Z",
+      "label": "E: shrink and grow",
+      "requested": 70,
+      "small": {
+        "catalogMode": "rail",
+        "cart": {
+          "x": 88,
+          "y": 72,
+          "width": 700,
+          "height": 516
+        },
+        "footer": true,
+        "overflow": false
+      },
+      "large": {
+        "catalogMode": "panel",
+        "cartWidth": 1327,
+        "shareOfBody": 69
+      }
+    },
+    {
+      "at": "2026-10-06T15:27:33.289Z",
+      "screenshot": "F1-settings-preview.png"
+    },
+    {
+      "at": "2026-10-06T15:27:33.416Z",
+      "label": "F: controls after choosing Scanner focused",
+      "radios": {
+        "workspace-preset": "Scanner focusedThe cart fills the screen; open products from the side rail when needed.",
+        "workspace-collapse": "Collapsed",
+        "workspace-view": "Compact",
+        "workspace-side": "Right"
+      }
+    },
+    {
+      "at": "2026-10-06T15:27:33.568Z",
+      "screenshot": "F2-settings-editing.png"
+    },
+    {
+      "at": "2026-10-06T15:27:34.288Z",
+      "label": "F: settings applied",
+      "previewLabel": "Preview of the selected layout: Custom · Cart width 70% · Shown · Compact · Actions, Scan entry, Cart lines, Total and Pay",
+      "fromSettings": {
+        "preset": "scanner",
+        "side": "end",
+        "density": "compact",
+        "catalogMode": "rail",
+        "firstRegion": "catalog",
+        "cartOrder": [
+          "scan",
+          "actions",
+          "lines",
+          "totals"
+        ],
+        "catalogOrder": [],
+        "cartWidth": 1266
+      }
+    },
+    {
+      "at": "2026-10-06T15:27:34.395Z",
+      "screenshot": "F3-pos-after-settings.png"
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T15:27:34.452Z"
+}

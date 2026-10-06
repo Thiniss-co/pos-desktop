@@ -1,329 +1,656 @@
 <script setup lang="ts">
 /**
- * V3 selling layout: the catalog panel (fluid) beside the cart column (340 / 380 / 420px at
- * < 1200 / ≥ 1200 / ≥ 1600). Below 900px the cart leaves the row and becomes a full-height sheet
- * (`sheetOpen`), with the `compact-bar` summary pinned to the bottom. RTL mirrors automatically
- * (the cart sits on the left) because the row follows the document direction.
+ * POS workspace: the catalog and the cart as two constrained regions, laid out from the cashier's
+ * (saved or draft) layout and what the window can show (`resolveEffectiveLayout`). Presentational:
+ * the page owns the layout store; this component only measures, renders and emits.
  *
- * From `wide` up, a separator between the two panels lets the cashier resize the cart. The width
- * is a LAYOUT-ONLY preference held by the preferences cartLayout store (persisted in main, never in
- * browser storage); `null` keeps the per-breakpoint defaults above. The applied width is always
- * clamped to [320, min(640, 50% of the workspace)] — on every change and on every resize — so the
- * catalog keeps at least half of the row and the page never scrolls sideways. The stored
- * preference itself is not rewritten by a resize: a width chosen on a large monitor comes back
- * when the window is large again.
+ * - Regions and sections render in DOM order = visual order (keyed, so moving them keeps component
+ *   state); the cart side is logical and mirrors in RTL.
+ * - The cart is a flex column whose lines section is the only part that scrolls; the totals section
+ *   is always last and pinned.
+ * - Products collapse to a 56px rail when collapsed or when the window is too narrow; the rail opens
+ *   a browser beside a minimum-width cart (or above it when even that cannot fit) — never over it.
+ * - Resize and rearrange handles exist ONLY while `editing`. In normal selling there is no separator,
+ *   no drag handle and nothing to drag by accident. Every pointer action has a keyboard equivalent:
+ *   the separator takes arrows/Home/End, and each section has Move up / Move down buttons.
  */
-import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue'
-import { storeToRefs } from 'pinia'
-import { POS_CART_WIDTH_MIN } from '@shared/contracts/preferences.contract'
-import { useCartLayoutStore } from '@renderer/modules/preferences/cartLayout.store'
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import {
+  POS_CART_SHARE_MAX,
+  POS_CART_SHARE_MIN,
+  type PosCartSectionId,
+  type PosCatalogSectionId,
+  type PosWorkspaceLayout
+} from '@shared/contracts/posWorkspace.contract'
+import {
+  resolveEffectiveLayout,
+  type EffectiveWorkspaceLayout
+} from '@renderer/modules/preferences/workspaceLayout'
 import AppIcon from '../common/AppIcon.vue'
+
+type Column = 'cart' | 'catalog'
 
 const props = withDefaults(
   defineProps<{
-    sheetOpen?: boolean
+    layout: PosWorkspaceLayout
+    touchMode?: boolean
+    editing?: boolean
+    railOpen?: boolean
     catalogLabel?: string
     cartLabel?: string
-    /** Accessible name of the resize separator. */
     resizeLabel?: string
-    /** Accessible name (and tooltip) of the "reset width" button. */
-    resetWidthLabel?: string
-    /** Spoken value of the separator, given the cart width in px. */
-    widthValueText?: (px: number) => string
+    widthValueText?: (percent: number) => string
+    railLabel?: string
+    closeBrowserLabel?: string
+    sectionLabels?: Partial<Record<PosCartSectionId | PosCatalogSectionId, string>>
+    moveUpLabel?: (section: string) => string
+    moveDownLabel?: (section: string) => string
+    dragLabel?: (section: string) => string
+    swapSideLabel?: string
+    /** Which sections can move up/down (the page validates against the supported orders). */
+    canMove?: (column: Column, id: string, direction: -1 | 1) => boolean
   }>(),
   {
-    sheetOpen: false,
+    touchMode: false,
+    editing: false,
+    railOpen: false,
     catalogLabel: undefined,
     cartLabel: undefined,
     resizeLabel: 'Resize cart',
-    resetWidthLabel: 'Reset cart width',
-    widthValueText: (px: number) => `${px} pixels`
+    widthValueText: (percent: number) => `${percent}%`,
+    railLabel: 'Products',
+    closeBrowserLabel: 'Close products',
+    sectionLabels: () => ({}),
+    moveUpLabel: (section: string) => `Move ${section} up`,
+    moveDownLabel: (section: string) => `Move ${section} down`,
+    dragLabel: (section: string) => `Drag ${section}`,
+    swapSideLabel: 'Move the cart to the other side',
+    canMove: () => true
   }
 )
 
-const MIN_WIDTH = POS_CART_WIDTH_MIN
-const MAX_WIDTH_CAP = 640
-const MAX_WORKSPACE_SHARE = 0.5
-const KEY_STEP = 16
-const KEY_STEP_LARGE = 64
-
-const cartLayout = useCartLayoutStore()
-const { width: preferredWidth } = storeToRefs(cartLayout)
+const emit = defineEmits<{
+  'update:railOpen': [boolean]
+  /** Requested cart share in percent (already bounded to the contract range). */
+  resize: [number]
+  move: [{ column: Column; id: string; direction: -1 | 1 }]
+  reorder: [{ column: Column; order: string[] }]
+  swapSide: []
+  effective: [EffectiveWorkspaceLayout]
+}>()
 
 const cartId = useId()
+const browserId = useId()
 const bodyEl = ref<HTMLElement | null>(null)
-const cartEl = ref<HTMLElement | null>(null)
-const handleEl = ref<HTMLElement | null>(null)
-/** Content width of the catalog+cart row; 0 until measured (then the 640px cap applies alone). */
-const workspaceWidth = ref(0)
-const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
-const dragging = ref(false)
-let drag: { pointerId: number; grabOffset: number } | null = null
-let resizeObserver: ResizeObserver | null = null
+const bodyWidth = ref(0)
+const bodyHeight = ref(0)
+const viewportWidth = ref(typeof window === 'undefined' ? 1366 : window.innerWidth)
+let observer: ResizeObserver | null = null
+let dirObserver: MutationObserver | null = null
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
+const viewportHeight = ref(typeof window === 'undefined' ? 768 : window.innerHeight)
 
-const maxWidth = computed(() => {
-  const share =
-    workspaceWidth.value > 0
-      ? Math.floor(workspaceWidth.value * MAX_WORKSPACE_SHARE)
-      : Number.POSITIVE_INFINITY
-  return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH_CAP, share))
-})
-
-/** The design default for the current breakpoint — mirrors the `--cart-w` classes below. */
-const defaultWidth = computed(() =>
-  viewportWidth.value >= 1600 ? 420 : viewportWidth.value >= 1200 ? 380 : 340
+// Until the body has been measured (first paint), estimate it from the window (minus the 12px body
+// padding and the 60px top bar), so the first frame already has the right regions.
+const effective = computed(() =>
+  resolveEffectiveLayout(props.layout, {
+    width: bodyWidth.value > 0 ? bodyWidth.value : Math.max(0, viewportWidth.value - 24),
+    height: bodyHeight.value > 0 ? bodyHeight.value : Math.max(0, viewportHeight.value - 84),
+    viewportWidth: viewportWidth.value,
+    touchMode: props.touchMode
+  })
 )
 
-/** The width actually applied when the cashier has chosen one; `null` = the design default. */
-const appliedWidth = computed(() =>
-  preferredWidth.value === null ? null : clamp(preferredWidth.value, MIN_WIDTH, maxWidth.value)
-)
+watch(effective, (value) => emit('effective', value), { immediate: true })
 
-const currentWidth = computed(
-  () => appliedWidth.value ?? clamp(defaultWidth.value, MIN_WIDTH, maxWidth.value)
+const rtl = ref(false)
+/** Whether the cart is on the visual right (logical `end` in LTR, `start` in RTL). */
+const cartOnRight = computed(() => (effective.value.cartSide === 'end') !== rtl.value)
+const regionOrder = computed<Column[]>(() =>
+  effective.value.cartSide === 'end' ? ['catalog', 'cart'] : ['cart', 'catalog']
 )
-
-const cartStyle = computed(() =>
-  !props.sheetOpen && appliedWidth.value !== null
-    ? { '--cart-w': `${appliedWidth.value}px` }
-    : undefined
+const railMode = computed(() => effective.value.catalogMode === 'rail')
+const browserBeside = computed(
+  () => railMode.value && props.railOpen && effective.value.railBrowserMode === 'beside'
+)
+const browserStacked = computed(
+  () => railMode.value && props.railOpen && effective.value.railBrowserMode === 'stacked'
+)
+const catalogSections = computed(() =>
+  effective.value.sections.catalog.filter((id) => id !== 'products')
 )
 
 function measure(): void {
   if (typeof window !== 'undefined') {
     viewportWidth.value = window.innerWidth
+    viewportHeight.value = window.innerHeight
   }
-
   const body = bodyEl.value
-
   if (!body) {
     return
   }
-
   const style = window.getComputedStyle(body)
-  const padding =
+  rtl.value = style.direction === 'rtl'
+  const paddingX =
     (Number.parseFloat(style.paddingInlineStart) || 0) +
     (Number.parseFloat(style.paddingInlineEnd) || 0)
-  workspaceWidth.value = Math.max(0, body.getBoundingClientRect().width - padding)
-}
-
-function isRtl(): boolean {
-  const scoped = handleEl.value?.closest('[dir]')?.getAttribute('dir')
-  return (scoped ?? document.documentElement.dir) === 'rtl'
-}
-
-function applyWidth(px: number): void {
-  cartLayout.setWidth(clamp(Math.round(px), MIN_WIDTH, maxWidth.value))
-}
-
-function resetWidth(): void {
-  void cartLayout.reset()
-}
-
-function resetFromButton(): void {
-  resetWidth()
-  // The button disappears with the custom width; keep keyboard focus on the separator.
-  handleEl.value?.focus()
-}
-
-/** Distance from the cart's inline-end edge (right in LTR, left in RTL) to the pointer. */
-function inlineEndDistance(clientX: number): number | null {
-  const rect = cartEl.value?.getBoundingClientRect()
-
-  if (!rect) {
-    return null
-  }
-
-  return isRtl() ? clientX - rect.left : rect.right - clientX
-}
-
-function onPointerDown(event: PointerEvent): void {
-  if (event.button !== 0 || !event.isPrimary) {
-    return
-  }
-
-  const distance = inlineEndDistance(event.clientX)
-  const cartWidth = cartEl.value?.getBoundingClientRect().width
-
-  if (distance === null || cartWidth === undefined) {
-    return
-  }
-
-  // Grabbing the handle a few px outside the cart edge must not make the cart jump by that much.
-  drag = { pointerId: event.pointerId, grabOffset: distance - cartWidth }
-  dragging.value = true
-  handleEl.value?.setPointerCapture?.(event.pointerId)
-}
-
-function onPointerMove(event: PointerEvent): void {
-  if (!drag || event.pointerId !== drag.pointerId) {
-    return
-  }
-
-  const distance = inlineEndDistance(event.clientX)
-
-  if (distance !== null) {
-    applyWidth(distance - drag.grabOffset)
-  }
-}
-
-function endDrag(event?: PointerEvent): void {
-  if (!drag || (event && event.pointerId !== drag.pointerId)) {
-    return
-  }
-
-  const handle = handleEl.value
-
-  if (handle?.hasPointerCapture?.(drag.pointerId)) {
-    handle.releasePointerCapture(drag.pointerId)
-  }
-
-  drag = null
-  dragging.value = false
-  void cartLayout.flush()
-}
-
-function onKeydown(event: KeyboardEvent): void {
-  switch (event.key) {
-    case 'ArrowLeft':
-    case 'ArrowRight': {
-      const step = event.shiftKey ? KEY_STEP_LARGE : KEY_STEP
-      // The arrow moves the handle visually. In LTR the cart is on the right, so moving the handle
-      // left widens it; in RTL the cart is on the left and the same key narrows it.
-      const widens = (event.key === 'ArrowLeft') !== isRtl()
-      applyWidth(currentWidth.value + (widens ? step : -step))
-      break
-    }
-    case 'Home':
-      applyWidth(MIN_WIDTH)
-      break
-    case 'End':
-      applyWidth(maxWidth.value)
-      break
-    case 'Enter':
-      resetWidth()
-      break
-    default:
-      return
-  }
-
-  event.preventDefault()
+  const paddingY =
+    (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0)
+  const rect = body.getBoundingClientRect()
+  bodyWidth.value = Math.max(0, rect.width - paddingX)
+  bodyHeight.value = Math.max(0, rect.height - paddingY)
 }
 
 onMounted(() => {
   measure()
   window.addEventListener('resize', measure)
-
-  // The row also changes width without a window resize (e.g. the navigation rail collapsing).
   if (typeof ResizeObserver !== 'undefined' && bodyEl.value) {
-    resizeObserver = new ResizeObserver(() => measure())
-    resizeObserver.observe(bodyEl.value)
+    observer = new ResizeObserver(() => measure())
+    observer.observe(bodyEl.value)
+  }
+  // The language (and so the direction) can flip without any resize.
+  if (typeof MutationObserver !== 'undefined') {
+    dirObserver = new MutationObserver(() => measure())
+    dirObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] })
   }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', measure)
-  resizeObserver?.disconnect()
-  resizeObserver = null
-  endDrag()
+  observer?.disconnect()
+  observer = null
+  dirObserver?.disconnect()
+  dirObserver = null
+  endResize()
+  endSectionDrag()
 })
+
+// --- Resize (editing only) ------------------------------------------------------------------------
+const resizing = ref(false)
+let resizePointer: number | null = null
+const KEY_STEP = 2
+const KEY_STEP_LARGE = 5
+
+function clampShare(value: number): number {
+  return Math.min(POS_CART_SHARE_MAX, Math.max(POS_CART_SHARE_MIN, Math.round(value)))
+}
+
+function requestShare(percent: number): void {
+  emit('resize', clampShare(percent))
+}
+
+function onResizeDown(event: PointerEvent): void {
+  if (!props.editing || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) {
+    return
+  }
+  resizePointer = event.pointerId
+  resizing.value = true
+  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+}
+
+function onResizeMove(event: PointerEvent): void {
+  if (!resizing.value || event.pointerId !== resizePointer || !bodyEl.value) {
+    return
+  }
+  const rect = bodyEl.value.getBoundingClientRect()
+  const style = window.getComputedStyle(bodyEl.value)
+  const padStart = Number.parseFloat(style.paddingLeft) || 0
+  const padEnd = Number.parseFloat(style.paddingRight) || 0
+  const cartPx = cartOnRight.value
+    ? rect.right - padEnd - event.clientX
+    : event.clientX - rect.left - padStart
+  if (bodyWidth.value > 0) {
+    requestShare((cartPx / bodyWidth.value) * 100)
+  }
+}
+
+function endResize(event?: PointerEvent): void {
+  if (!resizing.value || (event && event.pointerId !== resizePointer)) {
+    return
+  }
+  const target = event?.currentTarget as HTMLElement | undefined
+  if (resizePointer !== null && target?.hasPointerCapture?.(resizePointer)) {
+    target.releasePointerCapture(resizePointer)
+  }
+  resizePointer = null
+  resizing.value = false
+}
+
+function onResizeKey(event: KeyboardEvent): void {
+  const current = effective.value.appliedCartShare
+  const step = event.shiftKey ? KEY_STEP_LARGE : KEY_STEP
+  switch (event.key) {
+    case 'ArrowLeft':
+    case 'ArrowRight': {
+      // The arrow moves the handle visually: towards the cart narrows it, away from it widens it.
+      const towardsLeft = event.key === 'ArrowLeft'
+      const widens = towardsLeft === cartOnRight.value
+      requestShare(current + (widens ? step : -step))
+      break
+    }
+    case 'Home':
+      requestShare(effective.value.minCartShare)
+      break
+    case 'End':
+      requestShare(effective.value.maxCartShare)
+      break
+    default:
+      return
+  }
+  event.preventDefault()
+}
+
+// --- Section drag (editing only) ------------------------------------------------------------------
+const dragging = ref<{ column: Column; id: string; pointerId: number } | null>(null)
+const dropIndex = ref<number | null>(null)
+
+function sectionElements(column: Column): HTMLElement[] {
+  return Array.from(
+    bodyEl.value?.querySelectorAll<HTMLElement>(`[data-section-column="${column}"]`) ?? []
+  )
+}
+
+function onSectionDragDown(event: PointerEvent, column: Column, id: string): void {
+  if (!props.editing || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) {
+    return
+  }
+  dragging.value = { column, id, pointerId: event.pointerId }
+  dropIndex.value = null
+  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+}
+
+function onSectionDragMove(event: PointerEvent): void {
+  const drag = dragging.value
+  if (!drag || event.pointerId !== drag.pointerId) {
+    return
+  }
+  const elements = sectionElements(drag.column)
+  let index = elements.length - 1
+  for (let i = 0; i < elements.length; i += 1) {
+    const rect = elements[i].getBoundingClientRect()
+    if (event.clientY < rect.top + rect.height / 2) {
+      index = i
+      break
+    }
+  }
+  dropIndex.value = index
+}
+
+function endSectionDrag(event?: PointerEvent): void {
+  const drag = dragging.value
+  if (!drag || (event && event.pointerId !== drag.pointerId)) {
+    return
+  }
+  const target = event?.currentTarget as HTMLElement | undefined
+  if (target?.hasPointerCapture?.(drag.pointerId)) {
+    target.releasePointerCapture(drag.pointerId)
+  }
+  const elements = sectionElements(drag.column)
+  const order = elements.map((element) => element.dataset.section ?? '')
+  const from = order.indexOf(drag.id)
+  if (event && event.type === 'pointerup' && dropIndex.value !== null && from >= 0) {
+    const next = order.filter((value) => value !== drag.id)
+    // `dropIndex` counts the dragged section itself; once it is removed, later slots shift by one.
+    const insertAt = dropIndex.value > from ? dropIndex.value - 1 : dropIndex.value
+    next.splice(Math.min(insertAt, next.length), 0, drag.id)
+    if (next.join() !== order.join()) {
+      emit('reorder', { column: drag.column, order: next })
+    }
+  }
+  dragging.value = null
+  dropIndex.value = null
+}
+
+// --- Swap sides by dragging the catalog handle (editing only) ------------------------------------
+let swapDrag: { pointerId: number; startX: number } | null = null
+
+function onSwapDown(event: PointerEvent): void {
+  if (!props.editing || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) {
+    return
+  }
+  swapDrag = { pointerId: event.pointerId, startX: event.clientX }
+  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+}
+
+function onSwapUp(event: PointerEvent): void {
+  if (!swapDrag || event.pointerId !== swapDrag.pointerId) {
+    return
+  }
+  const target = event.currentTarget as HTMLElement
+  if (target.hasPointerCapture?.(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId)
+  }
+  const travelled = Math.abs(event.clientX - swapDrag.startX)
+  swapDrag = null
+  // Dragging the catalog across at least a third of the workspace moves it to the other side.
+  if (travelled > bodyWidth.value / 3) {
+    emit('swapSide')
+  }
+}
+
+function label(id: string): string {
+  return props.sectionLabels[id as PosCartSectionId] ?? id
+}
+
+function openRail(): void {
+  emit('update:railOpen', !props.railOpen)
+}
 </script>
 
 <template>
   <div
     class="pos-workspace-shell flex min-h-0 flex-1 flex-col"
-    :class="{ 'pos-workspace-shell--resizing cursor-col-resize select-none': dragging }"
+    :class="{
+      'pos-workspace-shell--editing': editing,
+      'pos-workspace-shell--resizing cursor-col-resize select-none': resizing,
+      'select-none': dragging !== null
+    }"
+    :data-density="effective.density"
+    :data-preset="effective.preset"
+    :data-cart-side="effective.cartSide"
+    :data-catalog-mode="effective.catalogMode"
+    :data-short="effective.short ? 'true' : undefined"
   >
+    <div v-if="$slots['edit-bar'] && editing" class="pos-workspace-shell__edit-bar flex-none">
+      <slot name="edit-bar" :effective="effective" />
+    </div>
     <div
-      v-if="$slots.toolbar"
-      class="pos-workspace-shell__toolbar flex flex-none flex-col gap-2 px-4 pt-4"
+      ref="bodyEl"
+      class="pos-workspace-shell__body flex min-h-0 flex-1 gap-3 overflow-hidden p-3"
+      :class="{ 'pt-2': editing }"
     >
-      <slot name="toolbar" />
-    </div>
-    <div ref="bodyEl" class="pos-workspace-shell__body flex min-h-0 flex-1 gap-4 p-3 wide:p-4">
-      <section
-        class="pos-workspace-shell__catalog flex min-w-0 flex-1 flex-col gap-3 rounded-lg border border-line bg-surf p-3 shadow-panel wide:p-4"
-        :aria-label="catalogLabel"
-      >
-        <slot name="catalog" />
-      </section>
-      <!-- Sits inside the 16px gap (negative margins cancel the extra gap it adds), so the panels
-           keep exactly their previous spacing. Never rendered for the compact sheet. -->
-      <div
-        v-if="!sheetOpen"
-        class="pos-workspace-shell__resizer group/resizer relative -ms-4 -me-4 hidden w-4 flex-none wide:flex"
-      >
-        <div
-          ref="handleEl"
-          class="pos-workspace-shell__resize-handle flex h-full w-4 cursor-col-resize touch-none items-center justify-center rounded-md"
-          role="separator"
-          aria-orientation="vertical"
-          tabindex="0"
-          :aria-label="resizeLabel"
-          :aria-controls="cartId"
-          :aria-valuenow="currentWidth"
-          :aria-valuemin="MIN_WIDTH"
-          :aria-valuemax="maxWidth"
-          :aria-valuetext="widthValueText(currentWidth)"
-          @mousedown.prevent
-          @pointerdown="onPointerDown"
-          @pointermove="onPointerMove"
-          @pointerup="endDrag"
-          @pointercancel="endDrag"
-          @lostpointercapture="endDrag"
-          @keydown="onKeydown"
-          @dblclick="resetWidth"
-        >
-          <span
-            class="pointer-events-none h-10 w-2 rounded-full transition-colors"
-            :class="
-              dragging
-                ? 'bg-pri'
-                : 'bg-line-strong group-hover/resizer:bg-pri group-focus-within/resizer:bg-pri'
-            "
-            aria-hidden="true"
-          />
-        </div>
-        <div
-          v-if="preferredWidth !== null"
-          class="pointer-events-none absolute start-0 end-0 top-3 z-10 flex justify-center"
-        >
-          <button
-            type="button"
-            class="pos-workspace-shell__reset-width hover-reveal pointer-events-auto flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-full border border-control bg-surf text-muted opacity-0 shadow-panel transition-opacity hover:bg-subtle hover:text-ink focus-visible:opacity-100 group-focus-within/resizer:opacity-100 group-hover/resizer:opacity-100"
-            :aria-label="resetWidthLabel"
-            :title="resetWidthLabel"
-            @click="resetFromButton"
+      <template v-for="region in regionOrder" :key="region">
+        <!-- Catalog: a panel, or the rail with its browser. -->
+        <template v-if="region === 'catalog'">
+          <section
+            v-if="!railMode"
+            class="pos-workspace-shell__catalog flex min-w-0 flex-none flex-col gap-2.5 overflow-x-hidden overflow-y-auto rounded-lg border border-line bg-surf p-2.5 shadow-panel"
+            :style="{ width: `${effective.catalogWidth}px` }"
+            :aria-label="catalogLabel"
           >
-            <AppIcon name="restart_alt" :size="18" />
-          </button>
-        </div>
-      </div>
-      <aside
-        :id="cartId"
-        ref="cartEl"
-        class="pos-workspace-shell__cart min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-surf"
-        :class="
-          sheetOpen
-            ? 'fixed inset-0 z-40 flex'
-            : [
-                'hidden w-(--cart-w) flex-none rounded-lg border border-line shadow-panel wide:flex [--cart-w:340px] cartlg:[--cart-w:380px] hd:[--cart-w:420px]',
-                // CSS backstop for the JS clamp, covering the frame between a resize and re-measure.
-                appliedWidth === null ? '' : 'max-w-[min(640px,50%)]'
-              ]
-        "
-        :style="cartStyle"
-        :aria-label="cartLabel"
-      >
-        <slot name="cart" />
-      </aside>
-    </div>
-    <div v-if="$slots['compact-bar'] && !sheetOpen" class="flex-none wide:hidden">
-      <slot name="compact-bar" />
+            <div
+              v-if="editing"
+              class="pos-workspace-shell__swap flex flex-none items-center gap-2 rounded-md bg-pri-soft px-2 py-1 text-sm font-semibold text-pri-text"
+            >
+              <span
+                class="pos-workspace-shell__swap-handle flex size-9 cursor-grab touch-none items-center justify-center rounded-md hover:bg-surf"
+                role="img"
+                :aria-label="dragLabel(catalogLabel ?? 'catalog')"
+                @pointerdown="onSwapDown"
+                @pointerup="onSwapUp"
+                @pointercancel="onSwapUp"
+                ><AppIcon name="drag_indicator" :size="20"
+              /></span>
+              <span class="min-w-0 flex-1 truncate">{{ catalogLabel }}</span>
+              <button
+                type="button"
+                class="pos-workspace-shell__swap-button flex size-9 items-center justify-center rounded-md hover:bg-surf focus-visible:ring-2 focus-visible:ring-focus"
+                :aria-label="swapSideLabel"
+                :title="swapSideLabel"
+                @click="emit('swapSide')"
+              >
+                <AppIcon name="swap_horiz" :size="20" />
+              </button>
+            </div>
+            <template v-for="(id, index) in catalogSections" :key="id">
+              <div
+                class="pos-workspace-section flex flex-none flex-col"
+                :class="{ 'pos-workspace-section--editing p-1': editing }"
+                :data-section="id"
+                data-section-column="catalog"
+              >
+                <div
+                  v-if="editing"
+                  class="pos-workspace-section__handle mb-1 flex items-center gap-1.5 text-xs font-semibold text-pri-text"
+                >
+                  <span
+                    class="flex size-9 cursor-grab touch-none items-center justify-center rounded-md hover:bg-pri-soft"
+                    role="img"
+                    :aria-label="dragLabel(label(id))"
+                    @pointerdown="onSectionDragDown($event, 'catalog', id)"
+                    @pointermove="onSectionDragMove"
+                    @pointerup="endSectionDrag"
+                    @pointercancel="endSectionDrag"
+                    ><AppIcon name="drag_indicator" :size="18"
+                  /></span>
+                  <span class="min-w-0 flex-1 truncate">{{ label(id) }}</span>
+                  <button
+                    type="button"
+                    class="flex size-9 items-center justify-center rounded-md hover:bg-pri-soft disabled:opacity-40"
+                    :aria-label="moveUpLabel(label(id))"
+                    :disabled="index === 0 || !canMove('catalog', id, -1)"
+                    @click="emit('move', { column: 'catalog', id, direction: -1 })"
+                  >
+                    <AppIcon name="arrow_upward" :size="18" />
+                  </button>
+                  <button
+                    type="button"
+                    class="flex size-9 items-center justify-center rounded-md hover:bg-pri-soft disabled:opacity-40"
+                    :aria-label="moveDownLabel(label(id))"
+                    :disabled="!canMove('catalog', id, 1)"
+                    @click="emit('move', { column: 'catalog', id, direction: 1 })"
+                  >
+                    <AppIcon name="arrow_downward" :size="18" />
+                  </button>
+                </div>
+                <div class="pos-workspace-section__content" :inert="editing || undefined">
+                  <slot :name="`catalog-${id}`" :effective="effective" />
+                </div>
+              </div>
+              <div
+                v-if="dragging?.column === 'catalog' && dropIndex === index + 1"
+                class="h-0.5 rounded bg-pri"
+                aria-hidden="true"
+              />
+            </template>
+            <div
+              class="pos-workspace-section__content flex flex-none flex-col gap-2"
+              :inert="editing || undefined"
+            >
+              <slot name="catalog-notices" :effective="effective" />
+            </div>
+            <div
+              class="pos-workspace-section__content flex min-h-0 flex-1 flex-col"
+              :inert="editing || undefined"
+            >
+              <slot name="catalog-products" :effective="effective" />
+            </div>
+          </section>
+          <template v-else>
+            <nav
+              class="pos-workspace-shell__rail flex w-16 flex-none flex-col items-center gap-2 rounded-lg border border-line bg-surf py-2 shadow-panel"
+              :aria-label="catalogLabel"
+            >
+              <button
+                type="button"
+                class="pos-workspace-shell__rail-toggle flex w-14 flex-col items-center gap-1 rounded-md px-0.5 py-2 text-[0.6875rem] font-semibold text-ink hover:bg-pri-soft focus-visible:ring-2 focus-visible:ring-focus"
+                :class="railOpen ? 'bg-pri-soft text-pri-text' : ''"
+                :aria-expanded="railOpen ? 'true' : 'false'"
+                :aria-controls="browserId"
+                :inert="editing || undefined"
+                @click="openRail"
+              >
+                <AppIcon name="grid_view" :size="22" class="text-pri-text" />
+                <span class="leading-tight break-words hyphens-auto">{{ railLabel }}</span>
+              </button>
+            </nav>
+            <section
+              v-if="browserBeside"
+              :id="browserId"
+              class="pos-workspace-shell__catalog pos-workspace-shell__browser flex min-w-0 flex-none flex-col gap-2.5 overflow-x-hidden overflow-y-auto rounded-lg border border-line bg-surf p-2.5 shadow-panel"
+              :style="{ width: `${effective.railBrowserWidth}px` }"
+              :aria-label="catalogLabel"
+            >
+              <div class="flex flex-none items-center justify-between gap-2">
+                <span class="text-sm font-semibold">{{ catalogLabel }}</span>
+                <button
+                  type="button"
+                  class="flex size-9 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink focus-visible:ring-2 focus-visible:ring-focus"
+                  :aria-label="closeBrowserLabel"
+                  :title="closeBrowserLabel"
+                  @click="emit('update:railOpen', false)"
+                >
+                  <AppIcon name="close" :size="20" />
+                </button>
+              </div>
+              <template v-for="id in catalogSections" :key="id">
+                <div class="flex flex-none flex-col" :inert="editing || undefined">
+                  <slot :name="`catalog-${id}`" :effective="effective" />
+                </div>
+              </template>
+              <div class="flex flex-none flex-col gap-2" :inert="editing || undefined">
+                <slot name="catalog-notices" :effective="effective" />
+              </div>
+              <div class="flex min-h-0 flex-1 flex-col" :inert="editing || undefined">
+                <slot name="catalog-products" :effective="effective" />
+              </div>
+            </section>
+          </template>
+        </template>
+
+        <!-- Cart. The separator (editing only) sits between the two regions. -->
+        <template v-else>
+          <div
+            v-if="editing && !railMode && regionOrder[0] === 'catalog'"
+            class="pos-workspace-shell__resizer -mx-2 flex w-4 flex-none touch-none items-center justify-center rounded-md hover:bg-pri-soft focus-visible:ring-2 focus-visible:ring-focus"
+            :class="resizing ? 'cursor-col-resize bg-pri-soft' : 'cursor-col-resize'"
+            role="separator"
+            tabindex="0"
+            aria-orientation="vertical"
+            :aria-label="resizeLabel"
+            :aria-controls="cartId"
+            :aria-valuenow="effective.appliedCartShare"
+            :aria-valuemin="effective.minCartShare"
+            :aria-valuemax="effective.maxCartShare"
+            :aria-valuetext="widthValueText(effective.appliedCartShare)"
+            @pointerdown="onResizeDown"
+            @pointermove="onResizeMove"
+            @pointerup="endResize"
+            @pointercancel="endResize"
+            @lostpointercapture="endResize"
+            @keydown="onResizeKey"
+          >
+            <span class="pointer-events-none h-16 w-1.5 rounded-full bg-pri" aria-hidden="true" />
+          </div>
+          <aside
+            :id="cartId"
+            class="pos-workspace-shell__cart pos-cart flex min-h-0 min-w-0 flex-1 flex-col rounded-lg border border-line bg-surf shadow-panel"
+            :class="editing ? 'overflow-y-auto' : 'overflow-hidden'"
+            :aria-label="cartLabel"
+          >
+            <div
+              v-if="browserStacked"
+              :id="browserId"
+              class="pos-workspace-shell__catalog pos-workspace-shell__browser flex h-[55%] min-h-0 flex-none flex-col gap-2 overflow-hidden border-b border-line p-2.5"
+              :aria-label="catalogLabel"
+            >
+              <div class="flex flex-none items-center justify-between gap-2">
+                <span class="text-sm font-semibold">{{ catalogLabel }}</span>
+                <button
+                  type="button"
+                  class="flex size-9 items-center justify-center rounded-md text-muted hover:bg-subtle"
+                  :aria-label="closeBrowserLabel"
+                  @click="emit('update:railOpen', false)"
+                >
+                  <AppIcon name="close" :size="20" />
+                </button>
+              </div>
+              <template v-for="id in catalogSections" :key="id">
+                <slot :name="`catalog-${id}`" :effective="effective" />
+              </template>
+              <div class="flex min-h-32 flex-1 flex-col overflow-auto">
+                <slot name="catalog-products" :effective="effective" />
+              </div>
+            </div>
+            <template v-for="(id, index) in effective.sections.cart" :key="id">
+              <div
+                class="pos-workspace-section flex flex-col"
+                :class="[
+                  id === 'lines' ? (editing ? 'min-h-24 flex-1' : 'min-h-0 flex-1') : 'flex-none',
+                  editing ? 'pos-workspace-section--editing m-1 p-1' : ''
+                ]"
+                :data-section="id"
+                data-section-column="cart"
+              >
+                <div
+                  v-if="editing"
+                  class="pos-workspace-section__handle mb-1 flex flex-none items-center gap-1.5 text-xs font-semibold text-pri-text"
+                >
+                  <span
+                    v-if="id !== 'totals'"
+                    class="flex size-9 cursor-grab touch-none items-center justify-center rounded-md hover:bg-pri-soft"
+                    role="img"
+                    :aria-label="dragLabel(label(id))"
+                    @pointerdown="onSectionDragDown($event, 'cart', id)"
+                    @pointermove="onSectionDragMove"
+                    @pointerup="endSectionDrag"
+                    @pointercancel="endSectionDrag"
+                    ><AppIcon name="drag_indicator" :size="18"
+                  /></span>
+                  <AppIcon v-else name="lock" :size="16" class="mx-2.5" aria-hidden="true" />
+                  <span class="min-w-0 flex-1 truncate">{{ label(id) }}</span>
+                  <template v-if="id !== 'totals'">
+                    <button
+                      type="button"
+                      class="flex size-9 items-center justify-center rounded-md hover:bg-pri-soft disabled:opacity-40"
+                      :aria-label="moveUpLabel(label(id))"
+                      :disabled="index === 0 || !canMove('cart', id, -1)"
+                      @click="emit('move', { column: 'cart', id, direction: -1 })"
+                    >
+                      <AppIcon name="arrow_upward" :size="18" />
+                    </button>
+                    <button
+                      type="button"
+                      class="flex size-9 items-center justify-center rounded-md hover:bg-pri-soft disabled:opacity-40"
+                      :aria-label="moveDownLabel(label(id))"
+                      :disabled="!canMove('cart', id, 1)"
+                      @click="emit('move', { column: 'cart', id, direction: 1 })"
+                    >
+                      <AppIcon name="arrow_downward" :size="18" />
+                    </button>
+                  </template>
+                </div>
+                <!-- The lines keep scrolling while editing (their controls are disabled by the page);
+                     every other section is inert. -->
+                <div
+                  class="pos-workspace-section__content flex flex-col"
+                  :class="id === 'lines' ? 'min-h-0 flex-1' : ''"
+                  :inert="(editing && id !== 'lines') || undefined"
+                >
+                  <slot :name="`cart-${id}`" :effective="effective" />
+                </div>
+              </div>
+              <div
+                v-if="dragging?.column === 'cart' && dropIndex === index + 1"
+                class="mx-2 h-0.5 rounded bg-pri"
+                aria-hidden="true"
+              />
+            </template>
+            <slot name="cart-extra" :effective="effective" />
+          </aside>
+          <div
+            v-if="editing && !railMode && regionOrder[0] === 'cart'"
+            class="pos-workspace-shell__resizer -mx-2 flex w-4 flex-none cursor-col-resize touch-none items-center justify-center rounded-md hover:bg-pri-soft focus-visible:ring-2 focus-visible:ring-focus"
+            role="separator"
+            tabindex="0"
+            aria-orientation="vertical"
+            :aria-label="resizeLabel"
+            :aria-controls="cartId"
+            :aria-valuenow="effective.appliedCartShare"
+            :aria-valuemin="effective.minCartShare"
+            :aria-valuemax="effective.maxCartShare"
+            :aria-valuetext="widthValueText(effective.appliedCartShare)"
+            @pointerdown="onResizeDown"
+            @pointermove="onResizeMove"
+            @pointerup="endResize"
+            @pointercancel="endResize"
+            @lostpointercapture="endResize"
+            @keydown="onResizeKey"
+          >
+            <span class="pointer-events-none h-16 w-1.5 rounded-full bg-pri" aria-hidden="true" />
+          </div>
+        </template>
+      </template>
     </div>
   </div>
 </template>

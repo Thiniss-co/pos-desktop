@@ -56,6 +56,20 @@ import CustomerSelector from '@renderer/shared/components/pos/CustomerSelector.v
 import PaymentPanel from '@renderer/shared/components/pos/PaymentPanel.vue'
 import HeldSalesList from '@renderer/shared/components/pos/HeldSalesList.vue'
 import QuickActionsBar from '@renderer/shared/components/pos/QuickActionsBar.vue'
+import WorkspaceLayoutControls from '@renderer/modules/preferences/components/WorkspaceLayoutControls.vue'
+import { useWorkspaceLayoutStore } from '@renderer/modules/preferences/posWorkspace.store'
+import {
+  canMoveSection,
+  moveSection,
+  type EffectiveWorkspaceLayout
+} from '@renderer/modules/preferences/workspaceLayout'
+import {
+  isSupportedCartOrder,
+  isSupportedCatalogOrder,
+  type PosCartSectionId,
+  type PosCatalogSectionId
+} from '@shared/contracts/posWorkspace.contract'
+import { onBeforeRouteLeave } from 'vue-router'
 import NumericKeypad from '@renderer/shared/components/pos/NumericKeypad.vue'
 import { applyKeypadKey, type KeypadKey } from '@renderer/shared/utils/keypad'
 import { formatQuantity } from '@shared/pos/posCalculator'
@@ -257,10 +271,23 @@ const keypadLabels = computed(() =>
       }
     : null
 )
+// --- POS workspace: the cashier's layout (presentation only) --------------------------------------
+// The layout store never touches the cart, payment, customer or held sales. While the layout editor
+// is open, selling input is refused (scans, shortcuts, exact cash) and nothing is persisted until
+// Apply; the active sale is untouched either way.
+const workspace = useWorkspaceLayoutStore()
+const layoutEditing = computed(() => workspace.editing)
+const railOpen = ref(false)
+/** Bumped to close any open toolbar or line menu (a scan, entering the editor). */
+const menuCloseSignal = ref(0)
+const effectiveLayout = ref<EffectiveWorkspaceLayout | null>(null)
+const layoutAnnouncement = ref<string | null>(null)
+const layoutNotice = ref<string | null>(null)
+/** Scans and product selections still being looked up (the editor waits for them). */
+const pendingAdds = ref(0)
 const quantityKeypadLineId = ref<string | null>(null)
 const quantityKeypadDraft = ref('')
 const quantityKeypadError = ref<string | null>(null)
-const cartSheetOpen = ref(false)
 const invoiceDiscountSelection = ref<InvoiceDiscountSelection>('none')
 const invoiceDiscountDraft = ref('')
 const invoiceDiscountError = ref<string | null>(null)
@@ -483,6 +510,24 @@ function confirmClearCart(): void {
   void nextTick(focusScanEntry)
 }
 
+/** The line menu's tax fact ("VAT 15% added"); never computed from amounts. */
+function taxDetail(tax: {
+  mode: 'none' | 'inclusive' | 'exclusive'
+  rateBasisPoints: number
+}): string {
+  if (tax.mode === 'none' || tax.rateBasisPoints === 0) {
+    return String(t('pos.workspace.taxNone'))
+  }
+  const rate = formatNumber(tax.rateBasisPoints / 100, localeStore.locale as LocaleCode, {
+    maximumFractionDigits: 2
+  })
+  return String(
+    t(tax.mode === 'inclusive' ? 'pos.workspace.taxInclusive' : 'pos.workspace.taxExclusive', {
+      rate
+    })
+  )
+}
+
 const cartDisplayLines = computed(() =>
   lines.value.map((line, index) => ({
     id: line.id,
@@ -497,6 +542,7 @@ const cartDisplayLines = computed(() =>
       calculation.value?.lines[index]?.totalAmount ?? 0,
       line.product.price.currency
     ),
+    detail: taxDetail(line.product.tax),
     // Owner expansion Phase E: the offer the line is shown with, and what it takes off.
     ...(appliedOffers.value.get(line.id)
       ? {
@@ -872,7 +918,35 @@ const lastAddedLine = computed(() =>
     : null
 )
 
+/**
+ * POS workspace toolbar, in priority order (what does not fit moves into More, in this order). Every
+ * action runs its existing handler with its existing permission and disabled rules.
+ */
 const quickActions = computed<DisplayQuickAction[]>(() => [
+  {
+    id: 'customer',
+    label: selectedCustomerName.value,
+    ariaLabel: String(t('pos.workspace.customerLabel', { name: selectedCustomerName.value })),
+    icon: 'person',
+    shortcut: 'F7',
+    active: selectedCustomerUuid.value !== null,
+    disabled: !catalogAvailable.value || !attemptSettled.value
+  },
+  {
+    id: 'discount',
+    label:
+      (calculation.value?.discountTotalAmount ?? 0) > 0
+        ? String(
+            t('pos.workspace.discountActive', {
+              amount: money(calculation.value?.discountTotalAmount ?? 0)
+            })
+          )
+        : String(t('pos.workspace.discount')),
+    icon: 'sell',
+    shortcut: 'F8',
+    active: invoiceDiscountType.value !== null,
+    disabled: lines.value.length === 0 || !canEdit.value || !attemptSettled.value
+  },
   {
     id: 'hold',
     label: String(t('pos.quickSale.hold')),
@@ -888,13 +962,7 @@ const quickActions = computed<DisplayQuickAction[]>(() => [
     badge: heldDrafts.value.length > 0 ? String(heldDrafts.value.length) : undefined,
     disabled: heldDrafts.value.length === 0 || !attemptSettled.value
   },
-  {
-    id: 'repeat',
-    label: String(t('pos.quickSale.repeatLast')),
-    icon: 'add',
-    disabled: lastAddedLine.value === null || !canEdit.value || !canAddToCart.value
-  },
-  // POS improvements, Stage 3: a visible Return / Refund, and More (register quick-create).
+  // POS improvements, Stage 3: a visible Return / Refund (only when the user may refund).
   ...(refundAllowed.value
     ? [
         {
@@ -904,10 +972,47 @@ const quickActions = computed<DisplayQuickAction[]>(() => [
           shortcut: 'F10'
         }
       ]
-    : []),
-  ...(moreActions.value.length > 0
-    ? [{ id: 'more', label: String(t('pos.quickSale.more')), icon: 'more_horiz' as const }]
     : [])
+])
+
+/** Less-used actions: always in the More menu (touch mode shows them as labelled menu buttons). */
+const menuQuickActions = computed<DisplayQuickAction[]>(() => [
+  {
+    id: 'repeat',
+    label: String(t('pos.quickSale.repeatLast')),
+    icon: 'add',
+    disabled: lastAddedLine.value === null || !canEdit.value || !canAddToCart.value
+  },
+  {
+    id: 'clear',
+    label: String(t('pos.cart.clear')),
+    icon: 'delete',
+    tone: 'danger',
+    disabled: lines.value.length === 0 || attemptProtected.value
+  },
+  // POS improvements, Stage 3: register quick-create (opens the existing More actions dialog).
+  ...(moreActions.value.length > 0
+    ? [
+        {
+          id: 'quick-create',
+          label: String(t('pos.workspace.quickCreate')),
+          icon: 'person_add' as const
+        }
+      ]
+    : []),
+  { id: 'help', label: String(t('pos.workspace.help')), icon: 'help', shortcut: 'F1' },
+  {
+    id: 'refresh',
+    label: String(t('pos.workspace.refresh')),
+    icon: 'refresh',
+    disabled: workstationRefresh.status !== 'idle'
+  },
+  {
+    id: 'customize',
+    label: String(t('pos.workspace.customize')),
+    icon: 'dashboard_customize',
+    disabled: !canCustomizeLayout.value
+  }
 ])
 
 const heldSalesDisplay = computed<DisplayHeldSale[]>(() =>
@@ -1036,7 +1141,7 @@ const largeChangeWarning = computed(() => {
 /** Explicit cashier confirmation of exact cash received; main validates and commits durably. */
 function handleExactCash(): void {
   const method = exactCashMethod.value
-  if (!exactCashEligible.value || !method) {
+  if (!exactCashEligible.value || !method || layoutEditing.value) {
     return
   }
   if (!paymentPanelOpen.value) {
@@ -1070,12 +1175,19 @@ function reportScan(
  * not-found, ambiguous, stale-catalog, and unavailable-catalog stay distinguishable.
  */
 async function addByCode(code: string, explicitMilli: number | null): Promise<void> {
+  // POS workspace: nothing is added while the layout editor is open — before or after any wait.
+  if (refuseWhileEditing(code)) {
+    return
+  }
   // Rev 4 §8.2: a scan queued during a catalog install runs after the new contract is applied.
   if (installHoldActive.value) {
     await waitForInstallHold()
   }
   const quantityMilli = explicitMilli ?? (pendingMultiplier.value ?? 1) * 1000
   const result = await catalog.findProductByBarcode(code)
+  if (refuseWhileEditing(code)) {
+    return
+  }
 
   if (result.outcome !== 'found') {
     reportScan(
@@ -1117,6 +1229,9 @@ async function addByCode(code: string, explicitMilli: number | null): Promise<vo
 }
 
 function handleScanSubmit(text: string): void {
+  if (layoutEditing.value) {
+    return
+  }
   const parsed = parseScanEntry(text)
   if (!parsed.ok) {
     if (parsed.code === 'SCAN_QUANTITY_INVALID') {
@@ -1132,8 +1247,25 @@ function handleScanSubmit(text: string): void {
 
 let scanChain: Promise<void> = Promise.resolve()
 function enqueueScan(code: string, explicitMilli: number | null): Promise<void> {
-  scanChain = scanChain.then(() => addByCode(code, explicitMilli)).catch(() => undefined)
+  pendingAdds.value += 1
+  menuCloseSignal.value += 1
+  scanChain = scanChain
+    .then(() => addByCode(code, explicitMilli))
+    .catch(() => undefined)
+    .finally(() => {
+      pendingAdds.value -= 1
+    })
   return scanChain
+}
+
+/** A scan that reaches the page while the layout editor is open: shown, never added, never replayed. */
+function refuseWhileEditing(code: string): boolean {
+  if (!layoutEditing.value) {
+    return false
+  }
+  layoutNotice.value = String(t('pos.workspace.edit.scannerPaused'))
+  reportScan(code, 'warning', String(t('pos.workspace.edit.scannerPaused')))
+  return true
 }
 
 /**
@@ -1220,8 +1352,10 @@ function repeatLastItem(): void {
 }
 
 function handleQuickAction(id: string): void {
-  const action = quickActions.value.find((candidate) => candidate.id === id)
-  if (action?.disabled) {
+  const action = [...quickActions.value, ...menuQuickActions.value].find(
+    (candidate) => candidate.id === id
+  )
+  if (action?.disabled || layoutEditing.value) {
     return
   }
 
@@ -1233,8 +1367,16 @@ function handleQuickAction(id: string): void {
     repeatLastItem()
   } else if (id === 'refund') {
     openRefundEntry()
-  } else if (id === 'more') {
+  } else if (id === 'quick-create') {
     moreActionsOpen.value = true
+  } else if (id === 'clear') {
+    clearConfirmOpen.value = true
+  } else if (id === 'help') {
+    openDialog('help')
+  } else if (id === 'refresh') {
+    void workstationRefresh.request()
+  } else if (id === 'customize') {
+    beginLayoutEdit()
   } else if (id === 'customer' && catalogAvailable.value && attemptSettled.value) {
     openCustomerDialog()
   } else if (id === 'discount' && lines.value.length > 0 && canEdit.value && attemptSettled.value) {
@@ -1252,41 +1394,6 @@ function handleQuickTender(id: string): void {
   payment.beginAddRow(method.uuid)
   payment.setDraftAmountText(minorToDecimalText(amount, currencyExponent.value))
   payment.commitDraftRow(currencyExponent.value)
-}
-
-/** F9: first press opens payment in the column; once a valid tender covers the sale, completes it. */
-/**
- * Stage 5: the touch bar holds the shortcuts that have no other visible control — Exact cash
- * (Shift+F9) and Help (F1) — plus Pay. Every other shortcut already has an on-screen control of at
- * least 44×44 in touch mode: Choose customer (F7), Add discount (F8), Clear cart, the search field (F2),
- * the scan field (F3), and the Hold / Recall / Return tiles (F4 / F6 / F10).
- */
-const touchActions = computed(() => [
-  {
-    id: 'touch-exact-cash',
-    label: t('touch.actions.exactCash'),
-    shortcut: 'Shift+F9',
-    icon: 'payments' as const,
-    disabled: lines.value.length === 0 || !attemptSettled.value
-  },
-  {
-    id: 'touch-pay',
-    label: t('touch.actions.pay'),
-    shortcut: 'F9',
-    icon: 'point_of_sale' as const,
-    disabled: lines.value.length === 0
-  },
-  { id: 'touch-help', label: t('touch.actions.help'), shortcut: 'F1', icon: 'help' as const }
-])
-
-function handleTouchAction(id: string): void {
-  if (id === 'touch-exact-cash') {
-    handleExactCash()
-  } else if (id === 'touch-pay') {
-    handlePayShortcut()
-  } else if (id === 'touch-help') {
-    openDialog('help')
-  }
 }
 
 function openQuantityKeypad(lineId: string): void {
@@ -1606,14 +1713,26 @@ function stock(product: CatalogProduct): ReturnType<typeof describeStock> {
 }
 
 async function addSelectedProduct(uuid: string): Promise<void> {
+  if (layoutEditing.value) {
+    return
+  }
+  pendingAdds.value += 1
+  try {
+    await addSelectedProductNow(uuid)
+  } finally {
+    pendingAdds.value -= 1
+  }
+}
+
+async function addSelectedProductNow(uuid: string): Promise<void> {
   if (installHoldActive.value) {
     await waitForInstallHold()
   }
-  if (!canAddToCart.value) {
+  if (!canAddToCart.value || layoutEditing.value) {
     return
   }
   const forSale = await catalog.getProductForSale(uuid)
-  if (!forSale) {
+  if (!forSale || layoutEditing.value) {
     return
   }
   const quantityMilli = (pendingMultiplier.value ?? 1) * 1000
@@ -1773,9 +1892,179 @@ function confirmCartRebuild(): void {
   }
 }
 
+// --- POS workspace: layout editing -----------------------------------------------------------------
+/**
+ * The editor opens only on a quiet till: no payment, dialog, keypad, confirmation or receipt open,
+ * the attempt settled, no catalog install hold, and no scan or product selection still being looked
+ * up — so nothing can land in the cart while (or just after) the layout changes.
+ */
+const canCustomizeLayout = computed(
+  () =>
+    workspace.loadState !== 'loading' &&
+    !paymentPanelOpen.value &&
+    dialogMode.value === null &&
+    !clearConfirmOpen.value &&
+    !moreActionsOpen.value &&
+    quantityKeypadLineId.value === null &&
+    !receiptDialogOpen.value &&
+    !refundEntryOpen.value &&
+    refundInvoiceUuid.value === null &&
+    quickCreateKind.value === null &&
+    attemptSettled.value &&
+    !installHoldActive.value &&
+    pendingAdds.value === 0
+)
+
+function beginLayoutEdit(): void {
+  if (!canCustomizeLayout.value) {
+    layoutNotice.value = String(t('pos.workspace.edit.unavailableWhile'))
+    return
+  }
+  menuCloseSignal.value += 1
+  layoutNotice.value = null
+  layoutAnnouncement.value = null
+  workspace.beginEdit()
+}
+
+function endLayoutEdit(): void {
+  layoutNotice.value = null
+  void nextTick(() => focusScanEntry())
+}
+
+function cancelLayoutEdit(): void {
+  workspace.cancel()
+  endLayoutEdit()
+}
+
+function onWorkspaceResize(percent: number): void {
+  workspace.patchDraft({ cartShare: percent })
+}
+
+function onWorkspaceSwapSide(): void {
+  const draft = workspace.draft
+  if (draft) {
+    workspace.patchDraft({ cartSide: draft.cartSide === 'end' ? 'start' : 'end' })
+  }
+}
+
+function sectionName(id: string): string {
+  return String(t(`pos.workspace.sections.${id}`))
+}
+
+function announceMove(column: 'cart' | 'catalog', id: string): void {
+  const order =
+    column === 'cart' ? workspace.draft?.sections.cart : workspace.draft?.sections.catalog
+  const position = (order as readonly string[] | undefined)?.indexOf(id) ?? -1
+  layoutAnnouncement.value = String(
+    t('pos.workspace.edit.moved', { section: sectionName(id), position: position + 1 })
+  )
+}
+
+function onWorkspaceMove(request: {
+  column: 'cart' | 'catalog'
+  id: string
+  direction: -1 | 1
+}): void {
+  const draft = workspace.draft
+  if (!draft) {
+    return
+  }
+  if (request.column === 'cart') {
+    const cart = moveSection(
+      draft.sections.cart,
+      request.id as PosCartSectionId,
+      request.direction,
+      isSupportedCartOrder
+    )
+    workspace.patchDraft({ sections: { ...draft.sections, cart } })
+  } else {
+    const catalogOrder = moveSection(
+      draft.sections.catalog,
+      request.id as PosCatalogSectionId,
+      request.direction,
+      isSupportedCatalogOrder
+    )
+    workspace.patchDraft({ sections: { ...draft.sections, catalog: catalogOrder } })
+  }
+  announceMove(request.column, request.id)
+}
+
+function onWorkspaceReorder(request: { column: 'cart' | 'catalog'; order: string[] }): void {
+  const draft = workspace.draft
+  if (!draft) {
+    return
+  }
+  // Only a supported order is accepted; anything else leaves the draft unchanged.
+  if (request.column === 'cart' && isSupportedCartOrder(request.order)) {
+    workspace.patchDraft({
+      sections: { ...draft.sections, cart: request.order as PosCartSectionId[] }
+    })
+  } else if (request.column === 'catalog' && isSupportedCatalogOrder(request.order)) {
+    workspace.patchDraft({
+      sections: { ...draft.sections, catalog: request.order as PosCatalogSectionId[] }
+    })
+  }
+}
+
+function canMoveWorkspaceSection(
+  column: 'cart' | 'catalog',
+  id: string,
+  direction: -1 | 1
+): boolean {
+  const draft = workspace.draft
+  if (!draft) {
+    return false
+  }
+  return column === 'cart'
+    ? canMoveSection(draft.sections.cart, id as PosCartSectionId, direction, isSupportedCartOrder)
+    : canMoveSection(
+        draft.sections.catalog,
+        id as PosCatalogSectionId,
+        direction,
+        isSupportedCatalogOrder
+      )
+}
+
+function onEditKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && layoutEditing.value && !workspace.saving) {
+    event.preventDefault()
+    cancelLayoutEdit()
+  }
+}
+
+// Editing never outlives its context: a recovery prompt, leaving the page or unmounting cancels it.
+watch(
+  () => paymentPanelRecoveryState.value.kind,
+  (kind) => {
+    if (kind !== 'clear' && layoutEditing.value) {
+      cancelLayoutEdit()
+    }
+  }
+)
+watch(layoutEditing, (editing) => {
+  menuCloseSignal.value += 1
+  if (editing) {
+    window.addEventListener('keydown', onEditKeydown)
+  } else {
+    window.removeEventListener('keydown', onEditKeydown)
+  }
+})
+onBeforeRouteLeave(() => {
+  workspace.cancel()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEditKeydown)
+  workspace.cancel()
+})
+
 const scanMode = computed<ScanInputMode>(() => {
   if (receiptDialogOpen.value) {
     return 'inactive'
+  }
+  // POS workspace: scans are still captured (never typed into or activating an edit control) and
+  // refused; F9 / Shift+F9 do nothing while the layout is being edited.
+  if (layoutEditing.value) {
+    return 'layout-edit'
   }
   if (!paymentPanelOpen.value) {
     return dialogMode.value !== null || clearConfirmOpen.value ? 'inactive' : 'page'
@@ -1816,6 +2105,7 @@ useScanInputRouter({
   }
 })
 usePosShortcuts({
+  enabled: () => !layoutEditing.value,
   focusSearch: () => searchRef.value?.focus(),
   showHelp: () => openDialog('help'),
   bindings: {
@@ -1889,7 +2179,8 @@ watch(
       payment.resetPayment()
       void payment.discoverPending()
       paymentPanelOpen.value = false
-      cartSheetOpen.value = false
+      // A shift change ends any layout editing without saving it.
+      workspace.cancel()
       pendingMultiplier.value = null
       lastAddedProductUuid.value = null
       scanResult.value = null
@@ -1981,31 +2272,70 @@ onMounted(async () => {
     />
 
     <PosWorkspaceShell
-      :sheet-open="cartSheetOpen"
+      v-model:rail-open="railOpen"
+      :layout="workspace.active"
+      :touch-mode="touchMode"
+      :editing="layoutEditing"
       :catalog-label="t('pos.catalogLabel')"
       :cart-label="t('pos.cart.title')"
-      :resize-label="t('pos.layout.resizeCart')"
-      :reset-width-label="t('pos.layout.resetCartWidth')"
-      :width-value-text="(value: number) => t('pos.layout.cartWidthValue', { value })"
+      :resize-label="t('pos.workspace.resizeCart')"
+      :width-value-text="(value: number) => t('pos.workspace.cartShareValue', { value })"
+      :rail-label="t('pos.workspace.products')"
+      :close-browser-label="t('pos.workspace.closeProducts')"
+      :section-labels="{
+        actions: t('pos.workspace.sections.actions'),
+        scan: t('pos.workspace.sections.scan'),
+        lines: t('pos.workspace.sections.lines'),
+        totals: t('pos.workspace.sections.totals'),
+        categories: t('pos.workspace.sections.categories'),
+        search: t('pos.workspace.sections.search')
+      }"
+      :move-up-label="(section: string) => t('pos.workspace.moveUp', { section })"
+      :move-down-label="(section: string) => t('pos.workspace.moveDown', { section })"
+      :drag-label="(section: string) => t('pos.workspace.drag', { section })"
+      :swap-side-label="t('pos.workspace.swapSide')"
+      :can-move="canMoveWorkspaceSection"
+      @resize="onWorkspaceResize"
+      @move="onWorkspaceMove"
+      @reorder="onWorkspaceReorder"
+      @swap-side="onWorkspaceSwapSide"
+      @effective="(value: EffectiveWorkspaceLayout) => (effectiveLayout = value)"
     >
-      <template #catalog>
+      <template #edit-bar="{ effective }">
+        <div
+          class="pos-page__edit-bar mx-3 mt-3 rounded-lg border-2 border-pri bg-surf p-3 shadow-panel"
+          data-testid="workspace-edit-bar"
+        >
+          <WorkspaceLayoutControls
+            :effective="effective"
+            :touch-mode="touchMode"
+            :announcement="layoutAnnouncement"
+            @applied="endLayoutEdit"
+            @cancelled="endLayoutEdit"
+            @moved="(message: string) => (layoutAnnouncement = message)"
+          />
+          <p
+            v-if="layoutNotice"
+            class="mt-2 flex items-center gap-1.5 rounded-md bg-warn-bg px-2.5 py-1.5 text-sm text-warn"
+            role="status"
+            data-testid="workspace-edit-notice"
+          >
+            <AppIcon name="barcode_scanner" :size="18" />{{ layoutNotice }}
+          </p>
+        </div>
+      </template>
+
+      <template #catalog-categories="{ effective }">
         <CategorySelector
-          class="wide:hidden"
-          compact
+          :compact="effective.catalogView === 'compact' || effective.catalogMode === 'rail'"
           :categories="displayCategories"
           :selected-id="selectedCategoryUuid"
           :all-label="t('pos.allCategories')"
           :group-label="t('pos.categoriesLabel')"
           @select="catalog.selectCategory"
         />
-        <CategorySelector
-          class="hidden wide:flex"
-          :categories="displayCategories"
-          :selected-id="selectedCategoryUuid"
-          :all-label="t('pos.allCategories')"
-          :group-label="t('pos.categoriesLabel')"
-          @select="catalog.selectCategory"
-        />
+      </template>
+      <template #catalog-search>
         <ProductSearchBar
           ref="searchRef"
           v-model="query"
@@ -2015,6 +2345,8 @@ onMounted(async () => {
           :disabled="!catalogAvailable"
           @submit="catalog.search()"
         />
+      </template>
+      <template #catalog-notices>
         <CatalogRefreshPanel
           :pending="catalogRefreshing"
           :stale="catalogStatus === 'stale'"
@@ -2107,8 +2439,9 @@ onMounted(async () => {
 
         <AppInlineError v-if="catalogError">{{ catalogError }}</AppInlineError>
         <AppInlineError v-if="bootstrapError">{{ bootstrapError }}</AppInlineError>
-
-        <div class="min-h-0 flex-1 overflow-auto p-0.5">
+      </template>
+      <template #catalog-products="{ effective }">
+        <div class="relative min-h-0 flex-1 overflow-auto p-0.5">
           <AppLoadingSkeleton v-if="catalogLoading" :label="t('pos.loadingCatalog')" :lines="6" />
           <AppEmptyState
             v-else-if="!catalogAvailable"
@@ -2141,14 +2474,20 @@ onMounted(async () => {
           </AppEmptyState>
           <div
             v-else
-            class="pos-page__product-grid grid grid-cols-2 gap-3 wide:grid-cols-[repeat(auto-fill,minmax(176px,1fr))]"
+            class="pos-page__product-grid grid"
+            :class="
+              effective.catalogView === 'cards' && effective.catalogMode === 'panel'
+                ? 'grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3'
+                : 'grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2'
+            "
           >
             <ProductCard
               v-for="product in products"
               :key="product.uuid"
               :product="displayProduct(product)"
               :stock-label="stock(product).label"
-              :disabled="!canAddToCart"
+              :disabled="!canAddToCart || layoutEditing"
+              :compact="effective.catalogView === 'compact' || effective.catalogMode === 'rail'"
               @select="addSelectedProduct(product.uuid)"
             />
           </div>
@@ -2205,231 +2544,160 @@ onMounted(async () => {
         </div>
       </template>
 
-      <template #cart>
-        <div class="pos-page__cart-spine flex min-h-0 flex-1 flex-col">
-          <div class="flex flex-none items-center gap-2.5 px-4 pt-4 pb-3">
-            <AppIconButton
-              v-if="cartSheetOpen"
-              variant="outline"
-              icon="close"
-              :label="t('pos.cart.closeCart')"
-              @click="cartSheetOpen = false"
-            />
-            <h2 class="text-2xl font-bold">{{ t('pos.cart.title') }}</h2>
+      <template #cart-actions>
+        <div class="px-3 pt-2 pb-1">
+          <QuickActionsBar
+            layout="toolbar"
+            :actions="quickActions"
+            :menu-actions="menuQuickActions"
+            :more-label="t('pos.quickSale.more')"
+            :touch="touchMode"
+            :close-signal="menuCloseSignal"
+            :label="t('pos.quickSale.actionsLabel')"
+            @action="handleQuickAction"
+          />
+        </div>
+      </template>
+      <template #cart-scan="{ effective }">
+        <div class="px-3 pt-1 pb-0.5">
+          <ScanEntry
+            ref="scanRef"
+            v-model="scanText"
+            :compact="effective.railReason !== 'collapsed' || effective.short"
+            :label="t('pos.quickSale.scanLabel')"
+            :placeholder="t('pos.quickSale.scanPlaceholder')"
+            :hint="t('pos.quickSale.scanHint')"
+            :multiplier-label="t('pos.quickSale.multiplier')"
+            :clear-multiplier-label="t('pos.quickSale.clearMultiplier')"
+            :pending-multiplier="pendingMultiplier"
+            :result="scanResult"
+            :disabled="!canAddToCart"
+            @submit="handleScanSubmit"
+            @set-multiplier="pendingMultiplier = $event"
+          />
+        </div>
+      </template>
+      <template #cart-lines>
+        <div class="flex flex-none flex-col gap-2 px-3 pt-1 empty:hidden">
+          <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
+          <p v-if="!canSell && lines.length > 0" class="pos-page__cart-guard text-sm text-muted">
+            {{ t('pos.openShiftToSell') }}
+          </p>
+          <AppBanner
+            v-if="cartState.kind === 'invalid'"
+            variant="warning"
+            icon="published_with_changes"
+          >
+            {{ t('pos.cartRequiresResolution') }}
+            <template v-if="catalogUsableForDraft" #action>
+              <AppButton variant="secondary" size="sm" @click="prepareCartRebuild">
+                {{ t('pos.rebuildCart') }}
+              </AppButton>
+            </template>
+          </AppBanner>
+          <AppInlineError v-if="rebuildError && dialogMode !== 'rebuild'">{{
+            rebuildError
+          }}</AppInlineError>
+        </div>
+        <div
+          class="pos-page__cart-columns pos-cart-grid mx-3 flex-none border-b border-line pt-1.5 pb-1 text-xs font-semibold text-muted"
+        >
+          <span class="flex min-w-0 items-center gap-2" aria-hidden="true">
+            <span>{{ t('pos.cart.colItem') }}</span>
             <span
-              class="numeric flex min-h-6.5 items-center rounded-full bg-pri-soft px-2.5 py-0.5 text-xs font-semibold text-pri-text"
+              class="numeric rounded-full bg-pri-soft px-2 py-px font-semibold whitespace-nowrap text-pri-text"
+              data-testid="cart-item-count"
               >{{ cartItemsLabel }}</span
             >
-            <div class="flex-1" />
-            <AppButton
-              variant="secondary"
-              size="sm"
-              :disabled="lines.length === 0 || attemptProtected"
-              @click="clearConfirmOpen = true"
+          </span>
+          <span class="text-center" aria-hidden="true">{{ t('pos.cart.colQty') }}</span>
+          <span class="pos-cart-grid__price text-end" aria-hidden="true">{{
+            t('pos.workspace.colPrice')
+          }}</span>
+          <span class="text-end" aria-hidden="true">{{ t('pos.workspace.colTotal') }}</span>
+          <span class="flex justify-end">
+            <button
+              type="button"
+              class="pos-page__customize flex size-(--cart-ctl) items-center justify-center rounded-md text-pri-text hover:bg-pri-soft focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40"
+              data-testid="workspace-customize"
+              :aria-label="t('pos.workspace.customize')"
+              :title="t('pos.workspace.customize')"
+              :aria-pressed="layoutEditing ? 'true' : 'false'"
+              :disabled="layoutEditing || !canCustomizeLayout"
+              @click="beginLayoutEdit"
             >
-              {{ t('pos.cart.clear') }}
-            </AppButton>
-          </div>
-
-          <div
-            class="mx-4 flex flex-none flex-wrap items-center gap-2.5 rounded-notice border border-line px-3 py-2.5"
+              <AppIcon name="dashboard_customize" :size="18" />
+            </button>
+          </span>
+        </div>
+        <p
+          v-if="lastSale && lines.length === 0"
+          class="pos-page__last-sale mx-3 mt-2 flex flex-wrap gap-x-2 text-sm text-muted"
+          role="status"
+        >
+          <span>{{ t('pos.lastSale.total', { total: lastSale.total }) }}</span>
+          <span v-if="lastSale.change"
+            >· {{ t('pos.lastSale.change', { change: lastSale.change }) }}</span
           >
-            <AppIcon name="person" :size="20" class="text-muted" />
-            <p class="min-w-0 flex-1 text-sm leading-[1.35]">
-              <span class="whitespace-nowrap text-muted">{{ t('pos.cart.customer') }}: </span>
-              <span class="font-semibold">{{ selectedCustomerName }}</span>
-            </p>
-            <AppButton
-              variant="ghost"
-              size="sm"
-              class="px-1.5 text-pri-text"
-              :disabled="!catalogAvailable"
-              @click="openCustomerDialog"
-            >
-              {{ selectedCustomerUuid ? t('pos.cart.change') : t('pos.cart.choose') }}
-            </AppButton>
-          </div>
-
-          <div class="flex flex-none flex-col gap-2.5 pt-3">
-            <ScanEntry
-              ref="scanRef"
-              v-model="scanText"
-              :label="t('pos.quickSale.scanLabel')"
-              :placeholder="t('pos.quickSale.scanPlaceholder')"
-              :hint="t('pos.quickSale.scanHint')"
-              :multiplier-label="t('pos.quickSale.multiplier')"
-              :clear-multiplier-label="t('pos.quickSale.clearMultiplier')"
-              :pending-multiplier="pendingMultiplier"
-              :result="scanResult"
-              :disabled="!canAddToCart"
-              @submit="handleScanSubmit"
-              @set-multiplier="pendingMultiplier = $event"
-            />
-            <QuickActionsBar
-              :actions="quickActions"
-              :label="t('pos.quickSale.actionsLabel')"
-              @action="handleQuickAction"
-            />
-            <div v-if="touchMode" class="pos-page__touch-bar" data-testid="touch-action-bar">
-              <QuickActionsBar
-                :actions="touchActions"
-                layout="wrap"
-                :label="t('touch.actions.label')"
-                @action="handleTouchAction"
-              />
-            </div>
-          </div>
-
-          <div class="flex flex-none flex-col gap-2 px-4 pt-2 empty:hidden">
-            <AppInlineError v-if="cartError">{{ cartError }}</AppInlineError>
-            <p v-if="!canSell && lines.length > 0" class="pos-page__cart-guard text-sm text-muted">
-              {{ t('pos.openShiftToSell') }}
-            </p>
-            <AppBanner
-              v-if="cartState.kind === 'invalid'"
-              variant="warning"
-              icon="published_with_changes"
-            >
-              {{ t('pos.cartRequiresResolution') }}
-              <template v-if="catalogUsableForDraft" #action>
-                <AppButton variant="secondary" size="sm" @click="prepareCartRebuild">
-                  {{ t('pos.rebuildCart') }}
-                </AppButton>
-              </template>
-            </AppBanner>
-            <AppInlineError v-if="rebuildError && dialogMode !== 'rebuild'">{{
-              rebuildError
-            }}</AppInlineError>
-          </div>
-
-          <div
-            class="mx-4 grid flex-none grid-cols-[minmax(0,1fr)_7rem_minmax(84px,auto)] gap-2.5 border-b border-line pt-3 pb-1.5 text-xs font-semibold text-muted"
-            aria-hidden="true"
-          >
-            <span>{{ t('pos.cart.colItem') }}</span>
-            <span class="text-center">{{ t('pos.cart.colQty') }}</span>
-            <span class="text-end">{{ t('pos.cart.colAmount') }}</span>
-          </div>
-
-          <p
-            v-if="lastSale && lines.length === 0"
-            class="pos-page__last-sale mx-4 mt-2 flex flex-wrap gap-x-2 text-sm text-muted"
-            role="status"
-          >
-            <span>{{ t('pos.lastSale.total', { total: lastSale.total }) }}</span>
-            <span v-if="lastSale.change"
-              >· {{ t('pos.lastSale.change', { change: lastSale.change }) }}</span
-            >
-          </p>
-          <CartPanel
-            :lines="cartDisplayLines"
-            :empty-title="t('pos.emptyCart')"
-            :empty-description="
-              shiftPhase === 'paused'
-                ? t('pos.notices.paused')
-                : !canSell
-                  ? t('pos.openShiftToSell')
-                  : t('pos.cart.emptyBody')
+        </p>
+        <CartPanel
+          :lines="cartDisplayLines"
+          :list-label="t('pos.workspace.linesLabel')"
+          :empty-title="t('pos.emptyCart')"
+          :empty-description="
+            shiftPhase === 'paused'
+              ? t('pos.notices.paused')
+              : !canSell
+                ? t('pos.openShiftToSell')
+                : t('pos.cart.emptyBody')
+          "
+          :empty-icon="
+            shiftPhase === 'paused' ? 'pause_circle' : !canSell ? 'lock_clock' : 'shopping_cart'
+          "
+        >
+          <CartLineItem
+            v-for="line in cartDisplayLines"
+            :key="line.id"
+            :line="line"
+            :decrease-label="t('pos.cart.decreaseOf', { name: line.name })"
+            :increase-label="t('pos.cart.increaseOf', { name: line.name })"
+            :remove-label="t('pos.cart.removeOf', { name: line.name })"
+            :remove-text="t('pos.workspace.removeLine')"
+            :actions-label="t('pos.workspace.lineActions', { name: line.name })"
+            :quantity-label="t('pos.cart.quantityOf', { name: line.name })"
+            :disabled="!canEdit || !attemptSettled || layoutEditing"
+            :close-signal="menuCloseSignal"
+            :edit-quantity-label="
+              touchMode ? t('touch.quantity.editOf', { name: line.name }) : null
             "
-            :empty-icon="
-              shiftPhase === 'paused' ? 'pause_circle' : !canSell ? 'lock_clock' : 'shopping_cart'
-            "
-          >
-            <CartLineItem
-              v-for="line in cartDisplayLines"
-              :key="line.id"
-              :line="line"
-              :decrease-label="t('pos.cart.decreaseOf', { name: line.name })"
-              :increase-label="t('pos.cart.increaseOf', { name: line.name })"
-              :remove-label="t('pos.cart.removeOf', { name: line.name })"
-              :quantity-label="t('pos.cart.quantityOf', { name: line.name })"
-              :disabled="!canEdit || !attemptSettled"
-              :edit-quantity-label="
-                touchMode ? t('touch.quantity.editOf', { name: line.name }) : null
-              "
-              @edit-quantity="openQuantityKeypad(line.id)"
-              @decrease="cart.decrementQuantity(line.id)"
-              @increase="cart.incrementQuantity(line.id)"
-              @remove="cart.remove(line.id)"
-            />
-            <template v-if="!paymentPanelOpen" #footer>
-              <OrderTotals
-                class="mx-4 mt-3"
-                framed
-                :subtotal-label="summaryFirstLabel"
-                :subtotal="money(summaryFirstAmount)"
-                :discount-label="
-                  invoiceDiscountType === 'percentage'
-                    ? t('pos.cart.discountPercent', {
-                        rate: formatNumber(
-                          invoiceDiscountValue / 100,
-                          localeStore.locale as LocaleCode,
-                          {
-                            maximumFractionDigits: 2
-                          }
-                        )
-                      })
-                    : t('pos.discount')
-                "
-                :discount="
-                  (calculation?.discountTotalAmount ?? 0) > 0
-                    ? money(calculation?.discountTotalAmount ?? 0)
-                    : undefined
-                "
-                :tax-label="t('pos.tax')"
-                :tax="money(calculation?.taxTotalAmount ?? 0)"
-                :total-label="t('pos.cart.totalDue')"
-                :total="money(calculation?.grandTotalAmount ?? 0)"
-              >
-                <template #discount-action>
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 py-1 text-sm font-semibold text-pri-text disabled:cursor-not-allowed disabled:text-muted"
-                    :disabled="lines.length === 0 || !canEdit"
-                    @click="openInvoiceDiscountDialog"
-                  >
-                    <AppIcon
-                      v-if="(calculation?.discountTotalAmount ?? 0) === 0"
-                      name="sell"
-                      :size="18"
-                    />
-                    {{
-                      (calculation?.discountTotalAmount ?? 0) > 0
-                        ? t('pos.cart.editDiscount')
-                        : t('pos.cart.addDiscount')
-                    }}
-                  </button>
-                </template>
-              </OrderTotals>
-              <div class="flex-none px-4 pt-3 pb-3.5">
-                <AppButton
-                  class="pos-page__future-action"
-                  variant="transaction"
-                  full-width
-                  :disabled="!canOpenPaymentPanel"
-                  :aria-disabled="!canOpenPaymentPanel ? 'true' : undefined"
-                  aria-keyshortcuts="F9"
-                  :icon-end="canOpenPaymentPanel ? 'arrow_forward' : undefined"
-                  mirror-icon
-                  @click="openPaymentPanel"
-                >
-                  {{ checkoutActionLabel }}
-                </AppButton>
-                <p class="mt-2 text-center text-xs text-muted">{{ t('pos.cart.shortcutsHint') }}</p>
-              </div>
-            </template>
-          </CartPanel>
-          <PaymentPanel
-            ref="paymentPanelRef"
-            :keypad-labels="keypadLabels"
-            class="pos-page__payment"
-            :open="paymentPanelOpen"
-            :title="t('pos.payment.title')"
-            :status-chip-label="t('pos.tender.statusChip')"
-            :close-label="t('common.close')"
+            @edit-quantity="openQuantityKeypad(line.id)"
+            @decrease="cart.decrementQuantity(line.id)"
+            @increase="cart.incrementQuantity(line.id)"
+            @remove="cart.remove(line.id)"
+          />
+        </CartPanel>
+      </template>
+      <template #cart-totals>
+        <div
+          class="cart-panel__footer pos-cart-footer flex-none border-t border-line bg-subtle px-3 py-2"
+        >
+          <OrderTotals
+            layout="bar"
             :subtotal-label="summaryFirstLabel"
             :subtotal="money(summaryFirstAmount)"
-            :discount-label="t('pos.discount')"
+            :discount-label="
+              invoiceDiscountType === 'percentage'
+                ? t('pos.cart.discountPercent', {
+                    rate: formatNumber(
+                      invoiceDiscountValue / 100,
+                      localeStore.locale as LocaleCode,
+                      {
+                        maximumFractionDigits: 2
+                      }
+                    )
+                  })
+                : t('pos.discount')
+            "
             :discount="
               (calculation?.discountTotalAmount ?? 0) > 0
                 ? money(calculation?.discountTotalAmount ?? 0)
@@ -2439,149 +2707,179 @@ onMounted(async () => {
             :tax="money(calculation?.taxTotalAmount ?? 0)"
             :total-label="t('pos.cart.totalDue')"
             :total="money(calculation?.grandTotalAmount ?? 0)"
-            :method-options="paymentMethodOptions"
-            :methods-label="t('pos.tender.methodsLabel')"
-            :no-methods-title="t('pos.payment.noMethodsTitle')"
-            :no-methods-description="t('pos.payment.noMethodsDescription')"
-            :rows="paymentDisplayRows"
-            :rows-title="t('pos.tender.rowsTitle')"
-            :rows-limit-note="t('pos.tender.rowsLimit')"
-            :no-rows-label="t('pos.tender.noRows')"
-            :edit-row-label="t('pos.payment.editRow')"
-            :remove-row-label="t('pos.payment.removeRow')"
-            :remove-row-text="t('pos.tender.remove')"
-            :is-editing-draft="isEditingDraft"
-            :draft-method-label="activeMethod?.name"
-            :draft-amount-label="t('pos.payment.amount')"
-            :draft-amount="draftAmountText"
-            :draft-amount-error="
-              draftErrorCode ? t(`pos.payment.errors.${draftErrorCode}`) : undefined
-            "
-            :draft-reference-label="t('pos.payment.reference')"
-            :draft-reference="draftReferenceText"
-            :requires-reference="activeMethod?.requiresReference ?? false"
-            :currency-label="activeCurrency"
-            :fill-due-label="fillDueAmount !== null ? t('pos.tender.fillDue') : undefined"
-            :enter-hint="t('pos.tender.enterHint')"
-            :cancel-draft-label="t('common.cancel')"
-            :commit-draft-label="t('pos.tender.addPayment')"
-            :paid-total-label="t('pos.payment.tendered')"
-            :paid-total="paidTotalDisplay"
-            :change-due-label="changeDueDisplay ? t('pos.payment.changeDue') : undefined"
-            :change-due="changeDueDisplay"
-            :due-label="dueDisplay ? t('pos.payment.dueAmount') : undefined"
-            :due="dueDisplay"
-            :preview-pending="previewPending"
-            :preview-pending-label="t('pos.payment.validating')"
-            :preview-message="previewMessage"
-            :preview-is-error="previewIsError"
-            :completion-label="t('pos.payment.completeSale')"
-            :completion-enabled="completionEnabled"
-            :completion-pending="completionPending"
-            :completion-pending-label="t('pos.payment.completion.pending')"
-            :completing-body="t('pos.tender.completingBody')"
-            :completion-message="completionMessage"
-            :completion-is-error="completionIsError"
-            :completion-refresh-available="completionRefreshAvailable"
-            :completion-refresh-pending="catalogRefreshing"
-            :refresh-workstation-label="t('pos.catalogRefresh.action')"
-            :recovery-state="paymentPanelRecoveryState"
-            :completed-title="t('pos.tender.completedTitle')"
-            :completed-total="completedTotal"
-            :completed-note="t('pos.tender.savedLocal')"
-            :failed-title="t('pos.tender.failedTitle')"
-            :retry-label="t('pos.tender.retrySale')"
-            :abandon-label="t('pos.tender.abandonSale')"
-            :acknowledge-label="t('pos.tender.newSale')"
-            :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
-            :cancel-confirm-label="t('common.cancel')"
-            :print-receipt-label="t('pos.payment.printReceipt')"
-            :quick-tenders="quickTenders"
-            :quick-tenders-label="t('pos.quickSale.quickCash')"
-            :exact-cash="exactCashAction"
-            :add-remaining="addRemainingAction"
-            :scanner-notice="scannerNotice"
-            :large-change-warning="largeChangeWarning"
-            :collecting-hint="collectingScan ? t('pos.scanner.collecting') : null"
-            :held-scans-notice="
-              heldScansAckFailed && heldScans.length > 0
-                ? t('pos.scanner.heldScans', { count: heldScans.length })
-                : null
-            "
-            primary-key-hint="F9"
-            print-key-hint="Ctrl+P"
-            :key-descriptions="{
-              complete: t('pos.keys.complete'),
-              'exact-cash': t('pos.keys.exactCash'),
-              retry: t('pos.keys.retry'),
-              'confirm-abandon': t('pos.keys.confirmAbandon'),
-              print: t('pos.keys.print'),
-              acknowledge: t('pos.keys.acknowledge')
-            }"
-            :abandon-warning="
-              attemptRecovery?.legacyDispatchUnknown || blockingRecovery?.legacyDispatchUnknown
-                ? t('pos.recovery.legacyCancelWarning')
-                : t('pos.payment.completion.abandonWarning')
-            "
-            @exact-cash="handleExactCash"
-            @add-remaining="handleAddRemaining"
-            @close="closePaymentPanel"
-            @select-method="selectPaymentMethod"
-            @edit-row="editPaymentRow"
-            @remove-row="payment.removeRow"
-            @update:draft-amount="payment.setDraftAmountText"
-            @update:draft-reference="payment.setDraftReferenceText"
-            @commit-draft="commitPaymentDraft"
-            @cancel-draft="payment.cancelDraftRow"
-            @fill-due="fillDue"
-            @quick-tender="handleQuickTender"
-            @complete="handleComplete"
-            @refresh-workstation="handleRefreshCatalog"
-            @retry="handleRetryAttempt"
-            @abandon="handleAbandonAttempt"
-            @acknowledge="handleAcknowledgeAttempt"
-            @print="handlePrintReceipt"
           >
-            <template v-if="completedInvoiceUuid" #done-extra>
-              <AutoPrintSaleStatus :invoice-local-uuid="completedInvoiceUuid" />
-            </template>
             <template #actions>
               <AppButton
-                v-if="paymentPanelRecoveryState.kind === 'clear'"
-                variant="ghost"
-                size="lg"
-                :disabled="completionPending"
-                @click="closePaymentPanel"
+                class="pos-page__exact-cash"
+                variant="outline"
+                size="xl"
+                icon="payments"
+                data-testid="exact-cash"
+                aria-keyshortcuts="Shift+F9"
+                :title="`${t('pos.workspace.exactCash')} (Shift+F9)`"
+                :disabled="!exactCashEligible || paymentPanelOpen || layoutEditing"
+                @click="handleExactCash"
               >
-                {{ t('pos.quickSale.backToCart') }}
+                {{ t('pos.workspace.exactCash') }}
               </AppButton>
+              <div class="pos-cart-footer__pay">
+                <AppButton
+                  class="pos-page__future-action"
+                  variant="transaction"
+                  full-width
+                  :disabled="!canOpenPaymentPanel || layoutEditing"
+                  :aria-disabled="!canOpenPaymentPanel || layoutEditing ? 'true' : undefined"
+                  aria-keyshortcuts="F9"
+                  :icon-end="canOpenPaymentPanel ? 'arrow_forward' : undefined"
+                  mirror-icon
+                  @click="openPaymentPanel"
+                >
+                  {{ checkoutActionLabel }}
+                </AppButton>
+              </div>
             </template>
-          </PaymentPanel>
+          </OrderTotals>
         </div>
       </template>
-
-      <template #compact-bar>
-        <div class="flex items-center gap-2.5 border-t border-line bg-surf px-3 py-2.5">
-          <div class="min-w-0 flex-1">
-            <div class="text-sm font-semibold">
-              {{ t('pos.cart.title') }} · {{ cartItemsLabel }}
-            </div>
-            <div class="numeric text-[1.125rem] font-extrabold">
-              {{ money(calculation?.grandTotalAmount ?? 0) }}
-            </div>
-          </div>
-          <AppButton variant="secondary" size="lg" @click="cartSheetOpen = true">
-            {{ t('pos.cart.viewCart') }}
-          </AppButton>
-          <AppButton
-            variant="primary"
-            size="lg"
-            :disabled="!canOpenPaymentPanel"
-            @click="openPaymentPanel"
-          >
-            {{ t('pos.cart.payShort') }}
-          </AppButton>
-        </div>
+      <template #cart-extra>
+        <PaymentPanel
+          ref="paymentPanelRef"
+          :keypad-labels="keypadLabels"
+          class="pos-page__payment"
+          :open="paymentPanelOpen"
+          :title="t('pos.payment.title')"
+          :status-chip-label="t('pos.tender.statusChip')"
+          :close-label="t('common.close')"
+          :subtotal-label="summaryFirstLabel"
+          :subtotal="money(summaryFirstAmount)"
+          :discount-label="t('pos.discount')"
+          :discount="
+            (calculation?.discountTotalAmount ?? 0) > 0
+              ? money(calculation?.discountTotalAmount ?? 0)
+              : undefined
+          "
+          :tax-label="t('pos.tax')"
+          :tax="money(calculation?.taxTotalAmount ?? 0)"
+          :total-label="t('pos.cart.totalDue')"
+          :total="money(calculation?.grandTotalAmount ?? 0)"
+          :method-options="paymentMethodOptions"
+          :methods-label="t('pos.tender.methodsLabel')"
+          :no-methods-title="t('pos.payment.noMethodsTitle')"
+          :no-methods-description="t('pos.payment.noMethodsDescription')"
+          :rows="paymentDisplayRows"
+          :rows-title="t('pos.tender.rowsTitle')"
+          :rows-limit-note="t('pos.tender.rowsLimit')"
+          :no-rows-label="t('pos.tender.noRows')"
+          :edit-row-label="t('pos.payment.editRow')"
+          :remove-row-label="t('pos.payment.removeRow')"
+          :remove-row-text="t('pos.tender.remove')"
+          :is-editing-draft="isEditingDraft"
+          :draft-method-label="activeMethod?.name"
+          :draft-amount-label="t('pos.payment.amount')"
+          :draft-amount="draftAmountText"
+          :draft-amount-error="
+            draftErrorCode ? t(`pos.payment.errors.${draftErrorCode}`) : undefined
+          "
+          :draft-reference-label="t('pos.payment.reference')"
+          :draft-reference="draftReferenceText"
+          :requires-reference="activeMethod?.requiresReference ?? false"
+          :currency-label="activeCurrency"
+          :fill-due-label="fillDueAmount !== null ? t('pos.tender.fillDue') : undefined"
+          :enter-hint="t('pos.tender.enterHint')"
+          :cancel-draft-label="t('common.cancel')"
+          :commit-draft-label="t('pos.tender.addPayment')"
+          :paid-total-label="t('pos.payment.tendered')"
+          :paid-total="paidTotalDisplay"
+          :change-due-label="changeDueDisplay ? t('pos.payment.changeDue') : undefined"
+          :change-due="changeDueDisplay"
+          :due-label="dueDisplay ? t('pos.payment.dueAmount') : undefined"
+          :due="dueDisplay"
+          :preview-pending="previewPending"
+          :preview-pending-label="t('pos.payment.validating')"
+          :preview-message="previewMessage"
+          :preview-is-error="previewIsError"
+          :completion-label="t('pos.payment.completeSale')"
+          :completion-enabled="completionEnabled"
+          :completion-pending="completionPending"
+          :completion-pending-label="t('pos.payment.completion.pending')"
+          :completing-body="t('pos.tender.completingBody')"
+          :completion-message="completionMessage"
+          :completion-is-error="completionIsError"
+          :completion-refresh-available="completionRefreshAvailable"
+          :completion-refresh-pending="catalogRefreshing"
+          :refresh-workstation-label="t('pos.catalogRefresh.action')"
+          :recovery-state="paymentPanelRecoveryState"
+          :completed-title="t('pos.tender.completedTitle')"
+          :completed-total="completedTotal"
+          :completed-note="t('pos.tender.savedLocal')"
+          :failed-title="t('pos.tender.failedTitle')"
+          :retry-label="t('pos.tender.retrySale')"
+          :abandon-label="t('pos.tender.abandonSale')"
+          :acknowledge-label="t('pos.tender.newSale')"
+          :confirm-abandon-label="t('pos.payment.completion.confirmAbandon')"
+          :cancel-confirm-label="t('common.cancel')"
+          :print-receipt-label="t('pos.payment.printReceipt')"
+          :quick-tenders="quickTenders"
+          :quick-tenders-label="t('pos.quickSale.quickCash')"
+          :exact-cash="exactCashAction"
+          :add-remaining="addRemainingAction"
+          :scanner-notice="scannerNotice"
+          :large-change-warning="largeChangeWarning"
+          :collecting-hint="collectingScan ? t('pos.scanner.collecting') : null"
+          :held-scans-notice="
+            heldScansAckFailed && heldScans.length > 0
+              ? t('pos.scanner.heldScans', { count: heldScans.length })
+              : null
+          "
+          primary-key-hint="F9"
+          print-key-hint="Ctrl+P"
+          :key-descriptions="{
+            complete: t('pos.keys.complete'),
+            'exact-cash': t('pos.keys.exactCash'),
+            retry: t('pos.keys.retry'),
+            'confirm-abandon': t('pos.keys.confirmAbandon'),
+            print: t('pos.keys.print'),
+            acknowledge: t('pos.keys.acknowledge')
+          }"
+          :abandon-warning="
+            attemptRecovery?.legacyDispatchUnknown || blockingRecovery?.legacyDispatchUnknown
+              ? t('pos.recovery.legacyCancelWarning')
+              : t('pos.payment.completion.abandonWarning')
+          "
+          @exact-cash="handleExactCash"
+          @add-remaining="handleAddRemaining"
+          @close="closePaymentPanel"
+          @select-method="selectPaymentMethod"
+          @edit-row="editPaymentRow"
+          @remove-row="payment.removeRow"
+          @update:draft-amount="payment.setDraftAmountText"
+          @update:draft-reference="payment.setDraftReferenceText"
+          @commit-draft="commitPaymentDraft"
+          @cancel-draft="payment.cancelDraftRow"
+          @fill-due="fillDue"
+          @quick-tender="handleQuickTender"
+          @complete="handleComplete"
+          @refresh-workstation="handleRefreshCatalog"
+          @retry="handleRetryAttempt"
+          @abandon="handleAbandonAttempt"
+          @acknowledge="handleAcknowledgeAttempt"
+          @print="handlePrintReceipt"
+        >
+          <template v-if="completedInvoiceUuid" #done-extra>
+            <AutoPrintSaleStatus :invoice-local-uuid="completedInvoiceUuid" />
+          </template>
+          <template #actions>
+            <AppButton
+              v-if="paymentPanelRecoveryState.kind === 'clear'"
+              variant="ghost"
+              size="lg"
+              :disabled="completionPending"
+              @click="closePaymentPanel"
+            >
+              {{ t('pos.quickSale.backToCart') }}
+            </AppButton>
+          </template>
+        </PaymentPanel>
       </template>
     </PosWorkspaceShell>
 

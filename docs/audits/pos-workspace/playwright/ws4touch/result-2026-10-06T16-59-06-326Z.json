@@ -1,0 +1,135 @@
+{
+  "journey": "ws4touch",
+  "startedAt": "2026-10-06T16:59:42.646Z",
+  "runDir": "/tmp/pos-pw-I8GVvI",
+  "steps": [
+    {
+      "at": "2026-10-06T16:59:45.923Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:46083",
+      "database": "/tmp/pos-pw-I8GVvI/ws4touch/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T16:59:54.816Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T16:59:56.349Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-I8GVvI/ws4touch/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T16:59:57.693Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T16:59:57.765Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T16:59:59.977Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:00:00.142Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:00:02.777Z",
+      "screenshot": "A1-fractional-keypad.png"
+    },
+    {
+      "at": "2026-10-06T17:00:03.832Z",
+      "screenshot": "A2-line-menu.png"
+    },
+    {
+      "at": "2026-10-06T17:00:04.167Z",
+      "label": "A: cart after touch edits",
+      "lines": [
+        [
+          "Al Marai Full Cream Fresh Milk 1.5 L",
+          "1.500"
+        ],
+        [
+          "حليب المراعي كامل الدسم طازج 1 لتر",
+          "2.000"
+        ]
+      ]
+    },
+    {
+      "at": "2026-10-06T17:00:04.594Z",
+      "screenshot": "A3-more-menu-touch.png"
+    },
+    {
+      "at": "2026-10-06T17:00:05.400Z",
+      "screenshot": "A4-sale-complete.png"
+    },
+    {
+      "at": "2026-10-06T17:00:05.968Z",
+      "label": "A: touch sale committed and uploaded",
+      "sale": {
+        "local_uuid": "85209a69-f235-416d-b622-a5baf4955532"
+      }
+    },
+    {
+      "at": "2026-10-06T17:00:07.734Z",
+      "screenshot": "B1-refund-accepted.png"
+    },
+    {
+      "at": "2026-10-06T17:00:08.094Z",
+      "label": "B: refund by touch",
+      "refunds": [
+        {
+          "submission_state": "accepted"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:00:08.728Z",
+      "screenshot": "C1-rail-browser-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:09.397Z",
+      "label": "C: rail browser",
+      "cartVisible": true,
+      "cartWidth": 440,
+      "footer": true,
+      "lines": 1
+    },
+    {
+      "at": "2026-10-06T17:00:10.878Z",
+      "label": "E: no accidental drag in normal selling",
+      "handles": 0,
+      "widthBefore": 859,
+      "widthAfter": 859,
+      "editing": false
+    },
+    {
+      "at": "2026-10-06T17:00:12.390Z",
+      "screenshot": "D1-touch-editor.png"
+    },
+    {
+      "at": "2026-10-06T17:00:12.773Z",
+      "label": "D: touch customization cancelled",
+      "shareBefore": 45,
+      "shareAfter": 36,
+      "storedSame": true,
+      "saleSame": true
+    },
+    {
+      "at": "2026-10-06T17:00:12.774Z",
+      "label": "E: controls under 44×44 by state",
+      "lineMenu": [],
+      "selling1366": [],
+      "moreMenu": [],
+      "railOpen800": [],
+      "selling800": [],
+      "editor": []
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T17:00:12.842Z"
+}

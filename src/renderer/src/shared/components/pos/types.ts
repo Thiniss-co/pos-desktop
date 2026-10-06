@@ -61,6 +61,8 @@ export interface DisplayCartLine {
   eachLabel?: string
   /** Phase E: the offer this line is sold under, pre-formatted ("Weekend deal · −EGP 3.00"). */
   offerLabel?: string
+  /** POS workspace: secondary facts shown in the line menu (tax treatment), pre-formatted. */
+  detail?: string
 }
 
 export interface DisplayCustomer {
@@ -146,6 +148,10 @@ export interface DisplayQuickAction {
   icon?: IconName
   disabled?: boolean
   tone?: 'default' | 'danger'
+  /** POS workspace toolbar: a fuller accessible name than the visible label ("Customer: Walk-in"). */
+  ariaLabel?: string
+  /** POS workspace toolbar: shown as set (a chosen customer, an applied discount). */
+  active?: boolean
 }
 
 export interface DisplayHeldSale {

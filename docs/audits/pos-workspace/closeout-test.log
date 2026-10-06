@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /var/www/html/thinis-pos/pos-desktop-pos-workspace
+
+
+ Test Files  178 passed (178)
+      Tests  1865 passed (1865)
+   Start at  19:58:18
+   Duration  25.09s (transform 20.62s, setup 0ms, import 67.98s, tests 25.34s, environment 25.48s)
+

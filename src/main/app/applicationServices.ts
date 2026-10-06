@@ -28,6 +28,8 @@ import { UserPreferencesRepository } from '../repositories/userPreferences.repos
 import { FiscalContextRepository } from '../repositories/fiscalContext.repository'
 import { FiscalContextService } from '../receipt/fiscalContext.service'
 import { UserPreferencesService } from '../services/userPreferences.service'
+import { WorkspaceLayoutService } from '../services/workspaceLayout.service'
+import { WorkspaceLayoutRepository } from '../repositories/workspaceLayout.repository'
 import { BootstrapStateRepository } from '../repositories/bootstrapState.repository'
 import { BootstrapSnapshotRepository } from '../repositories/bootstrapSnapshot.repository'
 import { CatalogRepository } from '../repositories/catalog.repository'
@@ -149,6 +151,7 @@ export interface ApplicationServices {
   readonly database: SqliteDatabase
   readonly appSettings: AppSettingsRepository
   readonly userPreferences: UserPreferencesService
+  readonly workspaceLayout: WorkspaceLayoutService
   readonly deviceIdentity: DeviceIdentityService
   readonly deviceRegistration: DeviceRegistrationRepository
   readonly session: SessionService
@@ -243,6 +246,11 @@ export function createApplicationServices(): ApplicationServices {
     repository: new UserPreferencesRepository(database)
   })
   const sessionEpoch = new SessionEpochRepository(database)
+  const workspaceLayout = new WorkspaceLayoutService({
+    session: sessionMetadata,
+    epoch: sessionEpoch,
+    repository: new WorkspaceLayoutRepository(database)
+  })
   const shiftObservations = new ShiftObservationRepository(database)
   const licenseMetadata = new LicenseMetadataRepository(database)
   const bootstrapState = new BootstrapStateRepository(database)
@@ -1266,6 +1274,7 @@ export function createApplicationServices(): ApplicationServices {
     database,
     appSettings,
     userPreferences,
+    workspaceLayout,
     deviceIdentity,
     deviceRegistration: deviceRegistrationRepository,
     session,

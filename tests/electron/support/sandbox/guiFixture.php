@@ -30,6 +30,8 @@ declare(strict_types=1);
  *   php guiFixture.php <backend-root> second-company
  *   php guiFixture.php <backend-root> assign-device-other <device-uuid>
  *   php guiFixture.php <backend-root> move-device-other <device-uuid>
+ *   php guiFixture.php <backend-root> create-named-products <count 1-25>
+ *   php guiFixture.php <backend-root> create-plain-products <count 1-25>
  *
  * Company identity (owner UX plan P9). `brand` sets the GUI company's primary colour and logo through
  * `ChangeCompanyBrandingAction` / `StoreCompanyBrandLogoAction` at the current brand revision (the
@@ -132,7 +134,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -156,6 +158,20 @@ if ($operation === 'quick-create-grant'
 // READ-ONLY report of mixed-tax upload effects; neither takes an argument.
 if (in_array($operation, ['mixed-tax-catalog', 'mixed-tax-report'], true) && $argument !== '') {
     sandboxRefuse($operation.' takes no argument');
+}
+
+// POS workspace: a labelled precondition of N untracked products with realistic long EN/AR names
+// (`WS-01`…, barcodes 62910000000NN), created through the owner create path like `mixed-tax-catalog`.
+if ($operation === 'create-named-products'
+    && (preg_match('/^[1-9]\d?$/', $argument) !== 1 || (int) $argument > 25)) {
+    sandboxRefuse('create-named-products needs <count 1-25>');
+}
+
+// POS workspace: the ordinary-cart precondition — N untracked products with short, single-line
+// EN/AR names (`PL-01`…, barcodes 62920000000NN), created through the same owner create path.
+if ($operation === 'create-plain-products'
+    && (preg_match('/^[1-9]\d?$/', $argument) !== 1 || (int) $argument > 25)) {
+    sandboxRefuse('create-plain-products needs <count 1-25>');
 }
 
 // Owner expansion Phase E: a labelled precondition (the business time zone and one live 10% register offer on a
@@ -647,6 +663,113 @@ $result = match ($operation) {
             }
 
             $products[$sku] = ['uuid' => $existing->uuid, 'barcode' => $existing->barcode, 'tax_mode' => $existing->tax_mode?->value, 'tax_category' => $productTax->category?->value];
+        }
+
+        return ['products' => $products, 'precondition' => true];
+    })(),
+    'create-named-products' => (function () use ($argument, $company, $actor): array {
+        $context = app(CurrentCompanyResolver::class)->resolve($actor);
+        app()->instance(CompanyContext::class, $context);
+        $category = Category::query()->where('company_id', $company->id)->orderBy('id')->firstOrFail();
+        $tax = fn (string $code, string $rate, string $taxCategory) => Tax::query()->where('company_id', $company->id)->where('code', $code)->first()
+            ?? app(CreateTaxAction::class)->execute(new CreateTaxData(
+                companyId: $company->id, name: $code, code: $code, rate: $rate, type: TaxType::Percentage,
+                isDefault: false, isActive: true, category: TaxCategory::from($taxCategory),
+            ));
+        $standard = $tax('WS-VAT15', '15.00', 'standard');
+        $exempt = $tax('WS-EXEMPT', '0.00', 'exempt');
+        $names = [
+            ['Al Marai Full Cream Fresh Milk 1.5 L', 1150],
+            ['حليب المراعي كامل الدسم طازج 1 لتر', 690],
+            ['Nescafé Gold Blend Instant Coffee Jar 200 g', 4275],
+            ['Lurpak Slightly Salted Butter Block 400 g', 2890],
+            ['أرز بسمتي هندي فاخر طويل الحبة 5 كجم', 5450],
+            ['Barilla Spaghetti No. 5 Durum Wheat Pasta 500 g', 875],
+            ['Heinz Tomato Ketchup Squeezy Bottle 570 g', 1325],
+            ['Fairy Original Washing Up Liquid Lemon 1.19 L', 1599],
+            ['تمر سكري القصيم ممتاز علبة 1 كجم', 3800],
+            ['Galaxy Smooth Milk Chocolate Bar 90 g', 650],
+            ['Pampers Premium Protection Baby Diapers Size 4 Maxi 9–14 kg Jumbo Pack 76 Count', 11900],
+            ["Kellogg's Corn Flakes Original Breakfast Cereal 750 g", 2150],
+            ['زيت زيتون بكر ممتاز معصور على البارد 750 مل', 4625],
+            ['Tide Automatic Laundry Detergent Powder Original Scent 6 kg', 7350],
+            ['Lipton Yellow Label Black Tea 100 Tea Bags', 1875],
+            ['Fresh Bananas (loose, per kg)', 799],
+            ['طماطم طازجة محلية بالكيلو', 450],
+            ['Colgate Total Advanced Whitening Toothpaste 125 ml', 1450],
+            ['Almarai Greek Style Natural Yoghurt Low Fat 500 g', 925],
+            ['Philips Hue White and Colour Ambiance Smart LED Bulb E27 9 W with Bluetooth, 2-Pack Starter Edition', 24900],
+            ['Nido Fortified Full Cream Milk Powder Tin 2.25 kg', 8950],
+            ['Red Bull Energy Drink Can 250 ml', 750],
+            ['جبنة فيتا بيضاء قليلة الدسم 500 جم', 1700],
+            ['Dettol Antibacterial Surface Cleansing Wipes 40 Count', 1395],
+            ['Sunflower Seeds Roasted & Salted (bulk, per kg)', 3250],
+        ];
+        $products = [];
+
+        foreach (array_slice($names, 0, (int) $argument) as $index => [$name, $price]) {
+            $number = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $sku = "WS-{$number}";
+            $barcode = "62910000000{$number}";
+            $standardTax = $index % 2 === 0;
+            $existing = Product::query()->where('company_id', $company->id)->where('sku', $sku)->first();
+
+            if ($existing === null) {
+                $request = OwnerStoreProductRequest::create('/api/v1/company-owner/products', 'POST', [
+                    'name' => $name, 'category_id' => $category->uuid, 'sku' => $sku, 'barcode' => $barcode,
+                    'price' => $price, 'tax_mode' => $standardTax ? 'exclusive' : 'inclusive',
+                    'tax_id' => ($standardTax ? $standard : $exempt)->uuid, 'track_stock' => false,
+                ]);
+                $request->setContainer(app())->setRedirector(app('redirect'));
+                $request->setUserResolver(fn () => $actor);
+                $request->validateResolved();
+                $existing = app(CreateProductAction::class)->execute(CreateProductData::fromRequest($request, $context));
+            }
+
+            $products[] = ['sku' => $existing->sku, 'barcode' => $existing->barcode, 'name' => $existing->name,
+                'uuid' => $existing->uuid, 'price' => $price, 'track_stock' => (bool) $existing->track_stock];
+        }
+
+        return ['products' => $products, 'precondition' => true];
+    })(),
+    'create-plain-products' => (function () use ($argument, $company, $actor): array {
+        $context = app(CurrentCompanyResolver::class)->resolve($actor);
+        app()->instance(CompanyContext::class, $context);
+        $category = Category::query()->where('company_id', $company->id)->orderBy('id')->firstOrFail();
+        $tax = Tax::query()->where('company_id', $company->id)->where('code', 'WS-VAT15')->first()
+            ?? app(CreateTaxAction::class)->execute(new CreateTaxData(
+                companyId: $company->id, name: 'WS-VAT15', code: 'WS-VAT15', rate: '15.00', type: TaxType::Percentage,
+                isDefault: false, isActive: true, category: TaxCategory::from('standard'),
+            ));
+        $names = [
+            ['Fresh Milk 1 L', 650], ['Brown Bread', 450], ['Eggs 12 pack', 1250], ['Basmati Rice 2 kg', 2400],
+            ['حليب طازج 1 لتر', 650], ['Bananas per kg', 799], ['Tomatoes per kg', 450], ['Sugar 1 kg', 520],
+            ['Green Tea 25 bags', 1100], ['Bottled Water 1.5 L', 250], ['تمر سكري', 1900], ['Olive Oil 500 ml', 2850],
+            ['Cheddar Cheese', 1675], ['Orange Juice 1 L', 925], ['Pasta 500 g', 600], ['جبنة بيضاء', 1300],
+            ['Butter 200 g', 1450], ['Yoghurt 500 g', 575], ['Coffee 250 g', 3200], ['Dish Soap', 899],
+            ['Chicken Breast', 3450], ['Lentils 1 kg', 980], ['Honey 250 g', 2100], ['Corn Flakes', 1550],
+            ['Paper Towels', 1199],
+        ];
+        $products = [];
+
+        foreach (array_slice($names, 0, (int) $argument) as $index => [$name, $price]) {
+            $number = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $sku = "PL-{$number}";
+            $existing = Product::query()->where('company_id', $company->id)->where('sku', $sku)->first();
+
+            if ($existing === null) {
+                $request = OwnerStoreProductRequest::create('/api/v1/company-owner/products', 'POST', [
+                    'name' => $name, 'category_id' => $category->uuid, 'sku' => $sku, 'barcode' => "62920000000{$number}",
+                    'price' => $price, 'tax_mode' => 'exclusive', 'tax_id' => $tax->uuid, 'track_stock' => false,
+                ]);
+                $request->setContainer(app())->setRedirector(app('redirect'));
+                $request->setUserResolver(fn () => $actor);
+                $request->validateResolved();
+                $existing = app(CreateProductAction::class)->execute(CreateProductData::fromRequest($request, $context));
+            }
+
+            $products[] = ['sku' => $existing->sku, 'barcode' => $existing->barcode, 'name' => $existing->name,
+                'uuid' => $existing->uuid, 'track_stock' => (bool) $existing->track_stock];
         }
 
         return ['products' => $products, 'precondition' => true];

@@ -61,6 +61,9 @@ html[data-touch='on'] .hover-reveal {
   visibility: visible !important;
 }
 
-.pos-page__touch-bar .quick-actions {
-  margin-top: 0.5rem;
+/* POS workspace: the layout editor's resize separator is a 44px finger target in touch mode (it only
+   exists while the layout is being edited). Negative margins keep the panels where they were. */
+html[data-touch='on'] .pos-workspace-shell__resizer {
+  width: 44px;
+  margin-inline: -16px;
 }

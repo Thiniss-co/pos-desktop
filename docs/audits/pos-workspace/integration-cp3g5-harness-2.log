@@ -1,0 +1,374 @@
+
+> pos-desktop@1.0.0 test:cp3g5-harness
+> node --test --test-concurrency=1 tests/cp3g5HarnessSafety.test.mjs tests/cp3g5HarnessLifecycle.test.mjs tests/sandboxGuard.test.mjs
+
+TAP version 13
+# Subtest: artisan serve really does hold its socket in a php -S grandchild
+ok 1 - artisan serve really does hold its socket in a php -S grandchild
+  ---
+  duration_ms: 291.035599
+  ...
+# Subtest: a graceful group terminates on SIGTERM without escalation
+ok 2 - a graceful group terminates on SIGTERM without escalation
+  ---
+  duration_ms: 77.895022
+  ...
+# Subtest: a SIGTERM-resistant owned group is escalated to SIGKILL within a bounded wait
+ok 3 - a SIGTERM-resistant owned group is escalated to SIGKILL within a bounded wait
+  ---
+  duration_ms: 1344.319128
+  ...
+# Subtest: a group that outlives its leader is still terminated whole
+ok 4 - a group that outlives its leader is still terminated whole
+  ---
+  duration_ms: 272.519861
+  ...
+# Subtest: the harness refuses to signal its own process group
+ok 5 - the harness refuses to signal its own process group
+  ---
+  duration_ms: 0.979232
+  ...
+# Subtest: the harness contains no broad process matching anywhere
+ok 6 - the harness contains no broad process matching anywhere
+  ---
+  duration_ms: 11.633251
+  ...
+# Subtest: a failing run after the server is ready leaves no child or grandchild
+ok 7 - a failing run after the server is ready leaves no child or grandchild
+  ---
+  duration_ms: 2339.432165
+  ...
+# Subtest: a Laravel startup failure leaves no owned process and releases nothing it did not take
+ok 8 - a Laravel startup failure leaves no owned process and releases nothing it did not take
+  ---
+  duration_ms: 21849.184194
+  ...
+# Subtest: an Electron suite failure still terminates the whole Laravel tree
+ok 9 - an Electron suite failure still terminates the whole Laravel tree
+  ---
+  duration_ms: 2914.051072
+  ...
+# Subtest: a hung suite is timed out and its whole process group is cleaned
+ok 10 - a hung suite is timed out and its whole process group is cleaned
+  ---
+  duration_ms: 5850.136112
+  ...
+# Subtest: the temporary directory is removed only after the server group is gone
+ok 11 - the temporary directory is removed only after the server group is gone
+  ---
+  duration_ms: 2412.660758
+  ...
+# Subtest: two consecutive runs need no manual cleanup and never share a port
+ok 12 - two consecutive runs need no manual cleanup and never share a port
+  ---
+  duration_ms: 5817.045127
+  ...
+# Subtest: an unrelated PHP server on another port is never touched
+ok 13 - an unrelated PHP server on another port is never touched
+  ---
+  duration_ms: 3065.64008
+  ...
+# Subtest: a port already taken is reported, never reclaimed
+ok 14 - a port already taken is reported, never reclaimed
+  ---
+  duration_ms: 2.817074
+  ...
+# Subtest: wrapper output stays free of tokens and stack traces on every failure path
+ok 15 - wrapper output stays free of tokens and stack traces on every failure path
+  ---
+  duration_ms: 27510.710879
+  ...
+# Subtest: the exact unauthorized seeder invocation is still rejected before Laravel loads
+ok 16 - the exact unauthorized seeder invocation is still rejected before Laravel loads
+  ---
+  duration_ms: 32.517737
+  ...
+# Subtest: packaging still excludes every harness asset
+ok 17 - packaging still excludes every harness asset
+  ---
+  duration_ms: 0.628216
+  ...
+# Subtest: a full successful run leaves no child, no grandchild and no sandbox
+ok 18 - a full successful run leaves no child, no grandchild and no sandbox
+  ---
+  duration_ms: 80464.823832
+  ...
+# Subtest: seeding survives a minting loop that spans several wall-clock seconds
+ok 19 - seeding survives a minting loop that spans several wall-clock seconds
+  ---
+  duration_ms: 2885.482275
+  ...
+# Subtest: seed-only mode still performs the complete cleanup and leaks nothing
+ok 20 - seed-only mode still performs the complete cleanup and leaks nothing
+  ---
+  duration_ms: 2186.754277
+  ...
+# Subtest: every run reports a distinct opaque identity, and never its sandbox path or nonce
+ok 21 - every run reports a distinct opaque identity, and never its sandbox path or nonce
+  ---
+  duration_ms: 4206.095539
+  ...
+# Subtest: the diagnostic channel accepts only whitelisted, shape-checked fields
+ok 22 - the diagnostic channel accepts only whitelisted, shape-checked fields
+  ---
+  duration_ms: 0.680631
+  ...
+# Subtest: a genuine seeder diagnostic survives the parser intact
+ok 23 - a genuine seeder diagnostic survives the parser intact
+  ---
+  duration_ms: 0.192343
+  ...
+# Subtest: rejects execution without the dedicated environment marker
+ok 24 - rejects execution without the dedicated environment marker
+  ---
+  duration_ms: 32.113606
+  ...
+# Subtest: rejects the normal MySQL connection before bootstrap
+ok 25 - rejects the normal MySQL connection before bootstrap
+  ---
+  duration_ms: 29.385633
+  ...
+# Subtest: rejects the backend default connection before bootstrap
+ok 26 - rejects the backend default connection before bootstrap
+  ---
+  duration_ms: 30.25118
+  ...
+# Subtest: rejects a relative SQLite database path
+ok 27 - rejects a relative SQLite database path
+  ---
+  duration_ms: 29.65123
+  ...
+# Subtest: rejects a SQLite database outside the authorized root
+ok 28 - rejects a SQLite database outside the authorized root
+  ---
+  duration_ms: 30.937168
+  ...
+# Subtest: rejects an in-memory SQLite database
+ok 29 - rejects an in-memory SQLite database
+  ---
+  duration_ms: 31.279323
+  ...
+# Subtest: rejects a missing nonce
+ok 30 - rejects a missing nonce
+  ---
+  duration_ms: 33.073503
+  ...
+# Subtest: rejects an incorrect nonce without exposing marker content
+ok 31 - rejects an incorrect nonce without exposing marker content
+  ---
+  duration_ms: 35.133381
+  ...
+# Subtest: rejects a missing marker file
+ok 32 - rejects a missing marker file
+  ---
+  duration_ms: 34.278463
+  ...
+# Subtest: rejects a symlinked database path
+ok 33 - rejects a symlinked database path
+  ---
+  duration_ms: 31.529696
+  ...
+# Subtest: rejects lexical path traversal even when it resolves inside the root
+ok 34 - rejects lexical path traversal even when it resolves inside the root
+  ---
+  duration_ms: 30.502007
+  ...
+# Subtest: rejects a non-CP-3G-5 database filename
+ok 35 - rejects a non-CP-3G-5 database filename
+  ---
+  duration_ms: 30.420781
+  ...
+# Subtest: the exact incident command now fails before Laravel bootstrap
+ok 36 - the exact incident command now fails before Laravel bootstrap
+  ---
+  duration_ms: 30.225386
+  ...
+# Subtest: post-bootstrap validation rejects a DB_URL override without writes or secret output
+ok 37 - post-bootstrap validation rejects a DB_URL override without writes or secret output
+  ---
+  duration_ms: 14243.66103
+  ...
+# Subtest: wrapper redacts child output and removes its sandbox on a seeded failure
+ok 38 - wrapper redacts child output and removes its sandbox on a seeded failure
+  ---
+  duration_ms: 6553.523209
+  ...
+# Subtest: refuses when no environment selection exists at all
+ok 39 - refuses when no environment selection exists at all
+  ---
+  duration_ms: 35.777755
+  ...
+# Subtest: refuses when the expected database is absent
+ok 40 - refuses when the expected database is absent
+  ---
+  duration_ms: 28.836679
+  ...
+# Subtest: refuses a non-testing environment
+ok 41 - refuses a non-testing environment
+  ---
+  duration_ms: 30.399278
+  ...
+# Subtest: refuses a MySQL connection
+ok 42 - refuses a MySQL connection
+  ---
+  duration_ms: 32.784532
+  ...
+# Subtest: refuses a DB_URL override
+ok 43 - refuses a DB_URL override
+  ---
+  duration_ms: 31.130429
+  ...
+# Subtest: refuses the thinis_pos business database by name
+ok 44 - refuses the thinis_pos business database by name
+  ---
+  duration_ms: 26.229131
+  ...
+# Subtest: refuses the thinis_pos_testing database by name
+ok 45 - refuses the thinis_pos_testing database by name
+  ---
+  duration_ms: 30.131489
+  ...
+# Subtest: refuses a sandbox file whose stem is a business database name
+ok 46 - refuses a sandbox file whose stem is a business database name
+  ---
+  duration_ms: 30.651352
+  ...
+# Subtest: refuses a DB_DATABASE that differs from the approved file
+ok 47 - refuses a DB_DATABASE that differs from the approved file
+  ---
+  duration_ms: 29.261259
+  ...
+# Subtest: refuses a database inside the backend repository
+ok 48 - refuses a database inside the backend repository
+  ---
+  duration_ms: 35.187529
+  ...
+# Subtest: refuses a database under the real workstation profile
+ok 49 - refuses a database under the real workstation profile
+  ---
+  duration_ms: 34.100112
+  ...
+# Subtest: refuses a symlinked sandbox database
+ok 50 - refuses a symlinked sandbox database
+  ---
+  duration_ms: 27.883516
+  ...
+# Subtest: refuses when no isolated config cache is named
+ok 51 - refuses when no isolated config cache is named
+  ---
+  duration_ms: 41.584148
+  ...
+# Subtest: refuses a config cache outside the sandbox
+ok 52 - refuses a config cache outside the sandbox
+  ---
+  duration_ms: 30.429068
+  ...
+# Subtest: refuses when a cached configuration already exists
+ok 53 - refuses when a cached configuration already exists
+  ---
+  duration_ms: 32.774484
+  ...
+# Subtest: refuses an artisan command outside the whitelist
+ok 54 - refuses an artisan command outside the whitelist
+  ---
+  duration_ms: 30.700333
+  ...
+# Subtest: refuses db:seed without a seeder class
+ok 55 - refuses db:seed without a seeder class
+  ---
+  duration_ms: 32.140013
+  ...
+# Subtest: the GUI fixture refuses a mismatched selection the same way
+ok 56 - the GUI fixture refuses a mismatched selection the same way
+  ---
+  duration_ms: 29.889962
+  ...
+# Subtest: the GUI fixture grants only the three quick-create permissions to the seeded cashier or manager
+ok 57 - the GUI fixture grants only the three quick-create permissions to the seeded cashier or manager
+  ---
+  duration_ms: 27.716724
+  ...
+# Subtest: the GUI fixture mixed-tax catalog precondition takes no argument
+ok 58 - the GUI fixture mixed-tax catalog precondition takes no argument
+  ---
+  duration_ms: 33.562062
+  ...
+# Subtest: the GUI fixture named-product precondition needs a bounded count
+ok 59 - the GUI fixture named-product precondition needs a bounded count
+  ---
+  duration_ms: 28.10207
+  ...
+# Subtest: the GUI fixture named-product precondition refuses a non-numeric count
+ok 60 - the GUI fixture named-product precondition refuses a non-numeric count
+  ---
+  duration_ms: 32.972567
+  ...
+# Subtest: the GUI fixture plain-product precondition needs a bounded count
+ok 61 - the GUI fixture plain-product precondition needs a bounded count
+  ---
+  duration_ms: 36.627533
+  ...
+# Subtest: the GUI fixture mixed-tax report is read-only and takes no argument
+ok 62 - the GUI fixture mixed-tax report is read-only and takes no argument
+  ---
+  duration_ms: 31.23072
+  ...
+# Subtest: the GUI fixture quick-create report is read-only and takes no argument
+ok 63 - the GUI fixture quick-create report is read-only and takes no argument
+  ---
+  duration_ms: 36.199889
+  ...
+# Subtest: the GUI fixture refuses a permission outside the opening-stock allowlist
+ok 64 - the GUI fixture refuses a permission outside the opening-stock allowlist
+  ---
+  duration_ms: 30.358432
+  ...
+# Subtest: the GUI fixture refuses switching any feature other than inventory
+ok 65 - the GUI fixture refuses switching any feature other than inventory
+  ---
+  duration_ms: 31.993691
+  ...
+# Subtest: the GUI fixture refuses a malformed independent opening-stock write
+ok 66 - the GUI fixture refuses a malformed independent opening-stock write
+  ---
+  duration_ms: 30.254376
+  ...
+# Subtest: the HTTP router refuses a business database name with 503 before Laravel loads
+ok 67 - the HTTP router refuses a business database name with 503 before Laravel loads
+  ---
+  duration_ms: 166.488258
+  ...
+# Subtest: the HTTP router refuses a mismatched database selection with 503
+ok 68 - the HTTP router refuses a mismatched database selection with 503
+  ---
+  duration_ms: 109.917329
+  ...
+# Subtest: the HTTP router refuses when a configuration cache exists
+ok 69 - the HTTP router refuses when a configuration cache exists
+  ---
+  duration_ms: 106.862843
+  ...
+# Subtest: the HTTP router never serves a .php path statically, even when refused
+ok 70 - the HTTP router never serves a .php path statically, even when refused
+  ---
+  duration_ms: 106.984649
+  ...
+# Subtest: the GUI fixture refuses a malformed product-image step
+ok 71 - the GUI fixture refuses a malformed product-image step
+  ---
+  duration_ms: 31.346764
+  ...
+# Subtest: the GUI fixture refuses a malformed brand step
+ok 72 - the GUI fixture refuses a malformed brand step
+  ---
+  duration_ms: 33.422801
+  ...
+1..72
+# tests 72
+# suites 0
+# pass 72
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 186379.40276

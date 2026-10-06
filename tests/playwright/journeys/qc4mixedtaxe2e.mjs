@@ -1,3 +1,4 @@
+import { lineRemoveAction, quickAction } from '../support/workspace.mjs'
 import { t, virtualPrintDir } from '../support/app.mjs'
 import {
   launchAgain,
@@ -100,11 +101,13 @@ function escape(text) {
 }
 
 async function lineButton(page, key, code) {
+  // POS workspace: Remove lives in the line's menu (still named "Remove <name>").
+  if (key === 'pos.cart.removeOf') return await lineRemoveAction(page, NAMES[code])
   return page.getByRole('button', { name: await t(page, key, { name: NAMES[code] }) })
 }
 
 async function applyPercentDiscount(ctx, page, percent) {
-  await page.getByRole('button', { name: await t(page, 'pos.cart.addDiscount') }).click()
+  await (await quickAction(page, 'discount')).click()
   await page.getByRole('radio', { name: await t(page, 'pos.discountPercentage') }).click()
   await page.getByLabel(await t(page, 'pos.discountPercent')).fill(String(percent))
   await page.getByRole('button', { name: await t(page, 'pos.applyDiscount') }).click()
@@ -397,7 +400,7 @@ export async function run(ctx) {
       beforeHold.discount[0] !== 'percentage'
     )
       throw new Error('A: cart edits failed')
-    await page.locator('.quick-actions [data-action="hold"]').click()
+    await (await quickAction(page, 'hold')).click()
     await page.waitForTimeout(400)
     const afterHold = await cartState(page)
     if (afterHold.lines.length !== 0 || afterHold.held !== 1) throw new Error('A: hold failed')
@@ -431,7 +434,7 @@ export async function run(ctx) {
     ctx.step('B: sale 1 accepted', { local: sale1.invoice, items: sale1.items, server: server1 })
 
     // --- C. recall the held cart; sale 2 online ---------------------------------------------------
-    await page.locator('.quick-actions [data-action="recall"]').click()
+    await (await quickAction(page, 'recall')).click()
     await page
       .getByRole('dialog')
       .getByRole('button', { name: await t(page, 'pos.quickSale.recall') })

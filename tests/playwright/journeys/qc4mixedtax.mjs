@@ -1,3 +1,4 @@
+import { quickAction } from '../support/workspace.mjs'
 import { t } from '../support/app.mjs'
 import {
   openSandboxAndApp,
@@ -151,7 +152,7 @@ export async function run(ctx) {
       throw new Error(`4: server categories ${JSON.stringify(serverCategories)}`)
 
     // 5. Partial refund through Return / Refund.
-    await page.locator('.quick-actions [data-action="refund"]').click()
+    await (await quickAction(page, 'refund')).click()
     await page.getByTestId('refund-entry-dialog').waitFor()
     await page.getByTestId(`refund-entry-${local.invoice.local_uuid}`).click()
     const refundDialog = page.getByRole('dialog')

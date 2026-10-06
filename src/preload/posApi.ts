@@ -101,6 +101,10 @@ import type {
   UserPreferences
 } from '@shared/contracts/preferences.contract'
 import type {
+  PosWorkspaceReadResult,
+  SetPosWorkspaceInput
+} from '@shared/contracts/posWorkspace.contract'
+import type {
   SyncFailureCursor,
   SyncFailurePage,
   SyncStatus,
@@ -247,6 +251,9 @@ export interface PosApi {
     /** Stage 5: the signed-in user's own preferences on this workstation. */
     getUser(): Promise<IpcResult<UserPreferences>>
     setUser(input: SetUserPreferenceInput): Promise<IpcResult<UserPreferences>>
+    /** POS workspace: the signed-in user's presentation-only layout on this workstation. */
+    getPosWorkspace(): Promise<IpcResult<PosWorkspaceReadResult>>
+    setPosWorkspace(input: SetPosWorkspaceInput): Promise<IpcResult<PosWorkspaceReadResult>>
   }
   readonly companyUsers: {
     getAccess(): Promise<IpcResult<CompanyUserAccess>>
@@ -598,7 +605,10 @@ export const posApi: PosApi = Object.freeze({
       ipcRenderer.invoke(IPC_CHANNELS.preferencesSetPosCartWidth, width),
     getUser: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetUser),
     setUser: (input: SetUserPreferenceInput) =>
-      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetUser, input)
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetUser, input),
+    getPosWorkspace: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetPosWorkspace),
+    setPosWorkspace: (input: SetPosWorkspaceInput) =>
+      ipcRenderer.invoke(IPC_CHANNELS.preferencesSetPosWorkspace, input)
   }),
   companyUsers: Object.freeze({
     getAccess: () => ipcRenderer.invoke(IPC_CHANNELS.companyUsersGetAccess),

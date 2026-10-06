@@ -1,0 +1,74 @@
+
+> pos-desktop@1.0.0 build
+> npm run typecheck && electron-vite build
+
+
+> pos-desktop@1.0.0 typecheck
+> npm run typecheck:node && npm run typecheck:web
+
+
+> pos-desktop@1.0.0 typecheck:node
+> tsc --noEmit -p tsconfig.node.json --composite false
+
+
+> pos-desktop@1.0.0 typecheck:web
+> vue-tsc --noEmit -p tsconfig.web.json --composite false
+
+[36mvite v7.3.6 [32mbuilding ssr environment for production...[36m[39m
+transforming...
+[32m✓[39m 226 modules transformed.
+rendering chunks...
+[2mout/main/[22m[36mindex.js  [39m[1m[33m1,215.62 kB[39m[22m
+[32m✓ built in 1.58s[39m
+[36mvite v7.3.6 [32mbuilding ssr environment for production...[36m[39m
+transforming...
+[32m✓[39m 3 modules transformed.
+rendering chunks...
+[2mout/preload/[22m[36mindex.js  [39m[1m[2m23.10 kB[22m[1m[22m
+[32m✓ built in 32ms[39m
+[36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 398 modules transformed.
+rendering chunks...
+[2m../../out/renderer/[22m[32mindex.html                                                    [39m[1m[2m    0.55 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-ext-400-normal-D127hM_v.woff2  [39m[1m[2m   10.59 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-ext-600-normal-DQgPU_Cg.woff2  [39m[1m[2m   10.90 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-ext-700-normal-BajbvANd.woff2  [39m[1m[2m   11.01 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-400-normal-Dhut76fR.woff2      [39m[1m[2m   11.82 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-800-normal-CusIZhrK.woff2      [39m[1m[2m   11.90 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2      [39m[1m[2m   12.19 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2      [39m[1m[2m   12.24 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2      [39m[1m[2m   12.31 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-ext-400-normal-2ppkqaOR.woff   [39m[1m[2m   15.31 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-ext-600-normal-B0WRRYJ1.woff   [39m[1m[2m   15.61 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-ext-700-normal-8-d-IyIQ.woff   [39m[1m[2m   15.62 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-400-normal-BDKaGhyp.woff       [39m[1m[2m   15.73 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-800-normal-BRNHt2w0.woff       [39m[1m[2m   15.78 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-600-normal-BR_Ojra4.woff       [39m[1m[2m   16.08 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-500-normal-DYtqi0QS.woff       [39m[1m[2m   16.12 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mplus-jakarta-sans-latin-700-normal-DqEcQeE5.woff       [39m[1m[2m   16.14 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-400-normal-CFZh1unN.woff    [39m[1m[2m   17.51 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-700-normal-Cl4F7CZR.woff    [39m[1m[2m   17.78 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-500-normal-BletK1Hp.woff    [39m[1m[2m   18.64 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-600-normal-Dk5eISD_.woff    [39m[1m[2m   18.88 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-400-normal-Bo5KPYvw.woff2   [39m[1m[2m   19.16 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-700-normal-BzSf6GNr.woff2   [39m[1m[2m   19.50 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-500-normal-Cd6jVIg7.woff2   [39m[1m[2m   20.09 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-latin-600-normal-KrqB56Mw.woff2   [39m[1m[2m   20.50 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mjetbrains-mono-latin-400-normal-V6pRDFza.woff2         [39m[1m[2m   21.17 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mjetbrains-mono-latin-500-normal-BWZEU5yA.woff2         [39m[1m[2m   21.83 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mjetbrains-mono-latin-600-normal-C8RAYTDA.woff2         [39m[1m[2m   21.86 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mjetbrains-mono-latin-400-normal-6-qcROiO.woff          [39m[1m[2m   27.50 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mjetbrains-mono-latin-600-normal-BfsvjouI.woff          [39m[1m[2m   28.18 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mjetbrains-mono-latin-500-normal-CJOVTJB7.woff          [39m[1m[2m   28.21 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-400-normal-CyU-ddYS.woff2  [39m[1m[2m   42.85 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-400-normal-EA1o-u_Q.woff   [39m[1m[2m   44.14 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-700-normal-DrtBj6UE.woff2  [39m[1m[2m   44.28 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-700-normal-9rXc6cUL.woff   [39m[1m[2m   44.36 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-500-normal-C4MQITzh.woff2  [39m[1m[2m   45.30 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-600-normal-0pRdybE_.woff2  [39m[1m[2m   45.69 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-600-normal-MJZ0liF5.woff   [39m[1m[2m   46.78 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[32mibm-plex-sans-arabic-arabic-500-normal-DPXcppbm.woff   [39m[1m[2m   46.92 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[35mindex-DPzNWihP.css                                     [39m[1m[2m   75.30 kB[22m[1m[22m
+[2m../../out/renderer/[22m[2massets/[22m[36mindex-DLsdIs1-.js                                      [39m[1m[33m1,709.62 kB[39m[22m
+[32m✓ built in 4.49s[39m

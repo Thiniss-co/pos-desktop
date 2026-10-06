@@ -17,8 +17,13 @@ const props = withDefaults(
     product: DisplayProduct
     stockLabel: string
     disabled?: boolean
+    /**
+     * POS workspace compact browsing: no image band; name, price and the stock pill only, with the
+     * in-cart badge. Stock stays information only, exactly as on the full card.
+     */
+    compact?: boolean
   }>(),
-  { disabled: false }
+  { disabled: false, compact: false }
 )
 
 const emit = defineEmits<{ select: [] }>()
@@ -47,6 +52,7 @@ const showImage = computed(() => Boolean(props.product.imageUrl) && !imageFailed
     :class="product.inCartQuantity ? 'border-pri' : 'border-line'"
   >
     <div
+      v-if="!compact"
       class="relative h-22 short:h-16"
       :class="showImage ? 'bg-surf' : TONE_BG[tone]"
       aria-hidden="true"
@@ -74,23 +80,34 @@ const showImage = computed(() => Boolean(props.product.imageUrl) && !imageFailed
       :aria-label="product.ariaLabel"
       @click="emit('select')"
     >
-      <span class="flex w-full flex-1 flex-col gap-0.75 px-3 pt-2.5 pb-3">
+      <span
+        class="flex w-full flex-1 flex-col"
+        :class="compact ? 'gap-0.5 ps-2.5 pe-8 pt-2 pb-2' : 'gap-0.75 px-3 pt-2.5 pb-3'"
+      >
         <span
-          class="product-card__name line-clamp-2 min-h-[2.7em] text-base leading-[1.35] font-medium [overflow-wrap:anywhere]"
+          class="product-card__name line-clamp-2 leading-[1.35] font-medium [overflow-wrap:anywhere]"
+          :class="compact ? 'min-h-[2.7em] text-sm' : 'min-h-[2.7em] text-base'"
           :title="product.name"
           >{{ product.name }}</span
         >
-        <span class="flex flex-wrap gap-1.5 text-xs text-muted">
+        <span v-if="!compact" class="flex flex-wrap gap-1.5 text-xs text-muted">
           <template v-if="product.unit"
             ><span>{{ product.unit }}</span
             ><span aria-hidden="true">·</span></template
           >
           <span class="product-card__sku code">{{ product.sku }}</span>
         </span>
-        <span class="mt-auto flex flex-wrap items-center justify-between gap-1.5 pt-2">
-          <span class="product-card__price numeric text-md font-bold whitespace-nowrap">{{
-            product.price
-          }}</span>
+        <span
+          class="mt-auto flex gap-1.5"
+          :class="
+            compact ? 'flex-col items-start pt-1' : 'flex-wrap items-center justify-between pt-2'
+          "
+        >
+          <span
+            class="product-card__price numeric font-bold whitespace-nowrap"
+            :class="compact ? 'text-sm' : 'text-md'"
+            >{{ product.price }}</span
+          >
           <StockStatus :level="product.stock" :label="stockLabel" />
         </span>
         <span

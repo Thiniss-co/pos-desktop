@@ -22,6 +22,7 @@ import {
   themePreferenceSchema,
   setUserPreferenceInputSchema
 } from '@shared/contracts/preferences.contract'
+import { setPosWorkspaceInputSchema } from '@shared/contracts/posWorkspace.contract'
 import { syncListFailuresInputSchema as syncListFailuresContractSchema } from '@shared/contracts/sync.contract'
 import {
   printerSettingsSchema,
@@ -129,6 +130,8 @@ export const preferencesSetPosCartWidthInputSchema = posCartWidthPreferenceSchem
 // Stage 5: the identity is the session's; the renderer names only a closed key and a boolean.
 export const preferencesGetUserInputSchema = z.undefined()
 export const preferencesSetUserInputSchema = setUserPreferenceInputSchema
+export const preferencesGetPosWorkspaceInputSchema = z.undefined()
+export const preferencesSetPosWorkspaceInputSchema = setPosWorkspaceInputSchema
 export const companyUsersGetAccessInputSchema = z.undefined()
 export const companyUsersListInputSchema = listUsersInputSchema
 export const companyUsersGetInputSchema = companyUserIdInputSchema

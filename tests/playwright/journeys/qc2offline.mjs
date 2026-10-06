@@ -1,3 +1,4 @@
+import { openQuickCreateMenu } from '../support/workspace.mjs'
 import { t } from '../support/app.mjs'
 import {
   CASHIER,
@@ -39,9 +40,8 @@ const COLA = '6221000000011'
 const JUICE_BARCODE = '7770000002001'
 
 async function quickCreate(ctx, page, kind, fields) {
-  // Stage 3: the create actions live in the More sheet of the quick-action row.
-  await page.locator('.quick-actions [data-action="more"]').click()
-  await page.getByTestId('more-actions-dialog').waitFor()
+  // Stage 3: the create actions live in the More sheet (POS workspace: More → Quick create…).
+  await openQuickCreateMenu(page)
   await page.getByTestId(`more-actions-${kind}`).click()
   const dialog = page.getByTestId('quick-create-dialog')
   await dialog.waitFor()
@@ -128,8 +128,7 @@ export async function run(ctx) {
     await sizeWindow(session, 1600, 900)
 
     // --- A. offline creation, restart, reconnect with a lost answer -------------------------------
-    await page.locator('.quick-actions [data-action="more"]').click()
-    await page.getByTestId('more-actions-dialog').waitFor()
+    await openQuickCreateMenu(page)
     const items = await page
       .locator('[data-testid^="more-actions-"]:not([data-testid="more-actions-dialog"])')
       .allInnerTexts()

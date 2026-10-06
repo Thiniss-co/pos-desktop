@@ -1,0 +1,9 @@
+[cp3g5] run identity b376191f0f2c
+[cp3g5] created an authorized disposable backend database
+[cp3g5] resolved database identity verified before the first write
+[cp3g5] backend migrations applied to the disposable database
+[cp3g5] minted 32 upload fixtures through private file IPC
+[cp3g5] live Laravel ready on http://127.0.0.1:40891, owned by this run's process group
+[cp3g5] diagnostic {"phase":"electron-run","operation":"Electron-SQLite-suite","code":"child-failed","driver_code":1}
+[cp3g5] Electron SQLite suite failed with no child output forwarded
+[cp3g5] temporary directory removed and verified absent

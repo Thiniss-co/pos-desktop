@@ -1,0 +1,3193 @@
+
+> pos-desktop@1.0.0 test:sqlite:electron
+> node scripts/runElectronNode.mjs tests/electron/index.ts
+
+
+  ../../../../../tmp/pos-desktop-electron-node-SArbsa/entry.cjs  2.8mb ⚠️
+
+⚡ Done in 96ms
+TAP version 13
+# Subtest: schema migrates an empty file, applies every table and preserves pragmas
+ok 1 - schema migrates an empty file, applies every table and preserves pragmas
+  ---
+  duration_ms: 107.053179
+  type: 'test'
+  ...
+# Subtest: schema migration reruns are idempotent and a closed file reopens intact
+ok 2 - schema migration reruns are idempotent and a closed file reopens intact
+  ---
+  duration_ms: 87.777749
+  type: 'test'
+  ...
+# Subtest: an existing Phase 2 database migrates additively with its state intact
+ok 3 - an existing Phase 2 database migrates additively with its state intact
+  ---
+  duration_ms: 80.498225
+  type: 'test'
+  ...
+# Subtest: the Electron Node harness cannot resolve the production database path
+ok 4 - the Electron Node harness cannot resolve the production database path
+  ---
+  duration_ms: 0.407995
+  type: 'test'
+  ...
+# Subtest: fresh install applies migration 0007 with every Phase 3F table
+ok 5 - fresh install applies migration 0007 with every Phase 3F table
+  ---
+  duration_ms: 82.142357
+  type: 'test'
+  ...
+# Subtest: an existing version-6 database migrates additively to 0007 with its state intact
+ok 6 - an existing version-6 database migrates additively to 0007 with its state intact
+  ---
+  duration_ms: 81.900922
+  type: 'test'
+  ...
+# Subtest: every STRICT integer column rejects a fractional value
+ok 7 - every STRICT integer column rejects a fractional value
+  ---
+  duration_ms: 82.231555
+  type: 'test'
+  ...
+# Subtest: local_stock_movements can never be created with sync_status=synced
+ok 8 - local_stock_movements can never be created with sync_status=synced
+  ---
+  duration_ms: 82.131475
+  type: 'test'
+  ...
+# Subtest: local_stock_movements can never carry a non-null synced_at
+ok 9 - local_stock_movements can never carry a non-null synced_at
+  ---
+  duration_ms: 81.22985
+  type: 'test'
+  ...
+# Subtest: local_invoices cannot be marked synced with a NULL synced_at
+ok 10 - local_invoices cannot be marked synced with a NULL synced_at
+  ---
+  duration_ms: 78.642468
+  type: 'test'
+  ...
+# Subtest: a fixed line discount cannot exceed its own subtotal
+ok 11 - a fixed line discount cannot exceed its own subtotal
+  ---
+  duration_ms: 81.79776
+  type: 'test'
+  ...
+# Subtest: a percentage discount above 10000 basis points is rejected
+ok 12 - a percentage discount above 10000 basis points is rejected
+  ---
+  duration_ms: 78.580145
+  type: 'test'
+  ...
+# Subtest: an untrimmed payment reference is rejected
+ok 13 - an untrimmed payment reference is rejected
+  ---
+  duration_ms: 81.704733
+  type: 'test'
+  ...
+# Subtest: requires_reference=1 with a blank reference is rejected
+ok 14 - requires_reference=1 with a blank reference is rejected
+  ---
+  duration_ms: 79.345168
+  type: 'test'
+  ...
+# Subtest: at most one stock movement can exist per invoice item
+ok 15 - at most one stock movement can exist per invoice item
+  ---
+  duration_ms: 85.787703
+  type: 'test'
+  ...
+# Subtest: the partial unique index allows only one invoice/upload row in sync_queue
+ok 16 - the partial unique index allows only one invoice/upload row in sync_queue
+  ---
+  duration_ms: 81.257502
+  type: 'test'
+  ...
+# Subtest: at most one claimed attempt exists per (company, device, cashier)
+ok 17 - at most one claimed attempt exists per (company, device, cashier)
+  ---
+  duration_ms: 79.471034
+  type: 'test'
+  ...
+# Subtest: two committed-unacknowledged attempts plus one claimed attempt are valid for one owner
+ok 18 - two committed-unacknowledged attempts plus one claimed attempt are valid for one owner
+  ---
+  duration_ms: 80.673658
+  type: 'test'
+  ...
+# Subtest: a committed attempt must carry an invoice_local_uuid
+ok 19 - a committed attempt must carry an invoice_local_uuid
+  ---
+  duration_ms: 79.271965
+  type: 'test'
+  ...
+# Subtest: a claimed or committed attempt must retain intent_json
+ok 20 - a claimed or committed attempt must retain intent_json
+  ---
+  duration_ms: 77.021271
+  type: 'test'
+  ...
+# Subtest: a rejected attempt can never retain intent_json
+ok 21 - a rejected attempt can never retain intent_json
+  ---
+  duration_ms: 75.647364
+  type: 'test'
+  ...
+# Subtest: a acknowledged attempt can never retain intent_json
+ok 22 - a acknowledged attempt can never retain intent_json
+  ---
+  duration_ms: 73.634742
+  type: 'test'
+  ...
+# Subtest: a abandoned attempt can never retain intent_json
+ok 23 - a abandoned attempt can never retain intent_json
+  ---
+  duration_ms: 74.778915
+  type: 'test'
+  ...
+# Subtest: a rejected attempt must carry a failure_code
+ok 24 - a rejected attempt must carry a failure_code
+  ---
+  duration_ms: 75.752785
+  type: 'test'
+  ...
+# Subtest: intent_json accepts exactly 65536 UTF-8 bytes and rejects 65538
+ok 25 - intent_json accepts exactly 65536 UTF-8 bytes and rejects 65538
+  ---
+  duration_ms: 75.464872
+  type: 'test'
+  ...
+# Subtest: an invalid connectivity_state/sold_while_offline pairing is rejected
+ok 26 - an invalid connectivity_state/sold_while_offline pairing is rejected
+  ---
+  duration_ms: 74.770764
+  type: 'test'
+  ...
+# Subtest: the final consumption sequence and hash are one piece of evidence
+ok 27 - the final consumption sequence and hash are one piece of evidence
+  ---
+  duration_ms: 74.650298
+  type: 'test'
+  ...
+# Subtest: the legacy status mirror may never disagree with the server status
+ok 28 - the legacy status mirror may never disagree with the server status
+  ---
+  duration_ms: 75.044526
+  type: 'test'
+  ...
+# Subtest: every backend lifecycle envelope now persists
+ok 29 - every backend lifecycle envelope now persists
+  ---
+  duration_ms: 74.442647
+  type: 'test'
+  ...
+# Subtest: a sealed grant cannot become spendable through the legacy mirror
+ok 30 - a sealed grant cannot become spendable through the legacy mirror
+  ---
+  duration_ms: 78.156355
+  type: 'test'
+  ...
+# Subtest: allocation consumption cannot reference a foreign-key-missing grant, invoice, or item
+ok 31 - allocation consumption cannot reference a foreign-key-missing grant, invoice, or item
+  ---
+  duration_ms: 77.071883
+  type: 'test'
+  ...
+# Subtest: a duplicate per-grant consumption sequence is rejected
+ok 32 - a duplicate per-grant consumption sequence is rejected
+  ---
+  duration_ms: 77.503594
+  type: 'test'
+  ...
+# Subtest: an acknowledged consumption must carry both server identity and timestamp
+ok 33 - an acknowledged consumption must carry both server identity and timestamp
+  ---
+  duration_ms: 78.957955
+  type: 'test'
+  ...
+# Subtest: existing preview/shift suites see zero rows in every new business table
+ok 34 - existing preview/shift suites see zero rows in every new business table
+  ---
+  duration_ms: 75.38168
+  type: 'test'
+  ...
+# Subtest: SaleAttemptRepository claims, commits, acknowledges, and blocks a second claim
+ok 35 - SaleAttemptRepository claims, commits, acknowledges, and blocks a second claim
+  ---
+  duration_ms: 80.432095
+  type: 'test'
+  ...
+# Subtest: SaleAttemptRepository rejects and abandons independently, purging intent_json
+ok 36 - SaleAttemptRepository rejects and abandons independently, purging intent_json
+  ---
+  duration_ms: 86.276406
+  type: 'test'
+  ...
+# Subtest: StockAllocationRepository computes remaining quantity from immutable rows only
+ok 37 - StockAllocationRepository computes remaining quantity from immutable rows only
+  ---
+  duration_ms: 93.853276
+  type: 'test'
+  ...
+# Subtest: BootstrapSnapshotRepository exposes the singleton branch and warehouse readers
+ok 38 - BootstrapSnapshotRepository exposes the singleton branch and warehouse readers
+  ---
+  duration_ms: 113.690427
+  type: 'test'
+  ...
+# Subtest: the partial unique index lets sync_queue carry exactly one invoice/upload row per invoice
+ok 39 - the partial unique index lets sync_queue carry exactly one invoice/upload row per invoice
+  ---
+  duration_ms: 99.990544
+  type: 'test'
+  ...
+# Subtest: a genuinely new sale commits atomically with one invoice, item, payment, and queue row
+ok 40 - a genuinely new sale commits atomically with one invoice, item, payment, and queue row
+  ---
+  duration_ms: 156.605238
+  type: 'test'
+  ...
+# Subtest: an open main-owned shift with no workstation assignment reports workstation-unassigned
+ok 41 - an open main-owned shift with no workstation assignment reports workstation-unassigned
+  ---
+  duration_ms: 101.34387
+  type: 'test'
+  ...
+# Subtest: an exact replay of checkout:complete returns the same committed invoice
+ok 42 - an exact replay of checkout:complete returns the same committed invoice
+  ---
+  duration_ms: 111.655776
+  type: 'test'
+  ...
+# Subtest: changed content under the same attempt key is an attempt-conflict, never a silent replay
+ok 43 - changed content under the same attempt key is an attempt-conflict, never a silent replay
+  ---
+  duration_ms: 111.035932
+  type: 'test'
+  ...
+# Subtest: a claimed attempt blocks a genuinely new key for the same owner
+ok 44 - a claimed attempt blocks a genuinely new key for the same owner
+  ---
+  duration_ms: 103.539938
+  type: 'test'
+  ...
+# Subtest: a real fault injected mid-transaction rolls back to zero business rows and records a definite rejection
+ok 45 - a real fault injected mid-transaction rolls back to zero business rows and records a definite rejection
+  ---
+  duration_ms: 124.589352
+  type: 'test'
+  ...
+# Subtest: retry after the shift closes on another terminal returns context-changed, never a silent re-attribution
+ok 46 - retry after the shift closes on another terminal returns context-changed, never a silent re-attribution
+  ---
+  duration_ms: 130.340641
+  type: 'test'
+  ...
+# Subtest: abandon purges intent_json and unblocks the till when no sale committed
+ok 47 - abandon purges intent_json and unblocks the till when no sale committed
+  ---
+  duration_ms: 138.976064
+  type: 'test'
+  ...
+# Subtest: acknowledge purges intent_json but never touches the immutable invoice/payment rows
+ok 48 - acknowledge purges intent_json but never touches the immutable invoice/payment rows
+  ---
+  duration_ms: 207.910211
+  type: 'test'
+  ...
+# Subtest: a tracked line with a sufficient real allocation grant consumes it exactly once
+ok 49 - a tracked line with a sufficient real allocation grant consumes it exactly once
+  ---
+  duration_ms: 221.588377
+  type: 'test'
+  ...
+# Subtest: an insufficient allocation for a tracked line rejects and writes nothing
+ok 50 - an insufficient allocation for a tracked line rejects and writes nothing
+  ---
+  duration_ms: 223.553489
+  type: 'test'
+  ...
+# Subtest: a tracked line with no allocation at all is rejected in every connectivity state (D2-B, no cached fallback)
+ok 51 - a tracked line with no allocation at all is rejected in every connectivity state (D2-B, no cached fallback)
+  ---
+  duration_ms: 195.814619
+  type: 'test'
+  ...
+# Subtest: T4: retry commits the exact retained intent once the till is free again
+ok 52 - T4: retry commits the exact retained intent once the till is free again
+  ---
+  duration_ms: 193.470811
+  type: 'test'
+  ...
+# Subtest: uniform none, inclusive, exclusive, and same-mode multi-line carts persist one proven tax mode
+ok 53 - uniform none, inclusive, exclusive, and same-mode multi-line carts persist one proven tax mode
+  ---
+  duration_ms: 232.349222
+  type: 'test'
+  ...
+# Subtest: mixed tax modes reject before writes regardless of line order
+ok 54 - mixed tax modes reject before writes regardless of line order
+  ---
+  duration_ms: 205.624098
+  type: 'test'
+  ...
+# Subtest: POS improvements Stage 4: under a per_line contract a mixed cart commits a mixed header, frozen line categories and a v4 payload
+ok 55 - POS improvements Stage 4: under a per_line contract a mixed cart commits a mixed header, frozen line categories and a v4 payload
+  ---
+  duration_ms: 137.793721
+  type: 'test'
+  ...
+# Subtest: POS improvements Stage 4: a uniform cart under a per_line contract keeps its own header and the v2 payload
+ok 56 - POS improvements Stage 4: a uniform cart under a per_line contract keeps its own header and the v2 payload
+  ---
+  duration_ms: 145.033589
+  type: 'test'
+  ...
+# Subtest: the post-write invariant rolls back a deliberately corrupted item tax mode
+ok 57 - the post-write invariant rolls back a deliberately corrupted item tax mode
+  ---
+  duration_ms: 138.176408
+  type: 'test'
+  ...
+# Subtest: T6: retry on an already-committed attempt replays the exact result, never a selling gate
+ok 58 - T6: retry on an already-committed attempt replays the exact result, never a selling gate
+  ---
+  duration_ms: 113.965838
+  type: 'test'
+  ...
+# Subtest: T8: retry on an already-acknowledged attempt replays the exact result
+ok 59 - T8: retry on an already-acknowledged attempt replays the exact result
+  ---
+  duration_ms: 124.676457
+  type: 'test'
+  ...
+# Subtest: T10: retry/acknowledge/abandon on a key never claimed by this owner return not-found, never create a row
+ok 60 - T10: retry/acknowledge/abandon on a key never claimed by this owner return not-found, never create a row
+  ---
+  duration_ms: 125.964884
+  type: 'test'
+  ...
+# Subtest: T10: a claimed row owned by a different cashier is opaque — never disclosed, never actioned
+ok 61 - T10: a claimed row owned by a different cashier is opaque — never disclosed, never actioned
+  ---
+  duration_ms: 123.383041
+  type: 'test'
+  ...
+# Subtest: foreign user/company/device and invalid or revoked sessions cannot commit a retained attempt
+ok 62 - foreign user/company/device and invalid or revoked sessions cannot commit a retained attempt
+  ---
+  duration_ms: 142.763538
+  type: 'test'
+  ...
+# Subtest: T1: a fresh key already claimed globally by a foreign owner is an opaque attempt-key-unavailable
+ok 63 - T1: a fresh key already claimed globally by a foreign owner is an opaque attempt-key-unavailable
+  ---
+  duration_ms: 124.952078
+  type: 'test'
+  ...
+# Subtest: abandon-attempt on an already-committed sale is refused as already-committed, never rewritten
+ok 64 - abandon-attempt on an already-committed sale is refused as already-committed, never rewritten
+  ---
+  duration_ms: 139.516036
+  type: 'test'
+  ...
+# Subtest: a SIGKILL before the business commit leaves a claimed attempt and no sale whatsoever
+ok 65 - a SIGKILL before the business commit leaves a claimed attempt and no sale whatsoever
+  ---
+  duration_ms: 649.989185
+  type: 'test'
+  ...
+# Subtest: a process restart inside the same still-valid session keeps claim and commit epochs equal
+ok 66 - a process restart inside the same still-valid session keeps claim and commit epochs equal
+  ---
+  duration_ms: 1167.734043
+  type: 'test'
+  ...
+# Subtest: a fresh process discovers the stranded claim from disk and drives a retry to completion
+ok 67 - a fresh process discovers the stranded claim from disk and drives a retry to completion
+  ---
+  duration_ms: 2510.330711
+  type: 'test'
+  ...
+# Subtest: a fresh process can abandon the stranded claim instead, leaving no sale and an unblocked till
+ok 68 - a fresh process can abandon the stranded claim instead, leaving no sale and an unblocked till
+  ---
+  duration_ms: 1287.787602
+  type: 'test'
+  ...
+# Subtest: a SIGKILL after the commit leaves a complete, discoverable, acknowledgeable sale
+ok 69 - a SIGKILL after the commit leaves a complete, discoverable, acknowledgeable sale
+  ---
+  duration_ms: 1312.564944
+  type: 'test'
+  ...
+# Subtest: two lost committed replies are both discoverable across a restart and acknowledged independently
+ok 70 - two lost committed replies are both discoverable across a restart and acknowledged independently
+  ---
+  duration_ms: 1709.537785
+  type: 'test'
+  ...
+# Subtest: complete pagination surfaces every unacknowledged result, never only the newest page
+ok 71 - complete pagination surfaces every unacknowledged result, never only the newest page
+  ---
+  duration_ms: 1200.505854
+  type: 'test'
+  ...
+# Subtest: a committed result stays replayable for the same owner across a new session epoch
+ok 72 - a committed result stays replayable for the same owner across a new session epoch
+  ---
+  duration_ms: 1008.664964
+  type: 'test'
+  ...
+# Subtest: split-grant payload order is stable across insertion permutations, ANALYZE, and process restart
+ok 73 - split-grant payload order is stable across insertion permutations, ANALYZE, and process restart
+  ---
+  duration_ms: 864.363384
+  type: 'test'
+  ...
+# Subtest: two completions issued in one tick each commit exactly once, never interleaved
+ok 74 - two completions issued in one tick each commit exactly once, never interleaved
+  ---
+  duration_ms: 101.334042
+  type: 'test'
+  ...
+# Subtest: a double-submitted identical completion in one tick commits once and replays once
+ok 75 - a double-submitted identical completion in one tick commits once and replays once
+  ---
+  duration_ms: 87.945347
+  type: 'test'
+  ...
+# Subtest: a completion racing a bootstrap write leaves both consistent
+ok 76 - a completion racing a bootstrap write leaves both consistent
+  ---
+  duration_ms: 87.256999
+  type: 'test'
+  ...
+# Subtest: a storage failure (SQLITE_BUSY) fails cleanly, writes nothing, and leaves the attempt claimed
+ok 77 - a storage failure (SQLITE_BUSY) fails cleanly, writes nothing, and leaves the attempt claimed
+  ---
+  duration_ms: 96.85102
+  type: 'test'
+  ...
+# Subtest: a claimed attempt left by a storage failure is retryable to exactly one sale
+ok 78 - a claimed attempt left by a storage failure is retryable to exactly one sale
+  ---
+  duration_ms: 90.218529
+  type: 'test'
+  ...
+# Subtest: completing a sale makes no outbound network call of any kind (plan §7f)
+ok 79 - completing a sale makes no outbound network call of any kind (plan §7f)
+  ---
+  duration_ms: 91.304558
+  type: 'test'
+  ...
+# Subtest: the queued upload row is never consumed or transitioned by completing more sales
+ok 80 - the queued upload row is never consumed or transitioned by completing more sales
+  ---
+  duration_ms: 86.957753
+  type: 'test'
+  ...
+# Subtest: an instrumented dry run enumerates the real write boundaries the sweep must cover
+ok 81 - an instrumented dry run enumerates the real write boundaries the sweep must cover
+  ---
+  duration_ms: 77.814623
+  type: 'test'
+  ...
+# Subtest: a fault injected at every enumerated write boundary rolls back to zero business rows
+ok 82 - a fault injected at every enumerated write boundary rolls back to zero business rows
+  ---
+  duration_ms: 552.513294
+  type: 'test'
+  ...
+# Subtest: a committed result whose queued payload was tampered with fails closed, without mutating it
+ok 83 - a committed result whose queued payload was tampered with fails closed, without mutating it
+  ---
+  duration_ms: 85.720463
+  type: 'test'
+  ...
+# Subtest: a committed result whose payload hash no longer matches its payload fails closed
+ok 84 - a committed result whose payload hash no longer matches its payload fails closed
+  ---
+  duration_ms: 87.072014
+  type: 'test'
+  ...
+# Subtest: a committed result with no queued upload row at all fails closed
+ok 85 - a committed result with no queued upload row at all fails closed
+  ---
+  duration_ms: 80.816957
+  type: 'test'
+  ...
+# Subtest: a claimed attempt with malformed retained intent fails closed on retry
+ok 86 - a claimed attempt with malformed retained intent fails closed on retry
+  ---
+  duration_ms: 80.795349
+  type: 'test'
+  ...
+# Subtest: a claimed attempt whose intent no longer matches its fingerprint fails closed on retry
+ok 87 - a claimed attempt whose intent no longer matches its fingerprint fails closed on retry
+  ---
+  duration_ms: 77.547601
+  type: 'test'
+  ...
+# Subtest: an impossible claimed-attempt-with-an-invoice shape is never promoted by abandon
+ok 88 - an impossible claimed-attempt-with-an-invoice shape is never promoted by abandon
+  ---
+  duration_ms: 86.380827
+  type: 'test'
+  ...
+# Subtest: D1-A: losing pos.sell blocks a new sale and a retry but never blocks recovery
+ok 89 - D1-A: losing pos.sell blocks a new sale and a retry but never blocks recovery
+  ---
+  duration_ms: 83.138195
+  type: 'test'
+  ...
+# Subtest: a rejected key is a permanent tombstone that can never sell again
+ok 90 - a rejected key is a permanent tombstone that can never sell again
+  ---
+  duration_ms: 98.994672
+  type: 'test'
+  ...
+# Subtest: an abandoned key is a tombstone that can never sell again
+ok 91 - an abandoned key is a tombstone that can never sell again
+  ---
+  duration_ms: 85.321238
+  type: 'test'
+  ...
+# Subtest: BH-04B-3 the pre-0009 schema genuinely rejects a sealed envelope, which is the defect being fixed
+ok 92 - BH-04B-3 the pre-0009 schema genuinely rejects a sealed envelope, which is the defect being fixed
+  ---
+  duration_ms: 13.377113
+  type: 'test'
+  ...
+# Subtest: BH-04B-3 migration 0009 preserves grants, pending invoices, journal rows, indexes and foreign keys
+ok 93 - BH-04B-3 migration 0009 preserves grants, pending invoices, journal rows, indexes and foreign keys
+  ---
+  duration_ms: 86.247355
+  type: 'test'
+  ...
+# Subtest: BH-04B-3 journal evidence is backfilled from the frozen payload and matches the backend vector
+ok 94 - BH-04B-3 journal evidence is backfilled from the frozen payload and matches the backend vector
+  ---
+  duration_ms: 74.27524
+  type: 'test'
+  ...
+# Subtest: BH-04B-3 a consumption whose payload is gone is retained and holds its grant instead of being invented
+ok 95 - BH-04B-3 a consumption whose payload is gone is retained and holds its grant instead of being invented
+  ---
+  duration_ms: 72.990795
+  type: 'test'
+  ...
+# Subtest: BH-04B-3 a failing migration 0009 rolls back to the exact pre-0009 schema and rows
+ok 96 - BH-04B-3 a failing migration 0009 rolls back to the exact pre-0009 schema and rows
+  ---
+  duration_ms: 86.612696
+  type: 'test'
+  ...
+# Subtest: BH-04B-3-R1 the FK-rebuild safety gate genuinely refuses a real orphan and restores enforcement
+ok 97 - BH-04B-3-R1 the FK-rebuild safety gate genuinely refuses a real orphan and restores enforcement
+  ---
+  duration_ms: 2.019957
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 migration 0010 is additive and retains every pre-existing hold
+ok 98 - BH-04B-4 migration 0010 is additive and retains every pre-existing hold
+  ---
+  duration_ms: 69.146712
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 migration 0010 rolls all schema work back on failure
+ok 99 - BH-04B-4 migration 0010 rolls all schema work back on failure
+  ---
+  duration_ms: 22.087955
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 synced-but-uncovered consumption stays a dependency until authoritative coverage arrives
+ok 100 - BH-04B-4 synced-but-uncovered consumption stays a dependency until authoritative coverage arrives
+  ---
+  duration_ms: 80.308921
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 recovery executes seal, frozen invoice replay, verified coverage, and acknowledgement in order
+ok 101 - BH-04B-4 recovery executes seal, frozen invoice replay, verified coverage, and acknowledgement in order
+  ---
+  duration_ms: 80.304498
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 a lost acknowledgement response resumes with the same frozen proof and key
+ok 102 - BH-04B-4 a lost acknowledgement response resumes with the same frozen proof and key
+  ---
+  duration_ms: 70.431668
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 terminal-marker ingestion advances a persisted acknowledged recovery without reviving rights
+ok 103 - BH-04B-4 terminal-marker ingestion advances a persisted acknowledged recovery without reviving rights
+  ---
+  duration_ms: 69.264425
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 SIGKILL recovery at after-intent-before-seal-response resumes one frozen identity without reviving rights
+ok 104 - BH-04B-4 SIGKILL recovery at after-intent-before-seal-response resumes one frozen identity without reviving rights
+  ---
+  duration_ms: 854.57936
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 SIGKILL recovery at during-seal-outcome resumes one frozen identity without reviving rights
+ok 105 - BH-04B-4 SIGKILL recovery at during-seal-outcome resumes one frozen identity without reviving rights
+  ---
+  duration_ms: 957.825505
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 SIGKILL recovery at after-seal-outcome-before-ack-response resumes one frozen identity without reviving rights
+ok 106 - BH-04B-4 SIGKILL recovery at after-seal-outcome-before-ack-response resumes one frozen identity without reviving rights
+  ---
+  duration_ms: 849.920632
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 SIGKILL recovery at ack-response-received-before-outcome resumes one frozen identity without reviving rights
+ok 107 - BH-04B-4 SIGKILL recovery at ack-response-received-before-outcome resumes one frozen identity without reviving rights
+  ---
+  duration_ms: 892.963332
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 SIGKILL recovery at during-ack-outcome resumes one frozen identity without reviving rights
+ok 108 - BH-04B-4 SIGKILL recovery at during-ack-outcome resumes one frozen identity without reviving rights
+  ---
+  duration_ms: 851.850671
+  type: 'test'
+  ...
+# Subtest: a stale snapshot (acknowledgement arrives first) leaves spendable at exactly 7.000
+ok 109 - a stale snapshot (acknowledgement arrives first) leaves spendable at exactly 7.000
+  ---
+  duration_ms: 81.466005
+  type: 'test'
+  ...
+# Subtest: a refreshed snapshot (bootstrap arrives first) also leaves spendable at 7.000
+ok 110 - a refreshed snapshot (bootstrap arrives first) also leaves spendable at 7.000
+  ---
+  duration_ms: 75.937028
+  type: 'test'
+  ...
+# Subtest: lost HTTP response: boundary stays at s=0 but the local deduction still applies
+ok 111 - lost HTTP response: boundary stays at s=0 but the local deduction still applies
+  ---
+  duration_ms: 74.270561
+  type: 'test'
+  ...
+# Subtest: an exact upload replay does not duplicate or change the accepted boundary
+ok 112 - an exact upload replay does not duplicate or change the accepted boundary
+  ---
+  duration_ms: 72.10542
+  type: 'test'
+  ...
+# Subtest: an older snapshot arriving after a newer one is discarded, never regressing coverage
+ok 113 - an older snapshot arriving after a newer one is discarded, never regressing coverage
+  ---
+  duration_ms: 77.817923
+  type: 'test'
+  ...
+# Subtest: concurrent new local sale during reconciliation: the deduction cannot straddle the boundary update
+ok 114 - concurrent new local sale during reconciliation: the deduction cannot straddle the boundary update
+  ---
+  duration_ms: 70.585099
+  type: 'test'
+  ...
+# Subtest: two allocations under the same owner keep fully independent boundaries
+ok 115 - two allocations under the same owner keep fully independent boundaries
+  ---
+  duration_ms: 76.757447
+  type: 'test'
+  ...
+# Subtest: a grant owned by another company or device rejects an incoming boundary as foreign-owner
+ok 116 - a grant owned by another company or device rejects an incoming boundary as foreign-owner
+  ---
+  duration_ms: 72.955096
+  type: 'test'
+  ...
+# Subtest: a lower sequence than already accepted is silently ignored, not applied
+ok 117 - a lower sequence than already accepted is silently ignored, not applied
+  ---
+  duration_ms: 68.790496
+  type: 'test'
+  ...
+# Subtest: equal sequence with a different quantity or hash is a conflict, not an idempotent update
+ok 118 - equal sequence with a different quantity or hash is a conflict, not an idempotent update
+  ---
+  duration_ms: 67.906133
+  type: 'test'
+  ...
+# Subtest: newer valid coverage at an unchanged lifecycle revision still advances (revision is not a coverage signal)
+ok 119 - newer valid coverage at an unchanged lifecycle revision still advances (revision is not a coverage signal)
+  ---
+  duration_ms: 70.420109
+  type: 'test'
+  ...
+# Subtest: a boundary naming an unknown local allocation is rejected without a hold row
+ok 120 - a boundary naming an unknown local allocation is rejected without a hold row
+  ---
+  duration_ms: 66.860488
+  type: 'test'
+  ...
+# Subtest: a sequence beyond this device's own local history fails closed
+ok 121 - a sequence beyond this device's own local history fails closed
+  ---
+  duration_ms: 67.396164
+  type: 'test'
+  ...
+# Subtest: a sequence gap in local history is an incomplete prefix, not a partial acceptance
+ok 122 - a sequence gap in local history is an incomplete prefix, not a partial acceptance
+  ---
+  duration_ms: 68.00792
+  type: 'test'
+  ...
+# Subtest: a quantity that disagrees with the local prefix sum fails closed as quantity-mismatch
+ok 123 - a quantity that disagrees with the local prefix sum fails closed as quantity-mismatch
+  ---
+  duration_ms: 65.499398
+  type: 'test'
+  ...
+# Subtest: a hash that disagrees with the recomputed journal chain fails closed as hash-mismatch
+ok 124 - a hash that disagrees with the recomputed journal chain fails closed as hash-mismatch
+  ---
+  duration_ms: 65.205332
+  type: 'test'
+  ...
+# Subtest: s=0 requires exactly q=0 and the backend initial hash, never a fabricated empty boundary
+ok 125 - s=0 requires exactly q=0 and the backend initial hash, never a fabricated empty boundary
+  ---
+  duration_ms: 65.383705
+  type: 'test'
+  ...
+# Subtest: a rights-generation mismatch is rejected, never silently rebased onto the current grant
+ok 126 - a rights-generation mismatch is rejected, never silently rebased onto the current grant
+  ---
+  duration_ms: 64.405279
+  type: 'test'
+  ...
+# Subtest: unsafe numeric values and a malformed hash fail closed as out-of-bounds/malformed-hash
+ok 127 - unsafe numeric values and a malformed hash fail closed as out-of-bounds/malformed-hash
+  ---
+  duration_ms: 62.898214
+  type: 'test'
+  ...
+# Subtest: an impossible spendable amount (uncovered local evidence exceeding the grant) fails closed, never clamped
+ok 128 - an impossible spendable amount (uncovered local evidence exceeding the grant) fails closed, never clamped
+  ---
+  duration_ms: 68.830344
+  type: 'test'
+  ...
+# Subtest: a hold is cleared only by a subsequent boundary that actually verifies, never by a retry of the same bad one
+ok 129 - a hold is cleared only by a subsequent boundary that actually verifies, never by a retry of the same bad one
+  ---
+  duration_ms: 64.567172
+  type: 'test'
+  ...
+# Subtest: a terminal marker is persisted and immediately makes the grant unusable
+ok 130 - a terminal marker is persisted and immediately makes the grant unusable
+  ---
+  duration_ms: 67.18874
+  type: 'test'
+  ...
+# Subtest: a marker for an allocation absent locally is retained anyway
+ok 131 - a marker for an allocation absent locally is retained anyway
+  ---
+  duration_ms: 62.085746
+  type: 'test'
+  ...
+# Subtest: a later stale active envelope (an older bootstrap re-listing the allocation) cannot undo a terminal marker
+ok 132 - a later stale active envelope (an older bootstrap re-listing the allocation) cannot undo a terminal marker
+  ---
+  duration_ms: 63.947386
+  type: 'test'
+  ...
+# Subtest: omission from a bootstrap list, and process restart, cannot revive a terminal marker
+ok 133 - omission from a bootstrap list, and process restart, cannot revive a terminal marker
+  ---
+  duration_ms: 65.869779
+  type: 'test'
+  ...
+# Subtest: a later invoice-upload replay that reports current coverage cannot revive a terminal allocation
+ok 134 - a later invoice-upload replay that reports current coverage cannot revive a terminal allocation
+  ---
+  duration_ms: 65.100977
+  type: 'test'
+  ...
+# Subtest: terminal state is permanent for the allocation identity; only a fresh grant identity carries new rights
+ok 135 - terminal state is permanent for the allocation identity; only a fresh grant identity carries new rights
+  ---
+  duration_ms: 63.472677
+  type: 'test'
+  ...
+# Subtest: inconsistent terminal evidence (uncovered local consumption) holds the grant instead of trusting either side
+ok 136 - inconsistent terminal evidence (uncovered local consumption) holds the grant instead of trusting either side
+  ---
+  duration_ms: 64.013382
+  type: 'test'
+  ...
+# Subtest: a non-regressing terminal generation/revision updates the marker; a regressing one does not
+ok 137 - a non-regressing terminal generation/revision updates the marker; a regressing one does not
+  ---
+  duration_ms: 63.425756
+  type: 'test'
+  ...
+# Subtest: consumed allocations remain represented as ordinary status, not invented as a new lifecycle
+ok 138 - consumed allocations remain represented as ordinary status, not invented as a new lifecycle
+  ---
+  duration_ms: 75.533993
+  type: 'test'
+  ...
+# Subtest: a different allocation's terminal marker does not affect an unrelated allocation's spendability
+ok 139 - a different allocation's terminal marker does not affect an unrelated allocation's spendability
+  ---
+  duration_ms: 66.820231
+  type: 'test'
+  ...
+# Subtest: a fresh bootstrap after another allocation terminalizes still honours last_observed_revision for the survivor
+ok 140 - a fresh bootstrap after another allocation terminalizes still honours last_observed_revision for the survivor
+  ---
+  duration_ms: 77.778086
+  type: 'test'
+  ...
+# Subtest: a stale last_observed_revision correctly excludes a grant regardless of another allocation terminalizing
+ok 141 - a stale last_observed_revision correctly excludes a grant regardless of another allocation terminalizing
+  ---
+  duration_ms: 73.76896
+  type: 'test'
+  ...
+# Subtest: a busy probe with no writer present correctly reports no contention (sensitivity check for the overlap evidence)
+ok 142 - a busy probe with no writer present correctly reports no contention (sensitivity check for the overlap evidence)
+  ---
+  duration_ms: 326.6975
+  type: 'test'
+  ...
+# Subtest: the real checkout path composes correctly with reconciliation under genuine, evidenced write-lock contention
+ok 143 - the real checkout path composes correctly with reconciliation under genuine, evidenced write-lock contention
+  ---
+  duration_ms: 690.230188
+  type: 'test'
+  ...
+# Subtest: BH-04B-4 committed recovery intent wins real checkout contention and remains denied after reconciliation
+ok 144 - BH-04B-4 committed recovery intent wins real checkout contention and remains denied after reconciliation
+  ---
+  duration_ms: 687.085809
+  type: 'test'
+  ...
+# Subtest: sequential cross-process ordering: coverage before a committed row fails closed, then a later message converges (not a second race)
+ok 145 - sequential cross-process ordering: coverage before a committed row fails closed, then a later message converges (not a second race)
+  ---
+  duration_ms: 961.822961
+  type: 'test'
+  ...
+# Subtest: zero grants and one tracked line request exactly the required quantity, persist it, and commit once
+ok 146 - zero grants and one tracked line request exactly the required quantity, persist it, and commit once
+  ---
+  duration_ms: 118.627741
+  type: 'test'
+  ...
+# Subtest: a sufficient persisted grant completes offline with no HTTP call at all
+ok 147 - a sufficient persisted grant completes offline with no HTTP call at all
+  ---
+  duration_ms: 100.243248
+  type: 'test'
+  ...
+# Subtest: partial local coverage requests only the exact positive deficit
+ok 148 - partial local coverage requests only the exact positive deficit
+  ---
+  duration_ms: 100.845921
+  type: 'test'
+  ...
+# Subtest: an untracked product never reaches the allocation endpoint
+ok 149 - an untracked product never reaches the allocation endpoint
+  ---
+  duration_ms: 95.242612
+  type: 'test'
+  ...
+# Subtest: offline with no grant rejects fail-closed with the affected line and zero business writes
+ok 150 - offline with no grant rejects fail-closed with the affected line and zero business writes
+  ---
+  duration_ms: 101.522519
+  type: 'test'
+  ...
+# Subtest: a definitive backend permission rejection keeps its reason and writes nothing
+ok 151 - a definitive backend permission rejection keeps its reason and writes nothing
+  ---
+  duration_ms: 109.220199
+  type: 'test'
+  ...
+# Subtest: a missing warehouse assignment reported by the backend stays a workstation problem
+ok 152 - a missing warehouse assignment reported by the backend stays a workstation problem
+  ---
+  duration_ms: 105.015684
+  type: 'test'
+  ...
+# Subtest: a top-up response with a foreign device authorizes nothing
+ok 153 - a top-up response with a foreign device authorizes nothing
+  ---
+  duration_ms: 113.803948
+  type: 'test'
+  ...
+# Subtest: a top-up response with a foreign warehouse authorizes nothing
+ok 154 - a top-up response with a foreign warehouse authorizes nothing
+  ---
+  duration_ms: 102.960809
+  type: 'test'
+  ...
+# Subtest: a top-up response with a foreign company authorizes nothing
+ok 155 - a top-up response with a foreign company authorizes nothing
+  ---
+  duration_ms: 109.289392
+  type: 'test'
+  ...
+# Subtest: a top-up response with a foreign product authorizes nothing
+ok 156 - a top-up response with a foreign product authorizes nothing
+  ---
+  duration_ms: 107.549486
+  type: 'test'
+  ...
+# Subtest: a top-up response with a foreign contract version authorizes nothing
+ok 157 - a top-up response with a foreign contract version authorizes nothing
+  ---
+  duration_ms: 107.25022
+  type: 'test'
+  ...
+# Subtest: a top-up response with a foreign quantities authorizes nothing
+ok 158 - a top-up response with a foreign quantities authorizes nothing
+  ---
+  duration_ms: 102.567154
+  type: 'test'
+  ...
+# Subtest: an unknown lifecycle status cannot authorize a sale
+ok 159 - an unknown lifecycle status cannot authorize a sale
+  ---
+  duration_ms: 100.148181
+  type: 'test'
+  ...
+# Subtest: a terminal server status is persisted verbatim and still cannot authorize a sale
+ok 160 - a terminal server status is persisted verbatim and still cannot authorize a sale
+  ---
+  duration_ms: 99.598058
+  type: 'test'
+  ...
+# Subtest: an insufficient granted quantity cannot authorize the sale
+ok 161 - an insufficient granted quantity cannot authorize the sale
+  ---
+  duration_ms: 97.521183
+  type: 'test'
+  ...
+# Subtest: a stale allocation revision cannot authorize a sale
+ok 162 - a stale allocation revision cannot authorize a sale
+  ---
+  duration_ms: 90.724221
+  type: 'test'
+  ...
+# Subtest: a malformed top-up response cannot authorize a sale
+ok 163 - a malformed top-up response cannot authorize a sale
+  ---
+  duration_ms: 92.853537
+  type: 'test'
+  ...
+# Subtest: a grant that cannot be persisted atomically cannot authorize a sale
+ok 164 - a grant that cannot be persisted atomically cannot authorize a sale
+  ---
+  duration_ms: 89.57521
+  type: 'test'
+  ...
+# Subtest: a lost response replays under the identical idempotency key and then commits
+ok 165 - a lost response replays under the identical idempotency key and then commits
+  ---
+  duration_ms: 108.880544
+  type: 'test'
+  ...
+# Subtest: a crash after the grant but before local persistence recovers without a duplicate grant
+ok 166 - a crash after the grant but before local persistence recovers without a duplicate grant
+  ---
+  duration_ms: 90.551713
+  type: 'test'
+  ...
+# Subtest: a crash after persistence but before commit reuses the persisted grant and requests nothing
+ok 167 - a crash after persistence but before commit reuses the persisted grant and requests nothing
+  ---
+  duration_ms: 82.766327
+  type: 'test'
+  ...
+# Subtest: a replayed identical grant is reconciled idempotently rather than duplicated
+ok 168 - a replayed identical grant is reconciled idempotently rather than duplicated
+  ---
+  duration_ms: 99.9958
+  type: 'test'
+  ...
+# Subtest: two concurrent completions of one intent create one top-up, one attempt, and one invoice
+ok 169 - two concurrent completions of one intent create one top-up, one attempt, and one invoice
+  ---
+  duration_ms: 95.361336
+  type: 'test'
+  ...
+# Subtest: a successful top-up followed by a local business rejection commits nothing and releases nothing
+ok 170 - a successful top-up followed by a local business rejection commits nothing and releases nothing
+  ---
+  duration_ms: 99.966093
+  type: 'test'
+  ...
+# Subtest: allocation diagnostics report the real persisted grant state
+ok 171 - allocation diagnostics report the real persisted grant state
+  ---
+  duration_ms: 82.150026
+  type: 'test'
+  ...
+# Subtest: equal revision: an advanced consumed quantity is accepted (0 → 2)
+ok 172 - equal revision: an advanced consumed quantity is accepted (0 → 2)
+  ---
+  duration_ms: 82.800785
+  type: 'test'
+  ...
+# Subtest: equal revision: a consumed regression below the accepted high-water is refused and rolls back
+ok 173 - equal revision: a consumed regression below the accepted high-water is refused and rolls back
+  ---
+  duration_ms: 84.847683
+  type: 'test'
+  ...
+# Subtest: the high-water mark survives a restart between responses
+ok 174 - the high-water mark survives a restart between responses
+  ---
+  duration_ms: 91.898834
+  type: 'test'
+  ...
+# Subtest: bootstrap then top-up replay share one validation mark
+ok 175 - bootstrap then top-up replay share one validation mark
+  ---
+  duration_ms: 88.193308
+  type: 'test'
+  ...
+# Subtest: top-up replay then bootstrap share one validation mark
+ok 176 - top-up replay then bootstrap share one validation mark
+  ---
+  duration_ms: 91.049965
+  type: 'test'
+  ...
+# Subtest: equal revision: an incremental grant newer than the snapshot read is not a conflict
+ok 177 - equal revision: an incremental grant newer than the snapshot read is not a conflict
+  ---
+  duration_ms: 87.418254
+  type: 'test'
+  ...
+# Subtest: equal revision: a bootstrap-sourced grant missing from the snapshot is still a conflict
+ok 178 - equal revision: a bootstrap-sourced grant missing from the snapshot is still a conflict
+  ---
+  duration_ms: 88.689122
+  type: 'test'
+  ...
+# Subtest: equal revision: an unknown grant or a lifecycle change is still a conflict
+ok 179 - equal revision: an unknown grant or a lifecycle change is still a conflict
+  ---
+  duration_ms: 103.858334
+  type: 'test'
+  ...
+# Subtest: a recorded request survives a restart and is re-sent byte for byte under its original key
+ok 180 - a recorded request survives a restart and is re-sent byte for byte under its original key
+  ---
+  duration_ms: 151.687512
+  type: 'test'
+  ...
+# Subtest: an attempt that ends offline hands its outstanding request to the reconciler, which resolves it exactly once and never touches invoices
+ok 181 - an attempt that ends offline hands its outstanding request to the reconciler, which resolves it exactly once and never touches invoices
+  ---
+  duration_ms: 162.904049
+  type: 'test'
+  ...
+# Subtest: a post-lookup demand refusal keeps the attempt recoverable and the same key succeeds later
+ok 182 - a post-lookup demand refusal keeps the attempt recoverable and the same key succeeds later
+  ---
+  duration_ms: 134.601123
+  type: 'test'
+  ...
+# Subtest: an identity conflict is integrity-blocked, never re-sent, cancellable, and its evidence is immutable
+ok 183 - an identity conflict is integrity-blocked, never re-sent, cancellable, and its evidence is immutable
+  ---
+  duration_ms: 113.408798
+  type: 'test'
+  ...
+# Subtest: a legacy attempt needs an explicit acknowledgement to cancel; the uncertainty stays open, append-only, and a delayed old grant is ingested once
+ok 184 - a legacy attempt needs an explicit acknowledgement to cancel; the uncertainty stays open, append-only, and a delayed old grant is ingested once
+  ---
+  duration_ms: 148.366726
+  type: 'test'
+  ...
+# Subtest: the reconciler never sends a request owned by another company
+ok 185 - the reconciler never sends a request owned by another company
+  ---
+  duration_ms: 129.959255
+  type: 'test'
+  ...
+# Subtest: migration 0016 marks attempts that were claimed before it as having unknown dispatch history
+ok 186 - migration 0016 marks attempts that were claimed before it as having unknown dispatch history
+  ---
+  duration_ms: 125.737066
+  type: 'test'
+  ...
+# Subtest: a durable sale updates "sold here" and "reserved here" at once; the dated warehouse snapshot is never adjusted
+ok 187 - a durable sale updates "sold here" and "reserved here" at once; the dated warehouse snapshot is never adjusted
+  ---
+  duration_ms: 115.356326
+  type: 'test'
+  ...
+# Subtest: a rejected checkout changes nothing; a restart and a replayed completion never count a sale twice
+ok 188 - a rejected checkout changes nothing; a restart and a replayed completion never count a sale twice
+  ---
+  duration_ms: 124.520445
+  type: 'test'
+  ...
+# Subtest: a new catalog install starts "sold here" from zero, re-installing the same revision keeps it, and the snapshot is shown as installed
+ok 189 - a new catalog install starts "sold here" from zero, re-installing the same revision keeps it, and the snapshot is shown as installed
+  ---
+  duration_ms: 116.785009
+  type: 'test'
+  ...
+# Subtest: a cancelled legacy attempt stays listed as needing support after the dialog closes and after a restart
+ok 190 - a cancelled legacy attempt stays listed as needing support after the dialog closes and after a restart
+  ---
+  duration_ms: 103.597002
+  type: 'test'
+  ...
+# Subtest: an identity conflict needs support with its trace id, is never retryable, and a pending request is listed apart
+ok 191 - an identity conflict needs support with its trace id, is never retryable, and a pending request is listed apart
+  ---
+  duration_ms: 117.476466
+  type: 'test'
+  ...
+# Subtest: another cashier's record on this device is redacted; another device's or company's is excluded
+ok 192 - another cashier's record on this device is redacted; another device's or company's is excluded
+  ---
+  duration_ms: 111.501242
+  type: 'test'
+  ...
+# Subtest: transactions commit multiple real repository writes together
+ok 193 - transactions commit multiple real repository writes together
+  ---
+  duration_ms: 109.49204
+  type: 'test'
+  ...
+# Subtest: transactions roll back a real intermediate write
+ok 194 - transactions roll back a real intermediate write
+  ---
+  duration_ms: 109.165934
+  type: 'test'
+  ...
+# Subtest: SQLite uniqueness, foreign-key, and check constraints leave no partial state
+ok 195 - SQLite uniqueness, foreign-key, and check constraints leave no partial state
+  ---
+  duration_ms: 114.968519
+  type: 'test'
+  ...
+# Subtest: bootstrap snapshots persist atomically, survive reopen, and expose persisted company metadata
+ok 196 - bootstrap snapshots persist atomically, survive reopen, and expose persisted company metadata
+  ---
+  duration_ms: 140.21108
+  type: 'test'
+  ...
+# Subtest: a second bootstrap replaces a non-empty catalogue with foreign keys enabled
+ok 197 - a second bootstrap replaces a non-empty catalogue with foreign keys enabled
+  ---
+  duration_ms: 115.466387
+  type: 'test'
+  ...
+# Subtest: bootstrap snapshot write failures roll back to the exact committed bytes
+ok 198 - bootstrap snapshot write failures roll back to the exact committed bytes
+  ---
+  duration_ms: 116.983002
+  type: 'test'
+  ...
+# Subtest: a dangling bootstrap barcode is rejected by SQLite and preserves the previous snapshot
+ok 199 - a dangling bootstrap barcode is rejected by SQLite and preserves the previous snapshot
+  ---
+  duration_ms: 111.37804
+  type: 'test'
+  ...
+# Subtest: an invalid catalog contract preserves the complete prior snapshot
+ok 200 - an invalid catalog contract preserves the complete prior snapshot
+  ---
+  duration_ms: 101.558328
+  type: 'test'
+  ...
+# Subtest: bootstrap allocation envelopes preserve Laravel statuses and survive a database reopen
+ok 201 - bootstrap allocation envelopes preserve Laravel statuses and survive a database reopen
+  ---
+  duration_ms: 94.479959
+  type: 'test'
+  ...
+# Subtest: allocation resolution requires the exact current owner, product, active status, and revision
+ok 202 - allocation resolution requires the exact current owner, product, active status, and revision
+  ---
+  duration_ms: 99.636676
+  type: 'test'
+  ...
+# Subtest: a newer full allocation snapshot retains omitted evidence but makes it unusable
+ok 203 - a newer full allocation snapshot retains omitted evidence but makes it unusable
+  ---
+  duration_ms: 103.449994
+  type: 'test'
+  ...
+# Subtest: allocation snapshot revisions, lifecycle, identity, quantities, and status transitions fail closed
+ok 204 - allocation snapshot revisions, lifecycle, identity, quantities, and status transitions fail closed
+  ---
+  duration_ms: 132.069565
+  type: 'test'
+  ...
+# Subtest: a failed allocation write rolls back the entire bootstrap snapshot
+ok 205 - a failed allocation write rolls back the entire bootstrap snapshot
+  ---
+  duration_ms: 117.250798
+  type: 'test'
+  ...
+# Subtest: bootstrap publishes catalog rows and completion metadata in one transaction
+ok 206 - bootstrap publishes catalog rows and completion metadata in one transaction
+  ---
+  duration_ms: 186.806974
+  type: 'test'
+  ...
+# Subtest: the local catalog survives reopen and supports bounded deterministic reads
+ok 207 - the local catalog survives reopen and supports bounded deterministic reads
+  ---
+  duration_ms: 138.982774
+  type: 'test'
+  ...
+# Subtest: catalog validity excludes exact end equality and ambiguous barcodes fail closed
+ok 208 - catalog validity excludes exact end equality and ambiguous barcodes fail closed
+  ---
+  duration_ms: 126.0225
+  type: 'test'
+  ...
+# Subtest: getAllocationRemaining overlays the real allocation-remaining quantity, never a cached/shared stock number
+ok 209 - getAllocationRemaining overlays the real allocation-remaining quantity, never a cached/shared stock number
+  ---
+  duration_ms: 118.133174
+  type: 'test'
+  ...
+# Subtest: every catalog publication write failure preserves the exact last-good snapshot
+ok 210 - every catalog publication write failure preserves the exact last-good snapshot
+  ---
+  duration_ms: 845.238935
+  type: 'test'
+  ...
+# Subtest: catalog revision ordering rejects old/conflicting snapshots and treats an equal revision as idempotent
+ok 211 - catalog revision ordering rejects old/conflicting snapshots and treats an equal revision as idempotent
+  ---
+  duration_ms: 99.262812
+  type: 'test'
+  ...
+# Subtest: trusted catalog provenance distinguishes fresh, cached, stale, and rollback-safe states
+ok 212 - trusted catalog provenance distinguishes fresh, cached, stale, and rollback-safe states
+  ---
+  duration_ms: 99.556408
+  type: 'test'
+  ...
+# Subtest: a clock rollback inside the validity window keeps the cached catalog readable
+ok 213 - a clock rollback inside the validity window keeps the cached catalog readable
+  ---
+  duration_ms: 101.510271
+  type: 'test'
+  ...
+# Subtest: a session without pos.view is denied every catalog read while durable rows are retained
+ok 214 - a session without pos.view is denied every catalog read while durable rows are retained
+  ---
+  duration_ms: 106.013392
+  type: 'test'
+  ...
+# Subtest: catalog read access requires pos.view and a matching device/session/company context, not pos.sell
+ok 215 - catalog read access requires pos.view and a matching device/session/company context, not pos.sell
+  ---
+  duration_ms: 104.79431
+  type: 'test'
+  ...
+# Subtest: customer search is normalized, bounded, deduplicated, indexed, and omits unrelated customer data
+ok 216 - customer search is normalized, bounded, deduplicated, indexed, and omits unrelated customer data
+  ---
+  duration_ms: 109.944285
+  type: 'test'
+  ...
+# Subtest: resolveForCheckout returns a mutually consistent snapshot in one transaction
+ok 217 - resolveForCheckout returns a mutually consistent snapshot in one transaction
+  ---
+  duration_ms: 113.597219
+  type: 'test'
+  ...
+# Subtest: resolveForCheckout resolves an inactive payment method as data while the picker omits it
+ok 218 - resolveForCheckout resolves an inactive payment method as data while the picker omits it
+  ---
+  duration_ms: 121.581011
+  type: 'test'
+  ...
+# Subtest: resolveForCheckout leaves an unresolved payment method absent rather than failing the snapshot
+ok 219 - resolveForCheckout leaves an unresolved payment method absent rather than failing the snapshot
+  ---
+  duration_ms: 115.660669
+  type: 'test'
+  ...
+# Subtest: resolveForCheckout fails the whole snapshot closed on a missing product or a missing customer
+ok 220 - resolveForCheckout fails the whole snapshot closed on a missing product or a missing customer
+  ---
+  duration_ms: 121.607504
+  type: 'test'
+  ...
+# Subtest: the catalog migration backfills search keys with the same normalizer used at runtime
+ok 221 - the catalog migration backfills search keys with the same normalizer used at runtime
+  ---
+  duration_ms: 98.616522
+  type: 'test'
+  ...
+# Subtest: a refresh replaces catalog, payment methods, customers and warehouse stock together
+ok 222 - a refresh replaces catalog, payment methods, customers and warehouse stock together
+  ---
+  duration_ms: 96.855066
+  type: 'test'
+  ...
+# Subtest: a refresh recalculates a stale catalog to fresh from the committed rows
+ok 223 - a refresh recalculates a stale catalog to fresh from the committed rows
+  ---
+  duration_ms: 96.660118
+  type: 'test'
+  ...
+# Subtest: the refresh service reports the revision change that forces an explicit cart rebuild
+ok 224 - the refresh service reports the revision change that forces an explicit cart rebuild
+  ---
+  duration_ms: 94.981762
+  type: 'test'
+  ...
+# Subtest: a rejected older snapshot rolls back nothing and leaves the active catalog sellable
+ok 225 - a rejected older snapshot rolls back nothing and leaves the active catalog sellable
+  ---
+  duration_ms: 92.63953
+  type: 'test'
+  ...
+# Subtest: a refresh never fabricates or destroys local allocation evidence
+ok 226 - a refresh never fabricates or destroys local allocation evidence
+  ---
+  duration_ms: 105.983121
+  type: 'test'
+  ...
+# Subtest: a stale backend refresh cannot resurrect a locally consumed allocation
+ok 227 - a stale backend refresh cannot resurrect a locally consumed allocation
+  ---
+  duration_ms: 182.942263
+  type: 'test'
+  ...
+# Subtest: refresh subtracts multiple partial pending consumptions exactly once and ignores untracked sales
+ok 228 - refresh subtracts multiple partial pending consumptions exactly once and ignores untracked sales
+  ---
+  duration_ms: 125.500454
+  type: 'test'
+  ...
+# Subtest: the replaced catalog survives a reopen of the same database file
+ok 229 - the replaced catalog survives a reopen of the same database file
+  ---
+  duration_ms: 94.264222
+  type: 'test'
+  ...
+# Subtest: an expired catalog refuses an untracked-only completion after an independent license revalidation
+ok 230 - an expired catalog refuses an untracked-only completion after an independent license revalidation
+  ---
+  duration_ms: 110.66666
+  type: 'test'
+  ...
+# Subtest: after a refresh, a superseded expired-catalog attempt stays terminal and a new sale commits
+ok 231 - after a refresh, a superseded expired-catalog attempt stays terminal and a new sale commits
+  ---
+  duration_ms: 100.959179
+  type: 'test'
+  ...
+# Subtest: an expired catalog refuses an untracked-only completion during subscription grace
+ok 232 - an expired catalog refuses an untracked-only completion during subscription grace
+  ---
+  duration_ms: 110.744655
+  type: 'test'
+  ...
+# Subtest: an expired catalog refuses a tracked completion even with a valid unexpired allocation
+ok 233 - an expired catalog refuses a tracked completion even with a valid unexpired allocation
+  ---
+  duration_ms: 107.186729
+  type: 'test'
+  ...
+# Subtest: a sale exactly at catalog valid_until cannot commit
+ok 234 - a sale exactly at catalog valid_until cannot commit
+  ---
+  duration_ms: 120.322749
+  type: 'test'
+  ...
+# Subtest: a draft claimed inside the catalog window cannot be completed after it expires
+ok 235 - a draft claimed inside the catalog window cannot be completed after it expires
+  ---
+  duration_ms: 114.3973
+  type: 'test'
+  ...
+# Subtest: a valid cached catalog still permits an offline sale when every other guard passes
+ok 236 - a valid cached catalog still permits an offline sale when every other guard passes
+  ---
+  duration_ms: 143.545333
+  type: 'test'
+  ...
+# Subtest: an already committed sale still replays after its catalog expires and is not re-checked as a new checkout
+ok 237 - an already committed sale still replays after its catalog expires and is not re-checked as a new checkout
+  ---
+  duration_ms: 100.074022
+  type: 'test'
+  ...
+# Subtest: the tracked product remains sellable while the catalog is valid
+ok 238 - the tracked product remains sellable while the catalog is valid
+  ---
+  duration_ms: 93.252444
+  type: 'test'
+  ...
+# Subtest: license status and its trusted-time anchor persist atomically with exact timestamp semantics
+ok 239 - license status and its trusted-time anchor persist atomically with exact timestamp semantics
+  ---
+  duration_ms: 89.783073
+  type: 'test'
+  ...
+# Subtest: a forced metadata failure leaves both the status and anchor unchanged
+ok 240 - a forced metadata failure leaves both the status and anchor unchanged
+  ---
+  duration_ms: 95.759935
+  type: 'test'
+  ...
+# Subtest: corrupt persisted license details fail closed without throwing
+ok 241 - corrupt persisted license details fail closed without throwing
+  ---
+  duration_ms: 79.838419
+  type: 'test'
+  ...
+# Subtest: Electron formats maximum minor-unit amounts without a 32-bit conversion
+ok 242 - Electron formats maximum minor-unit amounts without a 32-bit conversion
+  ---
+  duration_ms: 84.591437
+  type: 'test'
+  ...
+# Subtest: activation commits local registration and server device state together
+ok 243 - activation commits local registration and server device state together
+  ---
+  duration_ms: 81.491588
+  type: 'test'
+  ...
+# Subtest: activation write failure rolls back both registration records
+ok 244 - activation write failure rolls back both registration records
+  ---
+  duration_ms: 80.883438
+  type: 'test'
+  ...
+# Subtest: device recovery preserves durable SQLite state and the stable device UUID
+ok 245 - device recovery preserves durable SQLite state and the stable device UUID
+  ---
+  duration_ms: 110.741924
+  type: 'test'
+  ...
+# Subtest: ending a session clears session/token data while retaining durable device, bootstrap, license, and queue state
+ok 246 - ending a session clears session/token data while retaining durable device, bootstrap, license, and queue state
+  ---
+  duration_ms: 95.223703
+  type: 'test'
+  ...
+# Subtest: shift authority SQLite constraints preserve the discriminated observation model
+ok 247 - shift authority SQLite constraints preserve the discriminated observation model
+  ---
+  duration_ms: 68.319471
+  type: 'test'
+  ...
+# Subtest: session epochs invalidate old authority, survive refreshes, and persist after restart
+ok 248 - session epochs invalidate old authority, survive refreshes, and persist after restart
+  ---
+  duration_ms: 71.5389
+  type: 'test'
+  ...
+# Subtest: reconciliation_required survives a process restart and continues to deny selling
+ok 249 - reconciliation_required survives a process restart and continues to deny selling
+  ---
+  duration_ms: 73.809678
+  type: 'test'
+  ...
+# Subtest: shift observation writes leave checkout, payment, invoice, outbox, and stock state untouched
+ok 250 - shift observation writes leave checkout, payment, invoice, outbox, and stock state untouched
+  ---
+  duration_ms: 85.97973
+  type: 'test'
+  ...
+# Subtest: a successful checkout preview leaves every business table byte-identical
+ok 251 - a successful checkout preview leaves every business table byte-identical
+  ---
+  duration_ms: 99.547034
+  type: 'test'
+  ...
+# Subtest: a rejected checkout preview also leaves every business table byte-identical
+ok 252 - a rejected checkout preview also leaves every business table byte-identical
+  ---
+  duration_ms: 99.551404
+  type: 'test'
+  ...
+# Subtest: a checkout preview never mutates the shift it reads authority from
+ok 253 - a checkout preview never mutates the shift it reads authority from
+  ---
+  duration_ms: 86.479336
+  type: 'test'
+  ...
+# Subtest: a checkout preview denies selling once the shift closes on another terminal
+ok 254 - a checkout preview denies selling once the shift closes on another terminal
+  ---
+  duration_ms: 85.887935
+  type: 'test'
+  ...
+# Subtest: a checkout preview requests a refresh when the catalog is republished
+ok 255 - a checkout preview requests a refresh when the catalog is republished
+  ---
+  duration_ms: 82.896917
+  type: 'test'
+  ...
+# Subtest: with the API unreachable, shifts:current fails on transport while shifts:local-authority still admits the sale
+ok 256 - with the API unreachable, shifts:current fails on transport while shifts:local-authority still admits the sale
+  ---
+  duration_ms: 138.891229
+  type: 'test'
+  ...
+# Subtest: every non-open local authority denies the sale while the API is unreachable
+ok 257 - every non-open local authority denies the sale while the API is unreachable
+  ---
+  duration_ms: 112.888282
+  type: 'test'
+  ...
+# Subtest: reconnecting replays the same attempt without duplicating the queued invoice
+ok 258 - reconnecting replays the same attempt without duplicating the queued invoice
+  ---
+  duration_ms: 99.689642
+  type: 'test'
+  ...
+# Subtest: sync queue transitions serialize a state-guarded compare-and-swap
+ok 259 - sync queue transitions serialize a state-guarded compare-and-swap
+  ---
+  duration_ms: 83.124759
+  type: 'test'
+  ...
+# Subtest: an invoice upload is claimed, leased, and marked synced atomically
+ok 260 - an invoice upload is claimed, leased, and marked synced atomically
+  ---
+  duration_ms: 87.327559
+  type: 'test'
+  ...
+# Subtest: a duplicate answer resolves exactly like a fresh commit
+ok 261 - a duplicate answer resolves exactly like a fresh commit
+  ---
+  duration_ms: 84.376524
+  type: 'test'
+  ...
+# Subtest: a conflict is terminal, preserved for review, and never rescheduled
+ok 262 - a conflict is terminal, preserved for review, and never rescheduled
+  ---
+  duration_ms: 88.878593
+  type: 'test'
+  ...
+# Subtest: a transient failure backs off and only then becomes claimable again
+ok 263 - a transient failure backs off and only then becomes claimable again
+  ---
+  duration_ms: 78.795246
+  type: 'test'
+  ...
+# Subtest: an upload lease orphaned by a crash is reclaimed, not lost
+ok 264 - an upload lease orphaned by a crash is reclaimed, not lost
+  ---
+  duration_ms: 79.384165
+  type: 'test'
+  ...
+# Subtest: claims are owner-scoped in SQL and ordered deterministically
+ok 265 - claims are owner-scoped in SQL and ordered deterministically
+  ---
+  duration_ms: 78.6707
+  type: 'test'
+  ...
+# Subtest: the schema refuses a staged or partial success write
+ok 266 - the schema refuses a staged or partial success write
+  ---
+  duration_ms: 75.392617
+  type: 'test'
+  ...
+# Subtest: getStatus reports counts, and a pause only when the worker says so
+ok 267 - getStatus reports counts, and a pause only when the worker says so
+  ---
+  duration_ms: 94.501213
+  type: 'test'
+  ...
+# Subtest: a terminal rejection preserves the sale and refuses to be retried
+ok 268 - a terminal rejection preserves the sale and refuses to be retried
+  ---
+  duration_ms: 80.629398
+  type: 'test'
+  ...
+# Subtest: an outcome cannot be recorded against a row that is not uploading
+ok 269 - an outcome cannot be recorded against a row that is not uploading
+  ---
+  duration_ms: 85.857153
+  type: 'test'
+  ...
+# Subtest: the failure list returns only terminal conflict and rejected rows
+ok 270 - the failure list returns only terminal conflict and rejected rows
+  ---
+  duration_ms: 88.484511
+  type: 'test'
+  ...
+# Subtest: the failure list is scoped to the owning company and device in SQL
+ok 271 - the failure list is scoped to the owning company and device in SQL
+  ---
+  duration_ms: 81.846355
+  type: 'test'
+  ...
+# Subtest: a colleague’s failed sale on the same till stays visible
+ok 272 - a colleague’s failed sale on the same till stays visible
+  ---
+  duration_ms: 75.595364
+  type: 'test'
+  ...
+# Subtest: failures are ordered by queue time regardless of insertion order
+ok 273 - failures are ordered by queue time regardless of insertion order
+  ---
+  duration_ms: 73.579409
+  type: 'test'
+  ...
+# Subtest: an exact timestamp tie is broken by local_queue_uuid
+ok 274 - an exact timestamp tie is broken by local_queue_uuid
+  ---
+  duration_ms: 72.396127
+  type: 'test'
+  ...
+# Subtest: multi-page traversal yields every row exactly once
+ok 275 - multi-page traversal yields every row exactly once
+  ---
+  duration_ms: 85.119864
+  type: 'test'
+  ...
+# Subtest: a cursor from another device reveals nothing of that device
+ok 276 - a cursor from another device reveals nothing of that device
+  ---
+  duration_ms: 84.314363
+  type: 'test'
+  ...
+# Subtest: the page size is clamped to the contract maximum
+ok 277 - the page size is clamped to the contract maximum
+  ---
+  duration_ms: 83.179581
+  type: 'test'
+  ...
+# Subtest: listing failures writes nothing at all
+ok 278 - listing failures writes nothing at all
+  ---
+  duration_ms: 96.198444
+  type: 'test'
+  ...
+# Subtest: CP-3G-5A a queued invoice uploads once, synchronizes, and is never dispatched again
+ok 279 - CP-3G-5A a queued invoice uploads once, synchronizes, and is never dispatched again # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.065793
+  type: 'test'
+  ...
+# Subtest: CP-3G-5B a lost acknowledgment retries the same key and converges on one invoice
+ok 280 - CP-3G-5B a lost acknowledgment retries the same key and converges on one invoice # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.05721
+  type: 'test'
+  ...
+# Subtest: CP-3G-5C a 200 duplicate answer is first-observed success, never an error
+ok 281 - CP-3G-5C a 200 duplicate answer is first-observed success, never an error # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.042577
+  type: 'test'
+  ...
+# Subtest: CP-3G-5D overlapping triggers coalesce into one attempt and one outbound request
+ok 282 - CP-3G-5D overlapping triggers coalesce into one attempt and one outbound request # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.031854
+  type: 'test'
+  ...
+# Subtest: CP-3G-5D a restart with a pending row uploads it exactly once
+ok 283 - CP-3G-5D a restart with a pending row uploads it exactly once # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.031455
+  type: 'test'
+  ...
+# Subtest: CP-3G-5D two concurrent drains cannot both claim the same row
+ok 284 - CP-3G-5D two concurrent drains cannot both claim the same row # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.037049
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a payload whose hash no longer matches
+ok 285 - CP-3G-5E zero send — a payload whose hash no longer matches # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029633
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a stored payload that is not valid JSON
+ok 286 - CP-3G-5E zero send — a stored payload that is not valid JSON # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.030692
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a terminal synced row
+ok 287 - CP-3G-5E zero send — a terminal synced row # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029334
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a terminal rejected row
+ok 288 - CP-3G-5E zero send — a terminal rejected row # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.031064
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a terminal conflict row
+ok 289 - CP-3G-5E zero send — a terminal conflict row # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029716
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a row owned by another company
+ok 290 - CP-3G-5E zero send — a row owned by another company # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.030497
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a row owned by another device
+ok 291 - CP-3G-5E zero send — a row owned by another device # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.02914
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a cleared session
+ok 292 - CP-3G-5E zero send — a cleared session # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029456
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a session with no device identity
+ok 293 - CP-3G-5E zero send — a session with no device identity # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.030358
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — a missing pos.invoice.upload permission
+ok 294 - CP-3G-5E zero send — a missing pos.invoice.upload permission # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.028994
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — commercial access denying canSync
+ok 295 - CP-3G-5E zero send — commercial access denying canSync # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029344
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E zero send — an offline connectivity precondition
+ok 296 - CP-3G-5E zero send — an offline connectivity precondition # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.028674
+  type: 'test'
+  ...
+# Subtest: CP-3G-5E the upload route is the only desktop endpoint the worker can reach
+ok 297 - CP-3G-5E the upload route is the only desktop endpoint the worker can reach # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029402
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a success envelope that is not an envelope at all never marks the row synced
+ok 298 - CP-3G-5F a success envelope that is not an envelope at all never marks the row synced # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.030104
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a success code the desktop does not recognize never marks the row synced
+ok 299 - CP-3G-5F a success code the desktop does not recognize never marks the row synced # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.030405
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a success body with no remote invoice identity never marks the row synced
+ok 300 - CP-3G-5F a success body with no remote invoice identity never marks the row synced # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.08083
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a success body whose identity fields are the wrong type never marks the row synced
+ok 301 - CP-3G-5F a success body whose identity fields are the wrong type never marks the row synced # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.056916
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a transport failure keeps the payload and key identical for the retry
+ok 302 - CP-3G-5F a transport failure keeps the payload and key identical for the retry # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.099323
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a 5xx and an unknown backend code are retryable, never terminal
+ok 303 - CP-3G-5F a 5xx and an unknown backend code are retryable, never terminal # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.056623
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F an authorization denial pauses the worker instead of rejecting the invoice
+ok 304 - CP-3G-5F an authorization denial pauses the worker instead of rejecting the invoice # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.052635
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a real 422 catalog-revision rejection is terminal and preserves the sale
+ok 305 - CP-3G-5F a real 422 catalog-revision rejection is terminal and preserves the sale # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.139543
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a real 422 allocation-proof rejection is terminal and sends once
+ok 306 - CP-3G-5F a real 422 allocation-proof rejection is terminal and sends once # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.052816
+  type: 'test'
+  ...
+# Subtest: CP-3G-5F a real 409 idempotency conflict is preserved for a human, never auto-retried
+ok 307 - CP-3G-5F a real 409 idempotency conflict is preserved for a human, never auto-retried # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.046731
+  type: 'test'
+  ...
+# Subtest: CP-3G-6E a SIGKILL after the claim commit and before dispatch leaves a recoverable uploading row
+ok 308 - CP-3G-6E a SIGKILL after the claim commit and before dispatch leaves a recoverable uploading row
+  ---
+  duration_ms: 667.225667
+  type: 'test'
+  ...
+# Subtest: CP-3G-6B a lease that has not expired is never reclaimed and never redispatched
+ok 309 - CP-3G-6B a lease that has not expired is never reclaimed and never redispatched
+  ---
+  duration_ms: 675.978898
+  type: 'test'
+  ...
+# Subtest: CP-3G-6B an expired lease is reclaimed to retryable_error and only becomes pending when due
+ok 310 - CP-3G-6B an expired lease is reclaimed to retryable_error and only becomes pending when due
+  ---
+  duration_ms: 609.169037
+  type: 'test'
+  ...
+# Subtest: CP-3G-6F startup recovery neither mutates nor dispatches terminal, leased, undue or foreign rows
+ok 311 - CP-3G-6F startup recovery neither mutates nor dispatches terminal, leased, undue or foreign rows
+  ---
+  duration_ms: 93.890467
+  type: 'test'
+  ...
+# Subtest: CP-3G-6F an expired lease on a foreign row is left completely unchanged
+ok 312 - CP-3G-6F an expired lease on a foreign row is left completely unchanged
+  ---
+  duration_ms: 95.278516
+  type: 'test'
+  ...
+# Subtest: CP-3G-6G repeated startup reconciliation after a crash is idempotent and counts no dispatch
+ok 313 - CP-3G-6G repeated startup reconciliation after a crash is idempotent and counts no dispatch
+  ---
+  duration_ms: 1634.51705
+  type: 'test'
+  ...
+# Subtest: CP-3G-6G concurrent startup triggers after a crash produce exactly one dispatch
+ok 314 - CP-3G-6G concurrent startup triggers after a crash produce exactly one dispatch
+  ---
+  duration_ms: 371.18222
+  type: 'test'
+  ...
+# Subtest: CP-3G-6G a synced row is never sent again by any restart
+ok 315 - CP-3G-6G a synced row is never sent again by any restart
+  ---
+  duration_ms: 82.283605
+  type: 'test'
+  ...
+# Subtest: CP-3G-6A a SIGKILL after the server commits and before the local acknowledgment loses nothing
+ok 316 - CP-3G-6A a SIGKILL after the server commits and before the local acknowledgment loses nothing # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.063688
+  type: 'test'
+  ...
+# Subtest: CP-3G-6D a SIGKILL before the server commits recovers into a normal single creation
+ok 317 - CP-3G-6D a SIGKILL before the server commits recovers into a normal single creation # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.035105
+  type: 'test'
+  ...
+# Subtest: CP-3G-6E a SIGKILL while the request is in flight converges on one invoice
+ok 318 - CP-3G-6E a SIGKILL while the request is in flight converges on one invoice # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.028226
+  type: 'test'
+  ...
+# Subtest: CP-3G-6E a SIGKILL after the answer is accepted and before the outcome transaction converges on one invoice
+ok 319 - CP-3G-6E a SIGKILL after the answer is accepted and before the outcome transaction converges on one invoice # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.031012
+  type: 'test'
+  ...
+# Subtest: CP-3G-6E a SIGKILL inside the outcome transaction discards the half-written success
+ok 320 - CP-3G-6E a SIGKILL inside the outcome transaction discards the half-written success # SKIP no live CP-3G-5 backend provided
+  ---
+  duration_ms: 0.029852
+  type: 'test'
+  ...
+# Subtest: CP-3G-6H reclaim is scoped to the authoritative company and device, and moves nothing else
+ok 321 - CP-3G-6H reclaim is scoped to the authoritative company and device, and moves nothing else
+  ---
+  duration_ms: 346.041152
+  type: 'test'
+  ...
+# Subtest: CP-3G-6H no authoritative session owner reconciles nothing and writes nothing
+ok 322 - CP-3G-6H no authoritative session owner reconciles nothing and writes nothing
+  ---
+  duration_ms: 343.02401
+  type: 'test'
+  ...
+# Subtest: CP-3G-6H a different cashier and a rotated session epoch do not block recovery
+ok 323 - CP-3G-6H a different cashier and a rotated session epoch do not block recovery
+  ---
+  duration_ms: 339.801323
+  type: 'test'
+  ...
+# Subtest: CP-3G-6H the row becomes recoverable once its real owner is the authoritative session
+ok 324 - CP-3G-6H the row becomes recoverable once its real owner is the authoritative session
+  ---
+  duration_ms: 75.337111
+  type: 'test'
+  ...
+# Subtest: CP-3G-6H two owners reconciling the same database each touch only their own row
+ok 325 - CP-3G-6H two owners reconciling the same database each touch only their own row
+  ---
+  duration_ms: 80.74603
+  type: 'test'
+  ...
+# Subtest: CP-3G-6H the owner predicate is enforced by the update itself, not only by the read
+ok 326 - CP-3G-6H the owner predicate is enforced by the update itself, not only by the read
+  ---
+  duration_ms: 72.10493
+  type: 'test'
+  ...
+[pos-images] 1 product image entry rejected: same revision, different content
+# Subtest: CP-3G-6H owner-scoped reconciliation is idempotent across repeated restarts
+ok 327 - CP-3G-6H owner-scoped reconciliation is idempotent across repeated restarts
+  ---
+  duration_ms: 328.358837
+  type: 'test'
+  ...
+# Subtest: the terminal state machine still forbids rejected -> pending for everything automatic
+ok 328 - the terminal state machine still forbids rejected -> pending for everything automatic
+  ---
+  duration_ms: 0.274119
+  type: 'test'
+  ...
+# Subtest: a fully identified rejected upload is re-offered under its original identity
+ok 329 - a fully identified rejected upload is re-offered under its original identity
+  ---
+  duration_ms: 92.424968
+  type: 'test'
+  ...
+# Subtest: a re-offered upload becomes claimable by the ordinary worker
+ok 330 - a re-offered upload becomes claimable by the ordinary worker
+  ---
+  duration_ms: 81.454773
+  type: 'test'
+  ...
+# Subtest: a re-offered upload that succeeds resolves exactly once
+ok 331 - a re-offered upload that succeeds resolves exactly once
+  ---
+  duration_ms: 86.253776
+  type: 'test'
+  ...
+# Subtest: the re-offer refuses every identity mismatch and writes nothing
+ok 332 - the re-offer refuses every identity mismatch and writes nothing
+  ---
+  duration_ms: 78.1977
+  type: 'test'
+  ...
+# Subtest: only a rejected row is re-offered — conflict, pending and synced are left alone
+ok 333 - only a rejected row is re-offered — conflict, pending and synced are left alone
+  ---
+  duration_ms: 81.58501
+  type: 'test'
+  ...
+# Subtest: a rejected queue row whose invoice row disagrees is refused, not half-written
+ok 334 - a rejected queue row whose invoice row disagrees is refused, not half-written
+  ---
+  duration_ms: 77.913462
+  type: 'test'
+  ...
+# Subtest: the committed CP-5a fixture is byte-identical to a freshly committed sale, never hand-authored
+ok 335 - the committed CP-5a fixture is byte-identical to a freshly committed sale, never hand-authored
+  ---
+  duration_ms: 85.126844
+  type: 'test'
+  ...
+# Subtest: PS6b a quarantined v3 invoice is an exact candidate
+ok 336 - PS6b a quarantined v3 invoice is an exact candidate
+  ---
+  duration_ms: 73.292601
+  type: 'test'
+  ...
+# Subtest: PS6b candidate selection excludes every ineligible failure
+ok 337 - PS6b candidate selection excludes every ineligible failure
+  ---
+  duration_ms: 91.787327
+  type: 'test'
+  ...
+# Subtest: PS6b a verified acceptance converges exactly once
+ok 338 - PS6b a verified acceptance converges exactly once
+  ---
+  duration_ms: 81.126439
+  type: 'test'
+  ...
+# Subtest: PS6b a permanent rejection commits nothing and still holds the identity
+ok 339 - PS6b a permanent rejection commits nothing and still holds the identity
+  ---
+  duration_ms: 74.584767
+  type: 'test'
+  ...
+# Subtest: PS6b every verification failure records a conflict and applies nothing
+ok 340 - PS6b every verification failure records a conflict and applies nothing
+  ---
+  duration_ms: 90.344229
+  type: 'test'
+  ...
+# Subtest: PS6b a conflicting second decision never overwrites the first
+ok 341 - PS6b a conflicting second decision never overwrites the first
+  ---
+  duration_ms: 76.99008
+  type: 'test'
+  ...
+# Subtest: PS6b the overridden consumption stays counted and its grant becomes unspendable
+ok 342 - PS6b the overridden consumption stays counted and its grant becomes unspendable
+  ---
+  duration_ms: 70.874045
+  type: 'test'
+  ...
+# Subtest: PS7 cached stock 20, offline sale of 22 commits over real HTTP and records the deficit
+ok 343 - PS7 cached stock 20, offline sale of 22 commits over real HTTP and records the deficit # SKIP no live PS7 physical-presence backend provided
+  ---
+  duration_ms: 0.053109
+  type: 'test'
+  ...
+# Subtest: PS7 an exact replay over real HTTP writes nothing further
+ok 344 - PS7 an exact replay over real HTTP writes nothing further # SKIP no live PS7 physical-presence backend provided
+  ---
+  duration_ms: 0.030749
+  type: 'test'
+  ...
+# Subtest: PS8 a desktop-generated v3 service-line payload is accepted by real Laravel and moves no stock
+ok 345 - PS8 a desktop-generated v3 service-line payload is accepted by real Laravel and moves no stock # SKIP no live PS8 service-line backend provided
+  ---
+  duration_ms: 0.026626
+  type: 'test'
+  ...
+# Subtest: PS8 an exact replay of the service sale writes nothing further
+ok 346 - PS8 an exact replay of the service sale writes nothing further # SKIP no live PS8 service-line backend provided
+  ---
+  duration_ms: 0.025422
+  type: 'test'
+  ...
+# Subtest: PS8 a mixed tracked/untracked v3 payload settles each line on its own terms
+ok 347 - PS8 a mixed tracked/untracked v3 payload settles each line on its own terms # SKIP no live PS8 service-line backend provided
+  ---
+  duration_ms: 0.024253
+  type: 'test'
+  ...
+# Subtest: PS9 a desktop-generated v3 line frozen untracked is accepted after the product becomes tracked on the server
+ok 348 - PS9 a desktop-generated v3 line frozen untracked is accepted after the product becomes tracked on the server # SKIP no live PS9 historical-track-stock backend provided
+  ---
+  duration_ms: 0.024637
+  type: 'test'
+  ...
+# Subtest: PS9 an exact replay of the accepted historical sale writes nothing further
+ok 349 - PS9 an exact replay of the accepted historical sale writes nothing further # SKIP no live PS9 historical-track-stock backend provided
+  ---
+  duration_ms: 0.024859
+  type: 'test'
+  ...
+# Subtest: PS4 migration 0012 preserves every existing row and satisfies the conditional coverage CHECK
+ok 350 - PS4 migration 0012 preserves every existing row and satisfies the conditional coverage CHECK
+  ---
+  duration_ms: 69.418871
+  type: 'test'
+  ...
+# Subtest: PS4 the coverage CHECK is conditional on track_stock
+ok 351 - PS4 the coverage CHECK is conditional on track_stock
+  ---
+  duration_ms: 68.710454
+  type: 'test'
+  ...
+# Subtest: PS4 an authority is stored verbatim and its window is half-open
+ok 352 - PS4 an authority is stored verbatim and its window is half-open
+  ---
+  duration_ms: 71.823719
+  type: 'test'
+  ...
+# Subtest: CP3 migration 0011 backfills queue_sequence over populated rows in claim order
+ok 353 - CP3 migration 0011 backfills queue_sequence over populated rows in claim order
+  ---
+  duration_ms: 67.786649
+  type: 'test'
+  ...
+# Subtest: CP3 a frozen request body and hash cannot be edited or re-hashed
+ok 354 - CP3 a frozen request body and hash cannot be edited or re-hashed
+  ---
+  duration_ms: 65.440348
+  type: 'test'
+  ...
+# Subtest: CP3 preparation anchors cannot be rewritten and the window never lengthens
+ok 355 - CP3 preparation anchors cannot be rewritten and the window never lengthens
+  ---
+  duration_ms: 67.862427
+  type: 'test'
+  ...
+# Subtest: CP3 terminal operation states are terminal
+ok 356 - CP3 terminal operation states are terminal
+  ---
+  duration_ms: 72.10372
+  type: 'test'
+  ...
+# Subtest: CP3 an applied operation cannot exist without its complete manifest
+ok 357 - CP3 an applied operation cannot exist without its complete manifest
+  ---
+  duration_ms: 75.90501
+  type: 'test'
+  ...
+# Subtest: CP3 a zero outcome carries no allocation link and a granted one always does
+ok 358 - CP3 a zero outcome carries no allocation link and a granted one always does
+  ---
+  duration_ms: 75.763032
+  type: 'test'
+  ...
+# Subtest: CP3 migration 0011 rolls all schema work back on failure
+ok 359 - CP3 migration 0011 rolls all schema work back on failure
+  ---
+  duration_ms: 22.65686
+  type: 'test'
+  ...
+# Subtest: CP3 a complete decision is applied atomically with its grants
+ok 360 - CP3 a complete decision is applied atomically with its grants
+  ---
+  duration_ms: 74.72265
+  type: 'test'
+  ...
+# Subtest: CP3 partial discovery never closes a multi-product operation, and its grants stay spendable
+ok 361 - CP3 partial discovery never closes a multi-product operation, and its grants stay spendable
+  ---
+  duration_ms: 70.396955
+  type: 'test'
+  ...
+# Subtest: CP3 a blocked product does not prevent an unrelated eligible product from being prepared
+ok 362 - CP3 a blocked product does not prevent an unrelated eligible product from being prepared
+  ---
+  duration_ms: 83.708107
+  type: 'test'
+  ...
+# Subtest: CP3 an ambiguous outcome is replayed with identical bytes after a restart
+ok 363 - CP3 an ambiguous outcome is replayed with identical bytes after a restart
+  ---
+  duration_ms: 94.020887
+  type: 'test'
+  ...
+# Subtest: CP3 a stale policy revision is terminal and creates no local authority
+ok 364 - CP3 a stale policy revision is terminal and creates no local authority
+  ---
+  duration_ms: 70.917971
+  type: 'test'
+  ...
+# Subtest: CP3 repeated cycles never create a second operation for an owned product
+ok 365 - CP3 repeated cycles never create a second operation for an owned product
+  ---
+  duration_ms: 69.348895
+  type: 'test'
+  ...
+# Subtest: CP3 an empty eligible set blocks the cycle and dispatches nothing
+ok 366 - CP3 an empty eligible set blocks the cycle and dispatches nothing
+  ---
+  duration_ms: 70.698942
+  type: 'test'
+  ...
+# Subtest: CP4 regression: the real 409 POLICY_REVISION_STALE is terminal and teaches the revision
+ok 367 - CP4 regression: the real 409 POLICY_REVISION_STALE is terminal and teaches the revision
+  ---
+  duration_ms: 70.354542
+  type: 'test'
+  ...
+# Subtest: CP4 regression: an operation left ambiguous resolves on its identical replay, bytes untouched
+ok 368 - CP4 regression: an operation left ambiguous resolves on its identical replay, bytes untouched
+  ---
+  duration_ms: 88.21471
+  type: 'test'
+  ...
+# Subtest: CP4 regression: a 404 ROUTE_NOT_FOUND is unavailable, never ambiguous
+ok 369 - CP4 regression: a 404 ROUTE_NOT_FOUND is unavailable, never ambiguous
+  ---
+  duration_ms: 70.966248
+  type: 'test'
+  ...
+# Subtest: CP4 regression: a 404 DESKTOP_PREPARATION_UNAVAILABLE is unavailable, never ambiguous
+ok 370 - CP4 regression: a 404 DESKTOP_PREPARATION_UNAVAILABLE is unavailable, never ambiguous
+  ---
+  duration_ms: 67.653795
+  type: 'test'
+  ...
+# Subtest: CP4 regression: the real 409 IDEMPOTENCY_CONFLICT is terminal conflicted
+ok 371 - CP4 regression: the real 409 IDEMPOTENCY_CONFLICT is terminal conflicted
+  ---
+  duration_ms: 66.842359
+  type: 'test'
+  ...
+# Subtest: migration 0014 applies and creates the refund tables
+ok 372 - migration 0014 applies and creates the refund tables
+  ---
+  duration_ms: 75.033102
+  type: 'test'
+  ...
+# Subtest: a prepared refund with dispatch_count > 0 is rejected
+ok 373 - a prepared refund with dispatch_count > 0 is rejected
+  ---
+  duration_ms: 70.248376
+  type: 'test'
+  ...
+# Subtest: a cancelled refund with dispatch_count > 0 is rejected (F3.2)
+ok 374 - a cancelled refund with dispatch_count > 0 is rejected (F3.2)
+  ---
+  duration_ms: 67.934549
+  type: 'test'
+  ...
+# Subtest: cancelled without cancelled_at is rejected
+ok 375 - cancelled without cancelled_at is rejected
+  ---
+  duration_ms: 66.24979
+  type: 'test'
+  ...
+# Subtest: accepted without a remote_uuid is rejected
+ok 376 - accepted without a remote_uuid is rejected
+  ---
+  duration_ms: 66.038417
+  type: 'test'
+  ...
+# Subtest: accepted with a remote_uuid is accepted
+ok 377 - accepted with a remote_uuid is accepted
+  ---
+  duration_ms: 69.592958
+  type: 'test'
+  ...
+# Subtest: dispatched with dispatch_count = 0 is rejected
+ok 378 - dispatched with dispatch_count = 0 is rejected
+  ---
+  duration_ms: 67.708309
+  type: 'test'
+  ...
+# Subtest: the partial unique index rejects a second OPEN refund on the same invoice
+ok 379 - the partial unique index rejects a second OPEN refund on the same invoice
+  ---
+  duration_ms: 69.194384
+  type: 'test'
+  ...
+# Subtest: a CONFLICT refund still blocks a replacement -- conflict stays inside the hold
+ok 380 - a CONFLICT refund still blocks a replacement -- conflict stays inside the hold
+  ---
+  duration_ms: 82.666475
+  type: 'test'
+  ...
+# Subtest: a CANCELLED or REJECTED refund does not block a fresh refund on the same invoice
+ok 381 - a CANCELLED or REJECTED refund does not block a fresh refund on the same invoice
+  ---
+  duration_ms: 71.363585
+  type: 'test'
+  ...
+# Subtest: a refund item with tax exceeding total is rejected
+ok 382 - a refund item with tax exceeding total is rejected
+  ---
+  duration_ms: 68.258316
+  type: 'test'
+  ...
+# Subtest: a refund item with a non-integer amount is rejected
+ok 383 - a refund item with a non-integer amount is rejected
+  ---
+  duration_ms: 74.222563
+  type: 'test'
+  ...
+# Subtest: a refund payment of an unsupported type is rejected
+ok 384 - a refund payment of an unsupported type is rejected
+  ---
+  duration_ms: 72.234882
+  type: 'test'
+  ...
+# Subtest: a valid refund with items and a payment persists atomically
+ok 385 - a valid refund with items and a payment persists atomically
+  ---
+  duration_ms: 72.630267
+  type: 'test'
+  ...
+# Subtest: an invalid currency code is rejected
+ok 386 - an invalid currency code is rejected
+  ---
+  duration_ms: 93.172339
+  type: 'test'
+  ...
+# Subtest: a zero grand_total_amount is rejected (D4: zero-value refunds are refused)
+ok 387 - a zero grand_total_amount is rejected (D4: zero-value refunds are refused)
+  ---
+  duration_ms: 73.744993
+  type: 'test'
+  ...
+# Subtest: a refund with items and a payment commits atomically
+ok 388 - a refund with items and a payment commits atomically
+  ---
+  duration_ms: 75.891709
+  type: 'test'
+  ...
+# Subtest: request_json and request_sha256 survive a fresh process unchanged (never rewritten)
+ok 389 - request_json and request_sha256 survive a fresh process unchanged (never rewritten)
+  ---
+  duration_ms: 83.760165
+  type: 'test'
+  ...
+# Subtest: request_json survives cancellation unchanged
+ok 390 - request_json survives cancellation unchanged
+  ---
+  duration_ms: 77.369171
+  type: 'test'
+  ...
+# Subtest: startup sweep moves dispatched to unresolved and leaves prepared alone
+ok 391 - startup sweep moves dispatched to unresolved and leaves prepared alone
+  ---
+  duration_ms: 91.939068
+  type: 'test'
+  ...
+# Subtest: rejected, conflict, and cancelled are all terminal
+ok 392 - rejected, conflict, and cancelled are all terminal
+  ---
+  duration_ms: 82.655429
+  type: 'test'
+  ...
+# Subtest: a conflict refund keeps blocking a replacement (unknown outcome)
+ok 393 - a conflict refund keeps blocking a replacement (unknown outcome)
+  ---
+  duration_ms: 92.830625
+  type: 'test'
+  ...
+# Subtest: resuming an unresolved refund re-claims it for dispatch
+ok 394 - resuming an unresolved refund re-claims it for dispatch
+  ---
+  duration_ms: 83.379238
+  type: 'test'
+  ...
+# Subtest: claimForDispatch wins when it runs first: cancel then fails
+ok 395 - claimForDispatch wins when it runs first: cancel then fails
+  ---
+  duration_ms: 78.162696
+  type: 'test'
+  ...
+# Subtest: cancelIfPrepared wins when it runs first: dispatch then fails
+ok 396 - cancelIfPrepared wins when it runs first: dispatch then fails
+  ---
+  duration_ms: 79.154805
+  type: 'test'
+  ...
+# Subtest: repeated cancel/dispatch attempts on an already-settled row never flip its state
+ok 397 - repeated cancel/dispatch attempts on an already-settled row never flip its state
+  ---
+  duration_ms: 75.38463
+  type: 'test'
+  ...
+# Subtest: a service refund is accepted once, with the correct amount, no stock movement, and a balanced journal
+ok 398 - a service refund is accepted once, with the correct amount, no stock movement, and a balanced journal # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.082605
+  type: 'test'
+  ...
+# Subtest: a tracked refund with stock_returned=true returns exactly the permitted quantity
+ok 399 - a tracked refund with stock_returned=true returns exactly the permitted quantity # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.046315
+  type: 'test'
+  ...
+# Subtest: a refund with stock_returned=false records no movement
+ok 400 - a refund with stock_returned=false records no movement # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.031186
+  type: 'test'
+  ...
+# Subtest: trackedness changed after the sale: the ORIGINAL sale attribution governs, not the product today
+ok 401 - trackedness changed after the sale: the ORIGINAL sale attribution governs, not the product today # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.028586
+  type: 'test'
+  ...
+# Subtest: three real 1-unit refunds against a 100/qty-3 line produce the exact R4 literal split and conserve
+ok 402 - three real 1-unit refunds against a 100/qty-3 line produce the exact R4 literal split and conserve # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.027265
+  type: 'test'
+  ...
+# Subtest: a zero-value line is blocked BEFORE dispatch: no HTTP request, no business effect
+ok 403 - a zero-value line is blocked BEFORE dispatch: no HTTP request, no business effect # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.025267
+  type: 'test'
+  ...
+# Subtest: a HARD-infeasible line (the G2 shape) is blocked and named, never silently dropped from the total
+ok 404 - a HARD-infeasible line (the G2 shape) is blocked and named, never silently dropped from the total # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.027439
+  type: 'test'
+  ...
+# Subtest: a lost response after real acceptance resumes with identical frozen bytes and converges to one refund
+ok 405 - a lost response after real acceptance resumes with identical frozen bytes and converges to one refund # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.026516
+  type: 'test'
+  ...
+# Subtest: a refund left DISPATCHED at process death is swept to unresolved in a fresh process and resumes
+ok 406 - a refund left DISPATCHED at process death is swept to unresolved in a fresh process and resumes # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.023171
+  type: 'test'
+  ...
+# Subtest: an accepted refund replays as the original result, not a recalculation, even with the identity exhausted
+ok 407 - an accepted refund replays as the original result, not a recalculation, even with the identity exhausted # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.027525
+  type: 'test'
+  ...
+# Subtest: a stale confirmed calculation is durably rejected with zero business effects, and replays identically
+ok 408 - a stale confirmed calculation is durably rejected with zero business effects, and replays identically # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.027162
+  type: 'test'
+  ...
+# Subtest: missing authority (no refunds feature) blocks submission at the real backend, zero business effects
+ok 409 - missing authority (no refunds feature) blocks submission at the real backend, zero business effects # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.027766
+  type: 'test'
+  ...
+# Subtest: capability negotiation: bootstrap advertises refund_contract only when asked (real backend)
+ok 410 - capability negotiation: bootstrap advertises refund_contract only when asked (real backend) # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.031178
+  type: 'test'
+  ...
+# Subtest: a 409 conflict (unknown outcome) retains the local hold -- the invoice stays blocked
+ok 411 - a 409 conflict (unknown outcome) retains the local hold -- the invoice stays blocked # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.079792
+  type: 'test'
+  ...
+# Subtest: rapid repeated submit of the same reviewed preview produces one logical operation and one financial effect
+ok 412 - rapid repeated submit of the same reviewed preview produces one logical operation and one financial effect # SKIP no live r6 refund context provided
+  ---
+  duration_ms: 0.032789
+  type: 'test'
+  ...
+# Subtest: migration 0015 creates every receipt-printing table
+ok 413 - migration 0015 creates every receipt-printing table
+  ---
+  duration_ms: 77.794779
+  type: 'test'
+  ...
+# Subtest: a correct sale context insert succeeds
+ok 414 - a correct sale context insert succeeds
+  ---
+  duration_ms: 74.487203
+  type: 'test'
+  ...
+# Subtest: a sale context row referencing a mismatched company_uuid is rejected by the FK
+ok 415 - a sale context row referencing a mismatched company_uuid is rejected by the FK
+  ---
+  duration_ms: 73.701239
+  type: 'test'
+  ...
+# Subtest: a correct refund + line context insert succeeds
+ok 416 - a correct refund + line context insert succeeds
+  ---
+  duration_ms: 73.968471
+  type: 'test'
+  ...
+# Subtest: a line context referencing a missing parent item fails
+ok 417 - a line context referencing a missing parent item fails
+  ---
+  duration_ms: 81.909756
+  type: 'test'
+  ...
+# Subtest: a line context referencing an item that belongs to ANOTHER refund fails
+ok 418 - a line context referencing an item that belongs to ANOTHER refund fails
+  ---
+  duration_ms: 72.051831
+  type: 'test'
+  ...
+# Subtest: a line context asserting the WRONG original server item uuid fails, even for the same refund item
+ok 419 - a line context asserting the WRONG original server item uuid fails, even for the same refund item
+  ---
+  duration_ms: 71.278206
+  type: 'test'
+  ...
+# Subtest: the same product on two distinct original invoice lines cannot be cross-associated
+ok 420 - the same product on two distinct original invoice lines cannot be cross-associated
+  ---
+  duration_ms: 84.1982
+  type: 'test'
+  ...
+# Subtest: a duplicate context row for the same refund item is rejected (primary key)
+ok 421 - a duplicate context row for the same refund item is rejected (primary key)
+  ---
+  duration_ms: 76.903242
+  type: 'test'
+  ...
+# Subtest: context rows cannot be updated or deleted (immutability triggers)
+ok 422 - context rows cannot be updated or deleted (immutability triggers)
+  ---
+  duration_ms: 73.779802
+  type: 'test'
+  ...
+# Subtest: a rolled-back business transaction leaves no orphan context row
+ok 423 - a rolled-back business transaction leaves no orphan context row
+  ---
+  duration_ms: 110.496176
+  type: 'test'
+  ...
+# Subtest: a profile asset moves from pending to available exactly once
+ok 424 - a profile asset moves from pending to available exactly once
+  ---
+  duration_ms: 133.262424
+  type: 'test'
+  ...
+# Subtest: a profile version is insert-only
+ok 425 - a profile version is insert-only
+  ---
+  duration_ms: 143.471209
+  type: 'test'
+  ...
+# Subtest: a job cannot be inserted as a test document with a non-null transaction facts hash
+ok 426 - a job cannot be inserted as a test document with a non-null transaction facts hash
+  ---
+  duration_ms: 159.354439
+  type: 'test'
+  ...
+# Subtest: the status transition guard allows queued -> preparing
+ok 427 - the status transition guard allows queued -> preparing
+  ---
+  duration_ms: 136.060647
+  type: 'test'
+  ...
+# Subtest: the status transition guard rejects queued -> submitted directly (skipping preparing/dispatching)
+ok 428 - the status transition guard rejects queued -> submitted directly (skipping preparing/dispatching)
+  ---
+  duration_ms: 122.686751
+  type: 'test'
+  ...
+# Subtest: the status transition guard rejects a regression from submitted back to any other status
+ok 429 - the status transition guard rejects a regression from submitted back to any other status
+  ---
+  duration_ms: 116.124749
+  type: 'test'
+  ...
+# Subtest: the status transition guard allows outcome_unknown -> submitted (late success) only
+ok 430 - the status transition guard allows outcome_unknown -> submitted (late success) only
+  ---
+  duration_ms: 121.718925
+  type: 'test'
+  ...
+# Subtest: receipt_print_jobs rows are never deleted
+ok 431 - receipt_print_jobs rows are never deleted
+  ---
+  duration_ms: 135.768444
+  type: 'test'
+  ...
+# Subtest: the reservation index allows only one non-terminal job per document
+ok 432 - the reservation index allows only one non-terminal job per document
+  ---
+  duration_ms: 132.063904
+  type: 'test'
+  ...
+# Subtest: a terminal job does not block a new job for the same document
+ok 433 - a terminal job does not block a new job for the same document
+  ---
+  duration_ms: 114.25154
+  type: 'test'
+  ...
+# Subtest: the auto-print index allows only one AUTO job ever per document
+ok 434 - the auto-print index allows only one AUTO job ever per document
+  ---
+  duration_ms: 128.496225
+  type: 'test'
+  ...
+# Subtest: ingest with an undefined block makes no mirror change
+ok 435 - ingest with an undefined block makes no mirror change
+  ---
+  duration_ms: 117.99165
+  type: 'test'
+  ...
+# Subtest: a fresh version is inserted and the pointer advances
+ok 436 - a fresh version is inserted and the pointer advances
+  ---
+  duration_ms: 155.136211
+  type: 'test'
+  ...
+# Subtest: the same revision, uuid and content is an idempotent replay
+ok 437 - the same revision, uuid and content is an idempotent replay
+  ---
+  duration_ms: 113.344401
+  type: 'test'
+  ...
+# Subtest: the same revision with a different uuid is rejected, never inserted
+ok 438 - the same revision with a different uuid is rejected, never inserted
+  ---
+  duration_ms: 109.500944
+  type: 'test'
+  ...
+# Subtest: the same revision with different field content is rejected, never inserted
+ok 439 - the same revision with different field content is rejected, never inserted
+  ---
+  duration_ms: 116.949556
+  type: 'test'
+  ...
+# Subtest: a lower revision arriving after a higher one is retained as history but never becomes current
+ok 440 - a lower revision arriving after a higher one is retained as history but never becomes current
+  ---
+  duration_ms: 104.044661
+  type: 'test'
+  ...
+# Subtest: an explicit null profile never erases an already-known newer version
+ok 441 - an explicit null profile never erases an already-known newer version
+  ---
+  duration_ms: 95.397367
+  type: 'test'
+  ...
+# Subtest: a pending logo asset is created alongside a fresh version, and pending -> available once
+ok 442 - a pending logo asset is created alongside a fresh version, and pending -> available once
+  ---
+  duration_ms: 98.715441
+  type: 'test'
+  ...
+# Subtest: authority reads false (fail-closed) for an unknown company/user pair
+ok 443 - authority reads false (fail-closed) for an unknown company/user pair
+  ---
+  duration_ms: 101.932106
+  type: 'test'
+  ...
+# Subtest: authority is scoped to the exact (company, user) pair -- never contaminates another tenant
+ok 444 - authority is scoped to the exact (company, user) pair -- never contaminates another tenant
+  ---
+  duration_ms: 110.404868
+  type: 'test'
+  ...
+# Subtest: POS improvements Stage 6: a v2 version mirrors its display choices with the (insert-only) row; v1 keeps none
+ok 445 - POS improvements Stage 6: a v2 version mirrors its display choices with the (insert-only) row; v1 keeps none
+  ---
+  duration_ms: 98.613861
+  type: 'test'
+  ...
+# Subtest: the real receipt-profile lifecycle: publish, refusal, monotonic ingestion, sale/refund capture, offline rendering, reprint-after-newer-publish, revision conflict, and tenant isolation
+ok 446 - the real receipt-profile lifecycle: publish, refusal, monotonic ingestion, sale/refund capture, offline rendering, reprint-after-newer-publish, revision conflict, and tenant isolation # SKIP no live receipt-profile context provided
+  ---
+  duration_ms: 0.139908
+  type: 'test'
+  ...
+# Subtest: A: an owner-created tracked product with no stock record is refused honestly, releases the attempt, and sells after stock is received and data refreshed
+ok 447 - A: an owner-created tracked product with no stock record is refused honestly, releases the attempt, and sells after stock is received and data refreshed # SKIP no live owner-product context provided
+  ---
+  duration_ms: 0.070952
+  type: 'test'
+  ...
+# Subtest: C: a cart frozen under an older catalog is refused by main after the owner changes the catalog, and only a rebuilt cart sells
+ok 448 - C: a cart frozen under an older catalog is refused by main after the owner changes the catalog, and only a rebuilt cart sells # SKIP no live owner-product context provided
+  ---
+  duration_ms: 0.063693
+  type: 'test'
+  ...
+# Subtest: D: the server commits a stock reservation but its answer is lost; after a restart the original key and bytes are replayed and the grant is ingested once
+ok 449 - D: the server commits a stock reservation but its answer is lost; after a restart the original key and bytes are replayed and the grant is ingested once # SKIP no live owner-product context provided
+  ---
+  duration_ms: 0.063978
+  type: 'test'
+  ...
+# Subtest: B: physical-presence mode with no stock record sells and uploads only under a valid server-issued authority
+ok 450 - B: physical-presence mode with no stock record sells and uploads only under a valid server-issued authority # SKIP no live owner-product context provided
+  ---
+  duration_ms: 0.061107
+  type: 'test'
+  ...
+# Subtest: E: under a held physical-presence authority no reservation request is sent even when its answer would be lost; online and offline sales upload once with one movement each
+ok 451 - E: under a held physical-presence authority no reservation request is sent even when its answer would be lost; online and offline sales upload once with one movement each # SKIP no live owner-product context provided
+  ---
+  duration_ms: 0.059597
+  type: 'test'
+  ...
+# Subtest: a pre-v2 authority keeps a NULL warehouse and is never selected
+ok 452 - a pre-v2 authority keeps a NULL warehouse and is never selected
+  ---
+  duration_ms: 103.066538
+  type: 'test'
+  ...
+# Subtest: fill-once refuses mismatched bytes and a different warehouse; evidence is append-only
+ok 453 - fill-once refuses mismatched bytes and a different warehouse; evidence is append-only
+  ---
+  duration_ms: 99.464882
+  type: 'test'
+  ...
+# Subtest: selection is half-open on parsed instants and deterministic
+ok 454 - selection is half-open on parsed instants and deterministic
+  ---
+  duration_ms: 109.375822
+  type: 'test'
+  ...
+# Subtest: a license leg whose owner changed in flight writes nothing
+ok 455 - a license leg whose owner changed in flight writes nothing
+  ---
+  duration_ms: 104.519807
+  type: 'test'
+  ...
+# Subtest: a tracked sale commits under a usable authority with every timestamp at t1
+ok 456 - a tracked sale commits under a usable authority with every timestamp at t1
+  ---
+  duration_ms: 131.710829
+  type: 'test'
+  ...
+# Subtest: an authority that lapses between the preliminary check and t1 is non-terminal
+ok 457 - an authority that lapses between the preliminary check and t1 is non-terminal
+  ---
+  duration_ms: 163.451066
+  type: 'test'
+  ...
+# Subtest: a catalog window closing between t0 and t1 keeps the existing terminal rule
+ok 458 - a catalog window closing between t0 and t1 keeps the existing terminal rule
+  ---
+  duration_ms: 150.088093
+  type: 'test'
+  ...
+# Subtest: the license validation boundary crossing between t0 and t1 is non-terminal context-changed
+ok 459 - the license validation boundary crossing between t0 and t1 is non-terminal context-changed
+  ---
+  duration_ms: 158.464332
+  type: 'test'
+  ...
+# Subtest: no trusted instant, or a detected rollback, refuses as non-terminal clock-untrusted
+ok 460 - no trusted instant, or a detected rollback, refuses as non-terminal clock-untrusted
+  ---
+  duration_ms: 149.323268
+  type: 'test'
+  ...
+# Subtest: an authority for another warehouse never authorizes this attempt
+ok 461 - an authority for another warehouse never authorizes this attempt
+  ---
+  duration_ms: 125.359645
+  type: 'test'
+  ...
+# Subtest: allocation-mode control: no authority at all keeps the legacy terminal rejection
+ok 462 - allocation-mode control: no authority at all keeps the legacy terminal rejection
+  ---
+  duration_ms: 122.295991
+  type: 'test'
+  ...
+# Subtest: an unavailable allocation capability does not block a PP sale (A6)
+ok 463 - an unavailable allocation capability does not block a PP sale (A6)
+  ---
+  duration_ms: 120.301256
+  type: 'test'
+  ...
+# Subtest: no attempt is claimed while a catalog install hold is active, or for a superseded revision
+ok 464 - no attempt is claimed while a catalog install hold is active, or for a superseded revision
+  ---
+  duration_ms: 104.950773
+  type: 'test'
+  ...
+# Subtest: a wall clock rolled back past the license anchor is refused pre-claim as clock-untrusted (C11)
+ok 465 - a wall clock rolled back past the license anchor is refused pre-claim as clock-untrusted (C11)
+  ---
+  duration_ms: 100.150055
+  type: 'test'
+  ...
+# Subtest: a legacy attempt retried on a stale catalog keeps its intent (not rejected)
+ok 466 - a legacy attempt retried on a stale catalog keeps its intent (not rejected)
+  ---
+  duration_ms: 91.169921
+  type: 'test'
+  ...
+# Subtest: a legacy attempt whose transaction throws (invariant) keeps its intent
+ok 467 - a legacy attempt whose transaction throws (invariant) keeps its intent
+  ---
+  duration_ms: 104.685534
+  type: 'test'
+  ...
+# Subtest: a legacy attempt survives restart with its intent and is re-surfaced
+ok 468 - a legacy attempt survives restart with its intent and is re-surfaced
+  ---
+  duration_ms: 97.339887
+  type: 'test'
+  ...
+# Subtest: acknowledgement-cancel records the uncertainty verbatim, then abandons
+ok 469 - acknowledgement-cancel records the uncertainty verbatim, then abandons
+  ---
+  duration_ms: 109.594946
+  type: 'test'
+  ...
+# Subtest: a recorded-evidence attempt keeps the existing terminal rule
+ok 470 - a recorded-evidence attempt keeps the existing terminal rule
+  ---
+  duration_ms: 105.067164
+  type: 'test'
+  ...
+# Subtest: a still-committable claim is left alone
+ok 471 - a still-committable claim is left alone
+  ---
+  duration_ms: 87.212101
+  type: 'test'
+  ...
+# Subtest: a superseded recorded-evidence claim settles as catalog-superseded; dispatch rows untouched
+ok 472 - a superseded recorded-evidence claim settles as catalog-superseded; dispatch rows untouched
+  ---
+  duration_ms: 93.451948
+  type: 'test'
+  ...
+# Subtest: a superseded legacy (unknown-evidence) claim is never rejected
+ok 473 - a superseded legacy (unknown-evidence) claim is never rejected
+  ---
+  duration_ms: 97.961678
+  type: 'test'
+  ...
+# Subtest: a completion in flight is skipped
+ok 474 - a completion in flight is skipped
+  ---
+  duration_ms: 102.304531
+  type: 'test'
+  ...
+# Subtest: committed attempts are never settled
+ok 475 - committed attempts are never settled
+  ---
+  duration_ms: 89.502793
+  type: 'test'
+  ...
+# Subtest: the chain head and unrelated invoices are eligible; dependents wait
+ok 476 - the chain head and unrelated invoices are eligible; dependents wait
+  ---
+  duration_ms: 89.555892
+  type: 'test'
+  ...
+# Subtest: a held candidate is skipped unchanged and an unrelated invoice is claimed
+ok 477 - a held candidate is skipped unchanged and an unrelated invoice is claimed
+  ---
+  duration_ms: 88.57051
+  type: 'test'
+  ...
+# Subtest: a synced predecessor releases the next invoice only
+ok 478 - a synced predecessor releases the next invoice only
+  ---
+  duration_ms: 77.52384
+  type: 'test'
+  ...
+# Subtest: coverage releases only with a matching chain hash
+ok 479 - coverage releases only with a matching chain hash
+  ---
+  duration_ms: 75.123859
+  type: 'test'
+  ...
+# Subtest: a terminal predecessor holds the dependent with a support state; unrelated stay free
+ok 480 - a terminal predecessor holds the dependent with a support state; unrelated stay free
+  ---
+  duration_ms: 79.672889
+  type: 'test'
+  ...
+# Subtest: a disposition chain-break hold releases the dependent (PS6b)
+ok 481 - a disposition chain-break hold releases the dependent (PS6b)
+  ---
+  duration_ms: 74.840907
+  type: 'test'
+  ...
+# Subtest: a different rights generation is an independent chain
+ok 482 - a different rights generation is an independent chain
+  ---
+  duration_ms: 71.687714
+  type: 'test'
+  ...
+# Subtest: restart recomputes the same decisions from persisted rows
+ok 483 - restart recomputes the same decisions from persisted rows
+  ---
+  duration_ms: 78.84441
+  type: 'test'
+  ...
+# Subtest: the split numbers one invoice’s consumptions contiguously (§10.3a)
+ok 484 - the split numbers one invoice’s consumptions contiguously (§10.3a)
+  ---
+  duration_ms: 78.925352
+  type: 'test'
+  ...
+# Subtest: a full block is applied with the catalog, and again on the same-second fast path
+ok 485 - a full block is applied with the catalog, and again on the same-second fast path
+  ---
+  duration_ms: 70.540742
+  type: 'test'
+  ...
+# Subtest: a stale or reordered block never restores an older image; equal revision with other content is a conflict
+ok 486 - a stale or reordered block never restores an older image; equal revision with other content is a conflict
+  ---
+  duration_ms: 84.663246
+  type: 'test'
+  ...
+# Subtest: a removal is applied; a full block drops references of products no longer in the catalog; another company is cleared
+ok 487 - a removal is applied; a full block drops references of products no longer in the catalog; another company is cleared
+  ---
+  duration_ms: 87.641788
+  type: 'test'
+  ...
+# Subtest: verified bytes become thumbnails; a failed asset waits 1 then 5 minutes (across a restart) and stops after three attempts until a newer reference names it
+ok 488 - verified bytes become thumbnails; a failed asset waits 1 then 5 minutes (across a restart) and stops after three attempts until a newer reference names it
+  ---
+  duration_ms: 81.624667
+  type: 'test'
+  ...
+# Subtest: a retry stamp far ahead of the clock (a clock reset) is not trusted, and the attempt bound still holds
+ok 489 - a retry stamp far ahead of the clock (a clock reset) is not trusted, and the attempt bound still holds
+  ---
+  duration_ms: 74.315195
+  type: 'test'
+  ...
+# Subtest: a delta block applies entry by entry and removes nothing
+ok 490 - a delta block applies entry by entry and removes nothing
+  ---
+  duration_ms: 81.419775
+  type: 'test'
+  ...
+# Subtest: a branding block is applied on the full path and the fast path, only when newer
+ok 491 - a branding block is applied on the full path and the fast path, only when newer
+  ---
+  duration_ms: 81.285783
+  type: 'test'
+  ...
+# Subtest: verified logo bytes become part of the identity; a wrong length is never stored
+ok 492 - verified logo bytes become part of the identity; a wrong length is never stored
+  ---
+  duration_ms: 79.512759
+  type: 'test'
+  ...
+# Subtest: a failed logo waits 1 then 5 minutes (across a restart) and stops after three attempts
+ok 493 - a failed logo waits 1 then 5 minutes (across a restart) and stops after three attempts
+  ---
+  duration_ms: 88.049258
+  type: 'test'
+  ...
+# Subtest: re-registered to another company with an older catalog: accepted, and nothing of the first company survives
+ok 494 - re-registered to another company with an older catalog: accepted, and nothing of the first company survives
+  ---
+  duration_ms: 83.960173
+  type: 'test'
+  ...
+# Subtest: a company change is not refused by the previous company's allocation revision
+ok 495 - a company change is not refused by the previous company's allocation revision
+  ---
+  duration_ms: 85.802454
+  type: 'test'
+  ...
+# Subtest: quick-create access follows the persisted capability, permission and snapshot owner
+ok 496 - quick-create access follows the persisted capability, permission and snapshot owner
+  ---
+  duration_ms: 84.422807
+  type: 'test'
+  ...
+# Subtest: quick-create writes the entity and its pending request atomically, with frozen bytes
+ok 497 - quick-create writes the entity and its pending request atomically, with frozen bytes
+  ---
+  duration_ms: 85.166073
+  type: 'test'
+  ...
+# Subtest: the triggers and CHECKs enforce the state machine and the dispatch evidence
+ok 498 - the triggers and CHECKs enforce the state machine and the dispatch evidence
+  ---
+  duration_ms: 84.435672
+  type: 'test'
+  ...
+# Subtest: a lost response after commit is replayed with the same key and bytes after restart (fault injection)
+ok 499 - a lost response after commit is replayed with the same key and bytes after restart (fault injection)
+  ---
+  duration_ms: 114.051072
+  type: 'test'
+  ...
+# Subtest: blocked_permission survives a restart and replays the same request once the permission is restored
+ok 500 - blocked_permission survives a restart and replays the same request once the permission is restored
+  ---
+  duration_ms: 119.906762
+  type: 'test'
+  ...
+# Subtest: a dependent sale waits for its register-created customer and follows the corrected resubmission
+ok 501 - a dependent sale waits for its register-created customer and follows the corrected resubmission
+  ---
+  duration_ms: 102.681738
+  type: 'test'
+  ...
+# Subtest: collisions and conflicts are terminal and preserved; the worker only sends its own user’s requests
+ok 502 - collisions and conflicts are terminal and preserved; the worker only sends its own user’s requests
+  ---
+  duration_ms: 100.102854
+  type: 'test'
+  ...
+# Subtest: reassignment needs positive proof of never-dispatched, and races a dispatch on two real connections
+ok 503 - reassignment needs positive proof of never-dispatched, and races a dispatch on two real connections
+  ---
+  duration_ms: 216.741083
+  type: 'test'
+  ...
+# Subtest: a product stays a draft until the installed catalog carries its issued revision
+ok 504 - a product stays a draft until the installed catalog carries its issued revision
+  ---
+  duration_ms: 84.840455
+  type: 'test'
+  ...
+# Subtest: migration 0022 keeps every committed sale row and reference, then admits mixed headers and categories
+ok 505 - migration 0022 keeps every committed sale row and reference, then admits mixed headers and categories
+  ---
+  duration_ms: 118.748145
+  type: 'test'
+  ...
+# Subtest: per-user preferences are isolated by company and user, with defaults and a closed key set
+ok 506 - per-user preferences are isolated by company and user, with defaults and a closed key set
+  ---
+  duration_ms: 111.522408
+  type: 'test'
+  ...
+# Subtest: workspace layouts are isolated by company, user and device and survive reopening
+ok 507 - workspace layouts are isolated by company, user and device and survive reopening
+  ---
+  duration_ms: 100.374434
+  type: 'test'
+  ...
+# Subtest: a ZATCA sale freezes its identity and the exact TLV payload in the commit transaction; the row is immutable
+ok 508 - a ZATCA sale freezes its identity and the exact TLV payload in the commit transaction; the row is immutable
+  ---
+  duration_ms: 100.164716
+  type: 'test'
+  ...
+# Subtest: a ZATCA register with an incomplete identity never commits (non-terminal), then commits the same attempt once complete
+ok 509 - a ZATCA register with an incomplete identity never commits (non-terminal), then commits the same attempt once complete
+  ---
+  duration_ms: 114.690141
+  type: 'test'
+  ...
+# Subtest: a non-fiscal register freezes a txn-ref-v1 reference; the bootstrap block replaces and removes the mirror
+ok 510 - a non-fiscal register freezes a txn-ref-v1 reference; the bootstrap block replaces and removes the mirror
+  ---
+  duration_ms: 103.320064
+  type: 'test'
+  ...
+# Subtest: the intent is written in the sale commit, is immutable, and is absent when the user turned it off
+ok 511 - the intent is written in the sale commit, is immutable, and is absent when the user turned it off
+  ---
+  duration_ms: 96.614156
+  type: 'test'
+  ...
+# Subtest: an admission is insert-once and an admitted row can only link the AUTO job of its own sale
+ok 512 - an admission is insert-once and an admitted row can only link the AUTO job of its own sale
+  ---
+  duration_ms: 86.123216
+  type: 'test'
+  ...
+# Subtest: a fault between the job insert and the admission insert leaves neither; the next run admits exactly once
+ok 513 - a fault between the job insert and the admission insert leaves neither; the next run admits exactly once
+  ---
+  duration_ms: 86.460088
+  type: 'test'
+  ...
+# Subtest: two connections deciding the same intent: the one holding the write lock wins, the other writes nothing
+ok 514 - two connections deciding the same intent: the one holding the write lock wins, the other writes nothing
+  ---
+  duration_ms: 81.516369
+  type: 'test'
+  ...
+# Subtest: an intent left pending by a stopped app survives the restart and is admitted once after relaunch
+ok 515 - an intent left pending by a stopped app survives the restart and is admitted once after relaunch
+  ---
+  duration_ms: 75.463055
+  type: 'test'
+  ...
+# Subtest: migration 0030 creates the agreed capability table and immutable snapshots
+ok 516 - migration 0030 creates the agreed capability table and immutable snapshots
+  ---
+  duration_ms: 64.826629
+  type: 'test'
+  ...
+# Subtest: a committed sale freezes its snapshot in the same transaction: the context row, the template and the invoice QR
+ok 517 - a committed sale freezes its snapshot in the same transaction: the context row, the template and the invoice QR
+  ---
+  duration_ms: 72.159812
+  type: 'test'
+  ...
+# Subtest: a snapshot that cannot be frozen never fails the sale, and leaves no half-written rows
+ok 518 - a snapshot that cannot be frozen never fails the sale, and leaves no half-written rows
+  ---
+  duration_ms: 79.619763
+  type: 'test'
+  ...
+# Subtest: one writer: every capability of the latest bootstrap is kept together, and renegotiated with the next
+ok 519 - one writer: every capability of the latest bootstrap is kept together, and renegotiated with the next
+  ---
+  duration_ms: 66.71826
+  type: 'test'
+  ...
+# Subtest: upload state survives a restart; counted retries are spaced and bounded; a settled upload is final
+ok 520 - upload state survives a restart; counted retries are spaced and bounded; a settled upload is final
+  ---
+  duration_ms: 70.500733
+  type: 'test'
+  ...
+# Subtest: a sale with a frozen fiscal context freezes snapshot v2 with that exact QR and fiscal identity (ZATCA)
+ok 521 - a sale with a frozen fiscal context freezes snapshot v2 with that exact QR and fiscal identity (ZATCA)
+  ---
+  duration_ms: 67.375919
+  type: 'test'
+  ...
+# Subtest: a non-fiscal register with a fiscal context freezes v2 carrying the reference QR it printed, never relabelled
+ok 522 - a non-fiscal register with a fiscal context freezes v2 carrying the reference QR it printed, never relabelled
+  ---
+  duration_ms: 67.409352
+  type: 'test'
+  ...
+# Subtest: upgrade from the receipt-snapshot branch (0001–0019, 0030): a stored v1 snapshot and its queued sale keep their exact bytes
+ok 523 - upgrade from the receipt-snapshot branch (0001–0019, 0030): a stored v1 snapshot and its queued sale keep their exact bytes
+  ---
+  duration_ms: 91.203041
+  type: 'test'
+  ...
+# Subtest: upgrade from the POS-improvements branch (0001–0025): an earlier sale gets no snapshot; the next one does
+ok 524 - upgrade from the POS-improvements branch (0001–0025): an earlier sale gets no snapshot; the next one does
+  ---
+  duration_ms: 77.638517
+  type: 'test'
+  ...
+# Subtest: Phase E: the bootstrap offers block installs with the catalog contract
+ok 525 - Phase E: the bootstrap offers block installs with the catalog contract
+  ---
+  duration_ms: 66.596906
+  type: 'test'
+  ...
+# Subtest: Phase E: an offer targeting a product outside the contract refuses the catalog
+ok 526 - Phase E: an offer targeting a product outside the contract refuses the catalog
+  ---
+  duration_ms: 67.054345
+  type: 'test'
+  ...
+# Subtest: Phase E: a sale under an offer stores the offer and uploads as v6 with the offered line only
+ok 527 - Phase E: a sale under an offer stores the offer and uploads as v6 with the offered line only
+  ---
+  duration_ms: 80.858414
+  type: 'test'
+  ...
+# Subtest: Phase E: a cart priced without the live offer is refused with zero business writes
+ok 528 - Phase E: a cart priced without the live offer is refused with zero business writes
+  ---
+  duration_ms: 79.455226
+  type: 'test'
+  ...
+# Subtest: Phase E: migration 0032 on a populated pre-0032 database keeps every sale row and reads no offers
+ok 529 - Phase E: migration 0032 on a populated pre-0032 database keeps every sale row and reads no offers
+  ---
+  duration_ms: 93.037421
+  type: 'test'
+  ...
+1..529
+# tests 529
+# suites 0
+# pass 467
+# fail 0
+# cancelled 0
+# skipped 62
+# todo 0
+# duration_ms 66756.78569

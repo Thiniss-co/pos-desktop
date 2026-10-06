@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import AppEmptyState from '@renderer/shared/components/feedback/AppEmptyState.vue'
@@ -20,6 +20,14 @@ import { usePrintingStore } from '@renderer/modules/printing/store'
 import { useReceiptProfileStore } from '@renderer/modules/receiptProfile/store'
 import TouchModeSwitch from '@renderer/modules/preferences/components/TouchModeSwitch.vue'
 import AutoPrintSwitch from '@renderer/modules/preferences/components/AutoPrintSwitch.vue'
+import WorkspaceLayoutControls from '@renderer/modules/preferences/components/WorkspaceLayoutControls.vue'
+import WorkspaceLayoutPreview from '@renderer/modules/preferences/components/WorkspaceLayoutPreview.vue'
+import { useWorkspaceLayoutStore } from '@renderer/modules/preferences/posWorkspace.store'
+import { useUserPreferencesStore } from '@renderer/modules/preferences/userPreferences.store'
+import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
+import { directionFor } from '@renderer/i18n/localeRegistry'
+import { useScanInputRouter } from '@renderer/modules/pos/scanInputRouter'
+import { onBeforeRouteLeave } from 'vue-router'
 
 const MIN_COPIES = 1
 const MAX_COPIES = 3
@@ -41,16 +49,56 @@ const copiesModel = ref('1')
 const dispatchModeModel = ref('direct')
 const savedNotice = ref(false)
 
-// ---- Tabs (only rendered when the receipt-profile section is available on this workstation) ----
-type SettingsTab = 'workstation' | 'receiptProfile'
+// ---- Tabs (derived from what is available; the bar shows whenever there is more than one) -----
+type SettingsTab = 'workstation' | 'posWorkspace' | 'receiptProfile'
 const selectedTab = ref<SettingsTab>('workstation')
-const activeTab = computed<SettingsTab>(() =>
-  isReceiptProfileVisible.value ? selectedTab.value : 'workstation'
-)
 const tabs = computed<ReadonlyArray<{ key: SettingsTab; label: string; icon: IconName }>>(() => [
   { key: 'workstation', label: t('settings.tabWorkstation'), icon: 'print' },
-  { key: 'receiptProfile', label: t('settings.tabReceiptProfile'), icon: 'receipt_long' }
+  { key: 'posWorkspace', label: t('settings.tabPosWorkspace'), icon: 'dashboard_customize' },
+  ...(isReceiptProfileVisible.value
+    ? [
+        {
+          key: 'receiptProfile' as const,
+          label: t('settings.tabReceiptProfile'),
+          icon: 'receipt_long' as const
+        }
+      ]
+    : [])
 ])
+const activeTab = computed<SettingsTab>(() =>
+  tabs.value.some((tab) => tab.key === selectedTab.value) ? selectedTab.value : 'workstation'
+)
+const hasTabs = computed(() => tabs.value.length > 1)
+
+// ---- POS workspace: the signed-in user's layout on this register (draft until Apply) ----------
+const workspace = useWorkspaceLayoutStore()
+const userPreferences = useUserPreferencesStore()
+const localeStore = useLocaleStore()
+const workspaceRtl = computed(() => directionFor(localeStore.locale) === 'rtl')
+const workspaceNotice = ref<string | null>(null)
+const workspaceAnnouncement = ref<string | null>(null)
+// The POS page is not mounted here, so this is the only key router: while editing, a scanner burst
+// is captured (never typed into or activating an editor control) and refused with a notice.
+useScanInputRouter({
+  mode: () => (workspace.editing ? 'layout-edit' : 'inactive'),
+  onScan: () => {
+    workspaceNotice.value = t('pos.workspace.edit.scannerPaused')
+  }
+})
+watch(activeTab, (tab) => {
+  if (tab !== 'posWorkspace') {
+    workspace.cancel()
+  }
+})
+onBeforeRouteLeave(() => {
+  workspace.cancel()
+})
+onBeforeUnmount(() => workspace.cancel())
+
+function startWorkspaceEdit(): void {
+  workspaceNotice.value = null
+  workspace.beginEdit()
+}
 const tabRefs = ref<HTMLButtonElement[]>([])
 
 function selectTab(key: SettingsTab): void {
@@ -207,7 +255,7 @@ function closeReceiptDialog(): void {
     <PageHeader :title="t('settings.pageTitle')" :description="t('settings.pageDescription')" />
 
     <div
-      v-if="isReceiptProfileVisible"
+      v-if="hasTabs"
       role="tablist"
       :aria-label="t('settings.tabsLabel')"
       class="flex flex-wrap gap-1 border-b border-line"
@@ -240,9 +288,9 @@ function closeReceiptDialog(): void {
     <div
       v-show="activeTab === 'workstation'"
       id="settings-panel-workstation"
-      :role="isReceiptProfileVisible ? 'tabpanel' : undefined"
-      :aria-labelledby="isReceiptProfileVisible ? 'settings-tab-workstation' : undefined"
-      :tabindex="isReceiptProfileVisible ? 0 : undefined"
+      :role="hasTabs ? 'tabpanel' : undefined"
+      :aria-labelledby="hasTabs ? 'settings-tab-workstation' : undefined"
+      :tabindex="hasTabs ? 0 : undefined"
       class="flex flex-wrap items-start gap-4 rounded-lg"
     >
       <AppPanel class="flex-[1_1_300px]" :title="t('settings.workstationDetails')">
@@ -376,6 +424,53 @@ function closeReceiptDialog(): void {
             {{ t('printing.saveSettings') }}
           </AppButton>
         </div>
+      </AppPanel>
+    </div>
+
+    <div
+      v-show="activeTab === 'posWorkspace'"
+      id="settings-panel-posWorkspace"
+      role="tabpanel"
+      aria-labelledby="settings-tab-posWorkspace"
+      tabindex="0"
+      class="flex flex-wrap items-start gap-4 rounded-lg"
+      data-testid="settings-pos-workspace"
+    >
+      <AppPanel class="flex-[1_1_380px]" aria-labelledby="settings-workspace-title">
+        <h2 id="settings-workspace-title" class="text-lg font-bold">
+          {{ t('settings.posWorkspaceTitle') }}
+        </h2>
+        <p class="mt-1 mb-3 text-sm text-muted">{{ t('settings.posWorkspaceDescription') }}</p>
+        <WorkspaceLayoutPreview
+          :layout="workspace.active"
+          :touch-mode="userPreferences.preferences.touchMode"
+          :rtl="workspaceRtl"
+        />
+        <AppButton
+          v-if="!workspace.editing"
+          class="mt-3"
+          variant="secondary"
+          icon="dashboard_customize"
+          data-testid="settings-workspace-customize"
+          :disabled="workspace.loadState === 'loading'"
+          @click="startWorkspaceEdit"
+          >{{ t('pos.workspace.customize') }}</AppButton
+        >
+      </AppPanel>
+      <AppPanel v-if="workspace.editing" class="flex-[1_1_420px]">
+        <WorkspaceLayoutControls
+          variant="panel"
+          :touch-mode="userPreferences.preferences.touchMode"
+          :announcement="workspaceAnnouncement"
+          @moved="(message: string) => (workspaceAnnouncement = message)"
+        />
+        <p
+          v-if="workspaceNotice"
+          class="mt-3 rounded-md bg-warn-bg px-2.5 py-1.5 text-sm text-warn"
+          role="status"
+        >
+          {{ workspaceNotice }}
+        </p>
       </AppPanel>
     </div>
 

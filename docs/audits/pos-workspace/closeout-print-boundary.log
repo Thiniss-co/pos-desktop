@@ -1,0 +1,5 @@
+
+> pos-desktop@1.0.0 verify:print-boundary
+> node scripts/verifyPrintBoundary.mjs
+
+verify:print-boundary: production build = OS boundary only; harness build = virtual destination only

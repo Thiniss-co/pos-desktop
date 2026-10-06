@@ -26,6 +26,7 @@ import { autoPrintMigration } from './0025_auto_print'
 import { receiptSnapshotsMigration } from './0030_receipt_snapshots'
 import { receiptSnapshotV2Migration } from './0031_receipt_snapshot_v2'
 import { catalogOffersMigration } from './0032_catalog_offers'
+import { userWorkspaceLayoutsMigration } from './0033_user_workspace_layouts'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -55,5 +56,6 @@ export const databaseMigrations = [
   autoPrintMigration,
   receiptSnapshotsMigration,
   receiptSnapshotV2Migration,
-  catalogOffersMigration
+  catalogOffersMigration,
+  userWorkspaceLayoutsMigration
 ] as const

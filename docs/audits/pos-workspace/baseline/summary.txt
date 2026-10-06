@@ -1,0 +1,5 @@
+typecheck 0
+lint 1
+test 0
+sqlite 0
+sandboxGuard(with new fixture refusals) 0

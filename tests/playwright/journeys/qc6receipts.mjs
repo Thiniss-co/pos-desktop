@@ -1,3 +1,4 @@
+import { quickAction } from '../support/workspace.mjs'
 import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -403,7 +404,7 @@ export async function run(ctx) {
     ctx.step('5: frozen versus current address', { reprintKeepsOld: true, newSaleShowsNew: true })
 
     // 6. Credit note.
-    await page.locator('.quick-actions [data-action="refund"]').click()
+    await (await quickAction(page, 'refund')).click()
     await page.getByTestId('refund-entry-dialog').waitFor()
     await page.getByTestId(`refund-entry-${zatca.invoice.local_uuid}`).click()
     const refundDialog = page.getByRole('dialog')

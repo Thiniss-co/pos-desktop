@@ -231,6 +231,18 @@ describe('POS page V3 cart and checkout behaviour', () => {
     setActivePinia(createPinia())
   })
 
+  /** POS workspace: Clear cart lives in the toolbar's More menu (still a labelled button). */
+  async function openClearCart(
+    wrapper: Awaited<ReturnType<typeof renderPos>>['wrapper']
+  ): Promise<void> {
+    await wrapper.get('.quick-actions [data-action="more"]').trigger('click')
+    await flushPromises()
+    const clear = wrapper.get('.quick-actions [data-action="clear"]')
+    expect(clear.text()).toContain(String(i18n.global.t('pos.cart.clear')))
+    await clear.trigger('click')
+    await flushPromises()
+  }
+
   it('clears the last scan line together with the cart it described', async () => {
     // Live finding: after a confirmed Clear the cart read "0 items" but the scan strip still said
     // "<code> Added to sale".
@@ -242,10 +254,7 @@ describe('POS page V3 cart and checkout behaviour', () => {
     await flushPromises()
     expect(scanEntry.props('result')).not.toBeNull()
 
-    const clearButton = wrapper
-      .findAll('button')
-      .find((button) => button.text() === String(i18n.global.t('pos.cart.clear')))
-    await clearButton!.trigger('click')
+    await openClearCart(wrapper)
     wrapper.getComponent(AppConfirmDialog).vm.$emit('confirm')
     await flushPromises()
 
@@ -277,11 +286,7 @@ describe('POS page V3 cart and checkout behaviour', () => {
     const cart = useCartStore()
     expect(cart.lines).toHaveLength(2)
 
-    const clearButton = wrapper
-      .findAll('button')
-      .find((button) => button.text() === String(i18n.global.t('pos.cart.clear')))
-    expect(clearButton).toBeDefined()
-    await clearButton!.trigger('click')
+    await openClearCart(wrapper)
 
     const confirm = wrapper.getComponent(AppConfirmDialog)
     expect(confirm.props('open')).toBe(true)
@@ -295,7 +300,7 @@ describe('POS page V3 cart and checkout behaviour', () => {
     expect(confirm.props('open')).toBe(false)
     expect(cart.lines.map((line) => line.product.uuid)).toEqual(PRODUCTS.map((item) => item.uuid))
 
-    await clearButton!.trigger('click')
+    await openClearCart(wrapper)
     confirm.vm.$emit('confirm')
     await flushPromises()
     expect(confirm.props('open')).toBe(false)

@@ -198,7 +198,8 @@ export async function run(ctx) {
       throw new Error('B: the keypad did not set the quantity')
     const focusAfterKeypad = await page.evaluate(() => document.activeElement?.tagName ?? null)
     await ctx.shot(page, 'B2-touch-bar')
-    await tap(cdp, page.getByTestId('touch-action-bar').locator('[data-action="touch-exact-cash"]'))
+    // POS workspace: Exact cash is a labelled button in the pinned checkout band (no touch bar).
+    await tap(cdp, page.getByTestId('exact-cash'))
     await page
       .getByRole('dialog')
       .getByRole('button', { name: new RegExp(await t(page, 'pos.tender.newSale')) })
@@ -218,7 +219,13 @@ export async function run(ctx) {
     ctx.step('B: touch-only sale committed and uploaded', { sale, focusAfterKeypad })
 
     // C. Touch-only refund.
-    await tap(cdp, page.locator('.quick-actions [data-action="refund"]').first())
+    // POS workspace: Return / Refund is on the toolbar, or in the labelled More menu when the cart
+    // is too narrow for it — both by touch.
+    const refundButton = page.locator('.quick-actions button[data-action="refund"]').first()
+    if (!(await refundButton.isVisible().catch(() => false))) {
+      await tap(cdp, page.locator('.quick-actions [data-action="more"]').first())
+    }
+    await tap(cdp, page.locator('[data-action="refund"]:visible').first())
     await tap(cdp, page.getByTestId(`refund-entry-${sale.local_uuid}`))
     const refundDialog = page.getByRole('dialog')
     await tap(
@@ -268,11 +275,12 @@ export async function run(ctx) {
           await setViewport(session, width, height)
           const facts = await measure(page)
           let dialogFits = null
-          // Below 900px the cart is a sheet: open it by touch so its controls and keypad are measured too.
-          const viewCart = page.getByRole('button', { name: await t(page, 'pos.cart.viewCart') })
+          // POS workspace: below 900px the cart stays visible and products collapse to a rail; open
+          // the rail's browser by touch so its controls are measured too.
+          const railToggle = page.locator('.pos-workspace-shell__rail-toggle')
           let sheetOpened = false
-          if (await viewCart.isVisible().catch(() => false)) {
-            await tap(cdp, viewCart)
+          if (await railToggle.isVisible().catch(() => false)) {
+            await tap(cdp, railToggle)
             sheetOpened = true
           }
           const sheetFacts = sheetOpened ? await measure(page) : null
@@ -313,8 +321,11 @@ export async function run(ctx) {
           if (quantity !== '1.000') throw new Error(`D: a tap changed the cart (${quantity})`)
           await ctx.shot(page, `D-${locale}-${theme}-${width}x${height}`)
           if (sheetOpened) {
-            await ctx.shot(page, `D-${locale}-${theme}-${width}x${height}-cart-sheet`)
-            await tap(cdp, page.getByRole('button', { name: await t(page, 'pos.cart.closeCart') }))
+            await ctx.shot(page, `D-${locale}-${theme}-${width}x${height}-products-rail`)
+            await tap(
+              cdp,
+              page.getByRole('button', { name: await t(page, 'pos.workspace.closeProducts') })
+            )
           }
           const merged = sheetFacts
             ? {

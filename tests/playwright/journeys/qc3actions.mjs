@@ -1,3 +1,4 @@
+import { openQuickCreateMenu, quickAction } from '../support/workspace.mjs'
 import { t } from '../support/app.mjs'
 import {
   openSandboxAndApp,
@@ -56,7 +57,7 @@ async function cartSnapshot(page) {
 }
 
 async function tile(page, id) {
-  return page.locator(`.quick-actions [data-action="${id}"]`)
+  return await quickAction(page, id)
 }
 
 export async function run(ctx) {
@@ -130,8 +131,8 @@ export async function run(ctx) {
     await ctx.shot(page, '02c-customer-selected-cart-kept')
 
     // 3. Validation and cancel.
-    await (await tile(page, 'more')).click()
-    await page.getByTestId('more-actions-dialog').waitFor()
+    // POS workspace: More is a menu; Quick create… opens the same chooser dialog.
+    await openQuickCreateMenu(page)
     await ctx.shot(page, '03a-more-actions')
     await page.getByTestId('more-actions-product').click()
     await create.waitFor()
@@ -141,7 +142,7 @@ export async function run(ctx) {
     await ctx.shot(page, '03b-product-validation')
     await create.getByRole('button', { name: await t(page, 'common.cancel') }).click()
     await create.waitFor({ state: 'detached' })
-    await (await tile(page, 'more')).click()
+    await openQuickCreateMenu(page)
     await page.getByTestId('more-actions-supplier').click()
     await create.waitFor()
     await create.getByRole('button', { name: await t(page, 'common.cancel') }).click()
@@ -227,7 +228,7 @@ export async function run(ctx) {
     await ctx.shot(page, '05c-cart-after-refund')
 
     // 6. Correct and send again (live): a supplier name the server already holds.
-    await (await tile(page, 'more')).click()
+    await openQuickCreateMenu(page)
     await page.getByTestId('more-actions-supplier').click()
     await create
       .getByLabel(await t(page, 'quickCreate.field.name'))
@@ -243,7 +244,7 @@ export async function run(ctx) {
       null,
       { timeout: 60_000 }
     )
-    await (await tile(page, 'more')).click()
+    await openQuickCreateMenu(page)
     await page.getByTestId('more-actions-supplier').click()
     await create
       .getByLabel(await t(page, 'quickCreate.field.name'))
