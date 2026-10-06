@@ -1,0 +1,444 @@
+{
+  "journey": "qc2offline",
+  "startedAt": "2026-10-06T17:15:03.475Z",
+  "runDir": "/tmp/pos-pw-d8MZsv",
+  "steps": [
+    {
+      "at": "2026-10-06T17:15:05.946Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:32971",
+      "database": "/tmp/pos-pw-d8MZsv/qc2offline/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T17:15:05.946Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:42847"
+    },
+    {
+      "at": "2026-10-06T17:15:12.024Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T17:15:13.311Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-d8MZsv/qc2offline/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T17:15:13.582Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "customers.create",
+      "granted": true,
+      "direct": [
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:15:13.798Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "catalog.products.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:15:14.003Z",
+      "label": "precondition: grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "suppliers.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create",
+        "suppliers.create"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:15:14.937Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T17:15:14.993Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:15:15.960Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-06T17:15:16.640Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:15:16.787Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:15:16.906Z",
+      "label": "A: quick-create menu for cashier A",
+      "items": [
+        "Add customer",
+        "Add product",
+        "Add supplier"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:15:17.012Z",
+      "screenshot": "A0-menu.png"
+    },
+    {
+      "at": "2026-10-06T17:15:17.391Z",
+      "screenshot": "customer-qc2-offline-customer-dialog.png"
+    },
+    {
+      "at": "2026-10-06T17:15:17.465Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Offline Customer"
+    },
+    {
+      "at": "2026-10-06T17:15:17.846Z",
+      "screenshot": "product-qc2-juice-dialog.png"
+    },
+    {
+      "at": "2026-10-06T17:15:17.889Z",
+      "label": "quick-created product through the dialog",
+      "name": "Qc2 Juice"
+    },
+    {
+      "at": "2026-10-06T17:15:18.146Z",
+      "screenshot": "supplier-qc2-supplier-co-dialog.png"
+    },
+    {
+      "at": "2026-10-06T17:15:18.189Z",
+      "label": "quick-created supplier through the dialog",
+      "name": "Qc2 Supplier Co"
+    },
+    {
+      "at": "2026-10-06T17:15:48.192Z",
+      "label": "A: cart customer after creation",
+      "customerName": null
+    },
+    {
+      "at": "2026-10-06T17:15:48.434Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T17:15:48.607Z",
+      "screenshot": "A1-offline-cart-new-customer.png"
+    },
+    {
+      "at": "2026-10-06T17:15:49.112Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "0": {
+        "name": "Qc2 Supplier Co",
+        "status": "pending_sync"
+      },
+      "1": {
+        "name": "Qc2 Juice",
+        "status": "pending_sync"
+      },
+      "2": {
+        "name": "Qc2 Offline Customer",
+        "status": "pending_sync"
+      },
+      "at": "2026-10-06T17:15:49.985Z",
+      "label": "A: records while offline"
+    },
+    {
+      "at": "2026-10-06T17:15:50.162Z",
+      "screenshot": "A2-sync-pending-offline.png"
+    },
+    {
+      "at": "2026-10-06T17:15:51.236Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-06T17:15:51.548Z",
+      "label": "A: after an offline restart",
+      "outbox": [
+        {
+          "entity_type": "customer",
+          "state": "pending",
+          "dispatch_count": 0
+        },
+        {
+          "entity_type": "product",
+          "state": "pending",
+          "dispatch_count": 0
+        },
+        {
+          "entity_type": "supplier",
+          "state": "pending",
+          "dispatch_count": 0
+        }
+      ],
+      "sale": [
+        {
+          "customer_uuid": "40d5dea9-1969-4277-9905-590d53da1d31",
+          "state": "pending"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:15:56.623Z",
+      "label": "A: held customer request delivered to the server after the register gave up",
+      "status": 201
+    },
+    {
+      "at": "2026-10-06T17:16:01.684Z",
+      "label": "A: product after acceptance",
+      "status": "ready_to_sell"
+    },
+    {
+      "at": "2026-10-06T17:16:01.865Z",
+      "label": "A: replay and ordering",
+      "customerOutbox": {
+        "state": "accepted",
+        "dispatch_count": 2,
+        "updated_at": "2026-10-06T17:16:01.619Z"
+      },
+      "saleQueue": [
+        {
+          "state": "uploading",
+          "updated_at": "2026-10-06T17:16:01.620Z"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:16:02.572Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:16:02.780Z",
+      "label": "scanned",
+      "code": "7770000002001"
+    },
+    {
+      "at": "2026-10-06T17:16:02.898Z",
+      "screenshot": "A3-new-product-in-cart.png"
+    },
+    {
+      "at": "2026-10-06T17:16:03.401Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:16:04.548Z",
+      "screenshot": "A4-sync-created-ready.png"
+    },
+    {
+      "at": "2026-10-06T17:16:04.831Z",
+      "label": "A: backend effects",
+      "customers": [
+        {
+          "uuid": "40d5dea9-1969-4277-9905-590d53da1d31",
+          "name": "Qc2 Offline Customer"
+        }
+      ],
+      "products": [
+        {
+          "uuid": "68870dd8-4f31-4283-a51d-e2dff91c2a66",
+          "sku": "QC-68870DD84F",
+          "name": "Qc2 Juice"
+        }
+      ],
+      "suppliers": [
+        {
+          "uuid": "530fd8bc-6d63-4961-abfc-31628509187b",
+          "name": "Qc2 Supplier Co"
+        }
+      ],
+      "requests": [
+        "customer:accepted:cashier@desktop-mvp.test",
+        "product:accepted:cashier@desktop-mvp.test",
+        "supplier:accepted:cashier@desktop-mvp.test"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:16:05.192Z",
+      "screenshot": "customer-qc2-handover-dialog.png"
+    },
+    {
+      "at": "2026-10-06T17:16:05.239Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Handover"
+    },
+    {
+      "at": "2026-10-06T17:16:05.414Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-06T17:16:05.476Z",
+      "label": "sign-in submitted",
+      "user": "manager@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:16:06.467Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:16:06.646Z",
+      "screenshot": "B1-waiting-for-creator.png"
+    },
+    {
+      "at": "2026-10-06T17:16:07.807Z",
+      "screenshot": "B2-taken-over.png"
+    },
+    {
+      "at": "2026-10-06T17:16:07.943Z",
+      "label": "B: backend effects",
+      "requests": [
+        {
+          "entity_type": "customer",
+          "request_key": "f2e2f25a-bd90-479a-8616-dbd48d30370d",
+          "client_entity_uuid": "f8048a12-aea7-496f-81cf-2fa36dbd1d2f",
+          "outcome": "accepted",
+          "status": 201,
+          "code": "DESKTOP_ENTITY_CREATED",
+          "user_email": "manager@desktop-mvp.test"
+        }
+      ],
+      "customers": [
+        {
+          "uuid": "f8048a12-aea7-496f-81cf-2fa36dbd1d2f",
+          "name": "Qc2 Handover"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:16:08.244Z",
+      "label": "signed out through the user menu"
+    },
+    {
+      "at": "2026-10-06T17:16:08.292Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:16:09.304Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:16:09.611Z",
+      "screenshot": "customer-qc2-revoked-customer-dialog.png"
+    },
+    {
+      "at": "2026-10-06T17:16:09.686Z",
+      "label": "quick-created customer through the dialog",
+      "name": "Qc2 Revoked Customer"
+    },
+    {
+      "at": "2026-10-06T17:16:09.887Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T17:16:10.357Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:16:11.343Z",
+      "label": "precondition: revoke before sync (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "customers.create",
+      "granted": false,
+      "direct": [
+        "catalog.products.create",
+        "suppliers.create"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:16:12.267Z",
+      "label": "electron relaunched on the same isolated profile"
+    },
+    {
+      "at": "2026-10-06T17:16:17.809Z",
+      "screenshot": "C1-blocked-needs-permission.png"
+    },
+    {
+      "at": "2026-10-06T17:16:17.832Z",
+      "label": "C: blocked record and held sale",
+      "blocked": "blocked",
+      "salesNotUploaded": 1
+    },
+    {
+      "at": "2026-10-06T17:16:17.967Z",
+      "label": "precondition: re-grant (fixture)",
+      "user": "cashier@desktop-mvp.test",
+      "permission": "customers.create",
+      "granted": true,
+      "direct": [
+        "catalog.products.create",
+        "customers.create",
+        "suppliers.create"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:16:19.237Z",
+      "screenshot": "C2-recovered.png"
+    },
+    {
+      "at": "2026-10-06T17:16:19.397Z",
+      "label": "C: backend effects",
+      "outbox": [
+        {
+          "state": "accepted",
+          "dispatch_count": 2
+        }
+      ],
+      "customers": [
+        {
+          "uuid": "4e243c6e-c060-4f2d-8f27-1e84584de282",
+          "name": "Qc2 Revoked Customer"
+        }
+      ],
+      "requests": [
+        {
+          "entity_type": "customer",
+          "request_key": "baa9bb94-d7fa-49a6-abc6-f418d826ac5a",
+          "client_entity_uuid": "4e243c6e-c060-4f2d-8f27-1e84584de282",
+          "outcome": "accepted",
+          "status": 201,
+          "code": "DESKTOP_ENTITY_CREATED",
+          "user_email": "cashier@desktop-mvp.test"
+        }
+      ]
+    }
+  ],
+  "mainLogTail": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:42847/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:42847/api/v1/desktop/shifts/current",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:42847/api/v1/desktop/shifts/current elapsed_ms=11 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:42847/api/v1/desktop/shifts/current elapsed_ms=5 classification=connection_refused",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:42847/up",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:42847/up elapsed_ms=24 status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:42847/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:42847/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:42847/api/v1/desktop/quick-create/customers elapsed_ms=80 backend_code=PERMISSION_DENIED trace_id=79d01ecf-0b9c-4128-aa7c-8f00e5937912 status=403 content_type=application/json",
+    "entity-create customer baa9bb94-d7fa-49a6-abc6-f418d826ac5a -> blocked_permission",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:42847/api/v1/desktop/license/validate elapsed_ms=111 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:42847/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:42847/api/v1/desktop/bootstrap elapsed_ms=53 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:42847/api/v1/desktop/quick-create/customers",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:42847/api/v1/desktop/quick-create/customers elapsed_ms=52 backend_code=DESKTOP_ENTITY_CREATED status=201 content_type=application/json",
+    "entity-create customer baa9bb94-d7fa-49a6-abc6-f418d826ac5a -> accepted",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:42847/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:42847/api/v1/desktop/invoices/upload elapsed_ms=54 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:42847/api/v1/desktop/invoices/7f033b1f-ef3f-4ac4-90fa-29240f5cf21b/receipt-snapshot",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:42847/api/v1/desktop/invoices/7f033b1f-ef3f-4ac4-90fa-29240f5cf21b/receipt-snapshot elapsed_ms=31 backend_code=RECEIPT_SNAPSHOT_STORED status=201 content_type=application/json"
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T17:16:19.447Z"
+}

@@ -1,0 +1,93 @@
+[pw:qc4mixedtaxe2e_raceprobe] disposable backend ready {"origin":"http://127.0.0.1:43307","database":"/tmp/pos-pw-6YkKLT/qc4mixedtaxe2e_raceprobe/backend/sandbox.sqlite"}
+[pw:qc4mixedtaxe2e_raceprobe] network proxy ready {"origin":"http://127.0.0.1:46407"}
+[pw:qc4mixedtaxe2e_raceprobe] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-owner-expansion-integration/out/pw-test"}
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=1000 pid=320797 comm="/var/www/html/thinis-pos/pos-desktop-owner-expansi" label="unconfined")
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=320797 comm="/var/www/html/thinis-pos/pos-desktop-owner-expansi" label="unconfined")
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.4' (uid=1000 pid=320797 comm="/var/www/html/thinis-pos/pos-desktop-owner-expansi" label="unconfined")
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.9' (uid=1000 pid=321064 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.9' (uid=1000 pid=321064 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.263: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.9' (uid=1000 pid=321064 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.379: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.419: Choosing gtk.portal for org.freedesktop.impl.portal.Settings as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.422: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.423: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.424: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.425: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.427: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.437: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.437: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.440: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:321064): xdg-desktop-portal-WARNING **: 19:54:15.442: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[319085]: [session uid=1000 pid=319085 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+[pw:qc4mixedtaxe2e_raceprobe] electron launched with isolated profile {"userData":"/tmp/pos-pw-6YkKLT/qc4mixedtaxe2e_raceprobe/profile/Electron"}
+[pw:qc4mixedtaxe2e_raceprobe] activation completed
+[pw:qc4mixedtaxe2e_raceprobe] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc4mixedtaxe2e_raceprobe] policy set to physical presence {"policy_revision":null}
+[pw:qc4mixedtaxe2e_raceprobe] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e_raceprobe] shift opened
+[pw:qc4mixedtaxe2e_raceprobe] precondition: mixed-tax products (fixture) {"products":{"MIX-INC":{"uuid":"4194f8e0-655e-4442-a874-0cc9dc291740","barcode":"7780000000011","tax_mode":"inclusive","tax_category":"standard"},"MIX-ZERO":{"uuid":"e8ea9e19-0a95-4147-a3d4-5afd3bacc5d7","barcode":"7780000000028","tax_mode":"exclusive","tax_category":"zero_rated"},"MIX-EXEMPT":{"uuid":"eeef4964-c24c-4943-ace5-0f610c9bce01","barcode":"7780000000035","tax_mode":"inclusive","tax_category":"exempt"}},"precondition":true}
+[pw:qc4mixedtaxe2e_raceprobe] precondition: ZATCA phase 1 identity (fixture) {"regime":"sa_zatca_phase1","revision":1}
+[pw:qc4mixedtaxe2e_raceprobe] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e_raceprobe] L: installed contract with the issuance gate off {"mixed_tax_mode_policy":"single_invoice_mode"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e_raceprobe] L: second tax mode refused {"shown":true,"cart":{"lines":[{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"}],"discount":[null,0],"tax":150,"grand":1150,"error":"This register's catalog does not allow different tax modes in one sale. Refresh workstation data; if this stays, the server has not enabled mixed-tax sales.","held":0}}
+[pw:qc4mixedtaxe2e_raceprobe] disposable backend restarted {"POS_MIXED_TAX_ISSUE_PER_LINE":"true"}
+[pw:qc4mixedtaxe2e_raceprobe] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e_raceprobe] L: contract after the gate is on {"policy":"per_line","categories":[{"sku":"COLA-CAN","tax_mode":"exclusive","rate":1500,"tax_category":null},{"sku":"MIX-EXEMPT","tax_mode":"inclusive","rate":0,"tax_category":"exempt"},{"sku":"MIX-INC","tax_mode":"inclusive","rate":1500,"tax_category":"standard"},{"sku":"MIX-ZERO","tax_mode":"exclusive","rate":0,"tax_category":"zero_rated"},{"sku":"WATER-500","tax_mode":"none","rate":0,"tax_category":null}]}
+[pw:qc4mixedtaxe2e_raceprobe] clicked product card {"product":"Water Bottle"}
+[pw:qc4mixedtaxe2e_raceprobe] clicked product card {"product":"Cola Can"}
+[pw:qc4mixedtaxe2e_raceprobe] clicked product card {"product":"Qc4 Inclusive"}
+[pw:qc4mixedtaxe2e_raceprobe] clicked product card {"product":"Qc4 Zero-rated"}
+[pw:qc4mixedtaxe2e_raceprobe] clicked product card {"product":"Qc4 Exempt"}
+[pw:qc4mixedtaxe2e_raceprobe] A: card order cart {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4325,"error":null,"held":0}
+[pw:qc4mixedtaxe2e_raceprobe] invoice discount applied {"percent":10}
+[pw:qc4mixedtaxe2e_raceprobe] A: after +1 Cola, removed Exempt, 10% discount {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"}],"discount":["percentage",1000],"tax":540,"grand":4815,"error":null,"held":0}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"7780000000035"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"7780000000028"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"6221000000011"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"6221000000028"}
+[pw:qc4mixedtaxe2e_raceprobe] B: reverse barcode cart {"lines":[{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"},{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4325,"error":null,"held":1}
+[pw:qc4mixedtaxe2e_raceprobe] B: after +1 Zero, removed Water {"lines":[{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4075,"error":null,"held":1}
+[pw:qc4mixedtaxe2e_raceprobe] exact-cash sale committed
+[pw:qc4mixedtaxe2e_raceprobe] B: sale 1 accepted {"local":{"local_uuid":"97c0a0e3-b1c7-453c-9e8f-a924efacbb55","tax_mode":"mixed","subtotal_amount":3850,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":4075,"sold_while_offline":0},"items":[{"product_uuid":"eeef4964-c24c-4943-ace5-0f610c9bce01","product_name":"Qc4 Exempt","tax_mode":"inclusive","tax_category":"exempt","tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":700,"discount_amount":0,"tax_amount":0,"total_amount":700},{"product_uuid":"e8ea9e19-0a95-4147-a3d4-5afd3bacc5d7","product_name":"Qc4 Zero-rated","tax_mode":"exclusive","tax_category":"zero_rated","tax_rate_basis_points":0,"quantity_milli":2000,"subtotal_amount":500,"discount_amount":0,"tax_amount":0,"total_amount":500},{"product_uuid":"4194f8e0-655e-4442-a874-0cc9dc291740","product_name":"Qc4 Inclusive","tax_mode":"inclusive","tax_category":"standard","tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1150,"discount_amount":0,"tax_amount":150,"total_amount":1150},{"product_uuid":"90056b0b-142b-4fba-9892-52fdca8b00a0","product_name":"Cola Can","tax_mode":"exclusive","tax_category":null,"tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1500,"discount_amount":0,"tax_amount":225,"total_amount":1725}],"server":{"idempotency_key":"97c0a0e3-b1c7-453c-9e8f-a924efacbb55","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":3850,"discount":0,"tax":375,"grand":4075,"sync_records":1,"stock_movements":1,"accounting_journals":1,"items":[{"product_uuid":"eeef4964-c24c-4943-ace5-0f610c9bce01","tax_mode":"inclusive","tax_category":"exempt","tax_amount":0,"total_amount":700,"discount_amount":0,"subtotal_amount":700},{"product_uuid":"e8ea9e19-0a95-4147-a3d4-5afd3bacc5d7","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":500,"discount_amount":0,"subtotal_amount":500},{"product_uuid":"4194f8e0-655e-4442-a874-0cc9dc291740","tax_mode":"inclusive","tax_category":"standard","tax_amount":150,"total_amount":1150,"discount_amount":0,"subtotal_amount":1150},{"product_uuid":"90056b0b-142b-4fba-9892-52fdca8b00a0","tax_mode":"exclusive","tax_category":null,"tax_amount":225,"total_amount":1725,"discount_amount":0,"subtotal_amount":1500}],"refunds":[]}}
+[pw:qc4mixedtaxe2e_raceprobe] C: recalled cart {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"}],"discount":["percentage",1000],"tax":540,"grand":4815,"error":null,"held":0}
+[pw:qc4mixedtaxe2e_raceprobe] exact-cash sale committed
+[pw:qc4mixedtaxe2e_raceprobe] C: sale 2 accepted {"local":{"local_uuid":"d047c888-f488-40c6-95db-1082d9a2833e","tax_mode":"mixed","subtotal_amount":4900,"discount_total_amount":490,"tax_total_amount":540,"grand_total_amount":4815,"sold_while_offline":0},"items":[{"product_uuid":"ef9b5bee-d9aa-4c0a-9d89-fd7422bdd431","product_name":"Water Bottle","tax_mode":"none","tax_category":null,"tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":500,"discount_amount":50,"tax_amount":0,"total_amount":450},{"product_uuid":"90056b0b-142b-4fba-9892-52fdca8b00a0","product_name":"Cola Can","tax_mode":"exclusive","tax_category":null,"tax_rate_basis_points":1500,"quantity_milli":2000,"subtotal_amount":3000,"discount_amount":300,"tax_amount":405,"total_amount":3105},{"product_uuid":"4194f8e0-655e-4442-a874-0cc9dc291740","product_name":"Qc4 Inclusive","tax_mode":"inclusive","tax_category":"standard","tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1150,"discount_amount":115,"tax_amount":135,"total_amount":1035},{"product_uuid":"e8ea9e19-0a95-4147-a3d4-5afd3bacc5d7","product_name":"Qc4 Zero-rated","tax_mode":"exclusive","tax_category":"zero_rated","tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":250,"discount_amount":25,"tax_amount":0,"total_amount":225}],"server":{"idempotency_key":"d047c888-f488-40c6-95db-1082d9a2833e","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":4900,"discount":490,"tax":540,"grand":4815,"sync_records":1,"stock_movements":2,"accounting_journals":1,"items":[{"product_uuid":"ef9b5bee-d9aa-4c0a-9d89-fd7422bdd431","tax_mode":"none","tax_category":null,"tax_amount":0,"total_amount":450,"discount_amount":50,"subtotal_amount":500},{"product_uuid":"90056b0b-142b-4fba-9892-52fdca8b00a0","tax_mode":"exclusive","tax_category":null,"tax_amount":405,"total_amount":3105,"discount_amount":300,"subtotal_amount":3000},{"product_uuid":"4194f8e0-655e-4442-a874-0cc9dc291740","tax_mode":"inclusive","tax_category":"standard","tax_amount":135,"total_amount":1035,"discount_amount":115,"subtotal_amount":1150},{"product_uuid":"e8ea9e19-0a95-4147-a3d4-5afd3bacc5d7","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":225,"discount_amount":25,"subtotal_amount":250}],"refunds":[]}}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"6221000000028"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"7780000000028"}
+[pw:qc4mixedtaxe2e_raceprobe] scanned {"code":"6221000000011"}
+[pw:qc4mixedtaxe2e_raceprobe] exact-cash sale committed
+[pw:qc4mixedtaxe2e_raceprobe] D: offline sale 3 {"invoice":{"local_uuid":"e57a44bc-cd3b-47de-8acd-5715d97be132","tax_mode":"mixed","subtotal_amount":3400,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":3625,"sold_while_offline":1},"queue":{"payload_hash":"3d2d519abdaac89af9861d04f99d6a4b75a9a5158ab9f61cb6e66f2a4de623a5","idempotency_key":"e57a44bc-cd3b-47de-8acd-5715d97be132","state":"pending","attempt_count":0,"last_error_code":null}}
+[pw:qc4mixedtaxe2e_raceprobe] electron launched again on the same isolated profile
+[pw:qc4mixedtaxe2e_raceprobe] D: after an offline restart {"queue":{"payload_hash":"3d2d519abdaac89af9861d04f99d6a4b75a9a5158ab9f61cb6e66f2a4de623a5","idempotency_key":"e57a44bc-cd3b-47de-8acd-5715d97be132","state":"pending","attempt_count":0,"last_error_code":null}}
+[pw:qc4mixedtaxe2e_raceprobe] disposable backend restarted {"POS_MIXED_TAX_PARSE_V4_V5":"false"}
+[pw:qc4mixedtaxe2e_raceprobe] E: legacy server refused the v5 upload {"payload_hash":"3d2d519abdaac89af9861d04f99d6a4b75a9a5158ab9f61cb6e66f2a4de623a5","idempotency_key":"e57a44bc-cd3b-47de-8acd-5715d97be132","state":"retryable_error","attempt_count":1,"last_error_code":"DESKTOP_CONTRACT_VERSION_UNSUPPORTED"}
+[pw:qc4mixedtaxe2e_raceprobe] disposable backend restarted {"POS_MIXED_TAX_PARSE_V4_V5":"true"}
+[pw:qc4mixedtaxe2e_raceprobe] RACE PROBE: uploads that reached the proxy before the hold existed {"uploadsInWindow":1,"queue":{"payload_hash":"3d2d519abdaac89af9861d04f99d6a4b75a9a5158ab9f61cb6e66f2a4de623a5","idempotency_key":"e57a44bc-cd3b-47de-8acd-5715d97be132","state":"synced","attempt_count":2,"last_error_code":null}}
+[pw:qc4mixedtaxe2e_raceprobe] FAILED
+Error: F: upload attempted: {"ok":false}
+    at waitFor (file:///var/www/html/thinis-pos/pos-desktop-owner-expansion-integration/tests/playwright/journeys/qc4mixedtaxe2e_raceprobe.mjs:203:9)
+    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-owner-expansion-integration/tests/playwright/journeys/qc4mixedtaxe2e_raceprobe.mjs:536:5)
+    at async file:///var/www/html/thinis-pos/pos-desktop-owner-expansion-integration/tests/playwright/run.mjs:93:5
+A connection to the bus can't be made
+[pw] run directory: /tmp/pos-pw-6YkKLT

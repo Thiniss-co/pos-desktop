@@ -1,0 +1,787 @@
+{
+  "journey": "qc4mixedtaxe2e",
+  "startedAt": "2026-10-06T15:34:49.244Z",
+  "runDir": "/tmp/pos-pw-UADUMf",
+  "steps": [
+    {
+      "at": "2026-10-06T15:34:53.654Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:39433",
+      "database": "/tmp/pos-pw-UADUMf/qc4mixedtaxe2e/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T15:34:53.655Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:45323"
+    },
+    {
+      "at": "2026-10-06T15:35:01.932Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T15:35:02.996Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-UADUMf/qc4mixedtaxe2e/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T15:35:04.003Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T15:35:04.070Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T15:35:04.994Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-06T15:35:05.709Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T15:35:05.859Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T15:35:06.106Z",
+      "label": "precondition: mixed-tax products (fixture)",
+      "products": {
+        "MIX-INC": {
+          "uuid": "0ecd9c32-7790-4c3a-984f-86235cb9759c",
+          "barcode": "7780000000011",
+          "tax_mode": "inclusive",
+          "tax_category": "standard"
+        },
+        "MIX-ZERO": {
+          "uuid": "749baa52-2672-4b30-b552-cd3ba2096d60",
+          "barcode": "7780000000028",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated"
+        },
+        "MIX-EXEMPT": {
+          "uuid": "be0d63e5-1bac-4801-ad52-90f1a119efee",
+          "barcode": "7780000000035",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt"
+        }
+      },
+      "precondition": true
+    },
+    {
+      "at": "2026-10-06T15:35:06.331Z",
+      "label": "precondition: ZATCA phase 1 identity (fixture)",
+      "regime": "sa_zatca_phase1",
+      "revision": 1
+    },
+    {
+      "at": "2026-10-06T15:35:07.018Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T15:35:07.066Z",
+      "label": "L: installed contract with the issuance gate off",
+      "mixed_tax_mode_policy": "single_invoice_mode"
+    },
+    {
+      "at": "2026-10-06T15:35:07.354Z",
+      "label": "scanned",
+      "code": "7780000000011"
+    },
+    {
+      "at": "2026-10-06T15:35:08.990Z",
+      "screenshot": "L-legacy-refusal.png"
+    },
+    {
+      "at": "2026-10-06T15:35:08.990Z",
+      "label": "L: second tax mode refused",
+      "shown": true,
+      "cart": {
+        "lines": [
+          {
+            "name": "Qc4 Inclusive",
+            "mode": "inclusive",
+            "rate": 1500,
+            "quantity": "1.000"
+          }
+        ],
+        "discount": [
+          null,
+          0
+        ],
+        "tax": 150,
+        "grand": 1150,
+        "error": "This register's catalog does not allow different tax modes in one sale. Refresh workstation data; if this stays, the server has not enabled mixed-tax sales.",
+        "held": 0
+      }
+    },
+    {
+      "at": "2026-10-06T15:35:09.632Z",
+      "label": "disposable backend restarted",
+      "POS_MIXED_TAX_ISSUE_PER_LINE": "true"
+    },
+    {
+      "at": "2026-10-06T15:35:10.643Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T15:35:10.715Z",
+      "label": "L: contract after the gate is on",
+      "policy": "per_line",
+      "categories": [
+        {
+          "sku": "COLA-CAN",
+          "tax_mode": "exclusive",
+          "rate": 1500,
+          "tax_category": null
+        },
+        {
+          "sku": "MIX-EXEMPT",
+          "tax_mode": "inclusive",
+          "rate": 0,
+          "tax_category": "exempt"
+        },
+        {
+          "sku": "MIX-INC",
+          "tax_mode": "inclusive",
+          "rate": 1500,
+          "tax_category": "standard"
+        },
+        {
+          "sku": "MIX-ZERO",
+          "tax_mode": "exclusive",
+          "rate": 0,
+          "tax_category": "zero_rated"
+        },
+        {
+          "sku": "WATER-500",
+          "tax_mode": "none",
+          "rate": 0,
+          "tax_category": null
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T15:35:11.075Z",
+      "label": "clicked product card",
+      "product": "Water Bottle"
+    },
+    {
+      "at": "2026-10-06T15:35:11.448Z",
+      "label": "clicked product card",
+      "product": "Cola Can"
+    },
+    {
+      "at": "2026-10-06T15:35:11.808Z",
+      "label": "clicked product card",
+      "product": "Qc4 Inclusive"
+    },
+    {
+      "at": "2026-10-06T15:35:12.157Z",
+      "label": "clicked product card",
+      "product": "Qc4 Zero-rated"
+    },
+    {
+      "at": "2026-10-06T15:35:12.549Z",
+      "label": "clicked product card",
+      "product": "Qc4 Exempt"
+    },
+    {
+      "at": "2026-10-06T15:35:12.552Z",
+      "label": "A: card order cart",
+      "lines": [
+        {
+          "name": "Water Bottle",
+          "mode": "none",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Cola Can",
+          "mode": "exclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Inclusive",
+          "mode": "inclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Zero-rated",
+          "mode": "exclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Exempt",
+          "mode": "inclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        }
+      ],
+      "discount": [
+        null,
+        0
+      ],
+      "tax": 375,
+      "grand": 4325,
+      "error": null,
+      "held": 0
+    },
+    {
+      "at": "2026-10-06T15:35:13.184Z",
+      "label": "invoice discount applied",
+      "percent": 10
+    },
+    {
+      "at": "2026-10-06T15:35:13.340Z",
+      "screenshot": "A-mixed-cart-before-hold.png"
+    },
+    {
+      "at": "2026-10-06T15:35:13.340Z",
+      "label": "A: after +1 Cola, removed Exempt, 10% discount",
+      "lines": [
+        {
+          "name": "Water Bottle",
+          "mode": "none",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Cola Can",
+          "mode": "exclusive",
+          "rate": 1500,
+          "quantity": "2.000"
+        },
+        {
+          "name": "Qc4 Inclusive",
+          "mode": "inclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Zero-rated",
+          "mode": "exclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        }
+      ],
+      "discount": [
+        "percentage",
+        1000
+      ],
+      "tax": 540,
+      "grand": 4815,
+      "error": null,
+      "held": 0
+    },
+    {
+      "at": "2026-10-06T15:35:14.390Z",
+      "label": "scanned",
+      "code": "7780000000035"
+    },
+    {
+      "at": "2026-10-06T15:35:15.024Z",
+      "label": "scanned",
+      "code": "7780000000028"
+    },
+    {
+      "at": "2026-10-06T15:35:15.265Z",
+      "label": "scanned",
+      "code": "7780000000011"
+    },
+    {
+      "at": "2026-10-06T15:35:15.583Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T15:35:16.034Z",
+      "label": "scanned",
+      "code": "6221000000028"
+    },
+    {
+      "at": "2026-10-06T15:35:16.040Z",
+      "label": "B: reverse barcode cart",
+      "lines": [
+        {
+          "name": "Qc4 Exempt",
+          "mode": "inclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Zero-rated",
+          "mode": "exclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Inclusive",
+          "mode": "inclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Cola Can",
+          "mode": "exclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Water Bottle",
+          "mode": "none",
+          "rate": 0,
+          "quantity": "1.000"
+        }
+      ],
+      "discount": [
+        null,
+        0
+      ],
+      "tax": 375,
+      "grand": 4325,
+      "error": null,
+      "held": 1
+    },
+    {
+      "at": "2026-10-06T15:35:16.453Z",
+      "screenshot": "B-reverse-cart.png"
+    },
+    {
+      "at": "2026-10-06T15:35:16.453Z",
+      "label": "B: after +1 Zero, removed Water",
+      "lines": [
+        {
+          "name": "Qc4 Exempt",
+          "mode": "inclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Zero-rated",
+          "mode": "exclusive",
+          "rate": 0,
+          "quantity": "2.000"
+        },
+        {
+          "name": "Qc4 Inclusive",
+          "mode": "inclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Cola Can",
+          "mode": "exclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        }
+      ],
+      "discount": [
+        null,
+        0
+      ],
+      "tax": 375,
+      "grand": 4075,
+      "error": null,
+      "held": 1
+    },
+    {
+      "at": "2026-10-06T15:35:17.201Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T15:35:18.937Z",
+      "label": "B: sale 1 accepted",
+      "local": {
+        "local_uuid": "81de8ee8-c1b1-44a2-9295-d2afc596797f",
+        "tax_mode": "mixed",
+        "subtotal_amount": 3850,
+        "discount_total_amount": 0,
+        "tax_total_amount": 375,
+        "grand_total_amount": 4075,
+        "sold_while_offline": 0
+      },
+      "items": [
+        {
+          "product_uuid": "be0d63e5-1bac-4801-ad52-90f1a119efee",
+          "product_name": "Qc4 Exempt",
+          "tax_mode": "inclusive",
+          "tax_category": "exempt",
+          "tax_rate_basis_points": 0,
+          "quantity_milli": 1000,
+          "subtotal_amount": 700,
+          "discount_amount": 0,
+          "tax_amount": 0,
+          "total_amount": 700
+        },
+        {
+          "product_uuid": "749baa52-2672-4b30-b552-cd3ba2096d60",
+          "product_name": "Qc4 Zero-rated",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated",
+          "tax_rate_basis_points": 0,
+          "quantity_milli": 2000,
+          "subtotal_amount": 500,
+          "discount_amount": 0,
+          "tax_amount": 0,
+          "total_amount": 500
+        },
+        {
+          "product_uuid": "0ecd9c32-7790-4c3a-984f-86235cb9759c",
+          "product_name": "Qc4 Inclusive",
+          "tax_mode": "inclusive",
+          "tax_category": "standard",
+          "tax_rate_basis_points": 1500,
+          "quantity_milli": 1000,
+          "subtotal_amount": 1150,
+          "discount_amount": 0,
+          "tax_amount": 150,
+          "total_amount": 1150
+        },
+        {
+          "product_uuid": "cb44d687-9d6d-467b-b9f5-4529411ca276",
+          "product_name": "Cola Can",
+          "tax_mode": "exclusive",
+          "tax_category": null,
+          "tax_rate_basis_points": 1500,
+          "quantity_milli": 1000,
+          "subtotal_amount": 1500,
+          "discount_amount": 0,
+          "tax_amount": 225,
+          "total_amount": 1725
+        }
+      ],
+      "server": {
+        "idempotency_key": "81de8ee8-c1b1-44a2-9295-d2afc596797f",
+        "tax_mode": "mixed",
+        "contract_version": 5,
+        "offline_sale_authority": true,
+        "subtotal": 3850,
+        "discount": 0,
+        "tax": 375,
+        "grand": 4075,
+        "sync_records": 1,
+        "stock_movements": 1,
+        "accounting_journals": 1,
+        "items": [
+          {
+            "product_uuid": "be0d63e5-1bac-4801-ad52-90f1a119efee",
+            "tax_mode": "inclusive",
+            "tax_category": "exempt",
+            "tax_amount": 0,
+            "total_amount": 700,
+            "discount_amount": 0,
+            "subtotal_amount": 700
+          },
+          {
+            "product_uuid": "749baa52-2672-4b30-b552-cd3ba2096d60",
+            "tax_mode": "exclusive",
+            "tax_category": "zero_rated",
+            "tax_amount": 0,
+            "total_amount": 500,
+            "discount_amount": 0,
+            "subtotal_amount": 500
+          },
+          {
+            "product_uuid": "0ecd9c32-7790-4c3a-984f-86235cb9759c",
+            "tax_mode": "inclusive",
+            "tax_category": "standard",
+            "tax_amount": 150,
+            "total_amount": 1150,
+            "discount_amount": 0,
+            "subtotal_amount": 1150
+          },
+          {
+            "product_uuid": "cb44d687-9d6d-467b-b9f5-4529411ca276",
+            "tax_mode": "exclusive",
+            "tax_category": null,
+            "tax_amount": 225,
+            "total_amount": 1725,
+            "discount_amount": 0,
+            "subtotal_amount": 1500
+          }
+        ],
+        "refunds": []
+      }
+    },
+    {
+      "at": "2026-10-06T15:35:20.129Z",
+      "screenshot": "C-recalled-cart.png"
+    },
+    {
+      "at": "2026-10-06T15:35:20.129Z",
+      "label": "C: recalled cart",
+      "lines": [
+        {
+          "name": "Water Bottle",
+          "mode": "none",
+          "rate": 0,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Cola Can",
+          "mode": "exclusive",
+          "rate": 1500,
+          "quantity": "2.000"
+        },
+        {
+          "name": "Qc4 Inclusive",
+          "mode": "inclusive",
+          "rate": 1500,
+          "quantity": "1.000"
+        },
+        {
+          "name": "Qc4 Zero-rated",
+          "mode": "exclusive",
+          "rate": 0,
+          "quantity": "1.000"
+        }
+      ],
+      "discount": [
+        "percentage",
+        1000
+      ],
+      "tax": 540,
+      "grand": 4815,
+      "error": null,
+      "held": 0
+    },
+    {
+      "at": "2026-10-06T15:35:20.931Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T15:35:22.675Z",
+      "label": "C: sale 2 accepted",
+      "local": {
+        "local_uuid": "5e5644eb-06fa-40f9-bd3a-e7445cb4b983",
+        "tax_mode": "mixed",
+        "subtotal_amount": 4900,
+        "discount_total_amount": 490,
+        "tax_total_amount": 540,
+        "grand_total_amount": 4815,
+        "sold_while_offline": 0
+      },
+      "items": [
+        {
+          "product_uuid": "ef7ec9b0-4b37-4aa6-b4d7-4c6dc9a6675a",
+          "product_name": "Water Bottle",
+          "tax_mode": "none",
+          "tax_category": null,
+          "tax_rate_basis_points": 0,
+          "quantity_milli": 1000,
+          "subtotal_amount": 500,
+          "discount_amount": 50,
+          "tax_amount": 0,
+          "total_amount": 450
+        },
+        {
+          "product_uuid": "cb44d687-9d6d-467b-b9f5-4529411ca276",
+          "product_name": "Cola Can",
+          "tax_mode": "exclusive",
+          "tax_category": null,
+          "tax_rate_basis_points": 1500,
+          "quantity_milli": 2000,
+          "subtotal_amount": 3000,
+          "discount_amount": 300,
+          "tax_amount": 405,
+          "total_amount": 3105
+        },
+        {
+          "product_uuid": "0ecd9c32-7790-4c3a-984f-86235cb9759c",
+          "product_name": "Qc4 Inclusive",
+          "tax_mode": "inclusive",
+          "tax_category": "standard",
+          "tax_rate_basis_points": 1500,
+          "quantity_milli": 1000,
+          "subtotal_amount": 1150,
+          "discount_amount": 115,
+          "tax_amount": 135,
+          "total_amount": 1035
+        },
+        {
+          "product_uuid": "749baa52-2672-4b30-b552-cd3ba2096d60",
+          "product_name": "Qc4 Zero-rated",
+          "tax_mode": "exclusive",
+          "tax_category": "zero_rated",
+          "tax_rate_basis_points": 0,
+          "quantity_milli": 1000,
+          "subtotal_amount": 250,
+          "discount_amount": 25,
+          "tax_amount": 0,
+          "total_amount": 225
+        }
+      ],
+      "server": {
+        "idempotency_key": "5e5644eb-06fa-40f9-bd3a-e7445cb4b983",
+        "tax_mode": "mixed",
+        "contract_version": 5,
+        "offline_sale_authority": true,
+        "subtotal": 4900,
+        "discount": 490,
+        "tax": 540,
+        "grand": 4815,
+        "sync_records": 1,
+        "stock_movements": 2,
+        "accounting_journals": 1,
+        "items": [
+          {
+            "product_uuid": "ef7ec9b0-4b37-4aa6-b4d7-4c6dc9a6675a",
+            "tax_mode": "none",
+            "tax_category": null,
+            "tax_amount": 0,
+            "total_amount": 450,
+            "discount_amount": 50,
+            "subtotal_amount": 500
+          },
+          {
+            "product_uuid": "cb44d687-9d6d-467b-b9f5-4529411ca276",
+            "tax_mode": "exclusive",
+            "tax_category": null,
+            "tax_amount": 405,
+            "total_amount": 3105,
+            "discount_amount": 300,
+            "subtotal_amount": 3000
+          },
+          {
+            "product_uuid": "0ecd9c32-7790-4c3a-984f-86235cb9759c",
+            "tax_mode": "inclusive",
+            "tax_category": "standard",
+            "tax_amount": 135,
+            "total_amount": 1035,
+            "discount_amount": 115,
+            "subtotal_amount": 1150
+          },
+          {
+            "product_uuid": "749baa52-2672-4b30-b552-cd3ba2096d60",
+            "tax_mode": "exclusive",
+            "tax_category": "zero_rated",
+            "tax_amount": 0,
+            "total_amount": 225,
+            "discount_amount": 25,
+            "subtotal_amount": 250
+          }
+        ],
+        "refunds": []
+      }
+    },
+    {
+      "at": "2026-10-06T15:35:23.396Z",
+      "label": "scanned",
+      "code": "7780000000011"
+    },
+    {
+      "at": "2026-10-06T15:35:24.199Z",
+      "label": "scanned",
+      "code": "6221000000028"
+    },
+    {
+      "at": "2026-10-06T15:35:24.809Z",
+      "label": "scanned",
+      "code": "7780000000028"
+    },
+    {
+      "at": "2026-10-06T15:35:25.579Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T15:35:26.141Z",
+      "screenshot": "D-offline-cart.png"
+    },
+    {
+      "at": "2026-10-06T15:35:26.843Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T15:35:27.874Z",
+      "label": "D: offline sale 3",
+      "invoice": {
+        "local_uuid": "f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30",
+        "tax_mode": "mixed",
+        "subtotal_amount": 3400,
+        "discount_total_amount": 0,
+        "tax_total_amount": 375,
+        "grand_total_amount": 3625,
+        "sold_while_offline": 1
+      },
+      "queue": {
+        "payload_hash": "4dc641a21d29ef494f42ef2fe0576cc4b46411ca0275570c18ccbd10d095e1b9",
+        "idempotency_key": "f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30",
+        "state": "pending",
+        "attempt_count": 0,
+        "last_error_code": null
+      }
+    },
+    {
+      "at": "2026-10-06T15:35:31.546Z",
+      "label": "electron launched again on the same isolated profile"
+    },
+    {
+      "at": "2026-10-06T15:35:32.812Z",
+      "label": "D: after an offline restart",
+      "queue": {
+        "payload_hash": "4dc641a21d29ef494f42ef2fe0576cc4b46411ca0275570c18ccbd10d095e1b9",
+        "idempotency_key": "f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30",
+        "state": "pending",
+        "attempt_count": 0,
+        "last_error_code": null
+      }
+    },
+    {
+      "at": "2026-10-06T15:35:33.687Z",
+      "label": "disposable backend restarted",
+      "POS_MIXED_TAX_PARSE_V4_V5": "false"
+    },
+    {
+      "at": "2026-10-06T15:35:43.312Z",
+      "label": "E: legacy server refused the v5 upload",
+      "payload_hash": "4dc641a21d29ef494f42ef2fe0576cc4b46411ca0275570c18ccbd10d095e1b9",
+      "idempotency_key": "f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30",
+      "state": "retryable_error",
+      "attempt_count": 1,
+      "last_error_code": "DESKTOP_CONTRACT_VERSION_UNSUPPORTED"
+    },
+    {
+      "at": "2026-10-06T15:35:44.526Z",
+      "label": "disposable backend restarted",
+      "POS_MIXED_TAX_PARSE_V4_V5": "true"
+    }
+  ],
+  "result": "failed",
+  "error": "Error: F: upload attempted: {\"ok\":false}\n    at waitFor (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc4mixedtaxe2e.mjs:206:9)\n    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc4mixedtaxe2e.mjs:529:5)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45323/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45323/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45323/up",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45323/api/v1/desktop/shifts/current elapsed_ms=35 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45323/api/v1/desktop/shifts/current elapsed_ms=23 classification=connection_refused",
+    "[pos-api] stage=failure method=GET url=http://127.0.0.1:45323/up elapsed_ms=11 classification=probe_connection_failed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:45323/up",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:45323/up elapsed_ms=77 status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:45323/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:45323/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:45323/api/v1/desktop/invoices/upload elapsed_ms=321 backend_code=DESKTOP_CONTRACT_VERSION_UNSUPPORTED trace_id=36dbf17f-1d1c-4e7f-b057-aed28447bfcf validation_fields=client_contract_version status=422 content_type=application/json",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:45323/api/v1/desktop/license/validate elapsed_ms=436 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (online): renewed",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:45323/api/v1/desktop/invoices/upload",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:45323/api/v1/desktop/invoices/upload elapsed_ms=476 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:45323/api/v1/desktop/invoices/f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30/receipt-snapshot",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:45323/api/v1/desktop/invoices/f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30/receipt-snapshot elapsed_ms=51 backend_code=RECEIPT_SNAPSHOT_STORED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:45323/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:45323/api/v1/desktop/device/heartbeat elapsed_ms=41 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=backoff code_expected=true resource=parsed mode=active level=0 next_in_s=120",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-06T15:37:44.801Z"
+}

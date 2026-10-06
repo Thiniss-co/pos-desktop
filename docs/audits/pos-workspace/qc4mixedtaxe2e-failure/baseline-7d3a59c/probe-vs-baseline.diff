@@ -1,0 +1,11 @@
+521a522,531
+>     // RACE PROBE (diagnostic copy, not an acceptance journey): widen the window between the server
+>     // becoming ready and the hold being registered, so the register's own scheduled retry lands in it.
+>     const uploadsAtRestart = proxy.requests(UPLOAD).length
+>     await new Promise((resolve) => setTimeout(resolve, 15_000))
+>     ctx.step('RACE PROBE: uploads that reached the proxy before the hold existed', {
+>       uploadsInWindow: proxy.requests(UPLOAD).length - uploadsAtRestart,
+>       queue: localSale(session.profileDir, sale3.invoice.local_uuid).queued
+>         ? { ...localSale(session.profileDir, sale3.invoice.local_uuid).queued, payload_json: undefined }
+>         : null
+>     })

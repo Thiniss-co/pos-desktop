@@ -1,0 +1,630 @@
+{
+  "journey": "ws5matrix",
+  "startedAt": "2026-10-06T17:00:12.842Z",
+  "runDir": "/tmp/pos-pw-I8GVvI",
+  "steps": [
+    {
+      "at": "2026-10-06T17:00:16.078Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:35225",
+      "database": "/tmp/pos-pw-I8GVvI/ws5matrix/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T17:00:16.079Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:46433"
+    },
+    {
+      "at": "2026-10-06T17:00:23.122Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T17:00:24.382Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-I8GVvI/ws5matrix/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T17:00:25.682Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T17:00:25.730Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:00:27.994Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:00:28.142Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:00:29.412Z",
+      "label": "E: runtime",
+      "versions": {
+        "electron": "39.8.10",
+        "chrome": "142.0.7444.265"
+      },
+      "features": {
+        "popover": true,
+        "containerQueries": true,
+        "anchorPositioning": true
+      }
+    },
+    {
+      "at": "2026-10-06T17:00:30.328Z",
+      "screenshot": "A-compact-en-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:30.328Z",
+      "label": "A-compact-en-light-1920x1080",
+      "rows": 14,
+      "ordinary": 13,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:30.724Z",
+      "screenshot": "A-compact-en-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:30.724Z",
+      "label": "A-compact-en-light-1366x768",
+      "rows": 12,
+      "ordinary": 10,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:31.123Z",
+      "screenshot": "A-compact-en-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:31.123Z",
+      "label": "A-compact-en-light-1024x768",
+      "rows": 10,
+      "ordinary": 4,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:31.430Z",
+      "screenshot": "A-compact-en-light-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:31.430Z",
+      "label": "A-compact-en-light-800x600",
+      "rows": 6,
+      "ordinary": 3,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:32.125Z",
+      "screenshot": "A-compact-en-dark-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:32.126Z",
+      "label": "A-compact-en-dark-1920x1080",
+      "rows": 14,
+      "ordinary": 13,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:32.548Z",
+      "screenshot": "A-compact-en-dark-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:32.548Z",
+      "label": "A-compact-en-dark-1366x768",
+      "rows": 12,
+      "ordinary": 10,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:32.916Z",
+      "screenshot": "A-compact-en-dark-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:32.916Z",
+      "label": "A-compact-en-dark-1024x768",
+      "rows": 10,
+      "ordinary": 4,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:33.262Z",
+      "screenshot": "A-compact-en-dark-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:33.262Z",
+      "label": "A-compact-en-dark-800x600",
+      "rows": 6,
+      "ordinary": 3,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:34.059Z",
+      "screenshot": "A-compact-ar-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:34.059Z",
+      "label": "A-compact-ar-light-1920x1080",
+      "rows": 14,
+      "ordinary": 13,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:34.452Z",
+      "screenshot": "A-compact-ar-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:34.452Z",
+      "label": "A-compact-ar-light-1366x768",
+      "rows": 11,
+      "ordinary": 9,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:34.810Z",
+      "screenshot": "A-compact-ar-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:34.810Z",
+      "label": "A-compact-ar-light-1024x768",
+      "rows": 9,
+      "ordinary": 4,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:35.114Z",
+      "screenshot": "A-compact-ar-light-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:35.114Z",
+      "label": "A-compact-ar-light-800x600",
+      "rows": 6,
+      "ordinary": 3,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:35.760Z",
+      "screenshot": "A-compact-ar-dark-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:35.760Z",
+      "label": "A-compact-ar-dark-1920x1080",
+      "rows": 14,
+      "ordinary": 13,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:36.139Z",
+      "screenshot": "A-compact-ar-dark-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:36.139Z",
+      "label": "A-compact-ar-dark-1366x768",
+      "rows": 11,
+      "ordinary": 9,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:36.509Z",
+      "screenshot": "A-compact-ar-dark-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:36.509Z",
+      "label": "A-compact-ar-dark-1024x768",
+      "rows": 9,
+      "ordinary": 4,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:36.870Z",
+      "screenshot": "A-compact-ar-dark-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:36.870Z",
+      "label": "A-compact-ar-dark-800x600",
+      "rows": 6,
+      "ordinary": 3,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:37.769Z",
+      "screenshot": "A-touch-en-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:37.769Z",
+      "label": "A-touch-en-light-1920x1080",
+      "rows": 12,
+      "ordinary": 11,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:38.157Z",
+      "screenshot": "A-touch-en-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:38.157Z",
+      "label": "A-touch-en-light-1366x768",
+      "rows": 7,
+      "ordinary": 5,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:38.511Z",
+      "screenshot": "A-touch-en-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:38.511Z",
+      "label": "A-touch-en-light-1024x768",
+      "rows": 6,
+      "ordinary": 3,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:38.828Z",
+      "screenshot": "A-touch-en-light-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:38.828Z",
+      "label": "A-touch-en-light-800x600",
+      "rows": 3,
+      "ordinary": 2,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:39.510Z",
+      "screenshot": "A-touch-en-dark-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:39.510Z",
+      "label": "A-touch-en-dark-1920x1080",
+      "rows": 12,
+      "ordinary": 11,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:40.061Z",
+      "screenshot": "A-touch-en-dark-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:40.061Z",
+      "label": "A-touch-en-dark-1366x768",
+      "rows": 7,
+      "ordinary": 5,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:40.528Z",
+      "screenshot": "A-touch-en-dark-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:40.528Z",
+      "label": "A-touch-en-dark-1024x768",
+      "rows": 6,
+      "ordinary": 3,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:40.953Z",
+      "screenshot": "A-touch-en-dark-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:40.953Z",
+      "label": "A-touch-en-dark-800x600",
+      "rows": 3,
+      "ordinary": 2,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:41.847Z",
+      "screenshot": "A-touch-ar-light-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:41.847Z",
+      "label": "A-touch-ar-light-1920x1080",
+      "rows": 12,
+      "ordinary": 11,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:42.285Z",
+      "screenshot": "A-touch-ar-light-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:42.285Z",
+      "label": "A-touch-ar-light-1366x768",
+      "rows": 6,
+      "ordinary": 4,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:42.712Z",
+      "screenshot": "A-touch-ar-light-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:42.712Z",
+      "label": "A-touch-ar-light-1024x768",
+      "rows": 5,
+      "ordinary": 2,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:43.149Z",
+      "screenshot": "A-touch-ar-light-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:43.150Z",
+      "label": "A-touch-ar-light-800x600",
+      "rows": 3,
+      "ordinary": 2,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:43.935Z",
+      "screenshot": "A-touch-ar-dark-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:43.935Z",
+      "label": "A-touch-ar-dark-1920x1080",
+      "rows": 12,
+      "ordinary": 11,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:44.363Z",
+      "screenshot": "A-touch-ar-dark-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:44.363Z",
+      "label": "A-touch-ar-dark-1366x768",
+      "rows": 6,
+      "ordinary": 4,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:44.780Z",
+      "screenshot": "A-touch-ar-dark-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:44.781Z",
+      "label": "A-touch-ar-dark-1024x768",
+      "rows": 5,
+      "ordinary": 2,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:45.144Z",
+      "screenshot": "A-touch-ar-dark-800x600.png"
+    },
+    {
+      "at": "2026-10-06T17:00:45.144Z",
+      "label": "A-touch-ar-dark-800x600",
+      "rows": 3,
+      "ordinary": 2,
+      "overflow": false,
+      "footer": true,
+      "offscreen": 0,
+      "overlaps": 0,
+      "small": 0
+    },
+    {
+      "at": "2026-10-06T17:00:46.117Z",
+      "screenshot": "B-cartFirst-end.png"
+    },
+    {
+      "at": "2026-10-06T17:00:46.354Z",
+      "screenshot": "B-cartFirst-start.png"
+    },
+    {
+      "at": "2026-10-06T17:00:46.568Z",
+      "screenshot": "B-balanced-end.png"
+    },
+    {
+      "at": "2026-10-06T17:00:46.771Z",
+      "screenshot": "B-balanced-start.png"
+    },
+    {
+      "at": "2026-10-06T17:00:46.956Z",
+      "screenshot": "B-scanner-end.png"
+    },
+    {
+      "at": "2026-10-06T17:00:47.165Z",
+      "screenshot": "B-scanner-start.png"
+    },
+    {
+      "at": "2026-10-06T17:00:47.435Z",
+      "screenshot": "B-rail-open.png"
+    },
+    {
+      "at": "2026-10-06T17:00:47.737Z",
+      "screenshot": "B-more-menu.png"
+    },
+    {
+      "at": "2026-10-06T17:00:48.053Z",
+      "screenshot": "B-editor.png"
+    },
+    {
+      "at": "2026-10-06T17:00:49.447Z",
+      "label": "C: warning state",
+      "size": "1920x1080",
+      "status": "backend_unreachable",
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1920,
+        "height": 114
+      },
+      "rows": 14,
+      "ordinary": 13
+    },
+    {
+      "at": "2026-10-06T17:00:49.642Z",
+      "screenshot": "C-offline-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T17:00:49.915Z",
+      "label": "C: warning state",
+      "size": "1366x768",
+      "status": "backend_unreachable",
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1366,
+        "height": 114
+      },
+      "rows": 9,
+      "ordinary": 8
+    },
+    {
+      "at": "2026-10-06T17:00:50.047Z",
+      "screenshot": "C-offline-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T17:00:51.544Z",
+      "label": "D: scanner kept working after",
+      "scanned": [
+        "menu closed (Esc)",
+        "line menu closed (outside click)",
+        "preset changed + Apply",
+        "Cancel",
+        "window resized"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:00:51.545Z",
+      "label": "A-C: summary",
+      "checked": 43,
+      "failures": []
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T17:00:51.610Z"
+}

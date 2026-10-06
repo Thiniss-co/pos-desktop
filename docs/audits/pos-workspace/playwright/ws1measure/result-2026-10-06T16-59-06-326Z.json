@@ -1,0 +1,853 @@
+{
+  "journey": "ws1measure",
+  "startedAt": "2026-10-06T16:59:06.326Z",
+  "runDir": "/tmp/pos-pw-I8GVvI",
+  "steps": [
+    {
+      "at": "2026-10-06T16:59:09.039Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:43727",
+      "database": "/tmp/pos-pw-I8GVvI/ws1measure/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T16:59:09.040Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:41063"
+    },
+    {
+      "at": "2026-10-06T16:59:15.434Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T16:59:17.135Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-I8GVvI/ws1measure/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T16:59:18.510Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T16:59:18.587Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T16:59:19.665Z",
+      "label": "device assigned through the fence",
+      "assigned": true,
+      "quarantined_allocations": 0
+    },
+    {
+      "at": "2026-10-06T16:59:20.038Z",
+      "label": "named products precondition",
+      "count": 25
+    },
+    {
+      "at": "2026-10-06T16:59:20.435Z",
+      "label": "plain products precondition",
+      "count": 25
+    },
+    {
+      "at": "2026-10-06T16:59:21.236Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T16:59:21.432Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T16:59:21.667Z",
+      "label": "offer precondition",
+      "offer": "86a37bc4-6cda-40e6-a8f4-14d28676c287",
+      "revision": "f6229949-f5f1-4dc4-97bd-cdc9ca933d8e",
+      "timezone": "Asia/Riyadh",
+      "starts_local": "2026-10-06T18:59",
+      "product": "10040371-16d0-419a-95a5-ab4995568f6f",
+      "precondition": true
+    },
+    {
+      "at": "2026-10-06T16:59:22.453Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T16:59:24.688Z",
+      "label": "named cart built through the scan field",
+      "lines": 25
+    },
+    {
+      "at": "2026-10-06T16:59:24.692Z",
+      "label": "phase",
+      "phase": "after"
+    },
+    {
+      "at": "2026-10-06T16:59:25.270Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "compact",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 768,
+      "chrome": 228,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 22,
+        "fullyVisibleOrdinary": 21,
+        "ordinaryTotal": 24,
+        "wrappedTotal": 0,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 41.3,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:25.629Z",
+      "screenshot": "after-stress-compact-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:25.914Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "compact",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 432,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 12,
+        "fullyVisibleOrdinary": 10,
+        "ordinaryTotal": 21,
+        "wrappedTotal": 3,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 45.5,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:26.090Z",
+      "screenshot": "after-stress-compact-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:26.383Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "compact",
+      "size": "1024x768",
+      "cartWidth": 640,
+      "linesHeight": 432,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 10,
+        "fullyVisibleOrdinary": 4,
+        "ordinaryTotal": 8,
+        "wrappedTotal": 17,
+        "minHeight": 34,
+        "medianHeight": 45.5,
+        "maxHeight": 86,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:26.523Z",
+      "screenshot": "after-stress-compact-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:26.814Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "compact",
+      "size": "800x600",
+      "cartWidth": 700,
+      "linesHeight": 264,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 6,
+        "fullyVisibleOrdinary": 3,
+        "ordinaryTotal": 8,
+        "wrappedTotal": 17,
+        "minHeight": 34,
+        "medianHeight": 45.5,
+        "maxHeight": 65.8,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:26.893Z",
+      "screenshot": "after-stress-compact-800x600.png"
+    },
+    {
+      "at": "2026-10-06T16:59:27.451Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "comfortable",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 728,
+      "chrome": 268,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 13,
+        "fullyVisibleOrdinary": 12,
+        "ordinaryTotal": 23,
+        "wrappedTotal": 1,
+        "minHeight": 56,
+        "medianHeight": 56,
+        "maxHeight": 56,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:27.731Z",
+      "screenshot": "after-stress-comfortable-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:28.016Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "comfortable",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 392,
+      "chrome": 292,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 5,
+        "ordinaryTotal": 14,
+        "wrappedTotal": 10,
+        "minHeight": 56,
+        "medianHeight": 56,
+        "maxHeight": 73.8,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:28.183Z",
+      "screenshot": "after-stress-comfortable-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:28.449Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "comfortable",
+      "size": "1024x768",
+      "cartWidth": 640,
+      "linesHeight": 392,
+      "chrome": 292,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 5,
+        "fullyVisibleOrdinary": 3,
+        "ordinaryTotal": 8,
+        "wrappedTotal": 17,
+        "minHeight": 56,
+        "medianHeight": 70.2,
+        "maxHeight": 113.4,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:28.574Z",
+      "screenshot": "after-stress-comfortable-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:28.836Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "comfortable",
+      "size": "800x600",
+      "cartWidth": 700,
+      "linesHeight": 224,
+      "chrome": 292,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 3,
+        "fullyVisibleOrdinary": 2,
+        "ordinaryTotal": 11,
+        "wrappedTotal": 14,
+        "minHeight": 56,
+        "medianHeight": 70.2,
+        "maxHeight": 91.8,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:28.931Z",
+      "screenshot": "after-stress-comfortable-800x600.png"
+    },
+    {
+      "at": "2026-10-06T16:59:29.447Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "touch",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 738,
+      "chrome": 258,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 12,
+        "fullyVisibleOrdinary": 11,
+        "ordinaryTotal": 23,
+        "wrappedTotal": 1,
+        "minHeight": 57,
+        "medianHeight": 57,
+        "maxHeight": 57,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:29.682Z",
+      "screenshot": "after-stress-touch-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:29.934Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "touch",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 402,
+      "chrome": 282,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 5,
+        "ordinaryTotal": 14,
+        "wrappedTotal": 10,
+        "minHeight": 57,
+        "medianHeight": 57,
+        "maxHeight": 73.8,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:30.102Z",
+      "screenshot": "after-stress-touch-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:30.382Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "touch",
+      "size": "1024x768",
+      "cartWidth": 640,
+      "linesHeight": 402,
+      "chrome": 282,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 6,
+        "fullyVisibleOrdinary": 3,
+        "ordinaryTotal": 8,
+        "wrappedTotal": 17,
+        "minHeight": 57,
+        "medianHeight": 70.2,
+        "maxHeight": 113.4,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:30.504Z",
+      "screenshot": "after-stress-touch-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:30.765Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "touch",
+      "size": "800x600",
+      "cartWidth": 700,
+      "linesHeight": 234,
+      "chrome": 282,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 3,
+        "fullyVisibleOrdinary": 2,
+        "ordinaryTotal": 11,
+        "wrappedTotal": 14,
+        "minHeight": 57,
+        "medianHeight": 70.2,
+        "maxHeight": 91.8,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:30.839Z",
+      "screenshot": "after-stress-touch-800x600.png"
+    },
+    {
+      "at": "2026-10-06T16:59:32.658Z",
+      "label": "connectivity before the warning-state measurement",
+      "connectivityStatus": "backend_unreachable"
+    },
+    {
+      "at": "2026-10-06T16:59:32.913Z",
+      "label": "measured (offline notice)",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "offline",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 654,
+      "chrome": 228,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 19,
+        "fullyVisibleOrdinary": 18,
+        "ordinaryTotal": 24,
+        "wrappedTotal": 0,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 41.3,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:33.163Z",
+      "screenshot": "after-stress-offline-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:33.415Z",
+      "label": "measured (offline notice)",
+      "phase": "after",
+      "cart": "stress",
+      "mode": "offline",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 318,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 9,
+        "fullyVisibleOrdinary": 8,
+        "ordinaryTotal": 21,
+        "wrappedTotal": 3,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 45.5,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:33.555Z",
+      "screenshot": "after-stress-offline-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:36.246Z",
+      "label": "ordinary cart built through the scan field",
+      "lines": 25
+    },
+    {
+      "at": "2026-10-06T16:59:36.816Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "compact",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 768,
+      "chrome": 228,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 22,
+        "fullyVisibleOrdinary": 22,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 34,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:37.132Z",
+      "screenshot": "after-ordinary-compact-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:37.447Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "compact",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 432,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 12,
+        "fullyVisibleOrdinary": 12,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 34,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:37.635Z",
+      "screenshot": "after-ordinary-compact-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:37.897Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "compact",
+      "size": "1024x768",
+      "cartWidth": 640,
+      "linesHeight": 432,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 12,
+        "fullyVisibleOrdinary": 12,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 34,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:38.024Z",
+      "screenshot": "after-ordinary-compact-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:38.284Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "compact",
+      "size": "800x600",
+      "cartWidth": 700,
+      "linesHeight": 264,
+      "chrome": 252,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 7,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 34,
+        "medianHeight": 34,
+        "maxHeight": 34,
+        "ordinaryHeight": 34
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:38.378Z",
+      "screenshot": "after-ordinary-compact-800x600.png"
+    },
+    {
+      "at": "2026-10-06T16:59:38.930Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "comfortable",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 728,
+      "chrome": 268,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 13,
+        "fullyVisibleOrdinary": 13,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 56,
+        "medianHeight": 56,
+        "maxHeight": 56,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:39.196Z",
+      "screenshot": "after-ordinary-comfortable-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:39.464Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "comfortable",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 392,
+      "chrome": 292,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 7,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 56,
+        "medianHeight": 56,
+        "maxHeight": 56,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:39.603Z",
+      "screenshot": "after-ordinary-comfortable-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:39.883Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "comfortable",
+      "size": "1024x768",
+      "cartWidth": 640,
+      "linesHeight": 392,
+      "chrome": 292,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 7,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 56,
+        "medianHeight": 56,
+        "maxHeight": 56,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:40.057Z",
+      "screenshot": "after-ordinary-comfortable-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:40.313Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "comfortable",
+      "size": "800x600",
+      "cartWidth": 700,
+      "linesHeight": 224,
+      "chrome": 292,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 4,
+        "fullyVisibleOrdinary": 4,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 56,
+        "medianHeight": 56,
+        "maxHeight": 56,
+        "ordinaryHeight": 56
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:40.408Z",
+      "screenshot": "after-ordinary-comfortable-800x600.png"
+    },
+    {
+      "at": "2026-10-06T16:59:40.949Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "touch",
+      "size": "1920x1080",
+      "cartWidth": 1213,
+      "linesHeight": 738,
+      "chrome": 258,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 12,
+        "fullyVisibleOrdinary": 12,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 57,
+        "medianHeight": 57,
+        "maxHeight": 57,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:41.211Z",
+      "screenshot": "after-ordinary-touch-1920x1080.png"
+    },
+    {
+      "at": "2026-10-06T16:59:41.480Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "touch",
+      "size": "1366x768",
+      "cartWidth": 859,
+      "linesHeight": 402,
+      "chrome": 282,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 7,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 57,
+        "medianHeight": 57,
+        "maxHeight": 57,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:41.613Z",
+      "screenshot": "after-ordinary-touch-1366x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:41.880Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "touch",
+      "size": "1024x768",
+      "cartWidth": 640,
+      "linesHeight": 402,
+      "chrome": 282,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 7,
+        "fullyVisibleOrdinary": 7,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 57,
+        "medianHeight": 57,
+        "maxHeight": 57,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:41.993Z",
+      "screenshot": "after-ordinary-touch-1024x768.png"
+    },
+    {
+      "at": "2026-10-06T16:59:42.230Z",
+      "label": "measured",
+      "phase": "after",
+      "cart": "ordinary",
+      "mode": "touch",
+      "size": "800x600",
+      "cartWidth": 700,
+      "linesHeight": 234,
+      "chrome": 282,
+      "rows": {
+        "total": 25,
+        "fullyVisible": 4,
+        "fullyVisibleOrdinary": 4,
+        "ordinaryTotal": 25,
+        "wrappedTotal": 0,
+        "minHeight": 57,
+        "medianHeight": 57,
+        "maxHeight": 57,
+        "ordinaryHeight": 57
+      },
+      "footerFullyVisible": true,
+      "horizontalOverflow": false,
+      "pageOverflowY": 0
+    },
+    {
+      "at": "2026-10-06T16:59:42.308Z",
+      "screenshot": "after-ordinary-touch-800x600.png"
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T16:59:42.646Z"
+}

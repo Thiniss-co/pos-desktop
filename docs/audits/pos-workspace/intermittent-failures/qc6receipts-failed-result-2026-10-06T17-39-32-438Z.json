@@ -1,0 +1,189 @@
+{
+  "journey": "qc6receipts",
+  "startedAt": "2026-10-06T17:39:32.438Z",
+  "runDir": "/tmp/pos-pw-d7mqeC",
+  "steps": [
+    {
+      "at": "2026-10-06T17:39:35.673Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:42687",
+      "database": "/tmp/pos-pw-d7mqeC/qc6receipts/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T17:39:35.675Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:33805"
+    },
+    {
+      "at": "2026-10-06T17:39:41.579Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T17:39:42.909Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-d7mqeC/qc6receipts/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T17:39:44.199Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T17:39:44.271Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:39:46.511Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-06T17:39:47.228Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:39:47.414Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:39:47.453Z",
+      "label": "workstation printer: PW-Virtual-80 (virtual adapter)"
+    },
+    {
+      "at": "2026-10-06T17:39:47.683Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T17:39:48.280Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:39:48.901Z",
+      "label": "1: non-fiscal sale context",
+      "regime": "none",
+      "qrType": "txn-ref-v1"
+    },
+    {
+      "at": "2026-10-06T17:39:51.767Z",
+      "label": "1: printed",
+      "job": "submitted",
+      "pdf": "job-1791308391011-2.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-06T17:39:55.321Z",
+      "screenshot": "02a-owner-fiscal-zatca.png"
+    },
+    {
+      "at": "2026-10-06T17:39:55.798Z",
+      "screenshot": "02b-owner-receipt-display.png"
+    },
+    {
+      "at": "2026-10-06T17:39:55.942Z",
+      "label": "2: owner saved the fiscal identity, switched ZATCA on and published receipt display choices",
+      "publish": 201
+    },
+    {
+      "at": "2026-10-06T17:39:56.695Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:39:56.738Z",
+      "label": "3: mirrored identity",
+      "regime": "sa_zatca_phase1",
+      "seller_name": "Desktop MVP Trading LLC",
+      "vat_number": "310122393500003",
+      "street": "1 Corniche Road",
+      "postal_code": "23511",
+      "revision": 3
+    },
+    {
+      "at": "2026-10-06T17:39:57.010Z",
+      "label": "scanned",
+      "code": "6221000000011"
+    },
+    {
+      "at": "2026-10-06T17:39:57.281Z",
+      "label": "scanned",
+      "code": "6221000000035"
+    },
+    {
+      "at": "2026-10-06T17:39:57.820Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:40:02.472Z",
+      "label": "3 (80 mm): printed",
+      "job": "submitted",
+      "pdf": "job-1791308401538-4.pdf",
+      "widthMm": 80,
+      "qrDecoded": true
+    },
+    {
+      "at": "2026-10-06T17:40:02.473Z",
+      "label": "3: decoded ZATCA QR",
+      "sellerName": "Desktop MVP Trading LLC",
+      "vatNumber": "310122393500003",
+      "timestamp": "2026-10-06T17:39:57Z",
+      "total": "25.88",
+      "vatTotal": "3.38"
+    }
+  ],
+  "result": "failed",
+  "error": "Error: 3 (58 mm): print not submitted {\"jobUuid\":\"3208cdd3-f75f-42c0-870f-9e81662ccfe9\",\"status\":\"failed_before_dispatch\",\"phase\":null,\"failureCode\":\"RECEIPT_QR_INVALID\",\"cancelOrigin\":null,\"createdAt\":\"2026-10-06T17:40:02.625Z\",\"dispatchedAt\":null,\"finishedAt\":\"2026-10-06T17:40:02.916Z\",\"isReprint\":false}\n    at printSale (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc6receipts.mjs:208:11)\n    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc6receipts.mjs:370:20)\n    at async file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/run.mjs:93:5",
+  "failureTrace": [
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/device/register",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/device/register elapsed_ms=358 backend_code=DEVICE_REGISTERED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/auth/login",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/auth/login elapsed_ms=338 backend_code=DESKTOP_LOGIN_SUCCESS status=200 content_type=application/json",
+    "[pos-heartbeat] event=session-eligible mode=active level=0 next_in_s=0",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/license/validate",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/device/heartbeat",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/license/validate elapsed_ms=111 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (session): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/device/heartbeat elapsed_ms=138 backend_code=DEVICE_HEARTBEAT_RECORDED status=200 content_type=application/json",
+    "[pos-heartbeat] event=beat-ok from=active code_expected=true resource=parsed mode=active level=0 next_in_s=112",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/bootstrap elapsed_ms=1006 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold stale installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current elapsed_ms=652 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current elapsed_ms=678 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/license/validate elapsed_ms=57 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/bootstrap elapsed_ms=59 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current elapsed_ms=51 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/shifts/open",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/shifts/open elapsed_ms=56 backend_code=DESKTOP_SHIFT_OPENED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/upload elapsed_ms=244 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/89965a96-0602-49c6-9b34-6b0c56939410/receipt-snapshot",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/89965a96-0602-49c6-9b34-6b0c56939410/receipt-snapshot elapsed_ms=57 backend_code=RECEIPT_SNAPSHOT_STORED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/license/validate",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/license/validate elapsed_ms=56 backend_code=LICENSE_VALIDATED status=200 content_type=application/json",
+    "[pos-renewal] license leg (catalog-refresh): renewed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/bootstrap",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/bootstrap elapsed_ms=82 backend_code=DESKTOP_BOOTSTRAP_RETRIEVED status=200 content_type=application/json",
+    "[pos-install] hold manual installed",
+    "[pos-api] stage=start method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current",
+    "[pos-api] stage=finish method=GET url=http://127.0.0.1:33805/api/v1/desktop/shifts/current elapsed_ms=84 backend_code=DESKTOP_CURRENT_SHIFT_RETRIEVED status=200 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/upload",
+    "[pos-allocation] event=dispatch-reconciliation due=0 granted=0 unresolved=0",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/upload elapsed_ms=184 backend_code=DESKTOP_INVOICE_UPLOADED status=201 content_type=application/json",
+    "[pos-api] stage=start method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/9fcfe7c9-11a1-4f97-8c74-95d531e26051/receipt-snapshot",
+    "[pos-api] stage=finish method=POST url=http://127.0.0.1:33805/api/v1/desktop/invoices/9fcfe7c9-11a1-4f97-8c74-95d531e26051/receipt-snapshot elapsed_ms=67 backend_code=RECEIPT_SNAPSHOT_STORED status=201 content_type=application/json",
+    "[pos-heartbeat] event=stopped mode=active level=0"
+  ],
+  "finishedAt": "2026-10-06T17:40:03.079Z"
+}

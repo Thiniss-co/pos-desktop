@@ -1,0 +1,283 @@
+[pw:ws1measure] disposable backend ready {"origin":"http://127.0.0.1:43727","database":"/tmp/pos-pw-I8GVvI/ws1measure/backend/sandbox.sqlite"}
+[pw:ws1measure] network proxy ready {"origin":"http://127.0.0.1:41063"}
+[pw:ws1measure] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=1000 pid=327696 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=327696 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.4' (uid=1000 pid=327696 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.9' (uid=1000 pid=327791 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.9' (uid=1000 pid=327791 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.488: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.9' (uid=1000 pid=327791 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[327836]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=327828 comm="/usr/libexec/xdg-desktop-portal-gtk" label="unconfined")
+dbus-daemon[327836]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.549: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.567: Choosing gtk.portal for org.freedesktop.impl.portal.Settings as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.569: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.570: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.571: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.571: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.572: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.577: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.577: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.578: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:327791): xdg-desktop-portal-WARNING **: 19:59:16.578: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[327453]: [session uid=1000 pid=327453 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+[pw:ws1measure] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/ws1measure/profile/Electron"}
+[pw:ws1measure] activation completed
+[pw:ws1measure] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:ws1measure] device assigned through the fence {"assigned":true,"quarantined_allocations":0}
+[pw:ws1measure] named products precondition {"count":25}
+[pw:ws1measure] plain products precondition {"count":25}
+[pw:ws1measure] workstation data refreshed {"outcome":"installed"}
+[pw:ws1measure] shift opened
+[pw:ws1measure] offer precondition {"offer":"86a37bc4-6cda-40e6-a8f4-14d28676c287","revision":"f6229949-f5f1-4dc4-97bd-cdc9ca933d8e","timezone":"Asia/Riyadh","starts_local":"2026-10-06T18:59","product":"10040371-16d0-419a-95a5-ab4995568f6f","precondition":true}
+[pw:ws1measure] workstation data refreshed {"outcome":"installed"}
+[pw:ws1measure] named cart built through the scan field {"lines":25}
+[pw:ws1measure] phase {"phase":"after"}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"compact","size":"1920x1080","cartWidth":1213,"linesHeight":768,"chrome":228,"rows":{"total":25,"fullyVisible":22,"fullyVisibleOrdinary":21,"ordinaryTotal":24,"wrappedTotal":0,"minHeight":34,"medianHeight":34,"maxHeight":41.3,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"compact","size":"1366x768","cartWidth":859,"linesHeight":432,"chrome":252,"rows":{"total":25,"fullyVisible":12,"fullyVisibleOrdinary":10,"ordinaryTotal":21,"wrappedTotal":3,"minHeight":34,"medianHeight":34,"maxHeight":45.5,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"compact","size":"1024x768","cartWidth":640,"linesHeight":432,"chrome":252,"rows":{"total":25,"fullyVisible":10,"fullyVisibleOrdinary":4,"ordinaryTotal":8,"wrappedTotal":17,"minHeight":34,"medianHeight":45.5,"maxHeight":86,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"compact","size":"800x600","cartWidth":700,"linesHeight":264,"chrome":252,"rows":{"total":25,"fullyVisible":6,"fullyVisibleOrdinary":3,"ordinaryTotal":8,"wrappedTotal":17,"minHeight":34,"medianHeight":45.5,"maxHeight":65.8,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"comfortable","size":"1920x1080","cartWidth":1213,"linesHeight":728,"chrome":268,"rows":{"total":25,"fullyVisible":13,"fullyVisibleOrdinary":12,"ordinaryTotal":23,"wrappedTotal":1,"minHeight":56,"medianHeight":56,"maxHeight":56,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"comfortable","size":"1366x768","cartWidth":859,"linesHeight":392,"chrome":292,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":5,"ordinaryTotal":14,"wrappedTotal":10,"minHeight":56,"medianHeight":56,"maxHeight":73.8,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"comfortable","size":"1024x768","cartWidth":640,"linesHeight":392,"chrome":292,"rows":{"total":25,"fullyVisible":5,"fullyVisibleOrdinary":3,"ordinaryTotal":8,"wrappedTotal":17,"minHeight":56,"medianHeight":70.2,"maxHeight":113.4,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"comfortable","size":"800x600","cartWidth":700,"linesHeight":224,"chrome":292,"rows":{"total":25,"fullyVisible":3,"fullyVisibleOrdinary":2,"ordinaryTotal":11,"wrappedTotal":14,"minHeight":56,"medianHeight":70.2,"maxHeight":91.8,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"touch","size":"1920x1080","cartWidth":1213,"linesHeight":738,"chrome":258,"rows":{"total":25,"fullyVisible":12,"fullyVisibleOrdinary":11,"ordinaryTotal":23,"wrappedTotal":1,"minHeight":57,"medianHeight":57,"maxHeight":57,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"touch","size":"1366x768","cartWidth":859,"linesHeight":402,"chrome":282,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":5,"ordinaryTotal":14,"wrappedTotal":10,"minHeight":57,"medianHeight":57,"maxHeight":73.8,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"touch","size":"1024x768","cartWidth":640,"linesHeight":402,"chrome":282,"rows":{"total":25,"fullyVisible":6,"fullyVisibleOrdinary":3,"ordinaryTotal":8,"wrappedTotal":17,"minHeight":57,"medianHeight":70.2,"maxHeight":113.4,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"stress","mode":"touch","size":"800x600","cartWidth":700,"linesHeight":234,"chrome":282,"rows":{"total":25,"fullyVisible":3,"fullyVisibleOrdinary":2,"ordinaryTotal":11,"wrappedTotal":14,"minHeight":57,"medianHeight":70.2,"maxHeight":91.8,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] connectivity before the warning-state measurement {"connectivityStatus":"backend_unreachable"}
+[pw:ws1measure] measured (offline notice) {"phase":"after","cart":"stress","mode":"offline","size":"1920x1080","cartWidth":1213,"linesHeight":654,"chrome":228,"rows":{"total":25,"fullyVisible":19,"fullyVisibleOrdinary":18,"ordinaryTotal":24,"wrappedTotal":0,"minHeight":34,"medianHeight":34,"maxHeight":41.3,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured (offline notice) {"phase":"after","cart":"stress","mode":"offline","size":"1366x768","cartWidth":859,"linesHeight":318,"chrome":252,"rows":{"total":25,"fullyVisible":9,"fullyVisibleOrdinary":8,"ordinaryTotal":21,"wrappedTotal":3,"minHeight":34,"medianHeight":34,"maxHeight":45.5,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] ordinary cart built through the scan field {"lines":25}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"compact","size":"1920x1080","cartWidth":1213,"linesHeight":768,"chrome":228,"rows":{"total":25,"fullyVisible":22,"fullyVisibleOrdinary":22,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":34,"medianHeight":34,"maxHeight":34,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"compact","size":"1366x768","cartWidth":859,"linesHeight":432,"chrome":252,"rows":{"total":25,"fullyVisible":12,"fullyVisibleOrdinary":12,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":34,"medianHeight":34,"maxHeight":34,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"compact","size":"1024x768","cartWidth":640,"linesHeight":432,"chrome":252,"rows":{"total":25,"fullyVisible":12,"fullyVisibleOrdinary":12,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":34,"medianHeight":34,"maxHeight":34,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"compact","size":"800x600","cartWidth":700,"linesHeight":264,"chrome":252,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":7,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":34,"medianHeight":34,"maxHeight":34,"ordinaryHeight":34},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"comfortable","size":"1920x1080","cartWidth":1213,"linesHeight":728,"chrome":268,"rows":{"total":25,"fullyVisible":13,"fullyVisibleOrdinary":13,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":56,"medianHeight":56,"maxHeight":56,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"comfortable","size":"1366x768","cartWidth":859,"linesHeight":392,"chrome":292,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":7,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":56,"medianHeight":56,"maxHeight":56,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"comfortable","size":"1024x768","cartWidth":640,"linesHeight":392,"chrome":292,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":7,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":56,"medianHeight":56,"maxHeight":56,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"comfortable","size":"800x600","cartWidth":700,"linesHeight":224,"chrome":292,"rows":{"total":25,"fullyVisible":4,"fullyVisibleOrdinary":4,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":56,"medianHeight":56,"maxHeight":56,"ordinaryHeight":56},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"touch","size":"1920x1080","cartWidth":1213,"linesHeight":738,"chrome":258,"rows":{"total":25,"fullyVisible":12,"fullyVisibleOrdinary":12,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":57,"medianHeight":57,"maxHeight":57,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"touch","size":"1366x768","cartWidth":859,"linesHeight":402,"chrome":282,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":7,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":57,"medianHeight":57,"maxHeight":57,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"touch","size":"1024x768","cartWidth":640,"linesHeight":402,"chrome":282,"rows":{"total":25,"fullyVisible":7,"fullyVisibleOrdinary":7,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":57,"medianHeight":57,"maxHeight":57,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws1measure] measured {"phase":"after","cart":"ordinary","mode":"touch","size":"800x600","cartWidth":700,"linesHeight":234,"chrome":282,"rows":{"total":25,"fullyVisible":4,"fullyVisibleOrdinary":4,"ordinaryTotal":25,"wrappedTotal":0,"minHeight":57,"medianHeight":57,"maxHeight":57,"ordinaryHeight":57},"footerFullyVisible":true,"horizontalOverflow":false,"pageOverflowY":0}
+[pw:ws4touch] disposable backend ready {"origin":"http://127.0.0.1:46083","database":"/tmp/pos-pw-I8GVvI/ws4touch/backend/sandbox.sqlite"}
+[pw:ws4touch] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:ws4touch] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/ws4touch/profile/Electron"}
+[pw:ws4touch] activation completed
+[pw:ws4touch] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:ws4touch] workstation data refreshed {"outcome":"installed"}
+[pw:ws4touch] shift opened
+[pw:ws4touch] A: cart after touch edits {"lines":[["Al Marai Full Cream Fresh Milk 1.5 L","1.500"],["حليب المراعي كامل الدسم طازج 1 لتر","2.000"]]}
+[pw:ws4touch] A: touch sale committed and uploaded {"sale":{"local_uuid":"85209a69-f235-416d-b622-a5baf4955532"}}
+[pw:ws4touch] B: refund by touch {"refunds":[{"submission_state":"accepted"}]}
+[pw:ws4touch] C: rail browser {"cartVisible":true,"cartWidth":440,"footer":true,"lines":1}
+[pw:ws4touch] E: no accidental drag in normal selling {"handles":0,"widthBefore":859,"widthAfter":859,"editing":false}
+[pw:ws4touch] D: touch customization cancelled {"shareBefore":45,"shareAfter":36,"storedSame":true,"saleSame":true}
+[pw:ws4touch] E: controls under 44×44 by state {"lineMenu":[],"selling1366":[],"moreMenu":[],"railOpen800":[],"selling800":[],"editor":[]}
+[pw:ws5matrix] disposable backend ready {"origin":"http://127.0.0.1:35225","database":"/tmp/pos-pw-I8GVvI/ws5matrix/backend/sandbox.sqlite"}
+[pw:ws5matrix] network proxy ready {"origin":"http://127.0.0.1:46433"}
+[pw:ws5matrix] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:ws5matrix] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/ws5matrix/profile/Electron"}
+[pw:ws5matrix] activation completed
+[pw:ws5matrix] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:ws5matrix] workstation data refreshed {"outcome":"installed"}
+[pw:ws5matrix] shift opened
+[pw:ws5matrix] E: runtime {"versions":{"electron":"39.8.10","chrome":"142.0.7444.265"},"features":{"popover":true,"containerQueries":true,"anchorPositioning":true}}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-1366x768","rows":12,"ordinary":10,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-1024x768","rows":10,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-800x600","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-1366x768","rows":12,"ordinary":10,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-1024x768","rows":10,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-800x600","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-1366x768","rows":11,"ordinary":9,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-1024x768","rows":9,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-800x600","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-1366x768","rows":11,"ordinary":9,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-1024x768","rows":9,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-800x600","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-1366x768","rows":7,"ordinary":5,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-1024x768","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-800x600","rows":3,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-1366x768","rows":7,"ordinary":5,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-1024x768","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-800x600","rows":3,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-1366x768","rows":6,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-1024x768","rows":5,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-800x600","rows":3,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-1366x768","rows":6,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-1024x768","rows":5,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-800x600","rows":3,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] C: warning state {"size":"1920x1080","status":"backend_unreachable","notices":{"x":0,"y":60,"width":1920,"height":114},"rows":14,"ordinary":13}
+[pw:ws5matrix] C: warning state {"size":"1366x768","status":"backend_unreachable","notices":{"x":0,"y":60,"width":1366,"height":114},"rows":9,"ordinary":8}
+[pw:ws5matrix] D: scanner kept working after {"scanned":["menu closed (Esc)","line menu closed (outside click)","preset changed + Apply","Cancel","window resized"]}
+[pw:ws5matrix] A-C: summary {"checked":43,"failures":[]}
+[pw:ws2checkout] disposable backend ready {"origin":"http://127.0.0.1:35205","database":"/tmp/pos-pw-I8GVvI/ws2checkout/backend/sandbox.sqlite"}
+[pw:ws2checkout] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:ws2checkout] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/ws2checkout/profile/Electron"}
+[pw:ws2checkout] activation completed
+[pw:ws2checkout] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:ws2checkout] named products {"count":8}
+[pw:ws2checkout] workstation data refreshed {"outcome":"installed"}
+[pw:ws2checkout] shift opened
+[pw:ws2checkout] A: scanned (Enter, Tab, no suffix, focused fractional) {"quantities":["1.000","1.000","1.000","1.250"]}
+[pw:ws2checkout] B: sale before layout changes {"lines":3,"held":1,"discount":["percentage",1000],"grand":7457}
+[pw:ws2checkout] B: draft after preset/side/density/keyboard+pointer resize {"draft":{"version":1,"preset":"custom","cartSide":"start","cartShare":55,"density":"comfortable","catalogView":"cards","catalogCollapsed":false,"sections":{"cart":["actions","scan","lines","totals"],"catalog":["categories","search","products"]}}}
+[pw:ws2checkout] B: applied; business state identical {"stored":[{"version":1,"preset":"custom","cartSide":"start","cartShare":55,"density":"comfortable","catalogView":"cards","catalogCollapsed":false,"sections":{"cart":["actions","scan","lines","totals"],"catalog":["categories","search","products"]}}]}
+[pw:ws2checkout] B: cancel kept the business state and the stored layout
+[pw:ws2checkout] C: scans and payment keys while editing {"probes":[{"target":"workspace-apply","suffix":"Enter","code":"6291000000008","changed":false,"editing":true,"draftSame":true,"focused":"workspace-apply"},{"target":"workspace-apply","suffix":"Tab","code":"6291000000008","changed":false,"editing":true,"draftSame":true,"focused":"workspace-apply"},{"target":"workspace-restore","suffix":"Enter","code":"6291000000001","changed":false,"editing":true,"draftSame":true,"focused":"workspace-restore"},{"target":"workspace-restore","suffix":"","code":"6291000000002","changed":false,"editing":true,"draftSame":true,"focused":"workspace-restore"},{"target":"workspace-cancel","suffix":"Enter","code":"629 1000000003","changed":false,"editing":true,"draftSame":true,"focused":"workspace-cancel"},{"target":"workspace-apply","suffix":"Enter","code":"2*6291000000003","changed":false,"editing":true,"draftSame":true,"focused":"workspace-apply"}],"paymentOpen":false,"notice":"Scanner paused while you customize the layout. Apply or cancel to sell again."}
+[pw:ws2checkout] C: Enter activated Restore (draft only); Esc cancelled
+[pw:ws2checkout] C: scan racing the editor {"raceChanged":false}
+[pw:ws2checkout] D: page Shift+F9 exact cash committed
+[pw:ws2checkout] exact-cash sale committed
+[pw:ws2checkout] D: two sales uploaded {"invoices":2}
+[pw:qc4mixedtaxe2e] disposable backend ready {"origin":"http://127.0.0.1:44867","database":"/tmp/pos-pw-I8GVvI/qc4mixedtaxe2e/backend/sandbox.sqlite"}
+[pw:qc4mixedtaxe2e] network proxy ready {"origin":"http://127.0.0.1:40091"}
+[pw:qc4mixedtaxe2e] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc4mixedtaxe2e] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/qc4mixedtaxe2e/profile/Electron"}
+[pw:qc4mixedtaxe2e] activation completed
+[pw:qc4mixedtaxe2e] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc4mixedtaxe2e] policy set to physical presence {"policy_revision":null}
+[pw:qc4mixedtaxe2e] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e] shift opened
+[pw:qc4mixedtaxe2e] precondition: mixed-tax products (fixture) {"products":{"MIX-INC":{"uuid":"ebce7d01-802c-46d0-b564-b56f00516930","barcode":"7780000000011","tax_mode":"inclusive","tax_category":"standard"},"MIX-ZERO":{"uuid":"5aaadda4-f9c0-4745-a942-92e3b5f8294e","barcode":"7780000000028","tax_mode":"exclusive","tax_category":"zero_rated"},"MIX-EXEMPT":{"uuid":"93eb8396-175f-4533-a818-d6b4ccba674c","barcode":"7780000000035","tax_mode":"inclusive","tax_category":"exempt"}},"precondition":true}
+[pw:qc4mixedtaxe2e] precondition: ZATCA phase 1 identity (fixture) {"regime":"sa_zatca_phase1","revision":1}
+[pw:qc4mixedtaxe2e] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e] L: installed contract with the issuance gate off {"mixed_tax_mode_policy":"single_invoice_mode"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e] L: second tax mode refused {"shown":true,"cart":{"lines":[{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"}],"discount":[null,0],"tax":150,"grand":1150,"error":"This register's catalog does not allow different tax modes in one sale. Refresh workstation data; if this stays, the server has not enabled mixed-tax sales.","held":0}}
+[pw:qc4mixedtaxe2e] disposable backend restarted {"POS_MIXED_TAX_ISSUE_PER_LINE":"true"}
+[pw:qc4mixedtaxe2e] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e] L: contract after the gate is on {"policy":"per_line","categories":[{"sku":"COLA-CAN","tax_mode":"exclusive","rate":1500,"tax_category":null},{"sku":"MIX-EXEMPT","tax_mode":"inclusive","rate":0,"tax_category":"exempt"},{"sku":"MIX-INC","tax_mode":"inclusive","rate":1500,"tax_category":"standard"},{"sku":"MIX-ZERO","tax_mode":"exclusive","rate":0,"tax_category":"zero_rated"},{"sku":"WATER-500","tax_mode":"none","rate":0,"tax_category":null}]}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Water Bottle"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Cola Can"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Qc4 Inclusive"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Qc4 Zero-rated"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Qc4 Exempt"}
+[pw:qc4mixedtaxe2e] A: card order cart {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4325,"error":null,"held":0}
+[pw:qc4mixedtaxe2e] invoice discount applied {"percent":10}
+[pw:qc4mixedtaxe2e] A: after +1 Cola, removed Exempt, 10% discount {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"}],"discount":["percentage",1000],"tax":540,"grand":4815,"error":null,"held":0}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000035"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000028"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000011"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000028"}
+[pw:qc4mixedtaxe2e] B: reverse barcode cart {"lines":[{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"},{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4325,"error":null,"held":1}
+[pw:qc4mixedtaxe2e] B: after +1 Zero, removed Water {"lines":[{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4075,"error":null,"held":1}
+[pw:qc4mixedtaxe2e] exact-cash sale committed
+[pw:qc4mixedtaxe2e] B: sale 1 accepted {"local":{"local_uuid":"7d10cb36-254f-4a9f-a98c-f600881c1498","tax_mode":"mixed","subtotal_amount":3850,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":4075,"sold_while_offline":0},"items":[{"product_uuid":"93eb8396-175f-4533-a818-d6b4ccba674c","product_name":"Qc4 Exempt","tax_mode":"inclusive","tax_category":"exempt","tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":700,"discount_amount":0,"tax_amount":0,"total_amount":700},{"product_uuid":"5aaadda4-f9c0-4745-a942-92e3b5f8294e","product_name":"Qc4 Zero-rated","tax_mode":"exclusive","tax_category":"zero_rated","tax_rate_basis_points":0,"quantity_milli":2000,"subtotal_amount":500,"discount_amount":0,"tax_amount":0,"total_amount":500},{"product_uuid":"ebce7d01-802c-46d0-b564-b56f00516930","product_name":"Qc4 Inclusive","tax_mode":"inclusive","tax_category":"standard","tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1150,"discount_amount":0,"tax_amount":150,"total_amount":1150},{"product_uuid":"32e2dc15-70d3-4a63-88de-54e98b957e57","product_name":"Cola Can","tax_mode":"exclusive","tax_category":null,"tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1500,"discount_amount":0,"tax_amount":225,"total_amount":1725}],"server":{"idempotency_key":"7d10cb36-254f-4a9f-a98c-f600881c1498","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":3850,"discount":0,"tax":375,"grand":4075,"sync_records":1,"stock_movements":1,"accounting_journals":1,"items":[{"product_uuid":"93eb8396-175f-4533-a818-d6b4ccba674c","tax_mode":"inclusive","tax_category":"exempt","tax_amount":0,"total_amount":700,"discount_amount":0,"subtotal_amount":700},{"product_uuid":"5aaadda4-f9c0-4745-a942-92e3b5f8294e","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":500,"discount_amount":0,"subtotal_amount":500},{"product_uuid":"ebce7d01-802c-46d0-b564-b56f00516930","tax_mode":"inclusive","tax_category":"standard","tax_amount":150,"total_amount":1150,"discount_amount":0,"subtotal_amount":1150},{"product_uuid":"32e2dc15-70d3-4a63-88de-54e98b957e57","tax_mode":"exclusive","tax_category":null,"tax_amount":225,"total_amount":1725,"discount_amount":0,"subtotal_amount":1500}],"refunds":[]}}
+[pw:qc4mixedtaxe2e] C: recalled cart {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"}],"discount":["percentage",1000],"tax":540,"grand":4815,"error":null,"held":0}
+[pw:qc4mixedtaxe2e] exact-cash sale committed
+[pw:qc4mixedtaxe2e] C: sale 2 accepted {"local":{"local_uuid":"6896451c-4df5-415c-ad10-00d5711fd895","tax_mode":"mixed","subtotal_amount":4900,"discount_total_amount":490,"tax_total_amount":540,"grand_total_amount":4815,"sold_while_offline":0},"items":[{"product_uuid":"afaf41da-b541-4421-be8b-46894d9564d1","product_name":"Water Bottle","tax_mode":"none","tax_category":null,"tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":500,"discount_amount":50,"tax_amount":0,"total_amount":450},{"product_uuid":"32e2dc15-70d3-4a63-88de-54e98b957e57","product_name":"Cola Can","tax_mode":"exclusive","tax_category":null,"tax_rate_basis_points":1500,"quantity_milli":2000,"subtotal_amount":3000,"discount_amount":300,"tax_amount":405,"total_amount":3105},{"product_uuid":"ebce7d01-802c-46d0-b564-b56f00516930","product_name":"Qc4 Inclusive","tax_mode":"inclusive","tax_category":"standard","tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1150,"discount_amount":115,"tax_amount":135,"total_amount":1035},{"product_uuid":"5aaadda4-f9c0-4745-a942-92e3b5f8294e","product_name":"Qc4 Zero-rated","tax_mode":"exclusive","tax_category":"zero_rated","tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":250,"discount_amount":25,"tax_amount":0,"total_amount":225}],"server":{"idempotency_key":"6896451c-4df5-415c-ad10-00d5711fd895","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":4900,"discount":490,"tax":540,"grand":4815,"sync_records":1,"stock_movements":2,"accounting_journals":1,"items":[{"product_uuid":"afaf41da-b541-4421-be8b-46894d9564d1","tax_mode":"none","tax_category":null,"tax_amount":0,"total_amount":450,"discount_amount":50,"subtotal_amount":500},{"product_uuid":"32e2dc15-70d3-4a63-88de-54e98b957e57","tax_mode":"exclusive","tax_category":null,"tax_amount":405,"total_amount":3105,"discount_amount":300,"subtotal_amount":3000},{"product_uuid":"ebce7d01-802c-46d0-b564-b56f00516930","tax_mode":"inclusive","tax_category":"standard","tax_amount":135,"total_amount":1035,"discount_amount":115,"subtotal_amount":1150},{"product_uuid":"5aaadda4-f9c0-4745-a942-92e3b5f8294e","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":225,"discount_amount":25,"subtotal_amount":250}],"refunds":[]}}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000028"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000028"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000011"}
+[pw:qc4mixedtaxe2e] exact-cash sale committed
+[pw:qc4mixedtaxe2e] D: offline sale 3 {"invoice":{"local_uuid":"4cf0ee82-4129-4998-8411-1708dbad44db","tax_mode":"mixed","subtotal_amount":3400,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":3625,"sold_while_offline":1},"queue":{"payload_hash":"b4f27ea880b0265d74261e9e5d45a0f461a8aa0b9ed7917a0ab23330ce9b07f3","idempotency_key":"4cf0ee82-4129-4998-8411-1708dbad44db","state":"pending","attempt_count":0,"last_error_code":null}}
+[pw:qc4mixedtaxe2e] electron launched again on the same isolated profile
+[pw:qc4mixedtaxe2e] D: after an offline restart {"queue":{"payload_hash":"b4f27ea880b0265d74261e9e5d45a0f461a8aa0b9ed7917a0ab23330ce9b07f3","idempotency_key":"4cf0ee82-4129-4998-8411-1708dbad44db","state":"pending","attempt_count":0,"last_error_code":null}}
+[pw:qc4mixedtaxe2e] disposable backend restarted {"POS_MIXED_TAX_PARSE_V4_V5":"false"}
+[pw:qc4mixedtaxe2e] E: legacy server refused the v5 upload {"payload_hash":"b4f27ea880b0265d74261e9e5d45a0f461a8aa0b9ed7917a0ab23330ce9b07f3","idempotency_key":"4cf0ee82-4129-4998-8411-1708dbad44db","state":"retryable_error","attempt_count":1,"last_error_code":"DESKTOP_CONTRACT_VERSION_UNSUPPORTED"}
+[pw:qc4mixedtaxe2e] disposable backend restarted {"POS_MIXED_TAX_PARSE_V4_V5":"true"}
+[pw:qc4mixedtaxe2e] F: held upload delivered after the register saw a dropped connection {"status":201}
+[pw:qc4mixedtaxe2e] F: sale 3 after the replay {"uploadRequestsSinceRestore":2,"queue":{"payload_hash":"b4f27ea880b0265d74261e9e5d45a0f461a8aa0b9ed7917a0ab23330ce9b07f3","idempotency_key":"4cf0ee82-4129-4998-8411-1708dbad44db","state":"synced","attempt_count":3,"last_error_code":null},"server":{"idempotency_key":"4cf0ee82-4129-4998-8411-1708dbad44db","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":3400,"discount":0,"tax":375,"grand":3625,"sync_records":1,"stock_movements":2,"accounting_journals":1,"items":[{"product_uuid":"ebce7d01-802c-46d0-b564-b56f00516930","tax_mode":"inclusive","tax_category":"standard","tax_amount":150,"total_amount":1150,"discount_amount":0,"subtotal_amount":1150},{"product_uuid":"afaf41da-b541-4421-be8b-46894d9564d1","tax_mode":"none","tax_category":null,"tax_amount":0,"total_amount":500,"discount_amount":0,"subtotal_amount":500},{"product_uuid":"5aaadda4-f9c0-4745-a942-92e3b5f8294e","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":250,"discount_amount":0,"subtotal_amount":250},{"product_uuid":"32e2dc15-70d3-4a63-88de-54e98b957e57","tax_mode":"exclusive","tax_category":null,"tax_amount":225,"total_amount":1725,"discount_amount":0,"subtotal_amount":1500}],"refunds":[]},"serverInvoiceCount":3,"contracts":["single_invoice_mode","single_invoice_mode","single_invoice_mode","per_line"]}
+[pw:qc4mixedtaxe2e] G sale 1: receipt {"pdf":"job-1791306126633-1.pdf","qrTotals":{"total":"40.75","vat":"3.75"},"invoiceTotals":{"grand":"40.75","tax":"3.75"},"breakdownCategories":["Standard","Zero-rated","Exempt"],"serverSnapshotMatches":true,"serverRecomputedMatches":true}
+[pw:qc4mixedtaxe2e] G sale 2: receipt {"pdf":"job-1791306127954-2.pdf","qrTotals":{"total":"48.15","vat":"5.40"},"invoiceTotals":{"grand":"48.15","tax":"5.40"},"breakdownCategories":["Standard","Zero-rated"],"serverSnapshotMatches":true,"serverRecomputedMatches":true}
+[pw:qc4mixedtaxe2e] G sale 3: receipt {"pdf":"job-1791306130474-3.pdf","qrTotals":{"total":"36.25","vat":"3.75"},"invoiceTotals":{"grand":"36.25","tax":"3.75"},"breakdownCategories":["Standard","Zero-rated"],"serverSnapshotMatches":true,"serverRecomputedMatches":true}
+[pw:qc4mixedtaxe2e] G: virtual printer output {"dir":"/tmp/pos-pw-I8GVvI/qc4mixedtaxe2e/profile/virtual-printer"}
+[pw:qc5touch] disposable backend ready {"origin":"http://127.0.0.1:40247","database":"/tmp/pos-pw-I8GVvI/qc5touch/backend/sandbox.sqlite"}
+[pw:qc5touch] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc5touch] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/qc5touch/profile/Electron"}
+[pw:qc5touch] activation completed
+[pw:qc5touch] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc5touch] policy set to physical presence {"policy_revision":null}
+[pw:qc5touch] workstation data refreshed {"outcome":"installed"}
+[pw:qc5touch] shift opened
+[pw:qc5touch] A: touch mode switched on by touch {"stored":[{"key":"ui.touchMode","value":"true"}]}
+[pw:qc5touch] B: quantities after the keypad {"quantities":[["Cola Can","3.000"],["Chips Small","1.000"]]}
+[pw:qc5touch] B: touch-only sale committed and uploaded {"sale":{"local_uuid":"8b3b420a-54a5-4a77-9425-fe356a87e1da","sync_status":"synced"},"focusAfterKeypad":"INPUT"}
+[pw:qc5touch] C: touch-only refund {"refunds":[{"submission_state":"accepted"}]}
+[pw:qc5touch] signed out through the user menu
+[pw:qc5touch] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc5touch] A: per-user persistence {"afterSignOut":"off","afterSignIn":"on"}
+[pw:qc5touch] D: combination {"locale":"en","theme":"light","size":"1920x1080","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"light","size":"1366x768","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"light","size":"1024x768","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"light","size":"800x600","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":true,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"dark","size":"1920x1080","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"dark","size":"1366x768","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"dark","size":"1024x768","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"en","theme":"dark","size":"800x600","dir":"ltr","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":true,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"light","size":"1920x1080","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"light","size":"1366x768","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"light","size":"1024x768","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"light","size":"800x600","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":true,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"dark","size":"1920x1080","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"dark","size":"1366x768","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"dark","size":"1024x768","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":false,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: combination {"locale":"ar","theme":"dark","size":"800x600","dir":"rtl","touch":"on","horizontalOverflow":false,"navOverlapsStatus":false,"overflowingLabels":[],"smallControls":0,"sheetOpened":true,"dialogFits":true,"smallSample":[]}
+[pw:qc5touch] D: matrix summary {"combinations":16,"failures":[]}
+[pw:smoke] disposable backend ready {"origin":"http://127.0.0.1:33911","database":"/tmp/pos-pw-I8GVvI/smoke/backend/sandbox.sqlite"}
+[pw:smoke] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:smoke] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/smoke/profile/Electron"}
+[pw:smoke] activation completed
+[pw:smoke] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:smoke] device assigned through the fence {"assigned":true,"quarantined_allocations":0}
+[pw:smoke] workstation data refreshed {"outcome":"installed"}
+[pw:smoke] shift opened
+[pw:smoke] scanned {"code":"6221000000011"}
+[pw:smoke] exact-cash sale committed
+[pw:smoke] server report {"device_assigned":true,"invoices":{"be4ceeb2-7114-44dd-a633-a9b1b565adf8":{"sync_records":1,"statuses":["processed"],"server_invoices":1,"stock_movements":1,"sold_while_offline":[false]}},"device_invoice_count":1}
+[pw:smoke] server stock {"sku":"COLA-CAN","track_stock":true,"stock_items":[{"warehouse_id":1,"quantity":99,"reserved_quantity":0,"allocation_reserved_quantity":0,"available_quantity":99}]}
+[pw:smoke] route {"route":"pos"}
+[pw:smoke] printers visible to the harness build {"names":["PW-Virtual-80","PW-Virtual-58"]}
+[pw:qc3actions] disposable backend ready {"origin":"http://127.0.0.1:34963","database":"/tmp/pos-pw-I8GVvI/qc3actions/backend/sandbox.sqlite"}
+[pw:qc3actions] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc3actions] electron launched with isolated profile {"userData":"/tmp/pos-pw-I8GVvI/qc3actions/profile/Electron"}
+[pw:qc3actions] precondition: quick-create grants for the cashier (fixture)
+[pw:qc3actions] activation completed
+[pw:qc3actions] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc3actions] policy set to physical presence {"policy_revision":null}
+[pw:qc3actions] workstation data refreshed {"outcome":"installed"}
+[pw:qc3actions] shift opened
+[pw:qc3actions] scanned {"code":"6221000000011"}
+[pw:qc3actions] exact-cash sale committed
+[pw:qc3actions] 1: scan → exact cash committed {"elapsedMs":761}
+[pw:qc3actions] 1: quick-action tiles {"tiles":["customer","discount","hold","recall","refund","more"]}
+[pw:qc3actions] scanned {"code":"6221000000011"}
+[pw:qc3actions] scanned {"code":"6221000000035"}
+[pw:qc3actions] 2: new customer from the selector {"prefilled":"Qc3 Layla","selected":"481de202-a64f-4596-9c6c-a9d42d1910c5","visible":true}
+[pw:qc3actions] 3: validation and cancel {"fieldErrors":2,"productsOrSuppliersCreated":0,"cartKept":true}
+[pw:qc3actions] 4: refund entry backed out {"cartKept":true,"focus":{"tag":"INPUT","placeholder":"Scan barcode — or type 3*code"}}
+[pw:qc3actions] 5: refund through the POS entry {"refunds":[{"invoice_local_uuid":"e03b0f44-2766-4c2a-a405-78b70eac559f","submission_state":"accepted"}],"cartKept":true}
+[pw:qc3actions] 6: correct and send again {"sameIdSuppliers":[{"uuid":"a58cc4e6-7edb-4062-aeb0-cce781e64664","name":"Qc3 Second Supplier"}],"results":["refused:DESKTOP_SUPPLIER_NAME_TAKEN","accepted:DESKTOP_ENTITY_CREATED"]}
+A connection to the bus can't be made
+[pw] run directory: /tmp/pos-pw-I8GVvI

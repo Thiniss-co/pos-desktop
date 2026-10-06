@@ -1,0 +1,76 @@
+[pw:qc6receipts] disposable backend ready {"origin":"http://127.0.0.1:42687","database":"/tmp/pos-pw-d7mqeC/qc6receipts/backend/sandbox.sqlite"}
+[pw:qc6receipts] network proxy ready {"origin":"http://127.0.0.1:33805"}
+[pw:qc6receipts] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=1000 pid=393079 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=393079 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.4' (uid=1000 pid=393079 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.9' (uid=1000 pid=393182 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.9' (uid=1000 pid=393182 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.511: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.9' (uid=1000 pid=393182 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[393225]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=393218 comm="/usr/libexec/xdg-desktop-portal-gtk" label="unconfined")
+dbus-daemon[393225]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.546: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.558: Choosing gtk.portal for org.freedesktop.impl.portal.Settings as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.559: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.559: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.560: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.560: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.561: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.564: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.564: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.565: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:393182): xdg-desktop-portal-WARNING **: 20:39:42.566: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+[pw:qc6receipts] electron launched with isolated profile {"userData":"/tmp/pos-pw-d7mqeC/qc6receipts/profile/Electron"}
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.freedesktop.Notifications' requested by ':1.16' (uid=1000 pid=393318 comm="/opt/google/chrome/chrome --disable-field-trial-co" label="chrome (unconfined)")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Activating service name='org.xfce.Xfconf' requested by ':1.18' (uid=1000 pid=393426 comm="/usr/lib/x86_64-linux-gnu/xfce4/notifyd/xfce4-noti" label="unconfined")
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.xfce.Xfconf'
+dbus-daemon[392891]: [session uid=1000 pid=392891 pidfd=5] Successfully activated service 'org.freedesktop.Notifications'
+[pw:qc6receipts] activation completed
+[pw:qc6receipts] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc6receipts] policy set to physical presence {"policy_revision":null}
+[pw:qc6receipts] workstation data refreshed {"outcome":"installed"}
+[pw:qc6receipts] shift opened
+[pw:qc6receipts] workstation printer: PW-Virtual-80 (virtual adapter)
+[pw:qc6receipts] scanned {"code":"6221000000011"}
+[pw:qc6receipts] exact-cash sale committed
+[pw:qc6receipts] 1: non-fiscal sale context {"regime":"none","qrType":"txn-ref-v1"}
+[pw:qc6receipts] 1: printed {"job":"submitted","pdf":"job-1791308391011-2.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] 2: owner saved the fiscal identity, switched ZATCA on and published receipt display choices {"publish":201}
+[pw:qc6receipts] workstation data refreshed {"outcome":"installed"}
+[pw:qc6receipts] 3: mirrored identity {"regime":"sa_zatca_phase1","seller_name":"Desktop MVP Trading LLC","vat_number":"310122393500003","street":"1 Corniche Road","postal_code":"23511","revision":3}
+[pw:qc6receipts] scanned {"code":"6221000000011"}
+[pw:qc6receipts] scanned {"code":"6221000000035"}
+[pw:qc6receipts] exact-cash sale committed
+[pw:qc6receipts] 3 (80 mm): printed {"job":"submitted","pdf":"job-1791308401538-4.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] 3: decoded ZATCA QR {"sellerName":"Desktop MVP Trading LLC","vatNumber":"310122393500003","timestamp":"2026-10-06T17:39:57Z","total":"25.88","vatTotal":"3.38"}
+[pw:qc6receipts] FAILED
+Error: 3 (58 mm): print not submitted {"jobUuid":"3208cdd3-f75f-42c0-870f-9e81662ccfe9","status":"failed_before_dispatch","phase":null,"failureCode":"RECEIPT_QR_INVALID","cancelOrigin":null,"createdAt":"2026-10-06T17:40:02.625Z","dispatchedAt":null,"finishedAt":"2026-10-06T17:40:02.916Z","isReprint":false}
+    at printSale (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc6receipts.mjs:208:11)
+    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc6receipts.mjs:370:20)
+    at async file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/run.mjs:93:5
+A connection to the bus can't be made
+
+(xfconfd:393432): xfconfd-WARNING **: 20:40:03.098: Name org.xfce.Xfconf lost on the message dbus, exiting.
+Another notification daemon is running, exiting
+Another notification daemon is running, exiting
+[pw] run directory: /tmp/pos-pw-d7mqeC

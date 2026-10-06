@@ -1,0 +1,243 @@
+{
+  "journey": "ws2checkout",
+  "startedAt": "2026-10-06T17:00:51.610Z",
+  "runDir": "/tmp/pos-pw-I8GVvI",
+  "steps": [
+    {
+      "at": "2026-10-06T17:00:55.402Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:35205",
+      "database": "/tmp/pos-pw-I8GVvI/ws2checkout/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T17:01:04.135Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T17:01:05.993Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-I8GVvI/ws2checkout/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T17:01:07.515Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T17:01:07.578Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:01:08.811Z",
+      "label": "named products",
+      "count": 8
+    },
+    {
+      "at": "2026-10-06T17:01:10.702Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:01:10.846Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:01:11.334Z",
+      "label": "A: scanned (Enter, Tab, no suffix, focused fractional)",
+      "quantities": [
+        "1.000",
+        "1.000",
+        "1.000",
+        "1.250"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:01:11.441Z",
+      "screenshot": "A-scanned.png"
+    },
+    {
+      "at": "2026-10-06T17:01:13.355Z",
+      "label": "B: sale before layout changes",
+      "lines": 3,
+      "held": 1,
+      "discount": [
+        "percentage",
+        1000
+      ],
+      "grand": 7457
+    },
+    {
+      "at": "2026-10-06T17:01:13.461Z",
+      "screenshot": "B0-before.png"
+    },
+    {
+      "at": "2026-10-06T17:01:13.667Z",
+      "screenshot": "B1-editor-open.png"
+    },
+    {
+      "at": "2026-10-06T17:01:14.059Z",
+      "label": "B: draft after preset/side/density/keyboard+pointer resize",
+      "draft": {
+        "version": 1,
+        "preset": "custom",
+        "cartSide": "start",
+        "cartShare": 55,
+        "density": "comfortable",
+        "catalogView": "cards",
+        "catalogCollapsed": false,
+        "sections": {
+          "cart": [
+            "actions",
+            "scan",
+            "lines",
+            "totals"
+          ],
+          "catalog": [
+            "categories",
+            "search",
+            "products"
+          ]
+        }
+      }
+    },
+    {
+      "at": "2026-10-06T17:01:14.175Z",
+      "screenshot": "B2-draft-preview.png"
+    },
+    {
+      "at": "2026-10-06T17:01:14.263Z",
+      "label": "B: applied; business state identical",
+      "stored": [
+        {
+          "version": 1,
+          "preset": "custom",
+          "cartSide": "start",
+          "cartShare": 55,
+          "density": "comfortable",
+          "catalogView": "cards",
+          "catalogCollapsed": false,
+          "sections": {
+            "cart": [
+              "actions",
+              "scan",
+              "lines",
+              "totals"
+            ],
+            "catalog": [
+              "categories",
+              "search",
+              "products"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:01:14.408Z",
+      "screenshot": "B3-applied-balanced-left-comfortable.png"
+    },
+    {
+      "at": "2026-10-06T17:01:14.663Z",
+      "label": "B: cancel kept the business state and the stored layout"
+    },
+    {
+      "at": "2026-10-06T17:01:20.230Z",
+      "label": "C: scans and payment keys while editing",
+      "probes": [
+        {
+          "target": "workspace-apply",
+          "suffix": "Enter",
+          "code": "6291000000008",
+          "changed": false,
+          "editing": true,
+          "draftSame": true,
+          "focused": "workspace-apply"
+        },
+        {
+          "target": "workspace-apply",
+          "suffix": "Tab",
+          "code": "6291000000008",
+          "changed": false,
+          "editing": true,
+          "draftSame": true,
+          "focused": "workspace-apply"
+        },
+        {
+          "target": "workspace-restore",
+          "suffix": "Enter",
+          "code": "6291000000001",
+          "changed": false,
+          "editing": true,
+          "draftSame": true,
+          "focused": "workspace-restore"
+        },
+        {
+          "target": "workspace-restore",
+          "suffix": "",
+          "code": "6291000000002",
+          "changed": false,
+          "editing": true,
+          "draftSame": true,
+          "focused": "workspace-restore"
+        },
+        {
+          "target": "workspace-cancel",
+          "suffix": "Enter",
+          "code": "629 1000000003",
+          "changed": false,
+          "editing": true,
+          "draftSame": true,
+          "focused": "workspace-cancel"
+        },
+        {
+          "target": "workspace-apply",
+          "suffix": "Enter",
+          "code": "2*6291000000003",
+          "changed": false,
+          "editing": true,
+          "draftSame": true,
+          "focused": "workspace-apply"
+        }
+      ],
+      "paymentOpen": false,
+      "notice": "Scanner paused while you customize the layout. Apply or cancel to sell again."
+    },
+    {
+      "at": "2026-10-06T17:01:20.356Z",
+      "screenshot": "C1-scans-refused-while-editing.png"
+    },
+    {
+      "at": "2026-10-06T17:01:20.854Z",
+      "label": "C: Enter activated Restore (draft only); Esc cancelled"
+    },
+    {
+      "at": "2026-10-06T17:01:21.670Z",
+      "label": "C: scan racing the editor",
+      "raceChanged": false
+    },
+    {
+      "at": "2026-10-06T17:01:21.777Z",
+      "label": "D: page Shift+F9 exact cash committed"
+    },
+    {
+      "at": "2026-10-06T17:01:21.897Z",
+      "screenshot": "D1-exact-cash-page.png"
+    },
+    {
+      "at": "2026-10-06T17:01:22.592Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:01:22.782Z",
+      "label": "D: two sales uploaded",
+      "invoices": 2
+    },
+    {
+      "at": "2026-10-06T17:01:22.878Z",
+      "screenshot": "D2-after-sales.png"
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T17:01:22.933Z"
+}

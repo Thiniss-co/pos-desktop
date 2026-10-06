@@ -1,0 +1,1064 @@
+[
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "1920x1080",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1920,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1905,
+        "height": 1020
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 1437,
+        "height": 988
+      },
+      "rail": null,
+      "cart": {
+        "x": 1469,
+        "y": 76,
+        "width": 420,
+        "height": 988
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 1486,
+        "y": 407.8,
+        "width": 386,
+        "height": 89.5
+      },
+      "touchBar": null,
+      "scan": {
+        "x": 1486,
+        "y": 212.8,
+        "width": 386,
+        "height": 185
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 1470,
+        "y": 532.3,
+        "width": 418,
+        "height": 249.7
+      },
+      "footer": {
+        "x": 1470,
+        "y": 782,
+        "width": 418,
+        "height": 281
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 738.3,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 2,
+      "fullyVisibleOrdinary": 2,
+      "ordinaryTotal": 9,
+      "wrappedTotal": 16,
+      "minHeight": 101,
+      "medianHeight": 109.5,
+      "maxHeight": 129.8,
+      "ordinaryHeight": 101
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": true
+  },
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "1366x768",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 1366,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1366,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1366,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1351,
+        "height": 708
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 923,
+        "height": 676
+      },
+      "rail": null,
+      "cart": {
+        "x": 955,
+        "y": 76,
+        "width": 380,
+        "height": 676
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 972,
+        "y": 407.8,
+        "width": 331,
+        "height": 89.5
+      },
+      "touchBar": null,
+      "scan": {
+        "x": 972,
+        "y": 212.8,
+        "width": 331,
+        "height": 185
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 956,
+        "y": 532.3,
+        "width": 363,
+        "height": 120
+      },
+      "footer": {
+        "x": 956,
+        "y": 652.3,
+        "width": 363,
+        "height": 281
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 556,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 1,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 5,
+      "wrappedTotal": 20,
+      "minHeight": 101,
+      "medianHeight": 109.5,
+      "maxHeight": 150,
+      "ordinaryHeight": 101
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "1024x768",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 1024,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1024,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1009,
+        "height": 708
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 621,
+        "height": 676
+      },
+      "rail": null,
+      "cart": {
+        "x": 653,
+        "y": 76,
+        "width": 340,
+        "height": 676
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 670,
+        "y": 426.7,
+        "width": 291,
+        "height": 89.5
+      },
+      "touchBar": null,
+      "scan": {
+        "x": 670,
+        "y": 231.7,
+        "width": 291,
+        "height": 185
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 654,
+        "y": 551.2,
+        "width": 323,
+        "height": 120
+      },
+      "footer": {
+        "x": 654,
+        "y": 671.2,
+        "width": 323,
+        "height": 281
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 556,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 1,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 1,
+      "wrappedTotal": 24,
+      "minHeight": 101,
+      "medianHeight": 109.5,
+      "maxHeight": 170.3,
+      "ordinaryHeight": 101
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "800x600",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 800,
+      "innerHeight": 600,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 471
+      },
+      "catalog": {
+        "x": 12,
+        "y": 72,
+        "width": 776,
+        "height": 447
+      },
+      "rail": null,
+      "cart": null,
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": null,
+      "touchBar": null,
+      "scan": null,
+      "columnHeader": null,
+      "lines": null,
+      "footer": null,
+      "compactBar": null
+    },
+    "cartChromeHeight": null,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 0,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 24,
+      "wrappedTotal": 0,
+      "minHeight": 0,
+      "medianHeight": 0,
+      "maxHeight": 0,
+      "ordinaryHeight": 0
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "800x600",
+    "state": "cart-sheet-open",
+    "viewport": {
+      "innerWidth": 800,
+      "innerHeight": 600,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 540
+      },
+      "catalog": {
+        "x": 12,
+        "y": 72,
+        "width": 776,
+        "height": 516
+      },
+      "rail": null,
+      "cart": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 600
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 16,
+        "y": 333,
+        "width": 753,
+        "height": 73.3
+      },
+      "touchBar": null,
+      "scan": {
+        "x": 16,
+        "y": 138,
+        "width": 753,
+        "height": 185
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 0,
+        "y": 441.3,
+        "width": 785,
+        "height": 120
+      },
+      "footer": {
+        "x": 0,
+        "y": 561.3,
+        "width": 785,
+        "height": 281
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 480,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 1,
+      "fullyVisibleOrdinary": 1,
+      "ordinaryTotal": 23,
+      "wrappedTotal": 1,
+      "minHeight": 101,
+      "medianHeight": 101,
+      "maxHeight": 109.5,
+      "ordinaryHeight": 101
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "touch",
+    "size": "1920x1080",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": "on",
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1920,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1905,
+        "height": 1020
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 1437,
+        "height": 988
+      },
+      "rail": null,
+      "cart": {
+        "x": 1469,
+        "y": 76,
+        "width": 420,
+        "height": 988
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 1486,
+        "y": 434,
+        "width": 386,
+        "height": 89.5
+      },
+      "touchBar": {
+        "x": 1470,
+        "y": 533.5,
+        "width": 418,
+        "height": 81.3
+      },
+      "scan": {
+        "x": 1486,
+        "y": 227,
+        "width": 386,
+        "height": 197
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 1470,
+        "y": 649.8,
+        "width": 418,
+        "height": 126.3
+      },
+      "footer": {
+        "x": 1470,
+        "y": 776,
+        "width": 418,
+        "height": 287
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 861.7,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 1,
+      "fullyVisibleOrdinary": 1,
+      "ordinaryTotal": 9,
+      "wrappedTotal": 16,
+      "minHeight": 121,
+      "medianHeight": 121,
+      "maxHeight": 137.8,
+      "ordinaryHeight": 121
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": true
+  },
+  {
+    "phase": "before",
+    "mode": "touch",
+    "size": "1366x768",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 1366,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": "on",
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1366,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1366,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1351,
+        "height": 708
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 923,
+        "height": 676
+      },
+      "rail": null,
+      "cart": {
+        "x": 955,
+        "y": 76,
+        "width": 380,
+        "height": 676
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 972,
+        "y": 434,
+        "width": 331,
+        "height": 89.5
+      },
+      "touchBar": {
+        "x": 956,
+        "y": 533.5,
+        "width": 363,
+        "height": 81.3
+      },
+      "scan": {
+        "x": 972,
+        "y": 227,
+        "width": 331,
+        "height": 197
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 956,
+        "y": 649.8,
+        "width": 363,
+        "height": 120
+      },
+      "footer": {
+        "x": 956,
+        "y": 769.8,
+        "width": 363,
+        "height": 287
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 556,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 0,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 5,
+      "wrappedTotal": 20,
+      "minHeight": 121,
+      "medianHeight": 121,
+      "maxHeight": 158,
+      "ordinaryHeight": 121
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "touch",
+    "size": "1024x768",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 1024,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": "on",
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1024,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1009,
+        "height": 708
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 621,
+        "height": 676
+      },
+      "rail": null,
+      "cart": {
+        "x": 653,
+        "y": 76,
+        "width": 340,
+        "height": 676
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 670,
+        "y": 446.7,
+        "width": 291,
+        "height": 89.5
+      },
+      "touchBar": {
+        "x": 654,
+        "y": 546.2,
+        "width": 323,
+        "height": 81.3
+      },
+      "scan": {
+        "x": 670,
+        "y": 239.7,
+        "width": 291,
+        "height": 197
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 654,
+        "y": 662.4,
+        "width": 323,
+        "height": 120
+      },
+      "footer": {
+        "x": 654,
+        "y": 782.4,
+        "width": 323,
+        "height": 287
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 556,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 0,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 1,
+      "wrappedTotal": 24,
+      "minHeight": 121,
+      "medianHeight": 121,
+      "maxHeight": 178.3,
+      "ordinaryHeight": 121
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "touch",
+    "size": "800x600",
+    "state": "standard",
+    "viewport": {
+      "innerWidth": 800,
+      "innerHeight": 600,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": "on",
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 475
+      },
+      "catalog": {
+        "x": 12,
+        "y": 72,
+        "width": 776,
+        "height": 451
+      },
+      "rail": null,
+      "cart": null,
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": null,
+      "touchBar": null,
+      "scan": null,
+      "columnHeader": null,
+      "lines": null,
+      "footer": null,
+      "compactBar": null
+    },
+    "cartChromeHeight": null,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 0,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 24,
+      "wrappedTotal": 0,
+      "minHeight": 0,
+      "medianHeight": 0,
+      "maxHeight": 0,
+      "ordinaryHeight": 0
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "touch",
+    "size": "800x600",
+    "state": "cart-sheet-open",
+    "viewport": {
+      "innerWidth": 800,
+      "innerHeight": 600,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": "on",
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 540
+      },
+      "catalog": {
+        "x": 12,
+        "y": 72,
+        "width": 776,
+        "height": 516
+      },
+      "rail": null,
+      "cart": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 600
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 16,
+        "y": 357,
+        "width": 753,
+        "height": 73.3
+      },
+      "touchBar": {
+        "x": 0,
+        "y": 440.3,
+        "width": 785,
+        "height": 81.3
+      },
+      "scan": {
+        "x": 16,
+        "y": 150,
+        "width": 753,
+        "height": 197
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 0,
+        "y": 556.5,
+        "width": 785,
+        "height": 120
+      },
+      "footer": {
+        "x": 0,
+        "y": 676.5,
+        "width": 785,
+        "height": 287
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 480,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 0,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 23,
+      "wrappedTotal": 1,
+      "minHeight": 121,
+      "medianHeight": 121,
+      "maxHeight": 121,
+      "ordinaryHeight": 121
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  },
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "1920x1080",
+    "state": "offline-notice",
+    "viewport": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1920,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1905,
+        "height": 1020
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 1437,
+        "height": 988
+      },
+      "rail": null,
+      "cart": {
+        "x": 1469,
+        "y": 76,
+        "width": 420,
+        "height": 988
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 1486,
+        "y": 407.8,
+        "width": 386,
+        "height": 89.5
+      },
+      "touchBar": null,
+      "scan": {
+        "x": 1486,
+        "y": 212.8,
+        "width": 386,
+        "height": 185
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 1470,
+        "y": 532.3,
+        "width": 418,
+        "height": 249.7
+      },
+      "footer": {
+        "x": 1470,
+        "y": 782,
+        "width": 418,
+        "height": 281
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 738.3,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 2,
+      "fullyVisibleOrdinary": 2,
+      "ordinaryTotal": 9,
+      "wrappedTotal": 16,
+      "minHeight": 101,
+      "medianHeight": 109.5,
+      "maxHeight": 129.8,
+      "ordinaryHeight": 101
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": true
+  },
+  {
+    "phase": "before",
+    "mode": "desktop",
+    "size": "1366x768",
+    "state": "offline-notice",
+    "viewport": {
+      "innerWidth": 1366,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    },
+    "dir": "ltr",
+    "touch": null,
+    "density": null,
+    "preset": null,
+    "regions": {
+      "topBar": {
+        "x": 0,
+        "y": 0,
+        "width": 1366,
+        "height": 60
+      },
+      "notices": {
+        "x": 0,
+        "y": 60,
+        "width": 1366,
+        "height": 0
+      },
+      "workspace": {
+        "x": 0,
+        "y": 60,
+        "width": 1351,
+        "height": 708
+      },
+      "catalog": {
+        "x": 16,
+        "y": 76,
+        "width": 923,
+        "height": 676
+      },
+      "rail": null,
+      "cart": {
+        "x": 955,
+        "y": 76,
+        "width": 380,
+        "height": 676
+      },
+      "cartHeader": null,
+      "customerRow": null,
+      "toolbar": {
+        "x": 972,
+        "y": 407.8,
+        "width": 331,
+        "height": 89.5
+      },
+      "touchBar": null,
+      "scan": {
+        "x": 972,
+        "y": 212.8,
+        "width": 331,
+        "height": 185
+      },
+      "columnHeader": null,
+      "lines": {
+        "x": 956,
+        "y": 532.3,
+        "width": 363,
+        "height": 120
+      },
+      "footer": {
+        "x": 956,
+        "y": 652.3,
+        "width": 363,
+        "height": 281
+      },
+      "compactBar": null
+    },
+    "cartChromeHeight": 556,
+    "rows": {
+      "total": 25,
+      "fullyVisible": 1,
+      "fullyVisibleOrdinary": 0,
+      "ordinaryTotal": 5,
+      "wrappedTotal": 20,
+      "minHeight": 101,
+      "medianHeight": 109.5,
+      "maxHeight": 150,
+      "ordinaryHeight": 101
+    },
+    "horizontalOverflow": false,
+    "footerFullyVisible": false
+  }
+]

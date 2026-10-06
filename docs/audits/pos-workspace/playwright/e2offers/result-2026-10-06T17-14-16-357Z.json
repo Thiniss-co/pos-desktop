@@ -1,0 +1,293 @@
+{
+  "journey": "e2offers",
+  "startedAt": "2026-10-06T17:14:16.358Z",
+  "runDir": "/tmp/pos-pw-d8MZsv",
+  "steps": [
+    {
+      "at": "2026-10-06T17:14:19.488Z",
+      "label": "disposable backend ready",
+      "origin": "http://127.0.0.1:34679",
+      "database": "/tmp/pos-pw-d8MZsv/e2offers/backend/sandbox.sqlite"
+    },
+    {
+      "at": "2026-10-06T17:14:19.490Z",
+      "label": "network proxy ready",
+      "origin": "http://127.0.0.1:34789"
+    },
+    {
+      "at": "2026-10-06T17:14:25.921Z",
+      "label": "electron build ready",
+      "outDir": "/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"
+    },
+    {
+      "at": "2026-10-06T17:14:28.940Z",
+      "label": "electron launched with isolated profile",
+      "userData": "/tmp/pos-pw-d8MZsv/e2offers/profile/Electron"
+    },
+    {
+      "at": "2026-10-06T17:14:30.003Z",
+      "label": "activation completed"
+    },
+    {
+      "at": "2026-10-06T17:14:30.064Z",
+      "label": "sign-in submitted",
+      "user": "cashier@desktop-mvp.test"
+    },
+    {
+      "at": "2026-10-06T17:14:31.210Z",
+      "label": "policy set to physical presence",
+      "policy_revision": null
+    },
+    {
+      "at": "2026-10-06T17:14:31.981Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:14:32.180Z",
+      "label": "shift opened"
+    },
+    {
+      "at": "2026-10-06T17:14:32.406Z",
+      "label": "A: precondition — live 10% offer on Water (fixture)",
+      "offer": "06827cee-3ae6-4ab5-a94a-ec0658b1a1df",
+      "revision": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+      "timezone": "Asia/Riyadh",
+      "starts_local": "2026-10-06T19:14",
+      "product": "ca27bd1d-2537-44cd-a51f-c6559cae2021",
+      "precondition": true
+    },
+    {
+      "at": "2026-10-06T17:14:33.608Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:14:35.180Z",
+      "label": "A: offers installed with the contract",
+      "installed": [
+        {
+          "revision_uuid": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+          "name": "Journey 10% off",
+          "type": "percentage",
+          "value": 1000
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:14:35.406Z",
+      "label": "scanned",
+      "code": "6221000000028"
+    },
+    {
+      "at": "2026-10-06T17:14:35.613Z",
+      "screenshot": "B-offered-cart.png"
+    },
+    {
+      "at": "2026-10-06T17:14:35.613Z",
+      "label": "B: cart with the offer",
+      "offered": {
+        "lines": [
+          {
+            "name": "Water Bottle",
+            "price": 500,
+            "quantity": "1.000",
+            "offer": "7e1458c4-9dad-485d-8f73-57395b1aebdd"
+          }
+        ],
+        "grand": 450,
+        "discount": 50,
+        "error": null
+      },
+      "labels": [
+        "Journey 10% off · −$0.50"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:14:36.129Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:14:36.807Z",
+      "label": "B: committed",
+      "invoice": {
+        "local_uuid": "d2631052-8718-4c9a-a624-9b0cfbcad5bb",
+        "grand_total_amount": 450,
+        "discount_total_amount": 50,
+        "sold_while_offline": 0
+      },
+      "items": [
+        {
+          "product_name": "Water Bottle",
+          "discount_type": "percentage",
+          "discount_value": 1000,
+          "discount_amount": 50,
+          "total_amount": 450,
+          "offer_revision_uuid": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+          "offer_name": "Journey 10% off"
+        }
+      ],
+      "version": 7
+    },
+    {
+      "at": "2026-10-06T17:14:37.018Z",
+      "label": "B: server invoice",
+      "idempotency_key": "d2631052-8718-4c9a-a624-9b0cfbcad5bb",
+      "contract_version": 7,
+      "sync_records": 1,
+      "grand": 450,
+      "discount": 50,
+      "items": [
+        {
+          "product_uuid": "ca27bd1d-2537-44cd-a51f-c6559cae2021",
+          "discount_type": "percentage",
+          "discount_value": 1000,
+          "discount_amount": 50,
+          "total_amount": 450,
+          "offer_snapshot": {
+            "id": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+            "name": "Journey 10% off",
+            "type": "percentage",
+            "value": 1000,
+            "priority": 0
+          }
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:14:37.322Z",
+      "label": "scanned",
+      "code": "6221000000028"
+    },
+    {
+      "at": "2026-10-06T17:14:37.550Z",
+      "screenshot": "C-offline-offered-cart.png"
+    },
+    {
+      "at": "2026-10-06T17:14:38.118Z",
+      "label": "exact-cash sale committed"
+    },
+    {
+      "at": "2026-10-06T17:14:38.772Z",
+      "label": "C: offline sale",
+      "invoice": {
+        "local_uuid": "87c9d555-a032-45bd-b4a5-e675934a134b",
+        "grand_total_amount": 450,
+        "discount_total_amount": 50,
+        "sold_while_offline": 1
+      },
+      "items": [
+        {
+          "product_name": "Water Bottle",
+          "discount_type": "percentage",
+          "discount_value": 1000,
+          "discount_amount": 50,
+          "total_amount": 450,
+          "offer_revision_uuid": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+          "offer_name": "Journey 10% off"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:14:38.936Z",
+      "label": "D: owner ended the offer on the server",
+      "offer": "06827cee-3ae6-4ab5-a94a-ec0658b1a1df",
+      "status": "ended",
+      "revoked_at": "2026-10-06 17:14:38"
+    },
+    {
+      "at": "2026-10-06T17:14:43.124Z",
+      "label": "E: upload after revocation",
+      "payload_hash": "9589c56ec410afdf5c77f1ebdcd9d5c3cbe7b9ad499343ddf3d3a9fa9043fbe6",
+      "state": "synced",
+      "last_error_code": null,
+      "attempt_count": 1
+    },
+    {
+      "at": "2026-10-06T17:14:43.299Z",
+      "label": "E: server invoice for the offline sale",
+      "idempotency_key": "87c9d555-a032-45bd-b4a5-e675934a134b",
+      "contract_version": 7,
+      "sync_records": 1,
+      "grand": 450,
+      "discount": 50,
+      "items": [
+        {
+          "product_uuid": "ca27bd1d-2537-44cd-a51f-c6559cae2021",
+          "discount_type": "percentage",
+          "discount_value": 1000,
+          "discount_amount": 50,
+          "total_amount": 450,
+          "offer_snapshot": {
+            "id": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+            "name": "Journey 10% off",
+            "type": "percentage",
+            "value": 1000,
+            "priority": 0
+          }
+        }
+      ]
+    },
+    {
+      "at": "2026-10-06T17:14:44.004Z",
+      "label": "workstation data refreshed",
+      "outcome": "installed"
+    },
+    {
+      "at": "2026-10-06T17:14:44.293Z",
+      "label": "scanned",
+      "code": "6221000000028"
+    },
+    {
+      "at": "2026-10-06T17:14:44.454Z",
+      "screenshot": "F-after-revocation-cart.png"
+    },
+    {
+      "at": "2026-10-06T17:14:44.607Z",
+      "label": "F: after a refresh",
+      "installed": [],
+      "cart": {
+        "lines": [
+          {
+            "name": "Water Bottle",
+            "price": 500,
+            "quantity": "1.000",
+            "offer": null
+          }
+        ],
+        "grand": 500,
+        "discount": 0,
+        "error": null
+      },
+      "labels": [],
+      "contracts": [
+        {
+          "revision": "7a8508bb91e3256f4e44e8695df0c592120d85f0b6691268185d45cca17212a3",
+          "offers": []
+        },
+        {
+          "revision": "93eda3f20b099bd1a9b67f7f2a40e2b7f5b01e118cecffe1ad4945fc91cb8838",
+          "offers": []
+        },
+        {
+          "revision": "0e5c26ce7087e3e496c2db502e2b1d112017795ec10b9d960a2df6ceeaf39f39",
+          "offers": [
+            "7e1458c4-9dad-485d-8f73-57395b1aebdd"
+          ]
+        },
+        {
+          "revision": "6fc296a01793c7ab853498e4e0e9010f5e5e15de56d2267ee3238862705b0735",
+          "offers": []
+        }
+      ],
+      "revisions": [
+        {
+          "uuid": "7e1458c4-9dad-485d-8f73-57395b1aebdd",
+          "revoked_at": "2026-10-06 17:14:38"
+        }
+      ]
+    }
+  ],
+  "result": "passed",
+  "finishedAt": "2026-10-06T17:14:44.670Z"
+}

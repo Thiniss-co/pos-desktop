@@ -1,0 +1,160 @@
+[pw:qc3actions] disposable backend ready {"origin":"http://127.0.0.1:35243","database":"/tmp/pos-pw-UADUMf/qc3actions/backend/sandbox.sqlite"}
+[pw:qc3actions] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=1000 pid=247690 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=247690 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.4' (uid=1000 pid=247690 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.9' (uid=1000 pid=247798 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.9' (uid=1000 pid=247798 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.223: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.9' (uid=1000 pid=247798 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[247843]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=247839 comm="/usr/libexec/xdg-desktop-portal-gtk" label="unconfined")
+dbus-daemon[247843]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.327: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.356: Choosing gtk.portal for org.freedesktop.impl.portal.Settings as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.358: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.359: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.361: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.362: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.363: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.378: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.378: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.379: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:247798): xdg-desktop-portal-WARNING **: 18:34:34.381: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[247332]: [session uid=1000 pid=247332 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+[pw:qc3actions] electron launched with isolated profile {"userData":"/tmp/pos-pw-UADUMf/qc3actions/profile/Electron"}
+[pw:qc3actions] precondition: quick-create grants for the cashier (fixture)
+[pw:qc3actions] activation completed
+[pw:qc3actions] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc3actions] policy set to physical presence {"policy_revision":null}
+[pw:qc3actions] workstation data refreshed {"outcome":"installed"}
+[pw:qc3actions] shift opened
+[pw:qc3actions] scanned {"code":"6221000000011"}
+[pw:qc3actions] exact-cash sale committed
+[pw:qc3actions] 1: scan → exact cash committed {"elapsedMs":1026}
+[pw:qc3actions] 1: quick-action tiles {"tiles":["customer","discount","hold","recall","refund","more"]}
+[pw:qc3actions] scanned {"code":"6221000000011"}
+[pw:qc3actions] scanned {"code":"6221000000035"}
+[pw:qc3actions] 2: new customer from the selector {"prefilled":"Qc3 Layla","selected":"2a15840c-59a8-4eec-8095-bdf663ca9458","visible":true}
+[pw:qc3actions] 3: validation and cancel {"fieldErrors":2,"productsOrSuppliersCreated":0,"cartKept":true}
+[pw:qc3actions] 4: refund entry backed out {"cartKept":true,"focus":{"tag":"INPUT","placeholder":"Scan barcode — or type 3*code"}}
+[pw:qc3actions] 5: refund through the POS entry {"refunds":[{"invoice_local_uuid":"ae6a031a-626a-46ce-8b73-d9e892387ff3","submission_state":"accepted"}],"cartKept":true}
+[pw:qc3actions] 6: correct and send again {"sameIdSuppliers":[{"uuid":"41025d5d-9ad0-47c3-9da2-4701fb7d9f82","name":"Qc3 Second Supplier"}],"results":["refused:DESKTOP_SUPPLIER_NAME_TAKEN","accepted:DESKTOP_ENTITY_CREATED"]}
+[pw:qc4mixedtaxe2e] disposable backend ready {"origin":"http://127.0.0.1:39433","database":"/tmp/pos-pw-UADUMf/qc4mixedtaxe2e/backend/sandbox.sqlite"}
+[pw:qc4mixedtaxe2e] network proxy ready {"origin":"http://127.0.0.1:45323"}
+[pw:qc4mixedtaxe2e] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc4mixedtaxe2e] electron launched with isolated profile {"userData":"/tmp/pos-pw-UADUMf/qc4mixedtaxe2e/profile/Electron"}
+[pw:qc4mixedtaxe2e] activation completed
+[pw:qc4mixedtaxe2e] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc4mixedtaxe2e] policy set to physical presence {"policy_revision":null}
+[pw:qc4mixedtaxe2e] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e] shift opened
+[pw:qc4mixedtaxe2e] precondition: mixed-tax products (fixture) {"products":{"MIX-INC":{"uuid":"0ecd9c32-7790-4c3a-984f-86235cb9759c","barcode":"7780000000011","tax_mode":"inclusive","tax_category":"standard"},"MIX-ZERO":{"uuid":"749baa52-2672-4b30-b552-cd3ba2096d60","barcode":"7780000000028","tax_mode":"exclusive","tax_category":"zero_rated"},"MIX-EXEMPT":{"uuid":"be0d63e5-1bac-4801-ad52-90f1a119efee","barcode":"7780000000035","tax_mode":"inclusive","tax_category":"exempt"}},"precondition":true}
+[pw:qc4mixedtaxe2e] precondition: ZATCA phase 1 identity (fixture) {"regime":"sa_zatca_phase1","revision":1}
+[pw:qc4mixedtaxe2e] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e] L: installed contract with the issuance gate off {"mixed_tax_mode_policy":"single_invoice_mode"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e] L: second tax mode refused {"shown":true,"cart":{"lines":[{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"}],"discount":[null,0],"tax":150,"grand":1150,"error":"This register's catalog does not allow different tax modes in one sale. Refresh workstation data; if this stays, the server has not enabled mixed-tax sales.","held":0}}
+[pw:qc4mixedtaxe2e] disposable backend restarted {"POS_MIXED_TAX_ISSUE_PER_LINE":"true"}
+[pw:qc4mixedtaxe2e] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtaxe2e] L: contract after the gate is on {"policy":"per_line","categories":[{"sku":"COLA-CAN","tax_mode":"exclusive","rate":1500,"tax_category":null},{"sku":"MIX-EXEMPT","tax_mode":"inclusive","rate":0,"tax_category":"exempt"},{"sku":"MIX-INC","tax_mode":"inclusive","rate":1500,"tax_category":"standard"},{"sku":"MIX-ZERO","tax_mode":"exclusive","rate":0,"tax_category":"zero_rated"},{"sku":"WATER-500","tax_mode":"none","rate":0,"tax_category":null}]}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Water Bottle"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Cola Can"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Qc4 Inclusive"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Qc4 Zero-rated"}
+[pw:qc4mixedtaxe2e] clicked product card {"product":"Qc4 Exempt"}
+[pw:qc4mixedtaxe2e] A: card order cart {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4325,"error":null,"held":0}
+[pw:qc4mixedtaxe2e] invoice discount applied {"percent":10}
+[pw:qc4mixedtaxe2e] A: after +1 Cola, removed Exempt, 10% discount {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"}],"discount":["percentage",1000],"tax":540,"grand":4815,"error":null,"held":0}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000035"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000028"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000011"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000028"}
+[pw:qc4mixedtaxe2e] B: reverse barcode cart {"lines":[{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"},{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4325,"error":null,"held":1}
+[pw:qc4mixedtaxe2e] B: after +1 Zero, removed Water {"lines":[{"name":"Qc4 Exempt","mode":"inclusive","rate":0,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"1.000"}],"discount":[null,0],"tax":375,"grand":4075,"error":null,"held":1}
+[pw:qc4mixedtaxe2e] exact-cash sale committed
+[pw:qc4mixedtaxe2e] B: sale 1 accepted {"local":{"local_uuid":"81de8ee8-c1b1-44a2-9295-d2afc596797f","tax_mode":"mixed","subtotal_amount":3850,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":4075,"sold_while_offline":0},"items":[{"product_uuid":"be0d63e5-1bac-4801-ad52-90f1a119efee","product_name":"Qc4 Exempt","tax_mode":"inclusive","tax_category":"exempt","tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":700,"discount_amount":0,"tax_amount":0,"total_amount":700},{"product_uuid":"749baa52-2672-4b30-b552-cd3ba2096d60","product_name":"Qc4 Zero-rated","tax_mode":"exclusive","tax_category":"zero_rated","tax_rate_basis_points":0,"quantity_milli":2000,"subtotal_amount":500,"discount_amount":0,"tax_amount":0,"total_amount":500},{"product_uuid":"0ecd9c32-7790-4c3a-984f-86235cb9759c","product_name":"Qc4 Inclusive","tax_mode":"inclusive","tax_category":"standard","tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1150,"discount_amount":0,"tax_amount":150,"total_amount":1150},{"product_uuid":"cb44d687-9d6d-467b-b9f5-4529411ca276","product_name":"Cola Can","tax_mode":"exclusive","tax_category":null,"tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1500,"discount_amount":0,"tax_amount":225,"total_amount":1725}],"server":{"idempotency_key":"81de8ee8-c1b1-44a2-9295-d2afc596797f","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":3850,"discount":0,"tax":375,"grand":4075,"sync_records":1,"stock_movements":1,"accounting_journals":1,"items":[{"product_uuid":"be0d63e5-1bac-4801-ad52-90f1a119efee","tax_mode":"inclusive","tax_category":"exempt","tax_amount":0,"total_amount":700,"discount_amount":0,"subtotal_amount":700},{"product_uuid":"749baa52-2672-4b30-b552-cd3ba2096d60","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":500,"discount_amount":0,"subtotal_amount":500},{"product_uuid":"0ecd9c32-7790-4c3a-984f-86235cb9759c","tax_mode":"inclusive","tax_category":"standard","tax_amount":150,"total_amount":1150,"discount_amount":0,"subtotal_amount":1150},{"product_uuid":"cb44d687-9d6d-467b-b9f5-4529411ca276","tax_mode":"exclusive","tax_category":null,"tax_amount":225,"total_amount":1725,"discount_amount":0,"subtotal_amount":1500}],"refunds":[]}}
+[pw:qc4mixedtaxe2e] C: recalled cart {"lines":[{"name":"Water Bottle","mode":"none","rate":0,"quantity":"1.000"},{"name":"Cola Can","mode":"exclusive","rate":1500,"quantity":"2.000"},{"name":"Qc4 Inclusive","mode":"inclusive","rate":1500,"quantity":"1.000"},{"name":"Qc4 Zero-rated","mode":"exclusive","rate":0,"quantity":"1.000"}],"discount":["percentage",1000],"tax":540,"grand":4815,"error":null,"held":0}
+[pw:qc4mixedtaxe2e] exact-cash sale committed
+[pw:qc4mixedtaxe2e] C: sale 2 accepted {"local":{"local_uuid":"5e5644eb-06fa-40f9-bd3a-e7445cb4b983","tax_mode":"mixed","subtotal_amount":4900,"discount_total_amount":490,"tax_total_amount":540,"grand_total_amount":4815,"sold_while_offline":0},"items":[{"product_uuid":"ef7ec9b0-4b37-4aa6-b4d7-4c6dc9a6675a","product_name":"Water Bottle","tax_mode":"none","tax_category":null,"tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":500,"discount_amount":50,"tax_amount":0,"total_amount":450},{"product_uuid":"cb44d687-9d6d-467b-b9f5-4529411ca276","product_name":"Cola Can","tax_mode":"exclusive","tax_category":null,"tax_rate_basis_points":1500,"quantity_milli":2000,"subtotal_amount":3000,"discount_amount":300,"tax_amount":405,"total_amount":3105},{"product_uuid":"0ecd9c32-7790-4c3a-984f-86235cb9759c","product_name":"Qc4 Inclusive","tax_mode":"inclusive","tax_category":"standard","tax_rate_basis_points":1500,"quantity_milli":1000,"subtotal_amount":1150,"discount_amount":115,"tax_amount":135,"total_amount":1035},{"product_uuid":"749baa52-2672-4b30-b552-cd3ba2096d60","product_name":"Qc4 Zero-rated","tax_mode":"exclusive","tax_category":"zero_rated","tax_rate_basis_points":0,"quantity_milli":1000,"subtotal_amount":250,"discount_amount":25,"tax_amount":0,"total_amount":225}],"server":{"idempotency_key":"5e5644eb-06fa-40f9-bd3a-e7445cb4b983","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":4900,"discount":490,"tax":540,"grand":4815,"sync_records":1,"stock_movements":2,"accounting_journals":1,"items":[{"product_uuid":"ef7ec9b0-4b37-4aa6-b4d7-4c6dc9a6675a","tax_mode":"none","tax_category":null,"tax_amount":0,"total_amount":450,"discount_amount":50,"subtotal_amount":500},{"product_uuid":"cb44d687-9d6d-467b-b9f5-4529411ca276","tax_mode":"exclusive","tax_category":null,"tax_amount":405,"total_amount":3105,"discount_amount":300,"subtotal_amount":3000},{"product_uuid":"0ecd9c32-7790-4c3a-984f-86235cb9759c","tax_mode":"inclusive","tax_category":"standard","tax_amount":135,"total_amount":1035,"discount_amount":115,"subtotal_amount":1150},{"product_uuid":"749baa52-2672-4b30-b552-cd3ba2096d60","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":225,"discount_amount":25,"subtotal_amount":250}],"refunds":[]}}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000011"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000028"}
+[pw:qc4mixedtaxe2e] scanned {"code":"7780000000028"}
+[pw:qc4mixedtaxe2e] scanned {"code":"6221000000011"}
+[pw:qc4mixedtaxe2e] exact-cash sale committed
+[pw:qc4mixedtaxe2e] D: offline sale 3 {"invoice":{"local_uuid":"f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30","tax_mode":"mixed","subtotal_amount":3400,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":3625,"sold_while_offline":1},"queue":{"payload_hash":"4dc641a21d29ef494f42ef2fe0576cc4b46411ca0275570c18ccbd10d095e1b9","idempotency_key":"f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30","state":"pending","attempt_count":0,"last_error_code":null}}
+[pw:qc4mixedtaxe2e] electron launched again on the same isolated profile
+[pw:qc4mixedtaxe2e] D: after an offline restart {"queue":{"payload_hash":"4dc641a21d29ef494f42ef2fe0576cc4b46411ca0275570c18ccbd10d095e1b9","idempotency_key":"f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30","state":"pending","attempt_count":0,"last_error_code":null}}
+[pw:qc4mixedtaxe2e] disposable backend restarted {"POS_MIXED_TAX_PARSE_V4_V5":"false"}
+[pw:qc4mixedtaxe2e] E: legacy server refused the v5 upload {"payload_hash":"4dc641a21d29ef494f42ef2fe0576cc4b46411ca0275570c18ccbd10d095e1b9","idempotency_key":"f42f57cc-9f4d-4c9c-8b95-96b9f7bfdb30","state":"retryable_error","attempt_count":1,"last_error_code":"DESKTOP_CONTRACT_VERSION_UNSUPPORTED"}
+[pw:qc4mixedtaxe2e] disposable backend restarted {"POS_MIXED_TAX_PARSE_V4_V5":"true"}
+[pw:qc4mixedtaxe2e] FAILED
+Error: F: upload attempted: {"ok":false}
+    at waitFor (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc4mixedtaxe2e.mjs:206:9)
+    at async Module.run (file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/qc4mixedtaxe2e.mjs:529:5)
+    at async file:///var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/run.mjs:93:5
+[pw:ws5matrix] disposable backend ready {"origin":"http://127.0.0.1:33021","database":"/tmp/pos-pw-UADUMf/ws5matrix/backend/sandbox.sqlite"}
+[pw:ws5matrix] network proxy ready {"origin":"http://127.0.0.1:42617"}
+[pw:ws5matrix] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:ws5matrix] electron launched with isolated profile {"userData":"/tmp/pos-pw-UADUMf/ws5matrix/profile/Electron"}
+[pw:ws5matrix] activation completed
+[pw:ws5matrix] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:ws5matrix] workstation data refreshed {"outcome":"installed"}
+[pw:ws5matrix] shift opened
+[pw:ws5matrix] E: runtime {"versions":{"electron":"39.8.10","chrome":"142.0.7444.265"},"features":{"popover":true,"containerQueries":true,"anchorPositioning":true}}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-1366x768","rows":12,"ordinary":10,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-1024x768","rows":9,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-light-800x600","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-1366x768","rows":12,"ordinary":10,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-1024x768","rows":9,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-en-dark-800x600","rows":6,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-1366x768","rows":11,"ordinary":9,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-1024x768","rows":7,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-light-800x600","rows":4,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-1920x1080","rows":14,"ordinary":13,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-1366x768","rows":11,"ordinary":9,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-1024x768","rows":7,"ordinary":3,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-compact-ar-dark-800x600","rows":4,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-1366x768","rows":6,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-1024x768","rows":4,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-light-800x600","rows":2,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-1366x768","rows":6,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-1024x768","rows":4,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-en-dark-800x600","rows":2,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-1366x768","rows":6,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-1024x768","rows":2,"ordinary":1,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-light-800x600","rows":2,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-1920x1080","rows":12,"ordinary":11,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-1366x768","rows":6,"ordinary":4,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-1024x768","rows":2,"ordinary":1,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] A: combination {"label":"A-touch-ar-dark-800x600","rows":2,"ordinary":2,"overflow":false,"footer":true,"offscreen":0,"overlaps":0,"small":0}
+[pw:ws5matrix] C: warning state {"size":"1920x1080","status":"backend_unreachable","notices":{"x":0,"y":60,"width":1920,"height":114},"rows":14,"ordinary":13}
+[pw:ws5matrix] C: warning state {"size":"1366x768","status":"backend_unreachable","notices":{"x":0,"y":60,"width":1366,"height":114},"rows":9,"ordinary":8}
+[pw:ws5matrix] D: scanner kept working after {"scanned":["menu closed (Esc)","line menu closed (outside click)","preset changed + Apply","Cancel","window resized"]}
+[pw:ws5matrix] A-C: summary {"checked":43,"failures":[]}
+A connection to the bus can't be made
+[pw] run directory: /tmp/pos-pw-UADUMf

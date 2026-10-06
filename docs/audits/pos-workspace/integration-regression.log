@@ -1,0 +1,177 @@
+[pw:e2offers] disposable backend ready {"origin":"http://127.0.0.1:34679","database":"/tmp/pos-pw-d8MZsv/e2offers/backend/sandbox.sqlite"}
+[pw:e2offers] network proxy ready {"origin":"http://127.0.0.1:34789"}
+[pw:e2offers] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=1000 pid=349123 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=349123 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.4' (uid=1000 pid=349123 comm="/var/www/html/thinis-pos/pos-desktop-pos-workspace" label="unconfined")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.9' (uid=1000 pid=349237 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.9' (uid=1000 pid=349237 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.521: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.9' (uid=1000 pid=349237 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[349276]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=349272 comm="/usr/libexec/xdg-desktop-portal-gtk" label="unconfined")
+dbus-daemon[349276]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.571: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.586: Choosing gtk.portal for org.freedesktop.impl.portal.Settings as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.586: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.587: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.588: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.589: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.589: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.596: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.596: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.597: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:349237): xdg-desktop-portal-WARNING **: 20:14:28.598: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+[pw:e2offers] electron launched with isolated profile {"userData":"/tmp/pos-pw-d8MZsv/e2offers/profile/Electron"}
+[pw:e2offers] activation completed
+[pw:e2offers] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:e2offers] policy set to physical presence {"policy_revision":null}
+[pw:e2offers] workstation data refreshed {"outcome":"installed"}
+[pw:e2offers] shift opened
+[pw:e2offers] A: precondition — live 10% offer on Water (fixture) {"offer":"06827cee-3ae6-4ab5-a94a-ec0658b1a1df","revision":"7e1458c4-9dad-485d-8f73-57395b1aebdd","timezone":"Asia/Riyadh","starts_local":"2026-10-06T19:14","product":"ca27bd1d-2537-44cd-a51f-c6559cae2021","precondition":true}
+[pw:e2offers] workstation data refreshed {"outcome":"installed"}
+[pw:e2offers] A: offers installed with the contract {"installed":[{"revision_uuid":"7e1458c4-9dad-485d-8f73-57395b1aebdd","name":"Journey 10% off","type":"percentage","value":1000}]}
+[pw:e2offers] scanned {"code":"6221000000028"}
+[pw:e2offers] B: cart with the offer {"offered":{"lines":[{"name":"Water Bottle","price":500,"quantity":"1.000","offer":"7e1458c4-9dad-485d-8f73-57395b1aebdd"}],"grand":450,"discount":50,"error":null},"labels":["Journey 10% off · −$0.50"]}
+[pw:e2offers] exact-cash sale committed
+[pw:e2offers] B: committed {"invoice":{"local_uuid":"d2631052-8718-4c9a-a624-9b0cfbcad5bb","grand_total_amount":450,"discount_total_amount":50,"sold_while_offline":0},"items":[{"product_name":"Water Bottle","discount_type":"percentage","discount_value":1000,"discount_amount":50,"total_amount":450,"offer_revision_uuid":"7e1458c4-9dad-485d-8f73-57395b1aebdd","offer_name":"Journey 10% off"}],"version":7}
+[pw:e2offers] B: server invoice {"idempotency_key":"d2631052-8718-4c9a-a624-9b0cfbcad5bb","contract_version":7,"sync_records":1,"grand":450,"discount":50,"items":[{"product_uuid":"ca27bd1d-2537-44cd-a51f-c6559cae2021","discount_type":"percentage","discount_value":1000,"discount_amount":50,"total_amount":450,"offer_snapshot":{"id":"7e1458c4-9dad-485d-8f73-57395b1aebdd","name":"Journey 10% off","type":"percentage","value":1000,"priority":0}}]}
+[pw:e2offers] scanned {"code":"6221000000028"}
+[pw:e2offers] exact-cash sale committed
+[pw:e2offers] C: offline sale {"invoice":{"local_uuid":"87c9d555-a032-45bd-b4a5-e675934a134b","grand_total_amount":450,"discount_total_amount":50,"sold_while_offline":1},"items":[{"product_name":"Water Bottle","discount_type":"percentage","discount_value":1000,"discount_amount":50,"total_amount":450,"offer_revision_uuid":"7e1458c4-9dad-485d-8f73-57395b1aebdd","offer_name":"Journey 10% off"}]}
+[pw:e2offers] D: owner ended the offer on the server {"offer":"06827cee-3ae6-4ab5-a94a-ec0658b1a1df","status":"ended","revoked_at":"2026-10-06 17:14:38"}
+[pw:e2offers] E: upload after revocation {"payload_hash":"9589c56ec410afdf5c77f1ebdcd9d5c3cbe7b9ad499343ddf3d3a9fa9043fbe6","state":"synced","last_error_code":null,"attempt_count":1}
+[pw:e2offers] E: server invoice for the offline sale {"idempotency_key":"87c9d555-a032-45bd-b4a5-e675934a134b","contract_version":7,"sync_records":1,"grand":450,"discount":50,"items":[{"product_uuid":"ca27bd1d-2537-44cd-a51f-c6559cae2021","discount_type":"percentage","discount_value":1000,"discount_amount":50,"total_amount":450,"offer_snapshot":{"id":"7e1458c4-9dad-485d-8f73-57395b1aebdd","name":"Journey 10% off","type":"percentage","value":1000,"priority":0}}]}
+[pw:e2offers] workstation data refreshed {"outcome":"installed"}
+[pw:e2offers] scanned {"code":"6221000000028"}
+[pw:e2offers] F: after a refresh {"installed":[],"cart":{"lines":[{"name":"Water Bottle","price":500,"quantity":"1.000","offer":null}],"grand":500,"discount":0,"error":null},"labels":[],"contracts":[{"revision":"7a8508bb91e3256f4e44e8695df0c592120d85f0b6691268185d45cca17212a3","offers":[]},{"revision":"93eda3f20b099bd1a9b67f7f2a40e2b7f5b01e118cecffe1ad4945fc91cb8838","offers":[]},{"revision":"0e5c26ce7087e3e496c2db502e2b1d112017795ec10b9d960a2df6ceeaf39f39","offers":["7e1458c4-9dad-485d-8f73-57395b1aebdd"]},{"revision":"6fc296a01793c7ab853498e4e0e9010f5e5e15de56d2267ee3238862705b0735","offers":[]}],"revisions":[{"uuid":"7e1458c4-9dad-485d-8f73-57395b1aebdd","revoked_at":"2026-10-06 17:14:38"}]}
+[pw:qc4mixedtax] disposable backend ready {"origin":"http://127.0.0.1:42763","database":"/tmp/pos-pw-d8MZsv/qc4mixedtax/backend/sandbox.sqlite"}
+[pw:qc4mixedtax] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc4mixedtax] electron launched with isolated profile {"userData":"/tmp/pos-pw-d8MZsv/qc4mixedtax/profile/Electron"}
+[pw:qc4mixedtax] activation completed
+[pw:qc4mixedtax] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc4mixedtax] policy set to physical presence {"policy_revision":null}
+[pw:qc4mixedtax] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtax] shift opened
+[pw:qc4mixedtax] precondition: categorized taxes and mixed-mode products (fixture) {"products":{"MIX-INC":{"uuid":"3d95308b-cda5-4b7f-8fc6-ac6e8290c025","barcode":"7780000000011","tax_mode":"inclusive","tax_category":"standard"},"MIX-ZERO":{"uuid":"c7e63010-8783-43cd-9b9b-38a9b40db89e","barcode":"7780000000028","tax_mode":"exclusive","tax_category":"zero_rated"},"MIX-EXEMPT":{"uuid":"ebb4afbd-e0f9-40cf-b638-a5180ee6c4ea","barcode":"7780000000035","tax_mode":"inclusive","tax_category":"exempt"}},"precondition":true}
+[pw:qc4mixedtax] workstation data refreshed {"outcome":"installed"}
+[pw:qc4mixedtax] 1: installed contract and categories {"policy":"per_line","categories":[{"sku":"COLA-CAN","tax_mode":"exclusive","tax_category":null},{"sku":"MIX-EXEMPT","tax_mode":"inclusive","tax_category":"exempt"},{"sku":"MIX-INC","tax_mode":"inclusive","tax_category":"standard"},{"sku":"MIX-ZERO","tax_mode":"exclusive","tax_category":"zero_rated"}]}
+[pw:qc4mixedtax] scanned {"code":"6221000000011"}
+[pw:qc4mixedtax] scanned {"code":"7780000000011"}
+[pw:qc4mixedtax] scanned {"code":"7780000000028"}
+[pw:qc4mixedtax] scanned {"code":"7780000000028"}
+[pw:qc4mixedtax] scanned {"code":"7780000000035"}
+[pw:qc4mixedtax] 2: mixed cart built {"mixedRefusalShown":false}
+[pw:qc4mixedtax] exact-cash sale committed
+[pw:qc4mixedtax] 3: local invoice {"header":"mixed","version":5,"totals":{"local_uuid":"6994c86d-be31-4411-af71-b7ec83218cea","tax_mode":"mixed","subtotal_amount":3850,"discount_total_amount":0,"tax_total_amount":375,"grand_total_amount":4075},"lines":[{"product_uuid":"6421c50d-833b-47dd-8c57-13c03802ed76","tax_mode":"exclusive","tax_category":null,"tax_amount":225,"total_amount":1725},{"product_uuid":"3d95308b-cda5-4b7f-8fc6-ac6e8290c025","tax_mode":"inclusive","tax_category":"standard","tax_amount":150,"total_amount":1150},{"product_uuid":"c7e63010-8783-43cd-9b9b-38a9b40db89e","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":500},{"product_uuid":"ebb4afbd-e0f9-40cf-b638-a5180ee6c4ea","tax_mode":"inclusive","tax_category":"exempt","tax_amount":0,"total_amount":700}]}
+[pw:qc4mixedtax] 4: server invoice {"contracts":["per_line","per_line"],"server":{"idempotency_key":"6994c86d-be31-4411-af71-b7ec83218cea","tax_mode":"mixed","contract_version":5,"offline_sale_authority":true,"subtotal":3850,"discount":0,"tax":375,"grand":4075,"sync_records":1,"stock_movements":1,"accounting_journals":1,"items":[{"product_uuid":"6421c50d-833b-47dd-8c57-13c03802ed76","tax_mode":"exclusive","tax_category":null,"tax_amount":225,"total_amount":1725,"discount_amount":0,"subtotal_amount":1500},{"product_uuid":"3d95308b-cda5-4b7f-8fc6-ac6e8290c025","tax_mode":"inclusive","tax_category":"standard","tax_amount":150,"total_amount":1150,"discount_amount":0,"subtotal_amount":1150},{"product_uuid":"c7e63010-8783-43cd-9b9b-38a9b40db89e","tax_mode":"exclusive","tax_category":"zero_rated","tax_amount":0,"total_amount":500,"discount_amount":0,"subtotal_amount":500},{"product_uuid":"ebb4afbd-e0f9-40cf-b638-a5180ee6c4ea","tax_mode":"inclusive","tax_category":"exempt","tax_amount":0,"total_amount":700,"discount_amount":0,"subtotal_amount":700}],"refunds":[]}}
+[pw:qc4mixedtax] 5: partial refund {"localRefund":{"submission_state":"accepted","tax_total_amount":150,"grand_total_amount":1400},"serverRefund":{"tax":150,"grand":1400,"items":[{"product_uuid":"3d95308b-cda5-4b7f-8fc6-ac6e8290c025","tax_mode":"inclusive","tax_category":"standard","quantity":1,"tax_amount":150,"total_amount":1150},{"product_uuid":"c7e63010-8783-43cd-9b9b-38a9b40db89e","tax_mode":"exclusive","tax_category":"zero_rated","quantity":1,"tax_amount":0,"total_amount":250}]}}
+[pw:qc2offline] disposable backend ready {"origin":"http://127.0.0.1:32971","database":"/tmp/pos-pw-d8MZsv/qc2offline/backend/sandbox.sqlite"}
+[pw:qc2offline] network proxy ready {"origin":"http://127.0.0.1:42847"}
+[pw:qc2offline] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc2offline] electron launched with isolated profile {"userData":"/tmp/pos-pw-d8MZsv/qc2offline/profile/Electron"}
+[pw:qc2offline] precondition: grant (fixture) {"user":"cashier@desktop-mvp.test","permission":"customers.create","granted":true,"direct":["customers.create"]}
+[pw:qc2offline] precondition: grant (fixture) {"user":"cashier@desktop-mvp.test","permission":"catalog.products.create","granted":true,"direct":["catalog.products.create","customers.create"]}
+[pw:qc2offline] precondition: grant (fixture) {"user":"cashier@desktop-mvp.test","permission":"suppliers.create","granted":true,"direct":["catalog.products.create","customers.create","suppliers.create"]}
+[pw:qc2offline] activation completed
+[pw:qc2offline] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc2offline] policy set to physical presence {"policy_revision":null}
+[pw:qc2offline] workstation data refreshed {"outcome":"installed"}
+[pw:qc2offline] shift opened
+[pw:qc2offline] A: quick-create menu for cashier A {"items":["Add customer","Add product","Add supplier"]}
+[pw:qc2offline] quick-created customer through the dialog {"name":"Qc2 Offline Customer"}
+[pw:qc2offline] quick-created product through the dialog {"name":"Qc2 Juice"}
+[pw:qc2offline] quick-created supplier through the dialog {"name":"Qc2 Supplier Co"}
+[pw:qc2offline] A: cart customer after creation {"customerName":null}
+[pw:qc2offline] scanned {"code":"6221000000011"}
+[pw:qc2offline] exact-cash sale committed
+[pw:qc2offline] A: records while offline [{"name":"Qc2 Supplier Co","status":"pending_sync"},{"name":"Qc2 Juice","status":"pending_sync"},{"name":"Qc2 Offline Customer","status":"pending_sync"}]
+[pw:qc2offline] electron relaunched on the same isolated profile
+[pw:qc2offline] A: after an offline restart {"outbox":[{"entity_type":"customer","state":"pending","dispatch_count":0},{"entity_type":"product","state":"pending","dispatch_count":0},{"entity_type":"supplier","state":"pending","dispatch_count":0}],"sale":[{"customer_uuid":"40d5dea9-1969-4277-9905-590d53da1d31","state":"pending"}]}
+[pw:qc2offline] A: held customer request delivered to the server after the register gave up {"status":201}
+[pw:qc2offline] A: product after acceptance {"status":"ready_to_sell"}
+[pw:qc2offline] A: replay and ordering {"customerOutbox":{"state":"accepted","dispatch_count":2,"updated_at":"2026-10-06T17:16:01.619Z"},"saleQueue":[{"state":"uploading","updated_at":"2026-10-06T17:16:01.620Z"}]}
+[pw:qc2offline] workstation data refreshed {"outcome":"installed"}
+[pw:qc2offline] scanned {"code":"7770000002001"}
+[pw:qc2offline] exact-cash sale committed
+[pw:qc2offline] A: backend effects {"customers":[{"uuid":"40d5dea9-1969-4277-9905-590d53da1d31","name":"Qc2 Offline Customer"}],"products":[{"uuid":"68870dd8-4f31-4283-a51d-e2dff91c2a66","sku":"QC-68870DD84F","name":"Qc2 Juice"}],"suppliers":[{"uuid":"530fd8bc-6d63-4961-abfc-31628509187b","name":"Qc2 Supplier Co"}],"requests":["customer:accepted:cashier@desktop-mvp.test","product:accepted:cashier@desktop-mvp.test","supplier:accepted:cashier@desktop-mvp.test"]}
+[pw:qc2offline] quick-created customer through the dialog {"name":"Qc2 Handover"}
+[pw:qc2offline] signed out through the user menu
+[pw:qc2offline] sign-in submitted {"user":"manager@desktop-mvp.test"}
+[pw:qc2offline] workstation data refreshed {"outcome":"installed"}
+[pw:qc2offline] B: backend effects {"requests":[{"entity_type":"customer","request_key":"f2e2f25a-bd90-479a-8616-dbd48d30370d","client_entity_uuid":"f8048a12-aea7-496f-81cf-2fa36dbd1d2f","outcome":"accepted","status":201,"code":"DESKTOP_ENTITY_CREATED","user_email":"manager@desktop-mvp.test"}],"customers":[{"uuid":"f8048a12-aea7-496f-81cf-2fa36dbd1d2f","name":"Qc2 Handover"}]}
+[pw:qc2offline] signed out through the user menu
+[pw:qc2offline] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc2offline] workstation data refreshed {"outcome":"installed"}
+[pw:qc2offline] quick-created customer through the dialog {"name":"Qc2 Revoked Customer"}
+[pw:qc2offline] scanned {"code":"6221000000011"}
+[pw:qc2offline] exact-cash sale committed
+[pw:qc2offline] precondition: revoke before sync (fixture) {"user":"cashier@desktop-mvp.test","permission":"customers.create","granted":false,"direct":["catalog.products.create","suppliers.create"]}
+[pw:qc2offline] electron relaunched on the same isolated profile
+[pw:qc2offline] C: blocked record and held sale {"blocked":"blocked","salesNotUploaded":1}
+[pw:qc2offline] precondition: re-grant (fixture) {"user":"cashier@desktop-mvp.test","permission":"customers.create","granted":true,"direct":["catalog.products.create","customers.create","suppliers.create"]}
+[pw:qc2offline] C: backend effects {"outbox":[{"state":"accepted","dispatch_count":2}],"customers":[{"uuid":"4e243c6e-c060-4f2d-8f27-1e84584de282","name":"Qc2 Revoked Customer"}],"requests":[{"entity_type":"customer","request_key":"baa9bb94-d7fa-49a6-abc6-f418d826ac5a","client_entity_uuid":"4e243c6e-c060-4f2d-8f27-1e84584de282","outcome":"accepted","status":201,"code":"DESKTOP_ENTITY_CREATED","user_email":"cashier@desktop-mvp.test"}]}
+[pw:qc6receipts] disposable backend ready {"origin":"http://127.0.0.1:36079","database":"/tmp/pos-pw-d8MZsv/qc6receipts/backend/sandbox.sqlite"}
+[pw:qc6receipts] network proxy ready {"origin":"http://127.0.0.1:40045"}
+[pw:qc6receipts] electron build ready {"outDir":"/var/www/html/thinis-pos/pos-desktop-pos-workspace/out/pw-test"}
+[pw:qc6receipts] electron launched with isolated profile {"userData":"/tmp/pos-pw-d8MZsv/qc6receipts/profile/Electron"}
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.freedesktop.Notifications' requested by ':1.41' (uid=1000 pid=352492 comm="/opt/google/chrome/chrome --disable-field-trial-co" label="chrome (unconfined)")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Activating service name='org.xfce.Xfconf' requested by ':1.43' (uid=1000 pid=352600 comm="/usr/lib/x86_64-linux-gnu/xfce4/notifyd/xfce4-noti" label="unconfined")
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.xfce.Xfconf'
+dbus-daemon[348957]: [session uid=1000 pid=348957 pidfd=5] Successfully activated service 'org.freedesktop.Notifications'
+[pw:qc6receipts] activation completed
+[pw:qc6receipts] sign-in submitted {"user":"cashier@desktop-mvp.test"}
+[pw:qc6receipts] policy set to physical presence {"policy_revision":null}
+[pw:qc6receipts] workstation data refreshed {"outcome":"installed"}
+[pw:qc6receipts] shift opened
+[pw:qc6receipts] workstation printer: PW-Virtual-80 (virtual adapter)
+[pw:qc6receipts] scanned {"code":"6221000000011"}
+[pw:qc6receipts] exact-cash sale committed
+[pw:qc6receipts] 1: non-fiscal sale context {"regime":"none","qrType":"txn-ref-v1"}
+[pw:qc6receipts] 1: printed {"job":"submitted","pdf":"job-1791306997062-2.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] 2: owner saved the fiscal identity, switched ZATCA on and published receipt display choices {"publish":201}
+[pw:qc6receipts] workstation data refreshed {"outcome":"installed"}
+[pw:qc6receipts] 3: mirrored identity {"regime":"sa_zatca_phase1","seller_name":"Desktop MVP Trading LLC","vat_number":"310122393500003","street":"1 Corniche Road","postal_code":"23511","revision":3}
+[pw:qc6receipts] scanned {"code":"6221000000011"}
+[pw:qc6receipts] scanned {"code":"6221000000035"}
+[pw:qc6receipts] exact-cash sale committed
+[pw:qc6receipts] 3 (80 mm): printed {"job":"submitted","pdf":"job-1791307006154-4.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] 3: decoded ZATCA QR {"sellerName":"Desktop MVP Trading LLC","vatNumber":"310122393500003","timestamp":"2026-10-06T17:16:42Z","total":"25.88","vatTotal":"3.38"}
+[pw:qc6receipts] 3 (58 mm): printed {"job":"submitted","pdf":"job-1791307008094-5.pdf","widthMm":58,"qrDecoded":true}
+[pw:qc6receipts] scanned {"code":"6221000000011"}
+[pw:qc6receipts] exact-cash sale committed
+[pw:qc6receipts] 4 (offline): printed {"job":"submitted","pdf":"job-1791307011926-7.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] workstation data refreshed {"outcome":"installed"}
+[pw:qc6receipts] 5 (reprint of sale 3): printed {"job":"submitted","pdf":"job-1791307015614-8.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] scanned {"code":"6221000000035"}
+[pw:qc6receipts] exact-cash sale committed
+[pw:qc6receipts] 5 (new sale): printed {"job":"submitted","pdf":"job-1791307018985-10.pdf","widthMm":80,"qrDecoded":true}
+[pw:qc6receipts] 5: frozen versus current address {"reprintKeepsOld":true,"newSaleShowsNew":true}
+[pw:qc6receipts] 6: credit note {"regime":"sa_zatca_phase1","serverIssuedAt":"2026-10-06T17:17:00Z","originalInvoice":{"number":"POS-20261006-000002","issued_at":"2026-10-06T17:16:42Z"},"qr":{"sellerName":"Desktop MVP Trading LLC","vatNumber":"310122393500003","timestamp":"2026-10-06T17:17:00Z","total":"17.25","vatTotal":"2.25"},"titled":true,"referenced":true}
+[pw:qc6receipts] 7: FAULT INJECTION — corrupted the stored QR payload of one sale (app closed, disposable profile) {"changes":"1","error":null}
+[pw:qc6receipts] electron launched again on the same isolated profile
+[pw:qc6receipts] 7: corrupted payload refused before dispatch {"status":"failed_before_dispatch","failureCode":"RECEIPT_QR_INVALID","dispatchesBefore":11,"dispatchesAfter":11,"saleSyncStatus":"synced"}
+A connection to the bus can't be made
+Another notification daemon is running, exiting
+Another notification daemon is running, exiting
+
+(xfconfd:352606): xfconfd-WARNING **: 20:17:03.946: Name org.xfce.Xfconf lost on the message dbus, exiting.
+[pw] run directory: /tmp/pos-pw-d8MZsv

@@ -1,0 +1,1 @@
+7d3a59c test(pos): offers offline revocation journey (E-2)

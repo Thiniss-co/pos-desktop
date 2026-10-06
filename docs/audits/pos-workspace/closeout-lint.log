@@ -1,0 +1,26 @@
+
+> pos-desktop@1.0.0 lint
+> eslint --cache .
+
+[0m[0m
+[0m[4m/var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/electron/support/cp3g5/seedReliability.mjs[24m[0m
+[0m   [2m41:1[22m   [31merror[39m    Missing return type on function                                                                                                                                                                                                               [2m@typescript-eslint/explicit-function-return-type[22m[0m
+[0m   [2m59:1[22m   [31merror[39m    Missing return type on function                                                                                                                                                                                                               [2m@typescript-eslint/explicit-function-return-type[22m[0m
+[0m   [2m77:17[22m  [33mwarning[39m  Replace ``[cp3g5-reliability]·refusing·to·start:·${strayBefore.length}·pre-existing·harness·temporary·directories`` with `⏎····`[cp3g5-reliability]·refusing·to·start:·${strayBefore.length}·pre-existing·harness·temporary·directories`⏎··`  [2mprettier/prettier[22m[0m
+[0m  [2m153:20[22m  [33mwarning[39m  Insert `⏎·····`                                                                                                                                                                                                                               [2mprettier/prettier[22m[0m
+[0m  [2m154:7[22m   [33mwarning[39m  Insert `··`                                                                                                                                                                                                                                   [2mprettier/prettier[22m[0m
+[0m  [2m155:7[22m   [33mwarning[39m  Replace `.join('/')` with `··.join('/')⏎····`                                                                                                                                                                                                 [2mprettier/prettier[22m[0m
+[0m  [2m178:13[22m  [33mwarning[39m  Replace ``[cp3g5-reliability]·unique·identities···:·${identities.size}·(duplicate:·${duplicateIdentity})`` with `⏎··`[cp3g5-reliability]·unique·identities···:·${identities.size}·(duplicate:·${duplicateIdentity})`⏎`                        [2mprettier/prettier[22m[0m
+[0m[0m
+[0m[4m/var/www/html/thinis-pos/pos-desktop-pos-workspace/tests/playwright/journeys/stage4ppcheckout.mjs[24m[0m
+[0m  [2m133:15[22m  [33mwarning[39m  Replace `·status:·p16First.status,·invoice:·JSON.parse(p16First.body·??·'{}').data?.id·??·null` with `⏎········status:·p16First.status,⏎········invoice:·JSON.parse(p16First.body·??·'{}').data?.id·??·null⏎·····`                                          [2mprettier/prettier[22m[0m
+[0m  [2m134:16[22m  [33mwarning[39m  Replace `·status:·p16Resent.status,·invoice:·JSON.parse(p16Resent.body·??·'{}').data?.id·??·null` with `⏎········status:·p16Resent.status,⏎········invoice:·JSON.parse(p16Resent.body·??·'{}').data?.id·??·null⏎·····`                                      [2mprettier/prettier[22m[0m
+[0m  [2m138:23[22m  [33mwarning[39m  Replace `p16Before.movements,·p16AfterFirst.movements,·p16AfterResend.movements,·p16AfterClient.movements` with `⏎········p16Before.movements,⏎········p16AfterFirst.movements,⏎········p16AfterResend.movements,⏎········p16AfterClient.movements⏎······`  [2mprettier/prettier[22m[0m
+[0m  [2m139:18[22m  [33mwarning[39m  Replace `p16Before.journals,·p16AfterFirst.journals,·p16AfterResend.journals,·p16AfterClient.journals` with `⏎········p16Before.journals,⏎········p16AfterFirst.journals,⏎········p16AfterResend.journals,⏎········p16AfterClient.journals⏎······`          [2mprettier/prettier[22m[0m
+[0m  [2m142:14[22m  [33mwarning[39m  Replace `'P16·sale·after·a·server-side·product·edit:·accepted·once,·replays·write·nothing',·p16Facts` with `⏎······'P16·sale·after·a·server-side·product·edit:·accepted·once,·replays·write·nothing',⏎······p16Facts⏎····`                                  [2mprettier/prettier[22m[0m
+[0m  [2m152:23[22m  [33mwarning[39m  Replace ``P16·deliveries·did·not·resolve·to·one·accepted·invoice:·${JSON.stringify(p16Facts)}`` with `⏎········`P16·deliveries·did·not·resolve·to·one·accepted·invoice:·${JSON.stringify(p16Facts)}`⏎······`                                                [2mprettier/prettier[22m[0m
+[0m  [2m192:23[22m  [33mwarning[39m  Replace ``COLA-CAN·movements·do·not·explain·its·balance:·${JSON.stringify(colaMovements)}`` with `⏎········`COLA-CAN·movements·do·not·explain·its·balance:·${JSON.stringify(colaMovements)}`⏎······`                                                        [2mprettier/prettier[22m[0m
+[0m[0m
+[0m[31m[1m✖ 14 problems (2 errors, 12 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  0 errors and 12 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

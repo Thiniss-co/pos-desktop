@@ -1,0 +1,12 @@
+
+> pos-desktop@1.0.0 typecheck
+> npm run typecheck:node && npm run typecheck:web
+
+
+> pos-desktop@1.0.0 typecheck:node
+> tsc --noEmit -p tsconfig.node.json --composite false
+
+
+> pos-desktop@1.0.0 typecheck:web
+> vue-tsc --noEmit -p tsconfig.web.json --composite false
+
