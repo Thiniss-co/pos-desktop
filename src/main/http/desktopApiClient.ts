@@ -27,6 +27,11 @@ export interface DesktopApiClientDependencies {
   readonly tracer?: ApiTracer
   readonly onAuthenticatedFailure?: (error: PublicAppError) => void
   readonly onRequestOutcome?: (outcome: ConnectivityRequestOutcome) => void
+  /**
+   * Phase 3: `meta.company_access` of any parsed response, success or error (sign-in, heartbeat, uploads,
+   * refusals), offered before error normalization drops `meta`. The receiver validates and orders it.
+   */
+  readonly onCompanyAccessObserved?: (access: unknown) => void
 }
 
 /**
@@ -171,6 +176,7 @@ export class DesktopApiClient {
 
       const envelope = parseApiEnvelope(payload)
       const errorEnvelope = envelope.success ? undefined : (envelope as ApiErrorEnvelope)
+      this.observeCompanyAccess(envelope.meta)
 
       this.tracer.finish({
         method: route.method,
@@ -265,6 +271,18 @@ export class DesktopApiClient {
     }
 
     this.abortControllers.clear()
+  }
+
+  private observeCompanyAccess(meta: Record<string, unknown> | undefined): void {
+    if (!meta || meta.company_access === undefined) {
+      return
+    }
+
+    try {
+      this.dependencies.onCompanyAccessObserved?.(meta.company_access)
+    } catch {
+      // Observing the company state must never affect the business request.
+    }
   }
 
   private reportRequestOutcome(outcome: ConnectivityRequestOutcome): void {

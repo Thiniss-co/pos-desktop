@@ -77,6 +77,27 @@ describe('mapUploadFailure', () => {
     })
   })
 
+  describe('platform company suspension (Phase 3)', () => {
+    it('retries the one held item on its own, never pausing the worker or rejecting the sale', () => {
+      // The server holds only legacy v1 uploads while suspended and accepts every other version, so
+      // pausing would stop the uploads it is accepting; rejecting would strand a real sale.
+      const disposition = mapUploadFailure(
+        error({ category: 'authorization', backendCode: 'COMPANY_SUSPENDED' }),
+        1,
+        fixedRandom
+      )
+
+      expect(disposition.kind).toBe('outcome')
+      expect(disposition.outcome).toMatchObject({
+        kind: 'retryable',
+        errorCode: 'COMPANY_SUSPENDED'
+      })
+      expect(
+        disposition.outcome.kind === 'retryable' && disposition.outcome.retryDelayMs
+      ).toBeGreaterThanOrEqual(10 * 60 * 1_000)
+    })
+  })
+
   describe('worker-wide pauses', () => {
     it.each([
       ['UNAUTHENTICATED', 'session-invalid'],

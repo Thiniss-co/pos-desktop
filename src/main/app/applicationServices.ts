@@ -78,6 +78,7 @@ import { PreparationReconnectService } from '../services/preparationReconnect.se
 import { CheckoutPreviewService } from '../services/checkoutPreview.service'
 import { CompanyUsersService } from '../services/companyUsers.service'
 import { CommercialAccessService } from '../services/commercialAccess.service'
+import { CompanyAccessStateService } from '../services/companyAccessState.service'
 import { DeviceIdentityService } from '../services/deviceIdentity.service'
 import { LicenseService } from '../services/license.service'
 import { LocalSaleService } from '../services/localSale.service'
@@ -133,6 +134,7 @@ const CATEGORICAL_SELL_BLOCK_REASONS: ReadonlySet<string> = new Set([
   'permission-denied',
   'feature-not-enabled',
   'company-inactive',
+  'company-suspended',
   'shift-not-open'
 ])
 import { StockAllocationService } from '../services/stockAllocation.service'
@@ -241,6 +243,8 @@ export function createApplicationServices(): ApplicationServices {
   const deviceRegistrationRepository = new DeviceRegistrationRepository(database)
   const secureSecrets = new SecureSecretsRepository(database)
   const sessionMetadata = new SqliteSessionMetadataRepository(database)
+  // Phase 3: the platform suspension of this company, observed from every server response (see the API client).
+  const companyAccessState = new CompanyAccessStateService(appSettings, sessionMetadata)
   const userPreferences = new UserPreferencesService({
     session: sessionMetadata,
     repository: new UserPreferencesRepository(database)
@@ -358,7 +362,8 @@ export function createApplicationServices(): ApplicationServices {
     getAccessToken: () => secureStorage.getSecret(DESKTOP_ACCESS_TOKEN_KEY),
     getDeviceUuid: () => deviceIdentity.getOrCreate().deviceUuid,
     onAuthenticatedFailure: (error) => session.applyApiFailure(error),
-    onRequestOutcome: (outcome) => connectivity.reportRequestOutcome(outcome)
+    onRequestOutcome: (outcome) => connectivity.reportRequestOutcome(outcome),
+    onCompanyAccessObserved: (access) => companyAccessState.observe(access)
   })
 
   const activation = new ActivationService(
@@ -401,9 +406,12 @@ export function createApplicationServices(): ApplicationServices {
     devices: deviceRegistrationRepository,
     company: bootstrapSnapshot,
     features: bootstrapSnapshot,
-    connectivity
+    connectivity,
+    companySuspension: companyAccessState
   })
   commercialAccessPublisher = new CommercialAccessPublisher(commercialAccess)
+  // A newer suspension state changes what the workstation may sell: republish at once (no restart, no sign-in).
+  companyAccessState.onChange(() => commercialAccessPublisher?.publishCurrent())
   const heartbeat = createDeviceHeartbeat({
     apiClient,
     session: sessionMetadata,

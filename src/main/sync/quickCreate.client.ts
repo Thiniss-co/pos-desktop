@@ -111,6 +111,10 @@ export async function dispatchQuickCreate(
     if (error.backendCode !== undefined && QUICK_CREATE_REFUSAL_CODES.has(error.backendCode)) {
       return { kind: 'refused', ...base }
     }
+    // Phase 3: a platform suspension is not a missing permission; retry later like any unknown outcome.
+    if (error.backendCode === 'COMPANY_SUSPENDED') {
+      return { kind: 'unknown', ...base }
+    }
     if (error.category === 'authorization' || error.httpStatus === 403) {
       return { kind: 'blocked_permission', ...base }
     }

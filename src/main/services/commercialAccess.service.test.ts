@@ -50,6 +50,7 @@ interface State {
   posEnabled: boolean
   hasSellPermission: boolean
   connectivity: ConnectivitySnapshot
+  companySuspended: boolean
 }
 
 function validState(): State {
@@ -62,7 +63,8 @@ function validState(): State {
     company: { isActive: true },
     posEnabled: true,
     hasSellPermission: true,
-    connectivity: onlineSnapshot()
+    connectivity: onlineSnapshot(),
+    companySuspended: false
   }
 }
 
@@ -90,6 +92,7 @@ function createService(overrides: Partial<State> = {}): {
       company: { getCompany: () => state.company },
       features: { isFeatureEnabled: (code) => code === 'pos' && state.posEnabled },
       connectivity: { getSnapshot: () => state.connectivity },
+      companySuspension: { isSuspended: () => state.companySuspended },
       now: () => new Date(state.now)
     })
   }
@@ -321,6 +324,7 @@ describe('CommercialAccessService', () => {
       ['permission-denied', { hasSellPermission: false }, 'sell'],
       ['bootstrap-incomplete', { company: null }, 'sell'],
       ['company-inactive', { company: { isActive: false } }, 'sell'],
+      ['company-suspended', { companySuspended: true }, 'sell'],
       ['feature-not-enabled', { posEnabled: false }, 'sell'],
       [
         'connectivity-unavailable',
@@ -349,5 +353,19 @@ describe('CommercialAccessService', () => {
         })
       )
     }
+  })
+
+  it('Phase 3: a platform suspension stops new sales only; sync (uploads, shift close) stays allowed and inactive still wins', () => {
+    const { service, state } = createService({ companySuspended: true })
+
+    expect(reasonFor(service, 'sell')).toBe('company-suspended')
+    expect(service.evaluate('sync').allowed).toBe(true)
+
+    state.company = { isActive: false }
+    expect(reasonFor(service, 'sell')).toBe('company-inactive')
+
+    state.company = { isActive: true }
+    state.companySuspended = false
+    expect(service.evaluate('sell').allowed).toBe(true)
   })
 })

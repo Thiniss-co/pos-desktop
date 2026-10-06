@@ -120,6 +120,20 @@ describe('API error normalization', () => {
 
     expect(sessionRevoked).toMatchObject({ category: 'authentication', retryable: false })
     expect(companyInactive).toMatchObject({ category: 'authorization', retryable: false })
+    // Phase 3: a platform suspension refuses one operation; it is never an authentication failure.
+    expect(
+      normalizeApiEnvelopeError({
+        success: false,
+        message: 'Suspended.',
+        code: 'COMPANY_SUSPENDED',
+        errors: {},
+        meta: {}
+      })
+    ).toMatchObject({
+      category: 'authorization',
+      retryable: false,
+      backendCode: 'COMPANY_SUSPENDED'
+    })
     expect(roleDenied).toMatchObject({ category: 'authorization', retryable: false })
   })
 

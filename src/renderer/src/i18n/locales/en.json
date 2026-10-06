@@ -336,7 +336,8 @@
           "catalog-updating": "The catalog is being updated. Try again in a moment — nothing was recorded.",
           "catalog-updated": "The catalog changed. Review the cart before paying — nothing was recorded.",
           "legacy-uncertainty-unresolved": "This sale can't be completed, and it may have sent a stock reservation request that can't be identified. Cancel it with the confirmation below — its details are kept for support. No sale was recorded.",
-          "fiscal-setup-incomplete": "This register is set up for ZATCA receipts, but the company's legal name, VAT number or seller address is incomplete. No sale was recorded and your cart is kept. Ask the owner to complete the company's fiscal details, refresh the workstation, then retry."
+          "fiscal-setup-incomplete": "This register is set up for ZATCA receipts, but the company's legal name, VAT number or seller address is incomplete. No sale was recorded and your cart is kept. Ask the owner to complete the company's fiscal details, refresh the workstation, then retry.",
+          "company-suspended": "The platform has suspended this company, so this sale was not saved. Pending sales still upload; the cart is kept until the suspension is lifted."
         }
       },
       "largeChange": "The change due is unusually large. Check the amount received."
@@ -1051,7 +1052,9 @@
     "DESKTOP_ENTITY_REFERENCE_INVALID": "A chosen category or tax is no longer available. Refresh workstation data and try again.",
     "RECEIPT_SNAPSHOT_INVALID": "The server refused this sale's receipt record; the receipt itself is unaffected.",
     "RECEIPT_SNAPSHOT_CONFLICT": "The server already holds a different receipt record for this sale; it was kept.",
-    "INVOICE_NOT_UPLOADED": "The server has not accepted this sale from this workstation yet."
+    "INVOICE_NOT_UPLOADED": "The server has not accepted this sale from this workstation yet.",
+    "COMPANY_SUSPENDED": "The platform has suspended this company. This action is paused until the suspension is lifted.",
+    "COMMERCIAL_ACCESS_COMPANY_SUSPENDED": "The platform has suspended this company. New sales are paused; pending sales still upload, and you can close the shift and sign out."
   },
   "offlineSale": {
     "title": "Offline selling",
@@ -1090,7 +1093,8 @@
       "feature-not-enabled": "offline selling is not enabled for this company",
       "company-inactive": "the company account is inactive",
       "shift-not-open": "no shift is open",
-      "unknown": "a restriction set by the server"
+      "unknown": "a restriction set by the server",
+      "company-suspended": "the platform has suspended this company"
     },
     "notice": {
       "clockTitle": "This computer's clock can't be trusted",
@@ -1408,7 +1412,9 @@
       "reviewTitle": "{count} uploaded sales need review.",
       "reviewBody": "Selling is not affected. Check them with your manager.",
       "openSync": "Open Sync",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "suspendedTitle": "This company is suspended by the platform",
+      "suspendedBody": "New sales and shifts are paused. Sales already made keep uploading, and you can close the shift and sign out. Nothing on this workstation is deleted."
     },
     "skipToContent": "Skip to main content",
     "workstationRefresh": {

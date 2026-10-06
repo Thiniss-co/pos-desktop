@@ -83,6 +83,8 @@ const NON_TERMINAL_FAILURE_CODES: ReadonlySet<LocalSaleFailure> = new Set([
   // never accept). Retry is withheld; the attempt stays claimed until explicitly cancelled.
   'allocation-integrity-blocked',
   'context-changed',
+  // Phase 3: the platform suspended the company; the frozen intent stays intact and is retried once lifted.
+  'company-suspended',
   // Rev 4 §5: both leave the frozen intent intact and the attempt claimed; retry once true again.
   'clock-untrusted',
   'offline-sale-authority-unavailable',
@@ -105,6 +107,8 @@ export type LocalSaleFailure =
   | 'workstation-unassigned'
   | 'refresh-required'
   | 'context-changed'
+  // Phase 3: new sales stop while the platform has suspended the company.
+  | 'company-suspended'
   | 'allocation-data-unavailable'
   | 'stock-allocation-unavailable'
   | 'allocation-acquisition-unresolved'
@@ -737,7 +741,11 @@ export class LocalSaleService {
     if (!access.allowed) {
       // A detected clock rollback is its own non-terminal reason (Rev 4 C11), never `context-changed`.
       return this.settledFailure(
-        access.reason === 'clock-untrusted' ? 'clock-untrusted' : 'context-changed'
+        access.reason === 'clock-untrusted'
+          ? 'clock-untrusted'
+          : access.reason === 'company-suspended'
+            ? 'company-suspended'
+            : 'context-changed'
       )
     }
 
@@ -1145,7 +1153,12 @@ export class LocalSaleService {
     if (!access.allowed) {
       return {
         ok: false,
-        code: access.reason === 'clock-untrusted' ? 'clock-untrusted' : 'context-changed'
+        code:
+          access.reason === 'clock-untrusted'
+            ? 'clock-untrusted'
+            : access.reason === 'company-suspended'
+              ? 'company-suspended'
+              : 'context-changed'
       }
     }
     if (!this.dependencies.permissions.hasPermission('pos.sell')) {

@@ -11,11 +11,14 @@ import AppBanner from '@renderer/shared/components/feedback/AppBanner.vue'
 import AppButton from '@renderer/shared/components/common/AppButton.vue'
 import ConnectivityBanner from '@renderer/modules/connectivity/components/ConnectivityBanner.vue'
 import { useSyncStore } from '@renderer/modules/sync/store'
+import { useCompanySuspension } from '@renderer/modules/license/useCompanySuspension'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const sync = useSyncStore()
+// Phase 3: not dismissible — it explains why selling is refused for as long as it is.
+const { suspended } = useCompanySuspension()
 
 const pausedDismissed = ref(false)
 const reviewDismissed = ref(false)
@@ -37,6 +40,16 @@ const showReview = computed(
 <template>
   <div class="flex flex-none flex-col">
     <ConnectivityBanner bar />
+    <AppBanner
+      v-if="suspended"
+      bar
+      variant="error"
+      icon="block"
+      :title="t('shell.notices.suspendedTitle')"
+      data-testid="company-suspended-banner"
+    >
+      {{ t('shell.notices.suspendedBody') }}
+    </AppBanner>
     <AppBanner
       v-if="showPaused"
       bar

@@ -134,12 +134,21 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
 if (in_array($operation, ['create-owner-product', 'stock'], true) && preg_match('/^[A-Z0-9-]{1,40}$/', $argument) !== 1) {
     sandboxRefuse('a SKU is required');
+}
+
+// Phase 3 (platform company suspension): suspend/resume through the production platform actions, with an optional
+// short reason; `inspect-suspension` is read-only and takes no argument.
+if (in_array($operation, ['suspend-company', 'resume-company'], true) && $argument !== '' && preg_match('/^[A-Za-z0-9 .,:-]{3,120}$/', $argument) !== 1) {
+    sandboxRefuse($operation.' takes an optional plain reason (3-120 characters)');
+}
+if ($operation === 'inspect-suspension' && $argument !== '') {
+    sandboxRefuse('inspect-suspension takes no argument');
 }
 
 if ($operation === 'mode-physical-presence' && $argument !== ''
@@ -612,6 +621,44 @@ $result = match ($operation) {
         } catch (\App\Shared\Exceptions\ApiException $refusal) {
             return ['result' => 'refused', 'code' => $refusal->errorCode->value];
         }
+    })(),
+    // Phase 3: the platform decision, taken by a company-less platform account through the real actions.
+    'suspend-company', 'resume-company' => (function () use ($operation, $argument, $company): array {
+        $platform = User::query()->firstOrCreate(
+            ['email' => 'platform.fixture@desktop-mvp.test'],
+            ['name' => 'Platform Fixture', 'password' => 'Password123!', 'company_id' => null, 'is_active' => true],
+        );
+        $company->refresh();
+        $action = $operation === 'suspend-company'
+            ? app(\App\Modules\Tenancy\Actions\SuspendPlatformCompanyAction::class)
+            : app(\App\Modules\Tenancy\Actions\ResumePlatformCompanyAction::class);
+        $outcome = $action->execute($platform, $company, $argument !== '' ? $argument : 'Electron journey '.$operation, (int) $company->suspension_revision, (string) \Illuminate\Support\Str::uuid());
+        $company->refresh();
+
+        return ['applied' => $outcome->refusal === null, 'refusal' => $outcome->refusal?->getStatusCode(),
+            'state' => $company->current_suspension_id === null ? 'active' : 'suspended', 'revision' => (int) $company->suspension_revision];
+    })(),
+    'inspect-suspension' => (function () use ($company): array {
+        $company->refresh();
+        $current = $company->current_suspension_id;
+
+        return [
+            'state' => $current === null ? 'active' : 'suspended',
+            'revision' => (int) $company->suspension_revision,
+            'is_active' => (bool) $company->is_active,
+            'offline_limits_enforced' => (bool) config('pos_offline_sale.offline_limits.enforced'),
+            'intervals' => DB::table('company_suspensions')->where('company_id', $company->id)->count(),
+            'uploads' => DB::table('company_suspension_uploads')->where('company_id', $company->id)->orderBy('id')
+                ->get(['company_suspension_id', 'kind', 'local_uuid', 'flagged', 'flag_reasons'])->map(fn ($row): array => (array) $row)->all(),
+            'device_notices' => DB::table('company_suspension_device_notices')->count(),
+            'authorities' => DB::table('pos_offline_sale_authorities')->where('company_id', $company->id)->orderBy('id')
+                ->get(['uuid', 'issued_at', 'not_after', 'superseded_at', 'revoked_at'])->map(fn ($row): array => (array) $row)->all(),
+            'bindings' => [
+                'active' => DB::table('desktop_access_tokens')->where('company_id', $company->id)->whereNull('revoked_at')->count(),
+                'revoked' => DB::table('desktop_access_tokens')->where('company_id', $company->id)->whereNotNull('revoked_at')->count(),
+            ],
+            'license_tokens' => DB::table('license_tokens')->count(),
+        ];
     })(),
     'authorities' => [
         'authorities' => DB::table('pos_offline_sale_authorities')->orderBy('id')

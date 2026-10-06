@@ -39,6 +39,8 @@ function categoryForBackendCode(code: string): PublicAppError['category'] {
   if (
     code === 'FORBIDDEN' ||
     code === 'COMPANY_INACTIVE' ||
+    // Phase 3: the platform suspended the company. One operation is refused; the session stays valid.
+    code === 'COMPANY_SUSPENDED' ||
     code === 'PERMISSION_DENIED' ||
     code === 'FEATURE_PERMISSION_DENIED' ||
     code === 'FEATURE_NOT_ENABLED' ||

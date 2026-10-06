@@ -104,6 +104,14 @@ export function extractQuarantineReason(
 /** Genuine disagreements that need a human to compare two versions. */
 const CONFLICT_CODES = new Set(['IDEMPOTENCY_CONFLICT', 'CONFLICT'])
 
+/**
+ * Phase 3: while the platform has suspended the company, the server holds a legacy (v1) invoice with a
+ * retryable `403 COMPANY_SUSPENDED` and accepts every other version. That is about THIS item, not the
+ * device: pausing the worker would stop the uploads the server is accepting. The item is retried on its own,
+ * no sooner than this, and succeeds once the suspension is lifted.
+ */
+const COMPANY_SUSPENDED_RETRY_MS = 10 * 60 * 1_000
+
 const PAUSE_REASON_BY_CODE: Readonly<Record<string, SyncPauseReason>> = {
   UNAUTHENTICATED: 'session-invalid',
   SESSION_REVOKED: 'session-invalid',
@@ -193,6 +201,16 @@ export function mapUploadFailure(
         errorCode: code,
         details: details(error),
         reportedDetails: error.message
+      }
+    }
+  }
+
+  if (code === 'COMPANY_SUSPENDED') {
+    return {
+      kind: 'outcome',
+      outcome: {
+        ...retryable,
+        retryDelayMs: Math.max(retryable.retryDelayMs, COMPANY_SUSPENDED_RETRY_MS)
       }
     }
   }

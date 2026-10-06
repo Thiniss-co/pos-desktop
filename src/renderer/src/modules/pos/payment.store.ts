@@ -42,6 +42,7 @@ const CLAIMED_FAILURE_CODES = new Set([
   'allocation-refused',
   'allocation-integrity-blocked',
   'context-changed',
+  'company-suspended',
   'refresh-required',
   'clock-untrusted',
   'offline-sale-authority-unavailable',

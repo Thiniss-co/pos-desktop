@@ -48,6 +48,7 @@ export const commercialAccessReasonSchema = z.enum([
   'permission-denied',
   'bootstrap-incomplete',
   'company-inactive',
+  'company-suspended',
   'feature-not-enabled',
   'connectivity-unavailable'
 ])
@@ -97,6 +98,9 @@ export const COMMERCIAL_ACCESS_REASON_CLASSIFICATION = Object.freeze({
   'permission-denied': { category: 'authorization', retryable: false, transition: 'none' },
   'bootstrap-incomplete': { category: 'authorization', retryable: false, transition: 'bootstrap' },
   'company-inactive': { category: 'authorization', retryable: false, transition: 'none' },
+  // Phase 3: new local sales stop while the platform has suspended the company; uploads, shift close and
+  // sign-out continue, and the denial lifts on its own when a newer revision says the suspension ended.
+  'company-suspended': { category: 'authorization', retryable: true, transition: 'none' },
   'feature-not-enabled': { category: 'authorization', retryable: false, transition: 'none' },
   'connectivity-unavailable': { category: 'transport', retryable: true, transition: 'none' }
 } as const satisfies Record<

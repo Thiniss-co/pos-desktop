@@ -78,6 +78,14 @@ describe('dispatchQuickCreate', () => {
     expect(result.kind).toBe(kind)
   })
 
+  it('Phase 3: a platform suspension is retried later, never reported as a missing permission', async () => {
+    const result = await dispatchQuickCreate(
+      answering(error({ category: 'authorization', backendCode: 'COMPANY_SUSPENDED' }), true),
+      request
+    )
+    expect(result.kind).toBe('unknown')
+  })
+
   it('keeps a 403 as blocked, a 401 and every transport or server failure as unknown', async () => {
     expect(
       (

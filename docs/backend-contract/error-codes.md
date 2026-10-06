@@ -29,6 +29,7 @@ rather than guessing meaning for an unfamiliar code.
 | `DESKTOP_SHIFT_ACCESS_DENIED` | Authorization | The requested shift is outside the authenticated desktop context |
 | `VALIDATION_FAILED` | Request shape | Check `errors` for field-level detail; stale price or stock 422s are terminal `rejected` records with staff recovery guidance |
 | `ROUTE_NOT_FOUND` | Request shape | Client called a route that doesn't exist — treat as a client bug (wrong URL/method), not a user-facing recoverable state |
+| `COMPANY_SUSPENDED` | Platform suspension (Phase 3) | The platform suspended the company. One operation is refused (bootstrap, license validation, shift open, new sales, top-up, master-data writes; a legacy v1 invoice upload or a first refund acceptance is held). Never ends the session or clears data: apply `meta.company_access` by revision (higher wins, other company ignored), deny new local `sell` (`company-suspended`), keep `sync` (uploads), shift close and sign-out; retry a held upload per item with back-off, never pause the worker. The state also arrives on success envelopes (sign-in, heartbeat, uploads) and lifts when a newer revision says `active`. Backend contract: `pos-backend/docs/architecture/platform-company-suspension.md` |
 
 ## Handling Principle
 

@@ -350,6 +350,8 @@ export const checkoutFailureCodeSchema = z.enum([
   'allocation-integrity-blocked',
   'legacy-uncertainty-acknowledgement-required',
   // Rev 4 (physical-presence integration).
+  // Phase 3 (platform company suspension).
+  'company-suspended',
   'clock-untrusted',
   'offline-sale-authority-unavailable',
   // POS improvements, Stage 6.

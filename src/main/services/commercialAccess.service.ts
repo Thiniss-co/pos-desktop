@@ -45,6 +45,11 @@ export interface CommercialAccessCompanyReader {
   getCompany(): { readonly isActive: boolean } | null
 }
 
+/** Phase 3: the platform suspension of the signed-in company, as last observed from the server. */
+export interface CommercialAccessCompanySuspensionReader {
+  isSuspended(): boolean
+}
+
 export interface CommercialAccessFeatureReader {
   isFeatureEnabled(code: string): boolean
 }
@@ -62,6 +67,7 @@ export interface CommercialAccessServiceOptions {
   readonly company: CommercialAccessCompanyReader
   readonly features: CommercialAccessFeatureReader
   readonly connectivity: CommercialAccessConnectivityReader
+  readonly companySuspension?: CommercialAccessCompanySuspensionReader
   readonly now?: () => Date
 }
 
@@ -94,6 +100,8 @@ function messageForReason(reason: CommercialAccessReason): string {
     'permission-denied': 'Your account does not have permission to sell.',
     'bootstrap-incomplete': 'Local workstation data has not completed bootstrap.',
     'company-inactive': 'This company is inactive.',
+    'company-suspended':
+      'The platform has suspended this company. New sales are paused; uploads, shift close and sign-out still work.',
     'feature-not-enabled': 'The POS feature is not enabled for this subscription.',
     'connectivity-unavailable': 'An online connection to the desktop service is required to sync.'
   }
@@ -174,6 +182,11 @@ export class CommercialAccessService {
 
     if (company && !company.isActive) {
       return this.denied(action, 'company-inactive', evaluatedAtIso, licenseState.status)
+    }
+
+    // Phase 3: only new sales stop. `sync` stays allowed so pending sales upload and shifts close.
+    if (action === 'sell' && this.options.companySuspension?.isSuspended() === true) {
+      return this.denied(action, 'company-suspended', evaluatedAtIso, licenseState.status)
     }
 
     if (action === 'sell' && !this.options.features.isFeatureEnabled('pos')) {

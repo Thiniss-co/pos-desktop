@@ -212,6 +212,65 @@ describe('DesktopApiClient diagnostics', () => {
     )
   })
 
+  it('Phase 3: offers meta.company_access from success and error envelopes, before normalization drops meta', async () => {
+    const onCompanyAccessObserved = vi.fn()
+    const access = {
+      company_id: '11111111-1111-4111-8111-111111111111',
+      state: 'suspended',
+      revision: 2,
+      suspended_at: '2026-10-06T10:00:00+00:00'
+    }
+    const answers = [
+      new Response(
+        JSON.stringify({
+          success: true,
+          message: 'ok',
+          code: 'DESKTOP_HEARTBEAT',
+          data: {},
+          meta: { company_access: access }
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      ),
+      new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Suspended.',
+          code: 'COMPANY_SUSPENDED',
+          errors: {},
+          meta: { trace_id: 't', company_access: access }
+        }),
+        { status: 403, headers: { 'content-type': 'application/json' } }
+      ),
+      new Response(
+        JSON.stringify({ success: true, message: 'ok', code: 'X', data: {}, meta: {} }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    ]
+    const client = createClient({
+      getAccessToken: () => 'desktop-token',
+      getDeviceUuid: () => '00000000-0000-4000-8000-000000000001',
+      onCompanyAccessObserved,
+      fetchImplementation: async () => answers.shift() as Response
+    })
+    const route = {
+      path: '/device/heartbeat',
+      method: 'POST' as const,
+      requiresAuth: true,
+      requiresDeviceUuid: true
+    }
+
+    await client.request(route, {})
+    await expect(client.request(route, {})).rejects.toMatchObject({
+      backendCode: 'COMPANY_SUSPENDED',
+      category: 'authorization'
+    })
+    await client.request(route, {})
+
+    expect(onCompanyAccessObserved).toHaveBeenCalledTimes(2)
+    expect(onCompanyAccessObserved).toHaveBeenNthCalledWith(1, access)
+    expect(onCompanyAccessObserved).toHaveBeenNthCalledWith(2, access)
+  })
+
   it('notifies the session owner only for authenticated request failures', async () => {
     const onAuthenticatedFailure = vi.fn()
     const client = createClient({
