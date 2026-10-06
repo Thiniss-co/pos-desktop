@@ -15,11 +15,11 @@ import { useCatalogStore } from './modules/pos/catalog.store'
 import { i18n } from './i18n'
 import { applyLocaleToDocument, useLocaleStore } from './modules/preferences/locale.store'
 import { applyThemeToDocument, useThemeStore } from './modules/preferences/theme.store'
-import { useCartLayoutStore } from './modules/preferences/cartLayout.store'
 import { startCatalogInstallClient } from './modules/catalogInstall/installHold'
 import { startBrandingClient } from './modules/branding/store'
 import { startQuickCreateClient } from './modules/quickCreate/store'
 import { startUserPreferencesClient } from './modules/preferences/userPreferences.store'
+import { startWorkspaceLayoutClient } from './modules/preferences/posWorkspace.store'
 
 const pinia = createPinia()
 
@@ -58,8 +58,6 @@ async function bootstrapRenderer(): Promise<void> {
     applyThemeToDocument('system')
   }
 
-  void useCartLayoutStore(pinia).initialize() // layout-only; never rejects, never blocks mount
-
   createApp(App).use(pinia).use(i18n).use(router).mount('#app')
   // Rev 4 §8: the catalog-install hold client (draft reports, hold arming, apply-before-release).
   startCatalogInstallClient(pinia)
@@ -68,6 +66,8 @@ async function bootstrapRenderer(): Promise<void> {
   startQuickCreateClient(pinia)
   // POS improvements, Stage 5: per-user touch layout (and auto-print, Stage 7).
   startUserPreferencesClient(pinia)
+  // POS workspace: the signed-in user's selling-screen layout on this workstation.
+  startWorkspaceLayoutClient(pinia)
 }
 
 void bootstrapRenderer()

@@ -385,3 +385,213 @@ describe('POS improvements Stage 5: per-user preferences IPC', () => {
     expect(rows.size).toBe(0)
   })
 })
+
+describe('POS workspace layout IPC', () => {
+  type Session = {
+    isAuthenticated: boolean
+    companyUuid: string | null
+    userUuid: string | null
+    deviceUuid: string | null
+    serverDeviceId: number | null
+  }
+
+  function call(channel: string, input: unknown): Promise<Record<string, unknown>> {
+    const registered = handlers.get(channel)
+    if (!registered) {
+      throw new Error(`no handler for ${channel}`)
+    }
+    return Promise.resolve(registered({ sender: {} } as IpcMainInvokeEvent, input)) as Promise<
+      Record<string, unknown>
+    >
+  }
+
+  let session: Session
+  let epoch: number
+  let rows: Map<string, string>
+  let defaults: typeof import('@shared/contracts/posWorkspace.contract')
+
+  async function token(): Promise<string> {
+    const read = (await call(IPC_CHANNELS.preferencesGetPosWorkspace, undefined)) as {
+      data: { contextToken: string }
+    }
+    return read.data.contextToken
+  }
+
+  beforeEach(async () => {
+    const { WorkspaceLayoutService } = await import('../services/workspaceLayout.service')
+    defaults = await import('@shared/contracts/posWorkspace.contract')
+    session = {
+      isAuthenticated: true,
+      companyUuid: 'c-1',
+      userUuid: 'u-1',
+      deviceUuid: 'd-1',
+      serverDeviceId: 7
+    }
+    epoch = 1
+    rows = new Map()
+    const key = (o: { companyUuid: string; userUuid: string; deviceUuid: string }): string =>
+      `${o.companyUuid}|${o.userUuid}|${o.deviceUuid}`
+    const workspaceLayout = new WorkspaceLayoutService({
+      session: { getContext: () => session },
+      epoch: { current: () => epoch },
+      repository: {
+        get: (owner) => rows.get(key(owner)) ?? null,
+        set: (owner, json) => {
+          rows.set(key(owner), json)
+        },
+        delete: (owner) => {
+          rows.delete(key(owner))
+        }
+      }
+    })
+    assertTrustedSender.mockReset()
+    assertTrustedSender.mockImplementation(() => undefined)
+    handlers.clear()
+    registerPreferencesIpcHandlers({
+      appSettings: { get: () => null, set: () => undefined } as unknown as AppSettingsRepository,
+      workspaceLayout
+    } as unknown as ApplicationServices)
+  })
+
+  it('returns the Cart-first default with a context token for a signed-in user', async () => {
+    const result = await call(IPC_CHANNELS.preferencesGetPosWorkspace, undefined)
+    expect(result).toMatchObject({
+      ok: true,
+      data: { layout: defaults.defaultWorkspaceLayout(), stored: false }
+    })
+    expect(typeof (result.data as { contextToken: unknown }).contextToken).toBe('string')
+  })
+
+  it('stores per company, user AND device, with the owner taken from the session only', async () => {
+    const balanced = defaults.clonePreset('balanced')
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, {
+        layout: balanced,
+        contextToken: await token()
+      })
+    ).resolves.toMatchObject({ ok: true, data: { layout: balanced, stored: true } })
+
+    for (const other of [
+      { userUuid: 'u-2' },
+      { companyUuid: 'c-2' },
+      { deviceUuid: 'd-2' }
+    ] as Partial<Session>[]) {
+      const previous = session
+      session = { ...session, ...other }
+      await expect(call(IPC_CHANNELS.preferencesGetPosWorkspace, undefined)).resolves.toMatchObject(
+        {
+          ok: true,
+          data: { layout: defaults.defaultWorkspaceLayout(), stored: false }
+        }
+      )
+      session = previous
+    }
+
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, {
+        layout: balanced,
+        contextToken: await token(),
+        userUuid: 'u-9'
+      })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'validation' } })
+    expect(rows.size).toBe(1)
+  })
+
+  it('refuses a write whose context token no longer matches (user switch, refresh, new epoch)', async () => {
+    const scanner = defaults.clonePreset('scanner')
+    const first = await token()
+    session = { ...session, userUuid: 'u-2' }
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, { layout: scanner, contextToken: first })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'conflict' } })
+
+    session = { ...session, userUuid: 'u-1', serverDeviceId: 8 }
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, { layout: scanner, contextToken: first })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'conflict' } })
+
+    session = { ...session, serverDeviceId: 7 }
+    epoch = 2
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, { layout: scanner, contextToken: first })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'conflict' } })
+    expect(rows.size).toBe(0)
+  })
+
+  it('removes the row on restore defaults (null)', async () => {
+    await call(IPC_CHANNELS.preferencesSetPosWorkspace, {
+      layout: defaults.clonePreset('balanced'),
+      contextToken: await token()
+    })
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, { layout: null, contextToken: await token() })
+    ).resolves.toMatchObject({
+      ok: true,
+      data: { layout: defaults.defaultWorkspaceLayout(), stored: false }
+    })
+    expect(rows.size).toBe(0)
+  })
+
+  it('validates the layout: ids, bounds, order, extra keys and size', async () => {
+    const base = defaults.defaultWorkspaceLayout()
+    const contextToken = await token()
+    for (const layout of [
+      { ...base, cartShare: 99 },
+      { ...base, sections: { ...base.sections, cart: ['totals', 'scan', 'lines', 'actions'] } },
+      { ...base, cart: [{ sku: 'WS-01', quantity: '1.000' }] },
+      { ...base, preset: 'x'.repeat(4000) }
+    ]) {
+      await expect(
+        call(IPC_CHANNELS.preferencesSetPosWorkspace, { layout, contextToken })
+      ).resolves.toMatchObject({ ok: false, error: { category: 'validation' } })
+    }
+    expect(rows.size).toBe(0)
+  })
+
+  it('salvages a corrupted stored row instead of failing the read', async () => {
+    rows.set('c-1|u-1|d-1', '{"version":1,"density":"comfortable","cartShare":"wide"}')
+    await expect(call(IPC_CHANNELS.preferencesGetPosWorkspace, undefined)).resolves.toMatchObject({
+      ok: true,
+      data: {
+        layout: { ...defaults.defaultWorkspaceLayout(), density: 'comfortable' },
+        stored: true
+      }
+    })
+  })
+
+  it('reads defaults signed out and refuses writes; refuses an untrusted sender first', async () => {
+    const contextToken = await token()
+    session = { ...session, isAuthenticated: false }
+    await expect(call(IPC_CHANNELS.preferencesGetPosWorkspace, undefined)).resolves.toMatchObject({
+      ok: true,
+      data: { stored: false, contextToken: null }
+    })
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, {
+        layout: defaults.defaultWorkspaceLayout(),
+        contextToken
+      })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authentication' } })
+
+    session = { ...session, isAuthenticated: true, deviceUuid: null }
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, {
+        layout: defaults.defaultWorkspaceLayout(),
+        contextToken
+      })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authentication' } })
+
+    session = { ...session, deviceUuid: 'd-1' }
+    assertTrustedSender.mockImplementation(() => {
+      throw { category: 'authorization', message: 'untrusted', retryable: false }
+    })
+    await expect(
+      call(IPC_CHANNELS.preferencesSetPosWorkspace, { layout: null, contextToken })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authorization' } })
+    await expect(call(IPC_CHANNELS.preferencesGetPosWorkspace, undefined)).resolves.toMatchObject({
+      ok: false,
+      error: { category: 'authorization' }
+    })
+    expect(rows.size).toBe(0)
+  })
+})

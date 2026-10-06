@@ -15,6 +15,8 @@ export interface PosShortcutOptions {
   readonly focusSearch: () => void
   readonly showHelp: () => void
   readonly bindings?: Partial<Record<PosShortcutKey, () => void>>
+  /** Read on every key event; while it returns false no shortcut runs (POS layout editing). */
+  readonly enabled?: () => boolean
 }
 
 function ownsTextInput(target: EventTarget | null): boolean {
@@ -31,6 +33,9 @@ function bindingKeyOf(event: KeyboardEvent): string {
 export function usePosShortcuts(options: PosShortcutOptions): void {
   function onKeydown(event: KeyboardEvent): void {
     if (event.isComposing || document.querySelector('[aria-modal="true"]')) {
+      return
+    }
+    if (options.enabled && !options.enabled()) {
       return
     }
 

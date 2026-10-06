@@ -1,0 +1,207 @@
+/*
+ * POS workspace — density tokens and the cart ledger grid.
+ *
+ * Layered as `components`: Tailwind utilities can still refine a single element, and the unlayered
+ * touch rules (touch.css) still raise every control to 44×44 in touch mode, where the workspace is
+ * always in its comfortable density anyway.
+ */
+@layer components {
+  /* Compact by default, so a cart line rendered outside the workspace (the dev gallery) still lays out. */
+  :root,
+  .pos-workspace-shell[data-density='compact'] {
+    --cart-row-min: 34px;
+    --cart-row-py: 2px;
+    --cart-ctl: 28px;
+    --cart-name-size: var(--text-base);
+    --cart-qty-w: 6.25rem;
+    --cart-price-w: 5.75rem;
+    --cart-total-w: 7.25rem;
+    --cart-act-w: 2rem;
+    --cart-tool-h: 32px;
+  }
+
+  .pos-workspace-shell[data-density='comfortable'] {
+    --cart-row-min: 56px;
+    /* 4px + 4px + the 1px rule: adjacent 44–48px targets stay ≥ 8px apart. */
+    --cart-row-py: 4px;
+    --cart-ctl: 44px;
+    --cart-name-size: var(--text-md);
+    --cart-qty-w: 9.5rem;
+    --cart-price-w: 6.75rem;
+    --cart-total-w: 7.75rem;
+    --cart-act-w: 2.75rem;
+    --cart-tool-h: 44px;
+  }
+
+  /* The cart column is the query container: its rows adapt to the cart's own width. */
+  .pos-cart {
+    container: pos-cart / inline-size;
+  }
+
+  /* One template shared by the column header and every line, so the columns always align. */
+  .pos-cart-grid {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr) var(--cart-qty-w) var(--cart-price-w) var(--cart-total-w)
+      var(--cart-act-w);
+    column-gap: 0.75rem;
+    align-items: center;
+  }
+
+  .cart-line-item__price {
+    text-align: end;
+  }
+
+  .cart-line-item__price-narrow {
+    display: none;
+  }
+
+  /* A mid-width cart tightens its numeric columns before giving up the price column. */
+  @container pos-cart (max-width: 679.98px) {
+    .pos-workspace-shell[data-density='compact'] .pos-cart-grid {
+      --cart-qty-w: 5.5rem;
+      --cart-price-w: 5.25rem;
+      --cart-total-w: 6.5rem;
+      column-gap: 0.5rem;
+    }
+  }
+
+  /* A narrow cart drops the unit-price column: the price moves under the name, still visible. */
+  @container pos-cart (max-width: 539.98px) {
+    .pos-cart-grid {
+      grid-template-columns: minmax(0, 1fr) var(--cart-qty-w) var(--cart-total-w) var(--cart-act-w);
+      column-gap: 0.5rem;
+    }
+
+    .pos-cart-grid__price {
+      display: none;
+    }
+
+    .cart-line-item__price {
+      grid-column: 1;
+      grid-row: 2;
+      text-align: start;
+    }
+
+    .cart-line-item__price-wide {
+      display: none;
+    }
+
+    .cart-line-item__price-narrow {
+      display: inline;
+    }
+
+    .cart-line-item > :not(.cart-line-item__info, .cart-line-item__price) {
+      grid-row: 1 / span 2;
+    }
+  }
+
+  /* The pinned checkout band (OrderTotals `bar`): summary line, total due and payment actions.
+     A wide cart keeps them on one row; a narrower cart puts the one-line summary above the total
+     and the actions; a very narrow cart stacks the actions under the total at full width. */
+  .order-totals--bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'summary total actions';
+    align-items: end;
+    column-gap: 1rem;
+    row-gap: 0.375rem;
+  }
+
+  .order-totals--bar .order-totals__summary {
+    grid-area: summary;
+    align-self: center;
+  }
+
+  .order-totals--bar .order-totals__row--total {
+    grid-area: total;
+  }
+
+  .order-totals--bar .order-totals__actions {
+    grid-area: actions;
+  }
+
+  .pos-cart-footer__pay {
+    width: 15rem;
+  }
+
+  @container pos-cart (max-width: 899.98px) {
+    .order-totals--bar {
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas:
+        'summary summary'
+        'total actions';
+    }
+
+    .order-totals--bar .order-totals__row--total {
+      align-items: flex-start;
+    }
+
+    .order-totals--bar .order-totals__actions {
+      justify-content: flex-end;
+    }
+
+    .pos-cart-footer__pay {
+      flex: 0 1 15rem;
+      min-width: 0;
+      width: auto;
+    }
+  }
+
+  @container pos-cart (max-width: 539.98px) {
+    .order-totals--bar {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'summary'
+        'total'
+        'actions';
+    }
+
+    .pos-cart-footer__pay {
+      flex: 1 1 0;
+    }
+  }
+
+  /* The comfortable density has wide 44px steppers: it gives up the price column earlier. */
+  @container pos-cart (max-width: 759.98px) {
+    .pos-workspace-shell[data-density='comfortable'] .pos-cart-grid {
+      grid-template-columns: minmax(0, 1fr) var(--cart-qty-w) var(--cart-total-w) var(--cart-act-w);
+      column-gap: 0.5rem;
+    }
+
+    .pos-workspace-shell[data-density='comfortable'] .pos-cart-grid__price {
+      display: none;
+    }
+
+    .pos-workspace-shell[data-density='comfortable'] .cart-line-item__price {
+      grid-column: 1;
+      grid-row: 2;
+      text-align: start;
+    }
+
+    .pos-workspace-shell[data-density='comfortable']
+      .cart-line-item
+      > :not(.cart-line-item__info, .cart-line-item__price) {
+      grid-row: 1 / span 2;
+    }
+
+    .pos-workspace-shell[data-density='comfortable'] .cart-line-item__price-wide {
+      display: none;
+    }
+
+    .pos-workspace-shell[data-density='comfortable'] .cart-line-item__price-narrow {
+      display: inline;
+    }
+  }
+
+  /* Layout editing: business content is inert and dimmed; the handles stay live above it. */
+  .pos-workspace-shell--editing .pos-workspace-section__content {
+    opacity: 0.72;
+  }
+
+  .pos-workspace-section--editing {
+    outline: 2px dashed var(--color-pri);
+    outline-offset: -2px;
+    border-radius: var(--radius-notice);
+  }
+}

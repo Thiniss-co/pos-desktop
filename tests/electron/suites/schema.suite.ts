@@ -112,7 +112,9 @@ const expectedTables = [
   'receipt_snapshot_uploads',
   // Owner expansion Phase E (migration 0032): the register offers of the installed contract.
   'catalog_offers',
-  'catalog_offer_products'
+  'catalog_offer_products',
+  // POS workspace (migration 0033): the selling-screen layout per company + user + workstation.
+  'user_workspace_layouts'
 ]
 
 databaseTest(

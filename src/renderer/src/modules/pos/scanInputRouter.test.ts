@@ -731,3 +731,77 @@ describe('scanInputRouter — lifecycle', () => {
     expect(spies.onPrimary).not.toHaveBeenCalled()
   })
 })
+
+describe('scanInputRouter — layout-edit (POS workspace layout editor)', () => {
+  for (const suffix of ['Enter', 'Tab'] as const) {
+    it(`a scan with a Space and a ${suffix} suffix never activates the focused editor button and is delivered once`, async () => {
+      mode = 'layout-edit'
+      createRouter()
+      const { button, clicks } = plainButton()
+
+      const downs = scan(button, 'SKU 12345', suffix)
+      await flushQueue()
+
+      expect(clicks).not.toHaveBeenCalled()
+      expect(downs.at(-1)?.defaultPrevented).toBe(true)
+      expect(spies.onScan).toHaveBeenCalledTimes(1)
+      expect(spies.onScan).toHaveBeenCalledWith('SKU 12345')
+    })
+  }
+
+  it('a suffix-less scan is delivered by the completion timer and activates nothing', async () => {
+    vi.useFakeTimers()
+    mode = 'layout-edit'
+    createRouter()
+    const { button, clicks } = plainButton()
+
+    scan(button, '6291000000001', null)
+    vi.advanceTimersByTime(200)
+    await flushQueue()
+
+    expect(clicks).not.toHaveBeenCalled()
+    expect(spies.onScan).toHaveBeenCalledWith('6291000000001')
+  })
+
+  it('consumes a stray terminator right after a burst (double Enter), but not a later intentional Enter', async () => {
+    mode = 'layout-edit'
+    createRouter()
+    const { button, clicks } = plainButton()
+
+    scan(button, '6291000000001', 'Enter')
+    const stray = press(button, 'Enter', {}, 40)
+    expect(stray.down.defaultPrevented).toBe(true)
+    expect(clicks).not.toHaveBeenCalled()
+
+    // A person pressing Enter well after the burst activates the focused control natively.
+    const intentional = press(button, 'Enter', {}, 1000)
+    expect(intentional.down.defaultPrevented).toBe(false)
+    expect(clicks).toHaveBeenCalledTimes(1)
+    const space = press(button, ' ', {}, 1000)
+    expect(space.up.defaultPrevented).toBe(false)
+    expect(clicks).toHaveBeenCalledTimes(2)
+  })
+
+  it('consumes F9 and Shift+F9: nothing pays while the layout is edited', () => {
+    mode = 'layout-edit'
+    createRouter()
+    const { button } = plainButton()
+
+    const f9 = press(button, 'F9')
+    const shiftF9 = press(button, 'F9', { shiftKey: true })
+
+    expect(f9.down.defaultPrevented).toBe(true)
+    expect(shiftF9.down.defaultPrevented).toBe(true)
+    expect(spies.onPrimary).not.toHaveBeenCalled()
+    expect(spies.onExactCash).not.toHaveBeenCalled()
+  })
+
+  it('does not suppress keyboard activation of a commit-class control (the editor has none)', () => {
+    mode = 'layout-edit'
+    createRouter()
+    const { button, clicks } = commitButton('apply')
+
+    press(button, 'Enter', {}, 1000)
+    expect(clicks).toHaveBeenCalledTimes(1)
+  })
+})

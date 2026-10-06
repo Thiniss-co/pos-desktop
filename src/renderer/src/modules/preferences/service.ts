@@ -7,6 +7,13 @@ import {
   type UserPreferenceKey,
   type UserPreferences
 } from '@shared/contracts/preferences.contract'
+import {
+  normalizeWorkspaceLayout,
+  posWorkspaceContextTokenSchema,
+  posWorkspaceReadResultSchema,
+  type PosWorkspaceReadResult,
+  type SetPosWorkspaceInput
+} from '@shared/contracts/posWorkspace.contract'
 import { unwrapIpcResult } from '@renderer/shared/utils/unwrapIpcResult'
 
 export class PreferencesService {
@@ -59,5 +66,35 @@ export class PreferencesService {
     }
 
     return saved.data
+  }
+
+  /**
+   * POS workspace: the signed-in user's layout on this workstation. The result shape is checked
+   * here; a malformed layout degrades to the normalized (default-filled) layout, never to a throw.
+   */
+  async getPosWorkspace(): Promise<PosWorkspaceReadResult> {
+    return readWorkspaceResult(unwrapIpcResult(await this.gateway.getPosWorkspace()))
+  }
+
+  async setPosWorkspace(input: SetPosWorkspaceInput): Promise<PosWorkspaceReadResult> {
+    return readWorkspaceResult(unwrapIpcResult(await this.gateway.setPosWorkspace(input)))
+  }
+}
+
+function readWorkspaceResult(value: unknown): PosWorkspaceReadResult {
+  const parsed = posWorkspaceReadResultSchema.safeParse(value)
+
+  if (parsed.success) {
+    return parsed.data
+  }
+
+  const record = (typeof value === 'object' && value !== null ? value : {}) as Record<
+    string,
+    unknown
+  >
+  return {
+    layout: normalizeWorkspaceLayout(record.layout),
+    stored: record.stored === true,
+    contextToken: posWorkspaceContextTokenSchema.safeParse(record.contextToken).data ?? null
   }
 }

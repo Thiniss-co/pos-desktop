@@ -28,6 +28,9 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const preferences = ref<UserPreferences>(DEFAULTS)
   const saving = ref(false)
   const failed = ref(false)
+  // Only the newest request may apply: a slow answer for the previous user (or an older write) must
+  // never overwrite the current user's touch layout, which also drives the workspace density.
+  let generation = 0
 
   function apply(next: UserPreferences): void {
     preferences.value = next
@@ -35,26 +38,42 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   }
 
   async function load(): Promise<void> {
+    const request = ++generation
     try {
-      apply(await service.getUserPreferences())
+      const next = await service.getUserPreferences()
+      if (request === generation) {
+        apply(next)
+      }
     } catch {
-      apply(DEFAULTS)
+      if (request === generation) {
+        apply(DEFAULTS)
+      }
     }
   }
 
   async function set(key: UserPreferenceKey, value: boolean): Promise<void> {
+    const request = ++generation
     saving.value = true
     failed.value = false
     try {
-      apply(await service.setUserPreference(key, value))
+      const next = await service.setUserPreference(key, value)
+      if (request === generation) {
+        apply(next)
+      }
     } catch {
-      failed.value = true
+      if (request === generation) {
+        failed.value = true
+      }
     } finally {
-      saving.value = false
+      if (request === generation) {
+        saving.value = false
+      }
     }
   }
 
   function reset(): void {
+    generation += 1
+    saving.value = false
     apply(DEFAULTS)
   }
 

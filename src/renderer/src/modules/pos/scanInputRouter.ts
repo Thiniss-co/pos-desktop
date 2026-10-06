@@ -18,6 +18,13 @@
  * - `payment-done`    payment dialog, committed sale awaiting "New sale" (no editable fields).
  * - `payment-other`   payment dialog, blocked / completing / confirming.
  * - `inactive`        hands off entirely (e.g. another dialog is stacked on the payment dialog).
+ * - `layout-edit`     POS workspace layout editing: the page detector still runs, so a scanner
+ *                     burst is captured whatever control has focus (its Space, Enter and Tab never
+ *                     reach that control) and is delivered to `onScan`, which refuses it. A stray
+ *                     Enter/Space/Tab arriving within `layoutTerminatorGraceMs` of a burst is
+ *                     consumed too. F9 and Shift+F9 are consumed and do nothing (no checkout while
+ *                     editing). A standalone Enter or Space keeps its native activation, so the
+ *                     edit controls stay fully operable from the keyboard.
  *
  * GUARANTEES (deterministic — none of them depends on timing)
  * 1. Commit-class suppression, every payment mode: a key event whose target is inside
@@ -50,9 +57,9 @@
  * - Page mode keeps the detector's timing heuristics (35 ms gaps, 60 ms completion).
  *
  * KEY MAP
- *   key         page                 payment-tender           payment-done               payment-other
- *   F9          (usePosShortcuts)    onPrimary                discard partial→onPrimary  onPrimary
- *   Shift+F9    onExactCash          onExactCash              —                          —
+ *   key         page                 payment-tender           payment-done               payment-other   layout-edit
+ *   F9          (usePosShortcuts)    onPrimary                discard partial→onPrimary  onPrimary       consumed, nothing
+ *   Shift+F9    onExactCash          onExactCash              —                          —               consumed, nothing
  *   Ctrl+P      native               native                   discard partial→onPrint    native
  *   Esc         native               native                   partial? discard : onEscape native
  */
@@ -67,7 +74,7 @@ import {
 } from './useBarcodeScanner'
 
 export type ScanInputMode =
-  'page' | 'payment-tender' | 'payment-done' | 'payment-other' | 'inactive'
+  'page' | 'payment-tender' | 'payment-done' | 'payment-other' | 'inactive' | 'layout-edit'
 
 type RouterTarget = Pick<
   Window,
@@ -107,6 +114,8 @@ export interface ScanInputRouterOptions {
   readonly fieldBurstMaxGapMs?: number
   /** Done collection idle completion for suffix-less scanners. Default 150 ms; `null` disables. */
   readonly doneIdleCompleteMs?: number | null
+  /** Layout edit: how long after a burst a stray Enter/Space/Tab is still consumed. Default 300 ms. */
+  readonly layoutTerminatorGraceMs?: number
   /** Page mode pauses while this is true. Default: any `[aria-modal="true"]` is present. */
   readonly ownsKeyboard?: () => boolean
   readonly target?: RouterTarget
@@ -200,6 +209,7 @@ export function createScanInputRouter(options: ScanInputRouterOptions): ScanInpu
   const fieldBurstMaxGapMs = options.fieldBurstMaxGapMs ?? 30
   const doneIdleCompleteMs =
     options.doneIdleCompleteMs === undefined ? 150 : options.doneIdleCompleteMs
+  const layoutTerminatorGraceMs = options.layoutTerminatorGraceMs ?? 300
 
   const detector = createBarcodeDetector({
     onScan: options.onScan,
@@ -221,6 +231,8 @@ export function createScanInputRouter(options: ScanInputRouterOptions): ScanInpu
   let fieldBurst: FieldBurst | null = null
   /** A Space keydown was consumed, so its keyup must be too (Space activates on keyup). */
   let suppressSpaceKeyup = false
+  /** Layout edit: when the last scanner burst ended on a terminator. */
+  let lastLayoutBurstAt: number | null = null
 
   function clearIdleTimer(): void {
     if (idleTimer !== undefined) {
@@ -338,6 +350,39 @@ export function createScanInputRouter(options: ScanInputRouterOptions): ScanInpu
       event.stopPropagation()
     } else if (disposition === 'continued' && isSpace(event)) {
       // A Space inside a scan must not reach (and later activate) the focused control.
+      consumeSpaceAware(event)
+    }
+  }
+
+  /** Layout editing: capture scanner bursts and stray terminators; never pay. */
+  function handleLayoutEdit(event: KeyboardEvent): void {
+    if (ownsKeyboard()) {
+      detector.reset()
+      return
+    }
+
+    if (isF9(event)) {
+      detector.reset()
+      consume(event)
+      return
+    }
+
+    const disposition = detector.handleKeydown(event)
+    if (disposition === 'completed') {
+      event.stopPropagation()
+      lastLayoutBurstAt = now()
+      return
+    }
+    if (disposition === 'continued' && isSpace(event)) {
+      consumeSpaceAware(event)
+      return
+    }
+    const terminator = isEnter(event) || isSpace(event) || event.key === 'Tab'
+    if (
+      terminator &&
+      lastLayoutBurstAt !== null &&
+      now() - lastLayoutBurstAt <= layoutTerminatorGraceMs
+    ) {
       consumeSpaceAware(event)
     }
   }
@@ -512,6 +557,10 @@ export function createScanInputRouter(options: ScanInputRouterOptions): ScanInpu
       handlePage(event)
       return
     }
+    if (mode === 'layout-edit') {
+      handleLayoutEdit(event)
+      return
+    }
     if (isModifierOnlyKey(event.key)) {
       return
     }
@@ -551,7 +600,12 @@ export function createScanInputRouter(options: ScanInputRouterOptions): ScanInpu
       return
     }
     const mode = options.mode()
-    if (mode !== 'page' && mode !== 'inactive' && isCommitTarget(event.target)) {
+    if (
+      mode !== 'page' &&
+      mode !== 'inactive' &&
+      mode !== 'layout-edit' &&
+      isCommitTarget(event.target)
+    ) {
       consume(event)
     }
   }

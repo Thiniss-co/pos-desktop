@@ -30,6 +30,7 @@ import type { IpcResult } from '@shared/contracts/ipc.contract'
 import { i18n } from '@renderer/i18n'
 import { useShiftStore } from '../shift.store'
 import { useCartStore } from '../cart.store'
+import { useWorkspaceLayoutStore } from '@renderer/modules/preferences/posWorkspace.store'
 import PosPage from './PosPage.vue'
 
 const REVISION = 'a'.repeat(64)
@@ -458,6 +459,56 @@ describe('POS quick-sale column', () => {
     expect(wrapper.find('.scan-entry__result--success').text()).toContain('Service Item')
     // The field clears itself for the next scan.
     expect((wrapper.find('#scan-entry-input').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('POS workspace: a lookup still in flight when layout editing begins never reaches the cart', async () => {
+    const wrapper = await renderWithBarcode()
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => (release = resolve))
+    window.posApi.catalog.findProductByBarcode = vi.fn(async () => {
+      await pending
+      return ok({ outcome: 'found' as const, product: SERVICE_ITEM })
+    }) as unknown as Window['posApi']['catalog']['findProductByBarcode']
+
+    const entry = wrapper.findComponent({ name: 'ScanEntry' })
+    await entry.find('input').setValue('SVC-1')
+    await entry.find('form').trigger('submit')
+    // The Customize control refuses while the add is pending…
+    const customize = wrapper.get('[data-testid="workspace-customize"]')
+    expect(customize.attributes('disabled')).toBeDefined()
+    // …and even an editor opened anyway (the race itself) makes the late answer a no-op.
+    useWorkspaceLayoutStore().beginEdit()
+    release()
+    await flushPromises()
+
+    expect(useCartStore().lines).toHaveLength(0)
+    expect(wrapper.findComponent({ name: 'ScanEntry' }).props('result')?.message).toBe(
+      String(i18n.global.t('pos.workspace.edit.scannerPaused'))
+    )
+    useWorkspaceLayoutStore().cancel()
+  })
+
+  it('POS workspace: while editing, a submitted scan is refused and the cart is unchanged', async () => {
+    // F9 / Shift+F9 / Esc while editing are covered by scanInputRouter.test.ts (layout-edit) and the
+    // ws2checkout journey: window-level key events here would also reach other mounted pages.
+    const wrapper = await renderWithBarcode()
+    await scan(wrapper, 'SVC-1')
+    const cart = useCartStore()
+    expect(cart.lines).toHaveLength(1)
+    await wrapper.get('[data-testid="workspace-customize"]').trigger('click')
+    expect(useWorkspaceLayoutStore().editing).toBe(true)
+    expect(wrapper.find('[data-testid="workspace-edit-bar"]').exists()).toBe(true)
+
+    await scan(wrapper, 'SVC-1')
+    expect(cart.lines).toHaveLength(1)
+    expect(cart.lines[0].quantity).toBe('1.000')
+
+    useWorkspaceLayoutStore().cancel()
+    expect(useWorkspaceLayoutStore().editing).toBe(false)
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="workspace-edit-bar"]').exists()).toBe(false)
+    )
+    wrapper.unmount()
   })
 
   it('holds the sale, frees the till, and recalls it from the held list', async () => {

@@ -30,6 +30,7 @@ import { SyncQueueRepository } from '../../../src/main/repositories/syncQueue.re
 import { UploadDependencyRepository } from '../../../src/main/repositories/uploadDependency.repository'
 import { QuickCreateRepository } from '../../../src/main/repositories/quickCreate.repository'
 import { UserPreferencesRepository } from '../../../src/main/repositories/userPreferences.repository'
+import { WorkspaceLayoutRepository } from '../../../src/main/repositories/workspaceLayout.repository'
 import { FiscalContextRepository } from '../../../src/main/repositories/fiscalContext.repository'
 import { AutoPrintRepository } from '../../../src/main/repositories/autoPrint.repository'
 import { ReceiptPrintJobRepository } from '../../../src/main/repositories/receiptPrintJob.repository'
@@ -74,6 +75,7 @@ export interface RealRepositories {
   readonly uploadDependencies: UploadDependencyRepository
   readonly quickCreate: QuickCreateRepository
   readonly userPreferences: UserPreferencesRepository
+  readonly workspaceLayout: WorkspaceLayoutRepository
   readonly fiscalContexts: FiscalContextRepository
   readonly autoPrint: AutoPrintRepository
   readonly receiptPrintJobs: ReceiptPrintJobRepository
@@ -134,6 +136,7 @@ export function realRepositories(
     uploadDependencies: new UploadDependencyRepository(database),
     quickCreate: new QuickCreateRepository(database),
     userPreferences: new UserPreferencesRepository(database),
+    workspaceLayout: new WorkspaceLayoutRepository(database),
     fiscalContexts: new FiscalContextRepository(database),
     autoPrint: new AutoPrintRepository(database),
     receiptPrintJobs: new ReceiptPrintJobRepository(database),
@@ -165,6 +168,7 @@ export function realRepositories(
   assert.ok(repositories.uploadDependencies instanceof UploadDependencyRepository)
   assert.ok(repositories.quickCreate instanceof QuickCreateRepository)
   assert.ok(repositories.userPreferences instanceof UserPreferencesRepository)
+  assert.ok(repositories.workspaceLayout instanceof WorkspaceLayoutRepository)
   assert.ok(repositories.fiscalContexts instanceof FiscalContextRepository)
   assert.ok(repositories.autoPrint instanceof AutoPrintRepository)
   assert.ok(repositories.receiptPrintJobs instanceof ReceiptPrintJobRepository)

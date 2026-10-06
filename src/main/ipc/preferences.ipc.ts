@@ -18,8 +18,11 @@ import {
   preferencesGetPosCartWidthInputSchema,
   preferencesSetPosCartWidthInputSchema,
   preferencesGetUserInputSchema,
-  preferencesSetUserInputSchema
+  preferencesSetUserInputSchema,
+  preferencesGetPosWorkspaceInputSchema,
+  preferencesSetPosWorkspaceInputSchema
 } from '@shared/validators/ipc.validators'
+import type { PosWorkspaceReadResult } from '@shared/contracts/posWorkspace.contract'
 import type { ApplicationServices } from '../app/applicationServices'
 import { isPublicAppError } from '../http/apiError'
 import { assertTrustedSender } from './assertTrustedSender'
@@ -145,6 +148,30 @@ export function registerPreferencesIpcHandlers(services: ApplicationServices): v
 
     return handleIpcRequest(input, preferencesSetUserInputSchema, (preference) =>
       services.userPreferences.set(preference)
+    )
+  })
+  // POS workspace: presentation-only layout of the signed-in user on this workstation. The owner is
+  // the main-process session's; the payload is a strict, bounded layout plus the read's context token.
+  ipcMain.handle(IPC_CHANNELS.preferencesGetPosWorkspace, (event, input: unknown) => {
+    const rejected = rejectUntrustedSender<PosWorkspaceReadResult>(event)
+
+    if (rejected) {
+      return rejected
+    }
+
+    return handleIpcRequest(input, preferencesGetPosWorkspaceInputSchema, () =>
+      services.workspaceLayout.read()
+    )
+  })
+  ipcMain.handle(IPC_CHANNELS.preferencesSetPosWorkspace, (event, input: unknown) => {
+    const rejected = rejectUntrustedSender<PosWorkspaceReadResult>(event)
+
+    if (rejected) {
+      return rejected
+    }
+
+    return handleIpcRequest(input, preferencesSetPosWorkspaceInputSchema, (request) =>
+      services.workspaceLayout.write(request)
     )
   })
 }

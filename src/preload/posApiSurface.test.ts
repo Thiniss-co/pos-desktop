@@ -49,6 +49,23 @@ describe('posApi surface', () => {
     expect(source).not.toContain('posCartWidthSchema')
   })
 
+  it('exposes the POS workspace layout as two narrow named methods on fixed channels', () => {
+    expect(source).toContain('getPosWorkspace(): Promise<IpcResult<PosWorkspaceReadResult>>')
+    expect(source).toContain(
+      'setPosWorkspace(input: SetPosWorkspaceInput): Promise<IpcResult<PosWorkspaceReadResult>>'
+    )
+    expect(source).toContain(
+      'getPosWorkspace: () => ipcRenderer.invoke(IPC_CHANNELS.preferencesGetPosWorkspace)'
+    )
+    expect(source).toMatch(
+      /setPosWorkspace: \(input: SetPosWorkspaceInput\) =>\s*ipcRenderer\.invoke\(IPC_CHANNELS\.preferencesSetPosWorkspace, input\)/
+    )
+    // The layout is a strict, bounded, presentation-only shape validated in main (posWorkspace
+    // contract): no owner field, no cart/sale state, and no runtime schema inside the preload bundle.
+    expect(source).not.toMatch(/setPosWorkspace\([^)]*(user|company|device|cart|sale)\w*:/i)
+    expect(source).not.toContain('posWorkspaceLayoutSchema')
+  })
+
   it('contains only named company-user management methods', () => {
     expect(source).toContain('companyUsers')
     expect(source).toContain('listAssignableRoles')

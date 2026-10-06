@@ -93,6 +93,9 @@ export const IPC_CHANNELS = Object.freeze({
   // POS improvements, Stage 5: per-user preferences of the signed-in user.
   preferencesGetUser: 'preferences:get-user',
   preferencesSetUser: 'preferences:set-user',
+  // POS workspace: the signed-in user's selling-screen layout on this workstation.
+  preferencesGetPosWorkspace: 'preferences:get-pos-workspace',
+  preferencesSetPosWorkspace: 'preferences:set-pos-workspace',
   companyUsersGetAccess: 'company-users:get-access',
   companyUsersList: 'company-users:list',
   companyUsersGet: 'company-users:get',

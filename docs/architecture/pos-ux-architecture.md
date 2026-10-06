@@ -77,6 +77,7 @@ input.
 | `payment-done`   | committed sale awaiting "New sale"           | Explicit collection (non-space printable starts it), Enter/Tab ends it → `onDoneCode` (ordered, serialized); shorter than 3 → dropped with `onScannerIgnored`. |
 | `payment-other`  | blocked / completing / confirming            | Commit-class suppression and F9 only.                                                                                                                          |
 | `inactive`       | another dialog stacked on the payment dialog | Hands off.                                                                                                                                                     |
+| `layout-edit`    | the POS workspace layout editor is open      | The page detector still runs, so a burst is captured whatever has focus (its Space, Enter, Tab never reach the control) and `onScan` refuses it with a notice. |
 
 ### Guarantees (deterministic — none depends on timing)
 
@@ -95,6 +96,14 @@ input.
 4. **Done step.** Collection is captured before it reaches any focused control; Tab/Shift+Tab stay
    native focus navigation when not collecting. Esc discards a partial (a second Esc reaches
    `onEscape`); F9 / Ctrl+P discard a partial (with `onScannerIgnored`) and then act.
+
+5. **Layout editing (`layout-edit`).** While the POS workspace layout editor is open, a scanner
+   burst and its terminator are consumed wherever focus is, a stray Enter/Space/Tab within 300 ms
+   of a burst is consumed too, and F9 / Shift+F9 are consumed and do nothing. The page also refuses
+   every add while editing (before and after each catalog lookup) and disables its shortcuts, so a
+   scan can never change the cart, start checkout, activate Apply or write the layout. A standalone
+   Enter or Space keeps native activation: the editor stays fully keyboard-operable. The editor has
+   no text field. Settings → POS workspace mounts the same router in this mode while editing.
 
 ### Keyboard path
 
