@@ -134,7 +134,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change', 'subscription-lifecycle'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -157,6 +157,12 @@ if ($operation === 'inspect-suspension' && $argument !== '') {
 // the exact manual payment and activation with the production actions; `inspect-subscription` is read-only.
 if (in_array($operation, ['subscription-lapse', 'subscription-request', 'inspect-subscription', 'plan-capacity-change'], true) && $argument !== '') {
     sandboxRefuse($operation.' takes no argument');
+}
+
+// Platform Phase 6 (subscription lifecycle): `subscription-lifecycle <operation>[:days]` applies one lifecycle operation
+// through the production planner + action (preview fingerprint, reason, audit) as the platform fixture administrator.
+if ($operation === 'subscription-lifecycle' && preg_match('/^(end_now|suspend|resume|remove_grace|restore_grace|extend:[0-9]{1,3})$/', $argument) !== 1) {
+    sandboxRefuse('subscription-lifecycle takes end_now, suspend, resume, remove_grace, restore_grace or extend:<days>');
 }
 
 // Phase 4 closeout (O-7): `subscription-end-soon <seconds>` is a labelled precondition — the current period ends that many
@@ -734,6 +740,24 @@ $result = match ($operation) {
         app(\App\Modules\Subscriptions\Actions\Platform\UpdatePlatformPlanAction::class)->execute($platform, $plan, ['limits' => ['desktop_devices' => $devices]], (int) $plan->revision, (string) \Illuminate\Support\Str::uuid());
 
         return ['plan' => $plan->uuid, 'desktop_devices' => $plan->fresh()->limits['desktop_devices'] ?? null, 'revision' => (int) $plan->fresh()->revision];
+    })(),
+    'subscription-lifecycle' => (function () use ($company, $argument): array {
+        $platform = User::query()->firstOrCreate(
+            ['email' => 'platform.fixture@desktop-mvp.test'],
+            ['name' => 'Platform Fixture', 'password' => 'Password123!', 'company_id' => null, 'is_active' => true],
+        );
+        [$name, $days] = array_pad(explode(':', $argument), 2, null);
+        $operation = \App\Modules\Subscriptions\Enums\SubscriptionLifecycleOperation::from($name);
+        $days = $days === null ? null : (int) $days;
+        $plan = app(\App\Modules\Subscriptions\Services\SubscriptionLifecyclePlanner::class)->plan($company->fresh(), $operation, $days);
+
+        try {
+            $subscription = app(\App\Modules\Subscriptions\Actions\ApplySubscriptionLifecycleAction::class)->execute($platform, $company->fresh(), $operation, $days, 'Electron journey: '.$name, $plan->fingerprint);
+        } catch (\App\Shared\Exceptions\ApiException $refusal) {
+            return ['operation' => $name, 'applied' => false, 'refusal' => $refusal->errorCode->value, 'errors' => $refusal->errors];
+        }
+
+        return ['operation' => $name, 'applied' => true, 'status' => $subscription->status->value, 'expires_at' => (string) $subscription->expires_at, 'grace_ends_at' => (string) $subscription->grace_ends_at];
     })(),
     'inspect-subscription' => (function () use ($company): array {
         $row = fn (?CompanySubscription $subscription): ?array => $subscription === null ? null : [
