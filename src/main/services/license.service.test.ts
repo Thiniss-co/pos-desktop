@@ -334,7 +334,7 @@ describe('LicenseService — Rev 4 renewal leg', () => {
 
     await h.service.validate()
 
-    expect(h.bodies).toEqual([{ offline_sale_contract_version: 2, offline_coverage_version: 1 }])
+    expect(h.bodies).toEqual([{ offline_sale_contract_version: 2, offline_coverage_version: 1, access_sequence_version: 1 }])
     expect(h.transactions()).toBe(1)
     expect(h.secrets.get(DESKTOP_LICENSE_JWT_KEY)).toBeTruthy()
     expect(h.statuses).toHaveLength(1)
@@ -390,9 +390,9 @@ describe('LicenseService — Rev 4 renewal leg', () => {
     await h.service.validate()
 
     expect(h.bodies).toEqual([
-      { offline_sale_contract_version: 2, offline_coverage_version: 1 },
-      { offline_sale_contract_version: 1, offline_coverage_version: 1 },
-      { offline_sale_contract_version: 1, offline_coverage_version: 1 }
+      { offline_sale_contract_version: 2, offline_coverage_version: 1, access_sequence_version: 1 },
+      { offline_sale_contract_version: 1, offline_coverage_version: 1, access_sequence_version: 1 },
+      { offline_sale_contract_version: 1, offline_coverage_version: 1, access_sequence_version: 1 }
     ])
     expect((h.observed[0] as { published: Record<string, unknown> }).published).not.toHaveProperty(
       'warehouse_uuid'

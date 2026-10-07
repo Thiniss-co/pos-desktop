@@ -94,13 +94,13 @@ export const DESKTOP_API_ROUTES = Object.freeze({
    * send it keeps the current period's end.
    */
   bootstrap: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2&offers_version=1&offline_coverage_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=2&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2&offers_version=1&offline_coverage_version=1&access_sequence_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true
   },
   bootstrapOfflineSaleV1: {
-    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2&offers_version=1&offline_coverage_version=1',
+    path: '/bootstrap?allocation_payload_version=2&offline_sale_contract_version=1&refund_contract_version=1&receipt_profile_version=2&product_image_version=1&company_branding_version=1&quick_create_version=1&catalog_tax_policy_version=2&fiscal_identity_version=1&receipt_snapshot_version=2&offers_version=1&offline_coverage_version=1&access_sequence_version=1',
     method: 'GET',
     requiresAuth: true,
     requiresDeviceUuid: true

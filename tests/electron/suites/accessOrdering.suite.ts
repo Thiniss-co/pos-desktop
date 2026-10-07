@@ -9,7 +9,6 @@ import {
 import { LicenseService } from '../../../src/main/services/license.service'
 import { captureRenewalOwner } from '../../../src/main/services/renewalOwner'
 import { SecureStorageService } from '../../../src/main/services/secureStorage.service'
-import { AppSettingsRepository } from '../../../src/main/repositories/appSettings.repository'
 import { fakeSafeStorage } from '../support/fakeSafeStorage'
 import { openExistingTestDatabase, openTestDatabase } from '../support/openTestDatabase'
 import { realRepositories } from '../support/realRepositories'
@@ -75,7 +74,7 @@ interface Harness {
 function harness(database: ReturnType<typeof openTestDatabase>): Harness {
   const repositories = realRepositories(database)
   const secure = new SecureStorageService(repositories.secureSecrets, fakeSafeStorage())
-  const store = new SettingsAccessSequenceStore(new AppSettingsRepository(database))
+  const store = new SettingsAccessSequenceStore(repositories.appSettings)
   const owner = (): ReturnType<typeof captureRenewalOwner> =>
     captureRenewalOwner({
       session: repositories.sessionMetadata,

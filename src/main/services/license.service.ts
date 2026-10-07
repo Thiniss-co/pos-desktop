@@ -141,7 +141,10 @@ export class LicenseService {
           offline_sale_contract_version: this.offlineSaleContractVersion,
           // Phase 4 closeout (O-7): this app understands `subscription.offline_coverage`. Without it the server extends
           // nothing (an older app's own access decision would otherwise sell through the current period's grace).
-          offline_coverage_version: 1
+          offline_coverage_version: 1,
+          // Platform Phase 6 (C3): this app orders access answers by `meta.access_sequence`; the server returns the
+          // sequence only to apps that declare it, so older builds keep today's responses.
+          access_sequence_version: 1
         })
         return {
           response: answer.data,
