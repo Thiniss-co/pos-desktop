@@ -184,7 +184,9 @@ export const licenseResourceSchema = z
       .object({
         status: z.string(),
         expires_at: z.string().nullable(),
-        grace_ends_at: z.string().nullable()
+        grace_ends_at: z.string().nullable(),
+        // Phase 4 closeout (O-7), additive; absent from older backends.
+        offline_coverage: z.unknown().optional()
       })
       .passthrough()
       .nullable(),

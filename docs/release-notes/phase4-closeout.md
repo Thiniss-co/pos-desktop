@@ -15,6 +15,19 @@ Backend counterpart: `pos-backend` `feat/platform-plans-subscriptions`, `docs/re
   it — a claimed attempt keeps its row state, and the code is not stored). Details and tests:
   [FU-P4-1](../audits/follow-ups/FU-P4-1-refused-draft-recovery.md).
 
+## Offline selling across a paid, scheduled renewal (O-7)
+
+- The license response's additive `subscription.offline_coverage` is parsed, stored with the license status (it survives
+  restarts) and used by the local access decision when it starts exactly at the current period's end. The authority and
+  catalog the server issued already end at the renewal's end, so a till that validated after the renewal was scheduled
+  keeps selling offline across the old boundary; its sales upload once it reconnects.
+- A renewal with different entitlements, an unpaid one, or one the till never heard about changes nothing: the till stops
+  at the current period's end as before. Every other check (validation due, device, company, suspension, feature,
+  permission, authority window, catalog window) is unchanged.
+- Test harness: sandbox operations `subscription-end-soon` (labelled precondition), `plan-capacity-change` (platform plan
+  edit action), `report` gains `sold_at`/`authority`, `inspect-subscription` gains the last coverage decision; Electron
+  journey `p4renewaloffline`.
+
 ## Not changed
 
 - Unfinished carts are still not restored after an app restart (FU-P3-3).

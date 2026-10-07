@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DesktopApiClient } from '../http/desktopApiClient'
+import { licenseStatusSchema, type LicenseStatus } from '@shared/contracts/license.contract'
 import { DESKTOP_LICENSE_JWT_KEY, LicenseService } from './license.service'
 
 function licenseSuccessEnvelope(): Record<string, unknown> {
@@ -130,6 +131,62 @@ describe('LicenseService', () => {
     expect(status.serverTime).toBe('2026-08-23T14:21:41+00:00')
     expect(storedStatus).toEqual(status)
     expect(secrets.get(DESKTOP_LICENSE_JWT_KEY)).toBe('signed.jwt.value-should-never-leak')
+  })
+
+  it('Phase 4 closeout: keeps a covered renewal in the stored status and drops a malformed one', async () => {
+    const run = async (coverage: unknown): Promise<unknown> => {
+      const apiClient = new DesktopApiClient({
+        apiOrigin: new URL('https://api.example.test'),
+        getAccessToken: () => 'token',
+        getDeviceUuid: () => 'device-uuid',
+        fetchImplementation: (async () => ({
+          ok: true,
+          status: 200,
+          json: async () => {
+            const envelope = licenseSuccessEnvelope()
+            const data = envelope.data as Record<string, unknown>
+            data.subscription = {
+              status: 'active',
+              expires_at: '2026-10-07T12:00:00+00:00',
+              grace_ends_at: '2026-10-14T12:00:00+00:00',
+              offline_coverage: coverage
+            }
+            return envelope
+          }
+        })) as unknown as typeof fetch
+      })
+      let storedStatus: unknown
+      await new LicenseService(
+        apiClient,
+        {
+          getTrustedTimeAnchor: () => null,
+          setValidatedStatus: (status) => (storedStatus = status)
+        },
+        { setSecret: () => undefined },
+        () => new Date('2026-10-07T10:00:00Z')
+      ).validate()
+      return storedStatus
+    }
+
+    const stored = (await run({
+      renewal_id: 'b6f1c7a8-9d0e-4f1a-8b2c-3d4e5f607182',
+      starts_at: '2026-10-07T12:00:00+00:00',
+      expires_at: '2026-11-07T12:00:00+00:00',
+      grace_ends_at: '2026-11-14T12:00:00+00:00'
+    })) as LicenseStatus
+    expect(stored.subscription?.offlineCoverage).toEqual({
+      renewalId: 'b6f1c7a8-9d0e-4f1a-8b2c-3d4e5f607182',
+      startsAt: '2026-10-07T12:00:00+00:00',
+      expiresAt: '2026-11-07T12:00:00+00:00',
+      graceEndsAt: '2026-11-14T12:00:00+00:00'
+    })
+    // What the metadata repository writes and reads back after a restart (JSON + the strict schema).
+    expect(licenseStatusSchema.parse(JSON.parse(JSON.stringify(stored)))).toEqual(stored)
+
+    const malformed = (await run({ renewal_id: 'x', starts_at: 'not-a-date' })) as LicenseStatus
+    expect(malformed.subscription?.offlineCoverage).toBeNull()
+    const absent = (await run(undefined)) as LicenseStatus
+    expect(absent.subscription?.offlineCoverage).toBeNull()
   })
 
   it('does not advance cached commercial access after an invalid license response', async () => {

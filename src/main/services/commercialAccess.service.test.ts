@@ -237,6 +237,101 @@ describe('CommercialAccessService', () => {
     expect(reasonFor(atGraceEnd, 'sync')).toBe('grace-ended')
   })
 
+  describe('Phase 4 closeout: offline access across a covered, scheduled renewal', () => {
+    // Current period ends 2026-01-02T00:00Z with NO grace; the server covered a paid, identical renewal to 2026-02-02.
+    const covered = (coverage: unknown = undefined): LicenseStatus =>
+      validLicense({
+        nextValidationDueAt: '2038-01-19T00:00:00Z',
+        subscription: {
+          status: 'active',
+          expiresAt: '2026-01-02T00:00:00Z',
+          graceEndsAt: '2026-01-02T00:00:00Z',
+          ...(coverage === undefined
+            ? {
+                offlineCoverage: {
+                  renewalId: '11111111-1111-4111-8111-111111111111',
+                  startsAt: '2026-01-02T00:00:00Z',
+                  expiresAt: '2026-02-02T00:00:00Z',
+                  graceEndsAt: '2026-02-09T00:00:00Z'
+                }
+              }
+            : { offlineCoverage: coverage })
+        } as LicenseStatus['subscription']
+      })
+    const at = (license: LicenseStatus, now: string): CommercialAccessService =>
+      createService({ license, now }).service
+
+    it('without coverage the old period end stops selling at its exact instant (unchanged)', () => {
+      const license = covered(null)
+      expect(at(license, '2026-01-01T23:59:59.999Z').evaluate('sell').allowed).toBe(true)
+      expect(reasonFor(at(license, '2026-01-02T00:00:00Z'), 'sell')).toBe('grace-ended')
+    })
+
+    it('keeps selling across the old boundary, enters the renewal grace at its end and stops at the renewal grace end', () => {
+      const license = covered()
+      expect(at(license, '2026-01-02T00:00:00Z').evaluate('sell')).toMatchObject({
+        allowed: true,
+        warning: null
+      })
+      expect(at(license, '2026-02-01T23:59:59.999Z').evaluate('sell')).toMatchObject({
+        allowed: true,
+        warning: null
+      })
+      expect(at(license, '2026-02-02T00:00:00Z').evaluate('sell')).toMatchObject({
+        allowed: true,
+        warning: 'grace'
+      })
+      expect(reasonFor(at(license, '2026-02-09T00:00:00Z'), 'sell')).toBe('grace-ended')
+    })
+
+    it('ignores a coverage that does not start exactly at the current end or is malformed (fail-closed)', () => {
+      for (const coverage of [
+        {
+          renewalId: '11111111-1111-4111-8111-111111111111',
+          startsAt: '2026-01-02T00:00:01Z',
+          expiresAt: '2026-02-02T00:00:00Z',
+          graceEndsAt: null
+        },
+        {
+          renewalId: '11111111-1111-4111-8111-111111111111',
+          startsAt: '2026-01-02T00:00:00Z',
+          expiresAt: '2026-01-01T00:00:00Z',
+          graceEndsAt: null
+        },
+        {
+          renewalId: '11111111-1111-4111-8111-111111111111',
+          startsAt: '2026-01-02T00:00:00Z',
+          expiresAt: '2026-02-02T00:00:00Z',
+          graceEndsAt: '2026-02-01T00:00:00Z'
+        }
+      ]) {
+        expect(reasonFor(at(covered(coverage), '2026-01-02T00:00:00Z'), 'sell')).toBe('grace-ended')
+      }
+    })
+
+    it('never outlives validation-overdue, device or permission restrictions', () => {
+      const license = { ...covered(), nextValidationDueAt: '2026-01-10T00:00:00Z' }
+      expect(reasonFor(at(license, '2026-01-10T00:00:00Z'), 'sell')).toBe('validation-overdue')
+      expect(
+        reasonFor(
+          createService({
+            license: covered(),
+            now: '2026-01-05T00:00:00Z',
+            device: { status: 'revoked' }
+          }).service,
+          'sell'
+        )
+      ).toBe('device-revoked')
+      expect(
+        reasonFor(
+          createService({ license: covered(), now: '2026-01-05T00:00:00Z', companySuspended: true })
+            .service,
+          'sell'
+        )
+      ).toBe('company-suspended')
+    })
+  })
+
   it('does not let connectivity mask an earlier denial or grant a sell', () => {
     let reads = 0
     const { service, state } = createService({

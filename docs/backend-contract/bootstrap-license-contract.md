@@ -18,7 +18,17 @@ token       string   (signed HS256 JWT, server secret — this app does NOT loca
 expires_at  ISO8601 string
 access      { is_active, is_trial, is_in_grace, is_expired, is_suspended, can_login, can_sell,
               can_sync, can_activate_device, restriction_level, warning_message? }
+subscription { status, expires_at, grace_ends_at, offline_coverage? } | null   — the CURRENT period
+offline_coverage { renewal_id, starts_at, expires_at, grace_ends_at } | null   (Phase 4 closeout, O-7)
 ```
+
+`subscription.offline_coverage` (additive; absent from older backends) names a paid renewal with identical entitlements
+that was already scheduled when the server validated. The server has already bounded the offline authority (`not_after`)
+and the next catalog (`valid_until`) by its end. `LicenseService` stores it as `subscription.offlineCoverage` (a malformed
+block is dropped, never fatal), and `CommercialAccessService` uses its `expiresAt`/`graceEndsAt` instead of the current
+period's only when `startsAt` equals the current `expiresAt`; every other local check is unchanged. Without it the till
+stops at the current period's end (fail-closed). Backend contract: pos-backend
+`docs/architecture/subscriptions-devices-licensing.md` § Offline authority across a scheduled renewal.
 
 This app's `LicenseService.validate()` (`src/main/services/license.service.ts`) builds a sanitized
 `LicenseStatus` (`src/shared/contracts/license.contract.ts`) from the `access` object plus

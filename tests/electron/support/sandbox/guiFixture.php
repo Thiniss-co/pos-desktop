@@ -134,7 +134,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -155,8 +155,17 @@ if ($operation === 'inspect-suspension' && $argument !== '') {
 // current period ended and its grace passed — access is computed from these dates, there is no expiry job);
 // `subscription-request` places a same-plan, same-cycle request as the company admin and takes it through approval,
 // the exact manual payment and activation with the production actions; `inspect-subscription` is read-only.
-if (in_array($operation, ['subscription-lapse', 'subscription-request', 'inspect-subscription'], true) && $argument !== '') {
+if (in_array($operation, ['subscription-lapse', 'subscription-request', 'inspect-subscription', 'plan-capacity-change'], true) && $argument !== '') {
     sandboxRefuse($operation.' takes no argument');
+}
+
+// Phase 4 closeout (O-7): `subscription-end-soon <seconds>` is a labelled precondition — the current period ends that many
+// seconds from now with no grace, so a journey can cross the period boundary in real time (server and till alike);
+// `plan-capacity-change` edits the current plan in place for future requests through the platform action (Phase 4B), so
+// the next renewal's recorded entitlements differ from the current period's.
+if ($operation === 'subscription-end-soon'
+    && (preg_match('/^\d{2,3}$/', $argument) !== 1 || (int) $argument < 60 || (int) $argument > 900)) {
+    sandboxRefuse('subscription-end-soon needs <seconds 60-900>');
 }
 
 if ($operation === 'mode-physical-presence' && $argument !== ''
@@ -322,6 +331,11 @@ $result = match ($operation) {
                 'server_invoices' => $invoiceIds->count(),
                 'stock_movements' => DB::table('stock_movements')->whereIn('pos_invoice_id', $invoiceIds)->count(),
                 'sold_while_offline' => DB::table('pos_invoices')->whereIn('id', $invoiceIds)->pluck('sold_while_offline')->map(fn ($v): bool => (bool) $v)->all(),
+                // Phase 4 closeout: when the sale was rung and under which offline authority (read-only).
+                'sold_at' => DB::table('pos_invoices')->whereIn('id', $invoiceIds)->pluck('sold_at')->map(fn ($v): string => (string) $v)->all(),
+                'authority' => DB::table('pos_invoices')->whereIn('pos_invoices.id', $invoiceIds)
+                    ->leftJoin('pos_offline_sale_authorities', 'pos_offline_sale_authorities.id', '=', 'pos_invoices.offline_sale_authority_id')
+                    ->pluck('pos_offline_sale_authorities.uuid')->all(),
             ];
         }
 
@@ -699,7 +713,25 @@ $result = match ($operation) {
         }
 
         return ['order' => $order->uuid, 'activated' => true, 'outcome' => $created->starts_at?->isFuture() ? 'scheduled' : 'started',
-            'starts_at' => (string) $created->starts_at, 'expires_at' => (string) $created->expires_at];
+            'starts_at' => (string) $created->starts_at, 'expires_at' => (string) $created->expires_at, 'grace_ends_at' => (string) $created->grace_ends_at];
+    })(),
+    'subscription-end-soon' => (function () use ($company, $argument): array {
+        $subscription = $company->currentSubscription()->firstOrFail();
+        $end = now()->addSeconds((int) $argument)->startOfSecond();
+        $subscription->forceFill(['expires_at' => $end, 'renews_at' => $end, 'grace_ends_at' => $end])->save();
+
+        return ['subscription' => $subscription->id, 'expires_at' => (string) $subscription->expires_at, 'grace_ends_at' => (string) $subscription->grace_ends_at, 'injected' => true];
+    })(),
+    'plan-capacity-change' => (function () use ($company): array {
+        $platform = User::query()->firstOrCreate(
+            ['email' => 'platform.fixture@desktop-mvp.test'],
+            ['name' => 'Platform Fixture', 'password' => 'Password123!', 'company_id' => null, 'is_active' => true],
+        );
+        $plan = $company->currentSubscription()->with('plan')->firstOrFail()->plan;
+        $devices = (int) ($plan->limits['desktop_devices'] ?? 0) + 1;
+        app(\App\Modules\Subscriptions\Actions\Platform\UpdatePlatformPlanAction::class)->execute($platform, $plan, ['limits' => ['desktop_devices' => $devices]], (int) $plan->revision, (string) \Illuminate\Support\Str::uuid());
+
+        return ['plan' => $plan->uuid, 'desktop_devices' => $plan->fresh()->limits['desktop_devices'] ?? null, 'revision' => (int) $plan->fresh()->revision];
     })(),
     'inspect-subscription' => (function () use ($company): array {
         $row = fn (?CompanySubscription $subscription): ?array => $subscription === null ? null : [
@@ -714,6 +746,8 @@ $result = match ($operation) {
             'offline_limits_enforced' => (bool) config('pos_offline_sale.offline_limits.enforced'),
             'authorities' => DB::table('pos_offline_sale_authorities')->where('company_id', $company->id)->orderBy('id')
                 ->get(['uuid', 'issued_at', 'not_after', 'superseded_at', 'revoked_at'])->map(fn ($row): array => (array) $row)->all(),
+            // Phase 4 closeout: the coverage decision of the latest licence validation (audit context; absent before it).
+            'coverage' => \App\Modules\Licensing\Models\LicenseEvent::query()->where('company_id', $company->id)->latest('id')->first()?->context['offline_coverage'] ?? null,
         ];
     })(),
     'authorities' => [

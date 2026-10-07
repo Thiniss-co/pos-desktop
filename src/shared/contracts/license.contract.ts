@@ -5,11 +5,29 @@ import { z } from 'zod'
 // we write ourselves via Date#toISOString().
 const isoDateTimeSchema = z.iso.datetime({ offset: true })
 
+/**
+ * Phase 4 closeout (O-7): a paid renewal with identical entitlements, scheduled when this license was validated. The
+ * server already bounded the offline authority and catalog by its end; the local access decision uses it only when it
+ * starts exactly at the current period's end (see `CommercialAccessService`).
+ */
+export const licenseOfflineCoverageSchema = z
+  .object({
+    renewalId: z.string().min(1),
+    startsAt: isoDateTimeSchema,
+    expiresAt: isoDateTimeSchema,
+    graceEndsAt: isoDateTimeSchema.nullable()
+  })
+  .strict()
+
+export type LicenseOfflineCoverage = z.infer<typeof licenseOfflineCoverageSchema>
+
 export const licenseSubscriptionSchema = z
   .object({
     status: z.string(),
     expiresAt: isoDateTimeSchema.nullable(),
-    graceEndsAt: isoDateTimeSchema.nullable()
+    graceEndsAt: isoDateTimeSchema.nullable(),
+    // Optional: statuses persisted by earlier builds have no such key.
+    offlineCoverage: licenseOfflineCoverageSchema.nullable().optional()
   })
   .strict()
 

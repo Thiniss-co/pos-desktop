@@ -1,5 +1,10 @@
 import { ZodError } from 'zod'
-import { licenseStatusSchema, type LicenseStatus } from '@shared/contracts/license.contract'
+import {
+  licenseOfflineCoverageSchema,
+  licenseStatusSchema,
+  type LicenseOfflineCoverage,
+  type LicenseStatus
+} from '@shared/contracts/license.contract'
 import { publicAppErrorSchema, type PublicAppError } from '@shared/contracts/api.contract'
 import { DESKTOP_API_ROUTES } from '@shared/constants/apiRoutes'
 import type { DesktopApiClient } from '../http/desktopApiClient'
@@ -61,6 +66,24 @@ export function isUnsupportedOfflineSaleVersion(error: unknown): boolean {
 
 function ownerUnchanged(captured: RenewalOwner | null, current: RenewalOwner | null): boolean {
   return captured === null && current === null ? true : sameRenewalOwner(captured, current)
+}
+
+/**
+ * Phase 4 closeout (O-7): the server's covered renewal, or null. A malformed block is dropped rather than failing the
+ * whole validation: without it the till keeps the current period's end (the fail-closed reading).
+ */
+function offlineCoverage(value: unknown): LicenseOfflineCoverage | null {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return null
+  }
+  const block = value as Record<string, unknown>
+  const parsed = licenseOfflineCoverageSchema.safeParse({
+    renewalId: block.renewal_id,
+    startsAt: block.starts_at,
+    expiresAt: block.expires_at,
+    graceEndsAt: block.grace_ends_at ?? null
+  })
+  return parsed.success ? parsed.data : null
 }
 
 function timestampValue(value: string): number {
@@ -138,7 +161,8 @@ export class LicenseService {
           ? {
               status: resource.subscription.status,
               expiresAt: resource.subscription.expires_at,
-              graceEndsAt: resource.subscription.grace_ends_at
+              graceEndsAt: resource.subscription.grace_ends_at,
+              offlineCoverage: offlineCoverage(resource.subscription.offline_coverage)
             }
           : null
       })

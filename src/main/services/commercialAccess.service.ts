@@ -84,6 +84,34 @@ function timestamp(value: string): number | null {
   return Number.isNaN(result) ? null : result
 }
 
+/**
+ * The server's covered renewal, used only when it continues the current period exactly (starts at its `expiresAt`) and
+ * is a well-formed period; anything else is ignored, so the current period's end applies (fail-closed).
+ */
+function coveredRenewal(
+  status: LicenseStatus,
+  currentExpiresAt: number | null
+): { readonly expiresAt: number; readonly graceEndsAt: number | null } | null {
+  const coverage = status.subscription?.offlineCoverage
+  if (!coverage || currentExpiresAt === null) {
+    return null
+  }
+  const startsAt = timestamp(coverage.startsAt)
+  const expiresAt = timestamp(coverage.expiresAt)
+  const graceEndsAt = coverage.graceEndsAt === null ? null : timestamp(coverage.graceEndsAt)
+  if (
+    startsAt === null ||
+    expiresAt === null ||
+    (coverage.graceEndsAt !== null && graceEndsAt === null) ||
+    startsAt !== currentExpiresAt ||
+    expiresAt <= startsAt ||
+    (graceEndsAt !== null && graceEndsAt < expiresAt)
+  ) {
+    return null
+  }
+  return { expiresAt, graceEndsAt }
+}
+
 function messageForReason(reason: CommercialAccessReason): string {
   const messages: Record<CommercialAccessReason, string> = {
     'device-not-registered': 'This workstation is not registered to an active device.',
@@ -284,7 +312,17 @@ export class CommercialAccessService {
       return null
     }
 
-    return { status, trustedTimeAnchor, expiresAt, graceEndsAt, nextValidationDueAt }
+    // Phase 4 closeout (O-7): a covered renewal moves only the subscription-derived end. Every other check (validation
+    // due, device, company, suspension, permission, the authority and the catalog) stays as it is.
+    const covered = coveredRenewal(status, expiresAt)
+
+    return {
+      status,
+      trustedTimeAnchor,
+      expiresAt: covered ? covered.expiresAt : expiresAt,
+      graceEndsAt: covered ? covered.graceEndsAt : graceEndsAt,
+      nextValidationDueAt
+    }
   }
 
   private connectivityReason(action: CommercialAccessAction): CommercialAccessReason | null {
