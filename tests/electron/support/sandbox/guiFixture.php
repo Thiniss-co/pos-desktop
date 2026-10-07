@@ -134,7 +134,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -149,6 +149,14 @@ if (in_array($operation, ['suspend-company', 'resume-company'], true) && $argume
 }
 if ($operation === 'inspect-suspension' && $argument !== '') {
     sandboxRefuse('inspect-suspension takes no argument');
+}
+
+// Platform Phase 4 (plans, requests, review, payment, activation): `subscription-lapse` is a labelled precondition (the
+// current period ended and its grace passed — access is computed from these dates, there is no expiry job);
+// `subscription-request` places a same-plan, same-cycle request as the company admin and takes it through approval,
+// the exact manual payment and activation with the production actions; `inspect-subscription` is read-only.
+if (in_array($operation, ['subscription-lapse', 'subscription-request', 'inspect-subscription'], true) && $argument !== '') {
+    sandboxRefuse($operation.' takes no argument');
 }
 
 if ($operation === 'mode-physical-presence' && $argument !== ''
@@ -477,7 +485,8 @@ $result = match ($operation) {
     })(),
     'company-feature' => (function () use ($argument, $company): array {
         [$feature, $flag] = explode(':', $argument, 2);
-        $subscription = \App\Modules\Subscriptions\Models\CompanySubscription::query()->where('company_id', $company->id)->orderByDesc('id')->firstOrFail();
+        // The subscription in effect (a scheduled renewal starting later is a newer row but not the current one).
+        $subscription = $company->currentSubscription()->firstOrFail();
         $subscription->update(['features_snapshot' => array_merge((array) $subscription->features_snapshot, [$feature => $flag === '1'])]);
 
         return ['feature' => $feature, 'enabled' => $flag === '1', 'injected' => true];
@@ -658,6 +667,53 @@ $result = match ($operation) {
                 'revoked' => DB::table('desktop_access_tokens')->where('company_id', $company->id)->whereNotNull('revoked_at')->count(),
             ],
             'license_tokens' => DB::table('license_tokens')->count(),
+        ];
+    })(),
+    'subscription-lapse' => (function () use ($company): array {
+        $subscription = $company->currentSubscription()->firstOrFail();
+        $subscription->forceFill(['expires_at' => now()->subDays(30), 'grace_ends_at' => now()->subDays(20)])->save();
+
+        return ['subscription' => $subscription->id, 'expires_at' => (string) $subscription->expires_at, 'grace_ends_at' => (string) $subscription->grace_ends_at, 'injected' => true];
+    })(),
+    'subscription-request' => (function () use ($company, $actor): array {
+        $platform = User::query()->firstOrCreate(
+            ['email' => 'platform.fixture@desktop-mvp.test'],
+            ['name' => 'Platform Fixture', 'password' => 'Password123!', 'company_id' => null, 'is_active' => true],
+        );
+        $current = $company->currentSubscription()->with('plan')->firstOrFail();
+        $order = app(\App\Modules\Subscriptions\Actions\CreateCompanySubscriptionOrderAction::class)->execute($company->id, $actor, [
+            'plan_uuid' => $current->plan->uuid, 'billing_cycle' => $current->billing_cycle->value, 'addons' => [], 'notes' => 'Electron journey renewal',
+        ]);
+        app(\App\Modules\Subscriptions\Actions\ReviewSubscriptionOrderAction::class)->execute($platform, $order, true, 'Electron journey: verified', null, (int) $order->revision, (string) \Illuminate\Support\Str::uuid());
+        if ((int) $order->fresh()->total_amount > 0) {
+            app(\App\Modules\Subscriptions\Actions\RecordManualSubscriptionPaymentAction::class)->execute($order->fresh(), $platform, [
+                'amount' => (int) $order->total_amount, 'currency' => $order->currency, 'method' => 'bank_transfer', 'reference' => 'EJ-'.$order->uuid,
+            ]);
+        }
+        $plan = app(\App\Modules\Subscriptions\Services\SubscriptionActivationPlanner::class)->plan($order->fresh(), $company->fresh());
+
+        try {
+            $created = app(\App\Modules\Subscriptions\Actions\ActivateSubscriptionOrderAction::class)->execute($order->fresh(), $platform, $plan->fingerprint);
+        } catch (\App\Shared\Exceptions\ApiException $refusal) {
+            return ['order' => $order->uuid, 'activated' => false, 'refusal' => $refusal->errorCode->value];
+        }
+
+        return ['order' => $order->uuid, 'activated' => true, 'outcome' => $created->starts_at?->isFuture() ? 'scheduled' : 'started',
+            'starts_at' => (string) $created->starts_at, 'expires_at' => (string) $created->expires_at];
+    })(),
+    'inspect-subscription' => (function () use ($company): array {
+        $row = fn (?CompanySubscription $subscription): ?array => $subscription === null ? null : [
+            'id' => $subscription->id, 'status' => $subscription->status->value, 'starts_at' => (string) $subscription->starts_at,
+            'expires_at' => (string) $subscription->expires_at, 'grace_ends_at' => (string) $subscription->grace_ends_at,
+        ];
+
+        return [
+            'current' => $row($company->currentSubscription()->first()),
+            'scheduled' => $row($company->scheduledSubscription()->first()),
+            'rows' => CompanySubscription::query()->where('company_id', $company->id)->count(),
+            'offline_limits_enforced' => (bool) config('pos_offline_sale.offline_limits.enforced'),
+            'authorities' => DB::table('pos_offline_sale_authorities')->where('company_id', $company->id)->orderBy('id')
+                ->get(['uuid', 'issued_at', 'not_after', 'superseded_at', 'revoked_at'])->map(fn ($row): array => (array) $row)->all(),
         ];
     })(),
     'authorities' => [
