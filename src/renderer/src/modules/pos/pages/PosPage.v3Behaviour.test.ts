@@ -336,6 +336,57 @@ describe('POS page V3 cart and checkout behaviour', () => {
     expect(panel.props('open')).toBe(false)
   })
 
+  it('a refused, never-claimed sale leaves the draft usable: dismiss, Clear (cancel), then exact cash pays it again', async () => {
+    // Phase 4 closeout (lapsed subscription): main refused before claiming anything (`attemptKey: null`) and the
+    // status re-check is unavailable. The draft must not stay locked, and Shift+F9 / Exact cash must submit again with
+    // the one exact-cash row the refused press left — never silently do nothing, never add a second row.
+    const { wrapper } = await renderPos()
+    await addBothProducts(wrapper)
+    const checkout = window.posApi.checkout as unknown as Record<string, ReturnType<typeof vi.fn>>
+    checkout.attemptStatus.mockImplementation(async () => {
+      throw new Error('status unavailable')
+    })
+    const submitted: { attemptKey: string; payments: number }[] = []
+    checkout.complete.mockImplementation(
+      async (input: { attemptKey: string; intent: { payments: unknown[] } }) => {
+        submitted.push({ attemptKey: input.attemptKey, payments: input.intent.payments.length })
+        return ok({ outcome: 'failed', code: 'access-denied', attemptKey: null })
+      }
+    )
+    const payment = usePaymentStore()
+
+    await wrapper.get('[data-testid="exact-cash"]').trigger('click')
+    await flushPromises()
+    expect(submitted).toHaveLength(1)
+    expect(payment.attemptProtected).toBe(false)
+    expect(payment.rows).toHaveLength(1)
+    const panel = wrapper.getComponent(PaymentPanel)
+    expect(panel.props('open')).toBe(true)
+
+    // Dismissing the dialog drops the stale refusal (it is not state of the draft).
+    panel.vm.$emit('close')
+    await flushPromises()
+    expect(payment.completionOutcome).toBeNull()
+
+    // Clear cart opens its confirmation; Cancel keeps the draft and its tender.
+    await openClearCart(wrapper)
+    const confirm = wrapper.getComponent(AppConfirmDialog)
+    expect(confirm.props('open')).toBe(true)
+    confirm.vm.$emit('cancel')
+    await flushPromises()
+    expect(useCartStore().lines).toHaveLength(2)
+
+    // Exact cash again: a new submission of the same draft with the same single row.
+    const exactCash = wrapper.get('[data-testid="exact-cash"]')
+    expect(exactCash.attributes('disabled')).toBeUndefined()
+    await exactCash.trigger('click')
+    await flushPromises()
+    expect(submitted).toHaveLength(2)
+    expect(submitted[1].payments).toBe(1)
+    expect(submitted[1].attemptKey).not.toBe(submitted[0].attemptKey)
+    expect(payment.rows).toHaveLength(1)
+  })
+
   it('acknowledging an unrelated recovery result leaves the open payment panel alone', async () => {
     const { wrapper } = await renderPos()
     await addBothProducts(wrapper)

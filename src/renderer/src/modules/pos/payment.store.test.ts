@@ -1091,3 +1091,227 @@ describe('usePaymentStore — POS reliability rev 3 editable tender state', () =
     expect(store.rows).toHaveLength(1)
   })
 })
+
+describe('usePaymentStore — Phase 4 closeout: a refused sale that main never claimed', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  // Main refuses before any claim (e.g. the subscription lapsed): it answers `attemptKey: null`,
+  // which is a KNOWN outcome — nothing durable exists for the key.
+  const refusal = (): CheckoutCompletionOutcome => ({
+    outcome: 'failed',
+    code: 'access-denied',
+    attemptKey: null
+  })
+  const committedFor = (key: string): CheckoutCompletionOutcome => ({
+    outcome: 'committed',
+    attemptKey: key,
+    invoice: { soldAt: '2026-01-01T00:00:00.000Z' } as never,
+    items: [],
+    payments: [],
+    replay: false
+  })
+
+  it('leaves nothing protected and releases the key at once, even when the status re-check fails', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    let statusCalls = 0
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => undefined,
+      {
+        complete: async () => refusal(),
+        attemptStatus: async () => {
+          statusCalls += 1
+          throw new Error('status unavailable')
+        },
+        retryAttempt: async () => {
+          throw new Error('not used')
+        }
+      }
+    )
+    await Promise.resolve()
+
+    expect(store.completionOutcome).toEqual(refusal())
+    expect(store.attemptKey).toBeNull()
+    expect(store.attemptState).toBeNull()
+    expect(store.attemptProtected).toBe(false)
+    expect(store.blockingAttemptKey).toBeNull()
+    expect(statusCalls).toBe(0)
+  })
+
+  it('a late never-claimed refusal for a replaced draft never blocks the new draft', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    let release: (value: CheckoutCompletionOutcome) => void = () => undefined
+    const pending = store.complete(
+      () => 't',
+      baseIntent(),
+      () => undefined,
+      {
+        complete: () => new Promise((resolve) => (release = resolve))
+      }
+    )
+    // The cashier moved on to another draft while the refusal was in flight.
+    store.completionPending = false
+    store.attemptKey = null
+    store.attemptState = null
+    store.bindSale('sale-2')
+    // `context-changed` is a code main also uses for claimed attempts; with no key it holds nothing.
+    release({ outcome: 'failed', code: 'context-changed', attemptKey: null })
+    await pending
+
+    expect(store.blockingAttemptKey).toBeNull()
+  })
+
+  it('pays the same draft once access is restored: one new submission, committed once', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    const keys: string[] = []
+    let cleared = 0
+    const service = {
+      complete: async (key: string) => {
+        keys.push(key)
+        return keys.length === 1 ? refusal() : committedFor(key)
+      }
+    }
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service
+    )
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service
+    )
+    // A repeated press after the commit never submits again.
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service
+    )
+
+    expect(keys).toHaveLength(2)
+    expect(store.completionOutcome?.outcome).toBe('committed')
+    expect(cleared).toBe(1)
+  })
+
+  it("recovers the original sale when the recovered draft's reply is lost, without a second sale", async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    const keys: string[] = []
+    let retries = 0
+    let cleared = 0
+    const service = {
+      complete: async (key: string): Promise<CheckoutCompletionOutcome> => {
+        keys.push(key)
+        if (keys.length === 1) return refusal()
+        // Main committed the sale; the reply never reached the renderer.
+        throw new Error('reply lost')
+      },
+      attemptStatus: async (key: string) => ({
+        attemptKey: key,
+        state: 'committed' as const,
+        failureCode: null
+      }),
+      retryAttempt: async (key: string) => {
+        retries += 1
+        return { ...committedFor(key), replay: true }
+      }
+    }
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service
+    )
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service
+    )
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => (cleared += 1),
+      service
+    )
+
+    expect(keys).toHaveLength(2)
+    expect(retries).toBe(1)
+    expect(store.completionOutcome).toMatchObject({ outcome: 'committed', attemptKey: keys[1] })
+    expect(cleared).toBe(1)
+  })
+
+  it('dismissing the payment dialog drops the stale refusal; a claimed, rejected or committed result stays', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    store.setPanelOpen(true)
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => undefined,
+      {
+        complete: async () => refusal()
+      }
+    )
+    expect(store.completionOutcome).not.toBeNull()
+    store.setPanelOpen(false)
+    expect(store.completionOutcome).toBeNull()
+
+    for (const outcome of [
+      { outcome: 'failed', code: 'offline-sale-authority-unavailable', attemptKey: 'k' },
+      { outcome: 'rejected', failureCode: 'catalog-superseded', attemptKey: 'k' },
+      committedFor('k')
+    ] as CheckoutCompletionOutcome[]) {
+      setActivePinia(createPinia())
+      const kept = usePaymentStore()
+      kept.bindSale('sale-1')
+      kept.setPanelOpen(true)
+      await kept.complete(
+        () => 't',
+        baseIntent(),
+        () => undefined,
+        {
+          complete: async (key) => ({ ...outcome, attemptKey: key }) as CheckoutCompletionOutcome,
+          attemptStatus: async (key: string) => ({
+            attemptKey: key,
+            state: 'claimed' as const,
+            failureCode: null
+          })
+        }
+      )
+      kept.setPanelOpen(false)
+      expect(kept.completionOutcome?.outcome).toBe(outcome.outcome)
+    }
+  })
+
+  it('a changed cart drops the stale refusal message', async () => {
+    const store = usePaymentStore()
+    store.bindSale('sale-1')
+    await store.complete(
+      () => 't',
+      baseIntent(),
+      () => undefined,
+      {
+        complete: async () => refusal()
+      }
+    )
+    store.invalidatePreview()
+    expect(store.completionOutcome).toBeNull()
+  })
+
+  it('an exact-cash row left by the refusal still counts as exact cash for the same total', () => {
+    const store = usePaymentStore()
+    store.addExactRow('cash', 500)
+    expect(store.onlyExactRowFor(500)).toBe(true)
+    expect(store.onlyExactRowFor(600)).toBe(false)
+    store.addRemainingRow('cash', 100)
+    expect(store.onlyExactRowFor(500)).toBe(false)
+  })
+})

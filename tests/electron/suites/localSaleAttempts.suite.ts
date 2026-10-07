@@ -319,10 +319,11 @@ databaseTest(
     )
 
     // New selling is refused. `commercialAccess.evaluate('sell')` consults `pos.sell` itself and
-    // is checked first, so a revoked permission surfaces as `context-changed` rather than
-    // `permission-denied`; both are non-terminal, so the assertion is on the property the plan
-    // actually requires — refused, zero writes, still recoverable — not on which of the two.
-    const nonTerminal = new Set(['permission-denied', 'context-changed', 'attempt-blocked'])
+    // is checked first, so a revoked permission surfaces as `access-denied` (before the Phase 4
+    // closeout: `context-changed`) rather than `permission-denied`; both are non-terminal, so the
+    // assertion is on the property the plan actually requires — refused, zero writes, still
+    // recoverable — not on which of the two.
+    const nonTerminal = new Set(['permission-denied', 'access-denied', 'attempt-blocked'])
     const blocked = localSale.complete('cccccccc-cccc-4ccc-8ccc-ccccccccccce', validIntent())
     ok(blocked.outcome === 'failed')
     ok(nonTerminal.has(blocked.code), `unexpected new-sale refusal code ${blocked.code}`)

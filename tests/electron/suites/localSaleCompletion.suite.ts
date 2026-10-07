@@ -990,9 +990,10 @@ databaseTest(
       lastSeenAt: null,
       updatedAt: '2026-01-01T02:00:00.000Z'
     })
+    // A revoked device is a commercial-access refusal: reported as itself since the Phase 4 closeout.
     deepEqual(localSale.retry(attemptKey), {
       outcome: 'failed',
-      code: 'context-changed',
+      code: 'access-denied',
       attemptKey
     })
 

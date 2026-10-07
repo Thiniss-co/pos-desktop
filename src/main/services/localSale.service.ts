@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import type { CheckoutIntent } from '@shared/contracts/checkout.contract'
 import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contract'
+import type { CommercialAccessDecision } from '@shared/contracts/license.contract'
 import type {
   InvoiceTaxMode,
   LineTaxMode,
@@ -83,6 +84,8 @@ const NON_TERMINAL_FAILURE_CODES: ReadonlySet<LocalSaleFailure> = new Set([
   // never accept). Retry is withheld; the attempt stays claimed until explicitly cancelled.
   'allocation-integrity-blocked',
   'context-changed',
+  // Phase 4 closeout: the till's own commercial-access decision refuses selling (e.g. the subscription lapsed).
+  'access-denied',
   // Phase 3: the platform suspended the company; the frozen intent stays intact and is retried once lifted.
   'company-suspended',
   // Rev 4 §5: both leave the frozen intent intact and the attempt claimed; retry once true again.
@@ -107,6 +110,9 @@ export type LocalSaleFailure =
   | 'workstation-unassigned'
   | 'refresh-required'
   | 'context-changed'
+  // Phase 4 closeout: commercial access refuses selling (lapsed subscription, blocked device, overdue
+  // validation…). Distinct from `context-changed`, which means the shift/workstation identity moved.
+  | 'access-denied'
   // Phase 3: new sales stop while the platform has suspended the company.
   | 'company-suspended'
   | 'allocation-data-unavailable'
@@ -323,6 +329,19 @@ function shiftFailureCode(
     case 'unknown':
       return 'shift-observation-unknown'
   }
+}
+
+/**
+ * A commercial-access refusal of `sell`. A clock rollback (Rev 4 C11) and a platform suspension (Phase 3) keep their
+ * own codes; every other reason (lapsed subscription, overdue validation, blocked device…) is `access-denied` — the
+ * renderer shows the access reason itself, never "the shift or workstation changed".
+ */
+function accessFailureCode(reason: CommercialAccessDecision['reason']): LocalSaleFailure {
+  return reason === 'clock-untrusted'
+    ? 'clock-untrusted'
+    : reason === 'company-suspended'
+      ? 'company-suspended'
+      : 'access-denied'
 }
 
 /**
@@ -739,14 +758,9 @@ export class LocalSaleService {
     const owner: OwnerTuple = context
     const access = this.dependencies.commercialAccess.evaluate('sell')
     if (!access.allowed) {
-      // A detected clock rollback is its own non-terminal reason (Rev 4 C11), never `context-changed`.
-      return this.settledFailure(
-        access.reason === 'clock-untrusted'
-          ? 'clock-untrusted'
-          : access.reason === 'company-suspended'
-            ? 'company-suspended'
-            : 'context-changed'
-      )
+      // A detected clock rollback is its own non-terminal reason (Rev 4 C11). Nothing is claimed: the
+      // answer carries no attempt key, so the renderer knows no durable attempt exists for it.
+      return this.settledFailure(accessFailureCode(access.reason))
     }
 
     if (!this.dependencies.permissions.hasPermission('pos.sell')) {
@@ -1151,15 +1165,7 @@ export class LocalSaleService {
     // 2. commercialAccess.assertAllowed('sell'); require pos.sell.
     const access = this.dependencies.commercialAccess.evaluate('sell', { at: t1 })
     if (!access.allowed) {
-      return {
-        ok: false,
-        code:
-          access.reason === 'clock-untrusted'
-            ? 'clock-untrusted'
-            : access.reason === 'company-suspended'
-              ? 'company-suspended'
-              : 'context-changed'
-      }
+      return { ok: false, code: accessFailureCode(access.reason) }
     }
     if (!this.dependencies.permissions.hasPermission('pos.sell')) {
       return { ok: false, code: 'permission-denied' }

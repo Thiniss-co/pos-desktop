@@ -42,6 +42,7 @@ const CLAIMED_FAILURE_CODES = new Set([
   'allocation-refused',
   'allocation-integrity-blocked',
   'context-changed',
+  'access-denied',
   'company-suspended',
   'refresh-required',
   'clock-untrusted',
@@ -95,6 +96,10 @@ export const usePaymentStore = defineStore('payment', () => {
   const panelOpen = ref(false)
   function setPanelOpen(open: boolean): void {
     panelOpen.value = open
+    if (!open) {
+      // Dismissing the dialog ends what a refusal that left nothing durable had to say.
+      dropUnclaimedFailure()
+    }
   }
   const attemptState = ref<CheckoutAttemptStatus['state'] | null>(null)
   /** Main's recovery summary for the claimed attempt (legacy / support / outstanding requests). */
@@ -294,6 +299,35 @@ export const usePaymentStore = defineStore('payment', () => {
     previewOutcome.value = null
     previewPending.value = false
     previewErrorState.clear()
+    dropUnclaimedFailure()
+  }
+
+  /**
+   * Phase 4 closeout: a `failed` answer for which main holds nothing durable (it refused before any claim, e.g. while
+   * the subscription had lapsed) is advice about that one press, not state of the draft. It is dropped when the cashier
+   * dismisses the dialog or changes the cart, so it never reads as "this draft is blocked" after access returns. A
+   * claimed, rejected, committed or blocked attempt — or a request still in flight — is never touched.
+   */
+  function dropUnclaimedFailure(): void {
+    if (
+      attemptKey.value !== null ||
+      completionPending.value ||
+      reconciling.value ||
+      (completionOutcome.value !== null &&
+        (completionOutcome.value.outcome !== 'failed' ||
+          completionOutcome.value.code === 'attempt-blocked'))
+    ) {
+      return
+    }
+    completionOutcome.value = null
+    completionErrorState.clear()
+  }
+
+  /** Phase 4 closeout: the tender is exactly one "Exact cash" row for `total` (left by an earlier, refused press). */
+  function onlyExactRowFor(total: number): boolean {
+    return (
+      rows.value.length === 1 && rows.value[0].exactFor === total && rows.value[0].amount === total
+    )
   }
 
   /** Logout, session/device recovery, company/cashier/shift change, and `cart.resetDraft`. */
@@ -483,7 +517,12 @@ export const usePaymentStore = defineStore('payment', () => {
         { attemptKey: key, committedAt: outcome.invoice.soldAt }
       ]
     }
-    if (outcome.outcome === 'failed' && CLAIMED_FAILURE_CODES.has(outcome.code)) {
+    // Main answers `attemptKey: null` when it claimed nothing: no durable attempt can block anything.
+    if (
+      outcome.outcome === 'failed' &&
+      outcome.attemptKey !== null &&
+      CLAIMED_FAILURE_CODES.has(outcome.code)
+    ) {
       blockingAttemptKey.value = key
     }
   }
@@ -510,6 +549,14 @@ export const usePaymentStore = defineStore('payment', () => {
         blockingAttemptKey.value = outcome.blockingAttemptKey ?? null
         attemptKey.value = null
         attemptState.value = null
+      } else if (outcome.attemptKey === null) {
+        // Phase 4 closeout: main refused before claiming anything, so this outcome is already KNOWN — no durable
+        // attempt exists for the key and nothing is protected. The next press of the same draft is a new submission.
+        // (Previously the draft was marked `claimed` until a second status call answered `unknown`; when that call
+        // failed, the draft stayed locked: no Clear, no exact cash, no scanning.)
+        attemptKey.value = null
+        attemptState.value = null
+        attemptRecovery.value = null
       } else if (CLAIMED_FAILURE_CODES.has(outcome.code) || outcome.code === 'policy-blocked') {
         attemptState.value = 'claimed'
         void refreshAttemptStatus(key)
@@ -838,6 +885,7 @@ export const usePaymentStore = defineStore('payment', () => {
     bindSale,
     resetEditableState,
     invalidatePreview,
+    onlyExactRowFor,
     addExactRow,
     addRemainingRow,
     dropStaleExactRows,

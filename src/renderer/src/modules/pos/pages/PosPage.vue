@@ -1101,7 +1101,9 @@ const exactCashEligible = computed(
     exactCashMethod.value !== null &&
     canSell.value &&
     cartState.value.kind === 'valid' &&
-    paymentRows.value.length === 0 &&
+    // Phase 4 closeout: the exact-cash row of an earlier refused press of THIS total counts as exact cash, so the
+    // same key completes the same draft again instead of silently doing nothing.
+    (paymentRows.value.length === 0 || payment.onlyExactRowFor(grandTotalAmount.value)) &&
     grandTotalAmount.value > 0 &&
     !attemptProtected.value &&
     !isBlocked.value &&
@@ -1154,7 +1156,9 @@ function handleExactCash(): void {
   if (!paymentPanelOpen.value) {
     paymentPanelOpen.value = true
   }
-  payment.addExactRow(method.uuid, grandTotalAmount.value)
+  if (!payment.onlyExactRowFor(grandTotalAmount.value)) {
+    payment.addExactRow(method.uuid, grandTotalAmount.value)
+  }
   handleComplete()
 }
 

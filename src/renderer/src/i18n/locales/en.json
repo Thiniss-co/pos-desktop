@@ -320,6 +320,7 @@
           "allocation-data-unavailable": "Tracked stock allocation data is unavailable. Update the backend and refresh workstation data before completing this sale.",
           "allocation-acquisition-unresolved": "This sale could not confirm its stock reservation with the server. No sale was recorded. Retry this same sale — retrying is safe and cannot reserve stock twice — or cancel it; the reservation request is still tracked and confirmed automatically.",
           "context-changed": "The shift or workstation assignment changed. Refresh before completing this sale.",
+          "access-denied": "Selling is not allowed on this workstation right now, so this sale was not saved. The cart is kept: once access is restored, refresh workstation data and complete it again.",
           "refresh-required": "The catalog changed. Refresh workstation data — this sale is never repriced automatically.",
           "attempt-conflict": "The cart changed since this sale was started. Review it and try again.",
           "attempt-key-unavailable": "This attempt could not be started. Try again.",

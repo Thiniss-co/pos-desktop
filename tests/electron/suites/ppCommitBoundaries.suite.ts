@@ -223,7 +223,8 @@ databaseTest(
 )
 
 databaseTest(
-  'the license validation boundary crossing between t0 and t1 is non-terminal context-changed',
+  // Phase 4 closeout: an access refusal is reported as itself (`access-denied`), no longer as `context-changed`.
+  'the license validation boundary crossing between t0 and t1 is non-terminal access-denied',
   (sandbox) => {
     const database = openTestDatabase(sandbox)
     const repositories = realRepositories(database)
@@ -238,7 +239,7 @@ databaseTest(
     const outcome = localSale.runPrepared(prepared)
 
     equal(outcome.outcome, 'failed')
-    equal((outcome as { code: string }).code, 'context-changed')
+    equal((outcome as { code: string }).code, 'access-denied')
     equal(attemptRow(database, key).state, 'claimed')
     closeDatabase(database)
   }

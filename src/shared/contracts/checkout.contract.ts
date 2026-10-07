@@ -334,6 +334,8 @@ export const checkoutFailureCodeSchema = z.enum([
   'workstation-unassigned',
   'refresh-required',
   'context-changed',
+  // Phase 4 closeout: the till's commercial-access decision refuses selling (e.g. a lapsed subscription).
+  'access-denied',
   'allocation-data-unavailable',
   'stock-allocation-unavailable',
   'allocation-acquisition-unresolved',
