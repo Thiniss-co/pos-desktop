@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { DesktopApiClient } from '../http/desktopApiClient'
+import type { StoredAccessSequence } from './accessOrdering'
 import { BootstrapService } from './bootstrap.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 import { desktopBootstrapFixture } from '../testing/fixtures/desktopBootstrap.fixture'
@@ -194,6 +195,67 @@ describe('BootstrapService.refresh', () => {
     }
   })
 
+  it('refuses a bootstrap answer older than the last accepted access answer before writing (Phase 6, C3)', async () => {
+    const fixtureCompany = (desktopBootstrapFixture() as { company: { id: string } }).company.id
+    const owner = {
+      sessionEpoch: 3,
+      userUuid: '44444444-4444-4444-8444-444444444444',
+      userIsActive: true,
+      companyUuid: fixtureCompany,
+      deviceUuid: identity.deviceUuid,
+      serverDeviceId: '22222222-2222-4222-8222-222222222222',
+      branchUuid: null,
+      warehouseUuid: null
+    }
+    for (const [answered, accepted] of [
+      [9, false],
+      [10, false],
+      [11, true]
+    ] as const) {
+      let stored: StoredAccessSequence | null = {
+        deviceUuid: identity.deviceUuid,
+        sessionEpoch: 3,
+        sequence: 10
+      }
+      let wrote = false
+      const service = new BootstrapService(
+        createApiClient({ ...bootstrapSuccessEnvelope(), meta: { access_sequence: answered } }),
+        { get: () => identity },
+        syncAllowed,
+        {
+          persistSnapshot: (_resource, _fetchedAt, options) => {
+            options?.beforeWrite?.()
+            wrote = true
+            return { snapshotVersion: 'v', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+          }
+        },
+        () => undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          owner: () => owner,
+          accessOrdering: {
+            store: {
+              get: () => stored,
+              set: (value) => {
+                stored = value
+              }
+            }
+          }
+        }
+      )
+
+      if (accepted) {
+        await service.refresh()
+      } else {
+        await expect(service.refresh()).rejects.toMatchObject({ code: 'owner-changed' })
+      }
+      expect(wrote).toBe(accepted)
+      expect(stored?.sequence).toBe(accepted ? answered : 10)
+    }
+  })
+
   it('retries once past the second boundary when a same-second catalog conflicts', async () => {
     let persists = 0
     const service = new BootstrapService(
@@ -290,6 +352,10 @@ describe('BootstrapService.refresh', () => {
       request: () => {
         requests += 1
         return response
+      },
+      requestWithMeta: async () => {
+        requests += 1
+        return { data: await response, meta: {} }
       }
     } as unknown as DesktopApiClient
     const service = new BootstrapService(apiClient, { get: () => identity }, syncAllowed, {

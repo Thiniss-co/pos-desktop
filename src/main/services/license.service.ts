@@ -13,6 +13,11 @@ import type {
   OfflineSaleAuthorityRepository,
   PublishedOfflineSaleAuthority
 } from '../repositories/offlineSaleAuthority.repository'
+import {
+  accessSequenceFromMeta,
+  admitAccessAnswer,
+  type AccessSequenceStore
+} from './accessOrdering'
 import { OwnerChangedError, sameRenewalOwner, type RenewalOwner } from './renewalOwner'
 
 export const DESKTOP_LICENSE_JWT_KEY = 'desktop_license_jwt'
@@ -51,6 +56,15 @@ export interface LicenseServiceOptions {
   readonly offlineSaleAuthorities?: Pick<OfflineSaleAuthorityRepository, 'observe'>
   readonly monotonicNow?: () => number
   readonly onServerTimeSample?: (sample: ServerTimeSample) => void
+  /**
+   * Phase 6 (C3): orders this answer against every other access answer by the server's `meta.access_sequence`
+   * (see accessOrdering.ts). `currentStatus` is the stored status, used only to tell whether an UNSEQUENCED answer
+   * from an older backend would relax access.
+   */
+  readonly accessOrdering?: {
+    readonly store: AccessSequenceStore
+    readonly currentStatus: () => LicenseStatus | null
+  }
 }
 
 /** A 422 that names `offline_sale_contract_version`: an older backend that supports only v1. */
@@ -114,6 +128,7 @@ export class LicenseService {
 
   private async requestValidation(): Promise<{
     response: unknown
+    meta: Record<string, unknown>
     sentAtMono: number
     receivedAtMono: number
   }> {
@@ -122,13 +137,18 @@ export class LicenseService {
     for (;;) {
       const sentAtMono = monotonic()
       try {
-        const response = await this.apiClient.request(DESKTOP_API_ROUTES.licenseValidate, {
+        const answer = await this.apiClient.requestWithMeta(DESKTOP_API_ROUTES.licenseValidate, {
           offline_sale_contract_version: this.offlineSaleContractVersion,
           // Phase 4 closeout (O-7): this app understands `subscription.offline_coverage`. Without it the server extends
           // nothing (an older app's own access decision would otherwise sell through the current period's grace).
           offline_coverage_version: 1
         })
-        return { response, sentAtMono, receivedAtMono: monotonic() }
+        return {
+          response: answer.data,
+          meta: answer.meta ?? {},
+          sentAtMono,
+          receivedAtMono: monotonic()
+        }
       } catch (error) {
         if (this.offlineSaleContractVersion === 2 && isUnsupportedOfflineSaleVersion(error)) {
           this.offlineSaleContractVersion = 1
@@ -141,7 +161,8 @@ export class LicenseService {
 
   async validate(): Promise<LicenseStatus> {
     const capturedOwner = this.options.owner?.() ?? null
-    const { response, sentAtMono, receivedAtMono } = await this.requestValidation()
+    const { response, meta, sentAtMono, receivedAtMono } = await this.requestValidation()
+    const accessSequence = accessSequenceFromMeta(meta)
     let resource: ReturnType<typeof licenseResourceSchema.parse>
     let status: LicenseStatus
 
@@ -200,6 +221,17 @@ export class LicenseService {
     const write = (): void => {
       if (this.options.owner && !ownerUnchanged(capturedOwner, this.options.owner())) {
         throw new OwnerChangedError()
+      }
+
+      // Phase 6 (C3): an older answer arriving after a newer one is discarded here, before anything is written.
+      const ordering = this.options.accessOrdering
+      if (ordering) {
+        const stored = ordering.currentStatus()
+        const relaxes =
+          stored === null ||
+          (status.canSell && !stored.canSell) ||
+          (status.canSync && !stored.canSync)
+        admitAccessAnswer(ordering.store, capturedOwner, accessSequence, relaxes)
       }
 
       this.secureStorage.setSecret(DESKTOP_LICENSE_JWT_KEY, resource.token)

@@ -1,3 +1,4 @@
+import { SettingsAccessSequenceStore } from '../services/accessOrdering'
 import { ReceiptSnapshotRepository } from '../repositories/receiptSnapshot.repository'
 import { ReceiptSnapshotUploadService } from '../sync/receiptSnapshotUpload.service'
 import { app, BrowserWindow, dialog, net, powerMonitor, safeStorage, webContents } from 'electron'
@@ -392,9 +393,15 @@ export function createApplicationServices(): ApplicationServices {
   // absence, not a flag, is what keeps every unconfigured device behaving exactly as it does today.
   const offlineSaleAuthorities = new OfflineSaleAuthorityRepository(database)
   // Rev 4 §10.1: server-time samples from each license leg (the estimator is attached below).
+  // Phase 6 (C3): the last accepted server access sequence, ordered across license validations and bootstraps.
+  const accessSequenceStore = new SettingsAccessSequenceStore(appSettings)
   const license = new LicenseService(apiClient, licenseMetadata, secureStorage, undefined, {
     database,
     owner: renewalOwner,
+    accessOrdering: {
+      store: accessSequenceStore,
+      currentStatus: () => licenseMetadata.getStatus()
+    },
     offlineSaleAuthorities,
     onServerTimeSample: (sample) => serverTime.offer(sample)
   })
@@ -589,7 +596,14 @@ export function createApplicationServices(): ApplicationServices {
     // session user only; never fails or delays bootstrap (see BootstrapReceiptProfileSync).
     sessionMetadata,
     receiptProfileSync,
-    { owner: renewalOwner, installGate, productImageSync, companyBrandSync, receiptSnapshotUploads }
+    {
+      owner: renewalOwner,
+      accessOrdering: { store: accessSequenceStore },
+      installGate,
+      productImageSync,
+      companyBrandSync,
+      receiptSnapshotUploads
+    }
   )
   // Rev 4 §7: the single owner of license validation and renewal timing. The catalog leg here only
   // installs when the catalog is missing or stale (selling is impossible anyway); the gated

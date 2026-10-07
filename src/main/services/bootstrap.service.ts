@@ -13,6 +13,11 @@ import type { BootstrapPersistResult } from '../repositories/bootstrapSnapshot.r
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 import type { SessionContext } from '../repositories/sessionMetadata.repository'
 import { isUnsupportedOfflineSaleVersion } from './license.service'
+import {
+  accessSequenceFromMeta,
+  admitAccessAnswer,
+  type AccessSequenceStore
+} from './accessOrdering'
 import { OwnerChangedError, sameRenewalOwner, type RenewalOwner } from './renewalOwner'
 
 /** Just past the server's one-second `generated_at` resolution. */
@@ -45,6 +50,12 @@ export interface BootstrapServiceOptions {
   /** Rev 4 §7.1: the renewal owner, captured before the request and re-checked inside the write. */
   readonly owner?: () => RenewalOwner | null
   /**
+   * Phase 6 (C3): orders this answer's device status, features, permissions, company state and published authority
+   * against every license validation by `meta.access_sequence` (accessOrdering.ts). An unsequenced answer after a
+   * sequenced one is discarded (a bootstrap may relax several of those at once).
+   */
+  readonly accessOrdering?: { readonly store: AccessSequenceStore }
+  /**
    * Owner UX plan P8: the background product-image worker, started after the snapshot was persisted
    * and the install hold settled. Fire-and-forget: never awaited, never able to fail a bootstrap.
    */
@@ -73,9 +84,16 @@ let bootstrapOfflineSaleVersion: 1 | 2 = 2
  * reads bootstrap so the negotiation cannot diverge.
  */
 export async function requestBootstrap(apiClient: DesktopApiClient): Promise<unknown> {
+  return (await requestBootstrapWithMeta(apiClient)).data
+}
+
+/** Phase 6 (C3): the bootstrap answer with its envelope meta (`meta.access_sequence`). */
+export async function requestBootstrapWithMeta(
+  apiClient: DesktopApiClient
+): Promise<{ data: unknown; meta: Record<string, unknown> }> {
   for (;;) {
     try {
-      return await apiClient.request(
+      return await apiClient.requestWithMeta(
         bootstrapOfflineSaleVersion === 2
           ? DESKTOP_API_ROUTES.bootstrap
           : DESKTOP_API_ROUTES.bootstrapOfflineSaleV1
@@ -199,7 +217,8 @@ export class BootstrapService {
   private persistGuarded(
     resource: DesktopBootstrapResource,
     fetchedAt: string,
-    capturedOwner: RenewalOwner | null
+    capturedOwner: RenewalOwner | null,
+    accessSequence: number | null = null
   ): BootstrapPersistResult {
     return this.bootstrapSnapshotRepository.persistSnapshot(resource, fetchedAt, {
       permissionsOwnerUserUuid:
@@ -222,6 +241,9 @@ export class BootstrapService {
             throw new OwnerChangedError()
           }
         }
+        if (this.options.accessOrdering) {
+          admitAccessAnswer(this.options.accessOrdering.store, capturedOwner, accessSequence, true)
+        }
         this.options.installGate?.beforeWrite()
       }
     })
@@ -237,11 +259,12 @@ export class BootstrapService {
     this.commercialAccess.assertCanSync()
 
     const capturedOwner = this.options.owner?.() ?? null
-    const response = await requestBootstrap(this.apiClient)
+    const answer = await requestBootstrapWithMeta(this.apiClient)
+    const accessSequence = accessSequenceFromMeta(answer.meta)
     let resource: DesktopBootstrapResource
 
     try {
-      resource = desktopBootstrapResourceSchema.parse(response)
+      resource = desktopBootstrapResourceSchema.parse(answer.data)
     } catch (error) {
       if (error instanceof ZodError) {
         traceBootstrapContractError(error)
@@ -266,7 +289,7 @@ export class BootstrapService {
     // snapshot; nothing is written.
     let persisted: BootstrapPersistResult
     try {
-      persisted = this.persistGuarded(resource, fetchedAt, capturedOwner)
+      persisted = this.persistGuarded(resource, fetchedAt, capturedOwner, accessSequence)
       gate?.settle(true, undefined, persisted.catalogRevision ?? null)
     } catch (error) {
       // The code only (never a message or payload): it names why the install was discarded.
