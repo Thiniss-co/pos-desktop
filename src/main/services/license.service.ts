@@ -123,7 +123,10 @@ export class LicenseService {
       const sentAtMono = monotonic()
       try {
         const response = await this.apiClient.request(DESKTOP_API_ROUTES.licenseValidate, {
-          offline_sale_contract_version: this.offlineSaleContractVersion
+          offline_sale_contract_version: this.offlineSaleContractVersion,
+          // Phase 4 closeout (O-7): this app understands `subscription.offline_coverage`. Without it the server extends
+          // nothing (an older app's own access decision would otherwise sell through the current period's grace).
+          offline_coverage_version: 1
         })
         return { response, sentAtMono, receivedAtMono: monotonic() }
       } catch (error) {

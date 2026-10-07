@@ -22,7 +22,12 @@ subscription { status, expires_at, grace_ends_at, offline_coverage? } | null   â
 offline_coverage { renewal_id, starts_at, expires_at, grace_ends_at } | null   (Phase 4 closeout, O-7)
 ```
 
-`subscription.offline_coverage` (additive; absent from older backends) names a paid renewal with identical entitlements
+The app negotiates it: `offline_coverage_version: 1` in the validate body and `offline_coverage_version=1` on the
+bootstrap query (final review, 2026-10-07). Without that, the backend extends nothing and omits the key, so a
+pre-Phase-4 build keeps the authority, catalog and local boundary it always had (proven in real Electron with the
+`870f1bf` build: journey `p4oldclient`).
+
+`subscription.offline_coverage` (negotiated; absent from older backends) names a paid renewal with identical entitlements
 that was already scheduled when the server validated. The server has already bounded the offline authority (`not_after`)
 and the next catalog (`valid_until`) by its end. `LicenseService` stores it as `subscription.offlineCoverage` (a malformed
 block is dropped, never fatal), and `CommercialAccessService` uses its `expiresAt`/`graceEndsAt` instead of the current

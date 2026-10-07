@@ -164,8 +164,9 @@ if (in_array($operation, ['subscription-lapse', 'subscription-request', 'inspect
 // `plan-capacity-change` edits the current plan in place for future requests through the platform action (Phase 4B), so
 // the next renewal's recorded entitlements differ from the current period's.
 if ($operation === 'subscription-end-soon'
-    && (preg_match('/^\d{2,3}$/', $argument) !== 1 || (int) $argument < 60 || (int) $argument > 900)) {
-    sandboxRefuse('subscription-end-soon needs <seconds 60-900>');
+    && (preg_match('/^(\d{2,3})(?::(\d{1,6}))?$/', $argument, $endSoon) !== 1 || (int) $endSoon[1] < 60 || (int) $endSoon[1] > 900
+        || (int) ($endSoon[2] ?? 0) > 604800)) {
+    sandboxRefuse('subscription-end-soon needs <seconds 60-900>[:<grace seconds 0-604800>]');
 }
 
 if ($operation === 'mode-physical-presence' && $argument !== ''
@@ -717,8 +718,9 @@ $result = match ($operation) {
     })(),
     'subscription-end-soon' => (function () use ($company, $argument): array {
         $subscription = $company->currentSubscription()->firstOrFail();
-        $end = now()->addSeconds((int) $argument)->startOfSecond();
-        $subscription->forceFill(['expires_at' => $end, 'renews_at' => $end, 'grace_ends_at' => $end])->save();
+        [$seconds, $grace] = array_map('intval', array_pad(explode(':', $argument), 2, '0'));
+        $end = now()->addSeconds($seconds)->startOfSecond();
+        $subscription->forceFill(['expires_at' => $end, 'renews_at' => $end, 'grace_ends_at' => $end->copy()->addSeconds($grace)])->save();
 
         return ['subscription' => $subscription->id, 'expires_at' => (string) $subscription->expires_at, 'grace_ends_at' => (string) $subscription->grace_ends_at, 'injected' => true];
     })(),
