@@ -309,6 +309,38 @@ describe('PaymentPanel', () => {
     expect(document.querySelector('.payment-panel__reference')).not.toBeNull()
   })
 
+  it('touch mode: the on-screen keypad edits the tender amount in place', async () => {
+    const wrapper = mountPanel({
+      isEditingDraft: true,
+      draftAmount: '1',
+      keypadLabels: { backspace: 'Delete last digit', clear: 'Clear', decimal: 'Decimal point' }
+    })
+    await Promise.resolve()
+    const press = async (key: string): Promise<void> => {
+      ;(document.querySelector(`[data-key="${key}"]`) as HTMLButtonElement).click()
+      await wrapper.vm.$nextTick()
+    }
+
+    await press('5')
+    expect(wrapper.emitted('update:draftAmount')?.at(-1)).toEqual(['15'])
+    await wrapper.setProps({ draftAmount: '15' })
+    await press('.')
+    expect(wrapper.emitted('update:draftAmount')?.at(-1)).toEqual(['15.'])
+    await press('back')
+    expect(wrapper.emitted('update:draftAmount')?.at(-1)).toEqual(['1'])
+    // The keypad never commits or completes on its own: only the draft amount changes.
+    expect(wrapper.emitted('commitDraft')).toBeUndefined()
+    expect(wrapper.emitted('complete')).toBeUndefined()
+  })
+
+  it('outside touch mode the tender amount has no on-screen keypad', async () => {
+    mountPanel({ isEditingDraft: true, draftAmount: '1' })
+    await Promise.resolve()
+
+    expect(document.querySelector('.numeric-amount-input__control')).not.toBeNull()
+    expect(document.querySelector('[data-key]')).toBeNull()
+  })
+
   it('commits the draft on Enter and cancels on Escape from the amount field', async () => {
     const wrapper = mountPanel({ isEditingDraft: true, draftAmount: '10.00' })
     await Promise.resolve()

@@ -26,6 +26,34 @@ describe('POS improvements Stage 5: touch keypad', () => {
     expect(keypad.get('[data-key="back"]').attributes('aria-label')).toBe(labels.backspace)
   })
 
+  it('replaces a fully selected pre-filled amount, as a typed key would', async () => {
+    const input = mount(NumericAmountInput, {
+      props: { modelValue: '15.53', label: 'Cash received', keypadLabels: labels },
+      attachTo: document.body
+    })
+    const field = input.get('input').element as HTMLInputElement
+    ;(input.vm as unknown as { focus: () => void }).focus()
+    expect(field.selectionStart).toBe(0)
+    expect(field.selectionEnd).toBe(5)
+
+    await input.get('[data-key="1"]').trigger('click')
+    expect(input.emitted('update:modelValue')?.at(-1)).toEqual(['1'])
+
+    // Once the selection is gone, keys append again.
+    await input.setProps({ modelValue: '1' })
+    field.setSelectionRange(1, 1)
+    await input.get('[data-key="0"]').trigger('click')
+    expect(input.emitted('update:modelValue')?.at(-1)).toEqual(['10'])
+
+    // A whole-number pre-fill is replaced too, never extended ("20" then 5 is "5", not "205").
+    await input.setProps({ modelValue: '20' })
+    field.focus()
+    field.setSelectionRange(0, 2)
+    await input.get('[data-key="5"]').trigger('click')
+    expect(input.emitted('update:modelValue')?.at(-1)).toEqual(['5'])
+    input.unmount()
+  })
+
   it('edits the same amount string a keyboard would, only in touch mode', async () => {
     const input = mount(NumericAmountInput, {
       props: { modelValue: '12', label: 'Cash received', keypadLabels: labels }

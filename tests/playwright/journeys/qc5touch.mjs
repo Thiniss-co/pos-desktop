@@ -21,6 +21,9 @@ import { queryLocal } from '../support/localDb.mjs'
  *  B. Touch-only sale: tap two product cards, set a quantity with the on-screen keypad, then the touch
  *     bar's Exact cash; the sale commits and uploads.
  *  C. Touch-only refund: Return / Refund tile → choose the sale → + → Review → Confirm → accepted.
+ *  E. Touch-only keypads: an invoice percentage discount typed on the discount dialog's keypad, and a
+ *     cash tender typed on the payment keypad (more than due, so change is given); the sale commits
+ *     with exactly those values.
  *  D. Layout matrix (16): EN/AR × light/dark × 1920×1080, 1366×768, 1024×768, 800×600, touch ON with a
  *     cart line. Per combination: no horizontal page overflow, every visible control ≥ 44×44, the
  *     top-bar navigation does not overlap the status area, and the quantity keypad dialog fits in the
@@ -86,6 +89,12 @@ async function setViewport(session, width, height) {
     },
     [width, height]
   )
+  // Wait for the renderer to report the new width before measuring: a fixed pause raced the jump
+  // from 800×600 back to 1920×1080, where the narrow layout's rail toggle was still "visible" and
+  // then detached under the tap.
+  await session.page
+    .waitForFunction((w) => window.innerWidth === w, width, { timeout: 5000 })
+    .catch(() => undefined)
   await session.page.waitForTimeout(500)
 }
 
@@ -247,6 +256,58 @@ export async function run(ctx) {
     ctx.step('C: touch-only refund', { refunds })
     if (refunds[0]?.submission_state !== 'accepted')
       throw new Error('C: the refund was not accepted')
+
+    // E. Touch-only keypads: invoice discount and tender amount.
+    await tap(cdp, page.locator('.product-card', { hasText: 'Cola Can' }))
+    const discountButton = page.locator('.quick-actions button[data-action="discount"]').first()
+    if (!(await discountButton.isVisible().catch(() => false))) {
+      await tap(cdp, page.locator('.quick-actions [data-action="more"]').first())
+    }
+    await tap(cdp, page.locator('[data-action="discount"]:visible').first())
+    const discountDialog = page.getByRole('dialog')
+    await tap(
+      cdp,
+      discountDialog.getByRole('radio', { name: await t(page, 'pos.discountPercentage') })
+    )
+    for (const key of ['1', '0']) await tap(cdp, discountDialog.locator(`[data-key="${key}"]`))
+    await ctx.shot(page, 'E1-discount-keypad')
+    await tap(cdp, discountDialog.getByRole('button', { name: await t(page, 'pos.applyDiscount') }))
+    await tap(cdp, page.locator('.pos-cart-footer__pay button').first())
+    const paymentDialog = page.getByRole('dialog')
+    await tap(
+      cdp,
+      paymentDialog.locator('.payment-method-tile:not([disabled])', { hasText: /cash/i }).first()
+    )
+    for (const key of ['1', '0', '0']) await tap(cdp, paymentDialog.locator(`[data-key="${key}"]`))
+    await ctx.shot(page, 'E2-tender-keypad')
+    await tap(
+      cdp,
+      paymentDialog.getByRole('button', { name: await t(page, 'pos.payment.addTender') })
+    )
+    await tap(cdp, paymentDialog.locator('[data-commit-action="complete"]'))
+    await paymentDialog
+      .getByRole('button', { name: new RegExp(await t(page, 'pos.tender.newSale')) })
+      .waitFor({ timeout: 30_000 })
+    await ctx.shot(page, 'E3-keypad-sale-complete')
+    await tap(
+      cdp,
+      paymentDialog.getByRole('button', { name: new RegExp(await t(page, 'pos.tender.newSale')) })
+    )
+    const [keypadSale] = queryLocal(
+      session.profileDir,
+      `SELECT invoice_discount_type, invoice_discount_value, discount_total_amount, grand_total_amount,
+              paid_total_amount, change_due_amount, currency_exponent
+         FROM local_invoices ORDER BY created_at DESC LIMIT 1`
+    )
+    ctx.step('E: touch-only keypad sale', { keypadSale })
+    const hundred = 100 * 10 ** keypadSale.currency_exponent
+    if (keypadSale.invoice_discount_type !== 'percentage' || keypadSale.discount_total_amount <= 0)
+      throw new Error('E: the keypad discount was not applied')
+    if (
+      keypadSale.paid_total_amount !== hundred ||
+      keypadSale.change_due_amount !== hundred - keypadSale.grand_total_amount
+    )
+      throw new Error('E: the keypad tender was not recorded as typed')
 
     // A (continued). Per user: sign out → off; sign in again → on.
     await signOutViaMenu(ctx, page)

@@ -38,8 +38,26 @@ function focus(): void {
   inputRef.value?.select()
 }
 
+/**
+ * True while the whole pre-filled amount is selected (as `focus()` and choosing a payment method
+ * leave it). A typed key replaces a selection, so a keypad key must too: appending to a selected
+ * "15.53" would silently drop the digits, and to a selected "20" would turn 5, 0 into "2050".
+ */
+function wholeValueSelected(): boolean {
+  const input = inputRef.value
+
+  return (
+    input !== null &&
+    props.modelValue !== '' &&
+    document.activeElement === input &&
+    input.selectionStart === 0 &&
+    input.selectionEnd === props.modelValue.length
+  )
+}
+
 function press(key: KeypadKey): void {
-  emit('update:modelValue', applyKeypadKey(props.modelValue, key, props.maxDecimals))
+  const base = wholeValueSelected() ? '' : props.modelValue
+  emit('update:modelValue', applyKeypadKey(base, key, props.maxDecimals))
 }
 
 defineExpose({ focus })
