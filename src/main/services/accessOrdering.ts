@@ -12,9 +12,10 @@ import { OwnerChangedError, type RenewalOwner } from './renewalOwner'
  * and the new sequence is stored in that same transaction — so a restart keeps it together with the state it ordered.
  *
  * Compatibility: an answer WITHOUT a sequence (an older backend) is admitted as before, except that once this session
- * has accepted a sequenced answer, an unsequenced one may never RELAX access (it may still restrict it). A new session
- * (sign-in, epoch change) or another device starts a fresh order: answers requested before it are already discarded
- * by the renewal-owner check.
+ * has accepted a sequenced answer, an unsequenced one may never RELAX access (it may still restrict it, and the stored
+ * sequence is kept). A new session (sign-in, epoch change) or another device starts a fresh order: answers requested
+ * before it are already discarded by the renewal-owner check. This is also the recovery path after a backend rollback:
+ * sign out and in again, or bring the sequencing backend back (its next, higher sequence is admitted).
  */
 
 export const ACCESS_SEQUENCE_SETTING_KEY = 'license.access_sequence'
@@ -119,4 +120,60 @@ export class SettingsAccessSequenceStore implements AccessSequenceStore {
   set(value: StoredAccessSequence): void {
     this.settings.set(ACCESS_SEQUENCE_SETTING_KEY, JSON.stringify(value))
   }
+}
+
+/** What a bootstrap answer is compared with to tell whether an UNSEQUENCED one would relax access. */
+export interface StoredBootstrapAccess {
+  readonly canSell: boolean
+  readonly canSync: boolean
+  readonly enabledFeatures: ReadonlySet<string>
+  readonly permissions: ReadonlySet<string>
+}
+
+/** The access-bearing parts of a bootstrap answer (license block, features, permissions). */
+export interface BootstrapAccessParts {
+  readonly license: { readonly can_sell: boolean; readonly can_sync: boolean }
+  readonly features: Readonly<Record<string, boolean>>
+  readonly permissions: readonly string[]
+}
+
+/**
+ * Whether applying a bootstrap answer could widen access compared with what is stored: selling or syncing allowed where
+ * the stored license status refuses it, a feature enabled that is not enabled now, or a permission not held now. With
+ * nothing stored, every answer counts as relaxing. Device status is covered by the license block (a blocked or
+ * revoked device answers `can_sell`/`can_sync` false).
+ */
+export function bootstrapRelaxes(
+  answer: BootstrapAccessParts,
+  stored: StoredBootstrapAccess | null
+): boolean {
+  if (stored === null) {
+    return true
+  }
+
+  return (
+    (answer.license.can_sell && !stored.canSell) ||
+    (answer.license.can_sync && !stored.canSync) ||
+    Object.entries(answer.features).some(
+      ([code, enabled]) => enabled && !stored.enabledFeatures.has(code)
+    ) ||
+    answer.permissions.some((permission) => !stored.permissions.has(permission))
+  )
+}
+
+/** Reads the stored access a bootstrap answer is compared with (license status, enabled features, permissions). */
+export function storedBootstrapAccess(sources: {
+  readonly license: { getStatus(): { readonly canSell: boolean; readonly canSync: boolean } | null }
+  readonly snapshot: { getEnabledFeatures(): string[]; getPermissions(): string[] }
+}): StoredBootstrapAccess | null {
+  const status = sources.license.getStatus()
+
+  return status === null
+    ? null
+    : {
+        canSell: status.canSell,
+        canSync: status.canSync,
+        enabledFeatures: new Set(sources.snapshot.getEnabledFeatures()),
+        permissions: new Set(sources.snapshot.getPermissions())
+      }
 }

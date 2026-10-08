@@ -1,4 +1,4 @@
-import { SettingsAccessSequenceStore } from '../services/accessOrdering'
+import { SettingsAccessSequenceStore, storedBootstrapAccess } from '../services/accessOrdering'
 import { ReceiptSnapshotRepository } from '../repositories/receiptSnapshot.repository'
 import { ReceiptSnapshotUploadService } from '../sync/receiptSnapshotUpload.service'
 import { app, BrowserWindow, dialog, net, powerMonitor, safeStorage, webContents } from 'electron'
@@ -598,7 +598,12 @@ export function createApplicationServices(): ApplicationServices {
     receiptProfileSync,
     {
       owner: renewalOwner,
-      accessOrdering: { store: accessSequenceStore },
+      accessOrdering: {
+        store: accessSequenceStore,
+        // C3: an unsequenced bootstrap (older backend) after a sequenced answer may only restrict this stored access.
+        currentAccess: () =>
+          storedBootstrapAccess({ license: licenseMetadata, snapshot: bootstrapSnapshot })
+      },
       installGate,
       productImageSync,
       companyBrandSync,

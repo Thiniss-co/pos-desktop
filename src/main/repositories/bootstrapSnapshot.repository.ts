@@ -811,6 +811,17 @@ export class BootstrapSnapshotRepository {
       : null
   }
 
+  /** Phase 6 (C3): the feature codes currently enabled in the stored snapshot. */
+  getEnabledFeatures(): string[] {
+    return (
+      this.database
+        .prepare(
+          'SELECT feature_code FROM bootstrap_features WHERE is_enabled = 1 ORDER BY feature_code'
+        )
+        .all() as Array<{ readonly feature_code: string }>
+    ).map((row) => row.feature_code)
+  }
+
   isFeatureEnabled(code: string): boolean {
     const row = this.database
       .prepare('SELECT is_enabled FROM bootstrap_features WHERE feature_code = ?')

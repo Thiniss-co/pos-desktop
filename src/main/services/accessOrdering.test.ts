@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   accessSequenceFromMeta,
   admitAccessAnswer,
+  bootstrapRelaxes,
   StaleAccessResponseError,
   type AccessSequenceStore,
   type StoredAccessSequence
@@ -87,5 +88,43 @@ describe('access answer ordering (Phase 6, C3)', () => {
     expect(accessSequenceFromMeta({ access_sequence: 0 })).toBeNull()
     expect(accessSequenceFromMeta({})).toBeNull()
     expect(accessSequenceFromMeta(undefined)).toBeNull()
+  })
+
+  it('a bootstrap relaxes when it opens selling/syncing, a feature or a permission that the stored state does not have', () => {
+    const stored = {
+      canSell: true,
+      canSync: true,
+      enabledFeatures: new Set(['pos', 'inventory']),
+      permissions: new Set(['sales.create', 'shifts.manage'])
+    }
+    const same = {
+      license: { can_sell: true, can_sync: true },
+      features: { pos: true, inventory: true },
+      permissions: ['sales.create', 'shifts.manage']
+    }
+
+    expect(bootstrapRelaxes(same, stored)).toBe(false)
+    // Restrictions only: selling off, a feature off, a permission removed.
+    expect(
+      bootstrapRelaxes(
+        {
+          license: { can_sell: false, can_sync: true },
+          features: { pos: true, inventory: false },
+          permissions: ['sales.create']
+        },
+        stored
+      )
+    ).toBe(false)
+    // Relaxations, one at a time.
+    expect(bootstrapRelaxes(same, { ...stored, canSell: false })).toBe(true)
+    expect(bootstrapRelaxes(same, { ...stored, canSync: false })).toBe(true)
+    expect(
+      bootstrapRelaxes({ ...same, features: { ...same.features, loyalty_points: true } }, stored)
+    ).toBe(true)
+    expect(
+      bootstrapRelaxes({ ...same, permissions: [...same.permissions, 'refunds.create'] }, stored)
+    ).toBe(true)
+    // Nothing stored: every answer counts as relaxing.
+    expect(bootstrapRelaxes(same, null)).toBe(true)
   })
 })

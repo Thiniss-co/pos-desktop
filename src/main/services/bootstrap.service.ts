@@ -16,7 +16,9 @@ import { isUnsupportedOfflineSaleVersion } from './license.service'
 import {
   accessSequenceFromMeta,
   admitAccessAnswer,
-  type AccessSequenceStore
+  bootstrapRelaxes,
+  type AccessSequenceStore,
+  type StoredBootstrapAccess
 } from './accessOrdering'
 import { OwnerChangedError, sameRenewalOwner, type RenewalOwner } from './renewalOwner'
 
@@ -52,9 +54,14 @@ export interface BootstrapServiceOptions {
   /**
    * Phase 6 (C3): orders this answer's device status, features, permissions, company state and published authority
    * against every license validation by `meta.access_sequence` (accessOrdering.ts). An unsequenced answer after a
-   * sequenced one is discarded (a bootstrap may relax several of those at once).
+   * sequenced one is admitted only when it relaxes nothing compared with `currentAccess()` (license status, enabled
+   * features, permissions): restrictions from an older backend apply, relaxations are discarded. Without
+   * `currentAccess` every unsequenced answer after a sequenced one is discarded.
    */
-  readonly accessOrdering?: { readonly store: AccessSequenceStore }
+  readonly accessOrdering?: {
+    readonly store: AccessSequenceStore
+    readonly currentAccess?: () => StoredBootstrapAccess | null
+  }
   /**
    * Owner UX plan P8: the background product-image worker, started after the snapshot was persisted
    * and the install hold settled. Fire-and-forget: never awaited, never able to fail a bootstrap.
@@ -242,7 +249,11 @@ export class BootstrapService {
           }
         }
         if (this.options.accessOrdering) {
-          admitAccessAnswer(this.options.accessOrdering.store, capturedOwner, accessSequence, true)
+          const ordering = this.options.accessOrdering
+          const relaxes = ordering.currentAccess
+            ? bootstrapRelaxes(resource, ordering.currentAccess())
+            : true
+          admitAccessAnswer(ordering.store, capturedOwner, accessSequence, relaxes)
         }
         this.options.installGate?.beforeWrite()
       }

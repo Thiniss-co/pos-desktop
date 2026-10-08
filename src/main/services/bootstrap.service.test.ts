@@ -256,6 +256,83 @@ describe('BootstrapService.refresh', () => {
     }
   })
 
+  it('applies an unsequenced bootstrap (older backend) after a sequenced answer only when it relaxes nothing (Phase 6, C3)', async () => {
+    const fixture = desktopBootstrapFixture() as {
+      company: { id: string }
+      features: Record<string, boolean>
+      permissions: string[]
+    }
+    const owner = {
+      sessionEpoch: 3,
+      userUuid: '44444444-4444-4444-8444-444444444444',
+      userIsActive: true,
+      companyUuid: fixture.company.id,
+      deviceUuid: identity.deviceUuid,
+      serverDeviceId: '22222222-2222-4222-8222-222222222222',
+      branchUuid: null,
+      warehouseUuid: null
+    }
+    const enabled = Object.entries(fixture.features)
+      .filter(([, on]) => on)
+      .map(([code]) => code)
+    const asStored = {
+      canSell: true,
+      canSync: true,
+      enabledFeatures: new Set(enabled),
+      permissions: new Set(fixture.permissions)
+    }
+    const narrower = { ...asStored, enabledFeatures: new Set(enabled.slice(1)) }
+
+    for (const [label, current, accepted] of [
+      ['equal or narrower than stored', asStored, true],
+      ['would enable a feature the till does not have', narrower, false]
+    ] as const) {
+      let stored: StoredAccessSequence | null = {
+        deviceUuid: identity.deviceUuid,
+        sessionEpoch: 3,
+        sequence: 10
+      }
+      let wrote = false
+      const service = new BootstrapService(
+        createApiClient(bootstrapSuccessEnvelope()),
+        { get: () => identity },
+        syncAllowed,
+        {
+          persistSnapshot: (_resource, _fetchedAt, options) => {
+            options?.beforeWrite?.()
+            wrote = true
+            return { snapshotVersion: 'v', serverTime: '2026-01-01T00:00:00Z', counts: {} }
+          }
+        },
+        () => undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          owner: () => owner,
+          accessOrdering: {
+            store: {
+              get: () => stored,
+              set: (value) => {
+                stored = value
+              }
+            },
+            currentAccess: () => current
+          }
+        }
+      )
+
+      if (accepted) {
+        await service.refresh()
+      } else {
+        await expect(service.refresh(), label).rejects.toMatchObject({ code: 'owner-changed' })
+      }
+      expect(wrote, label).toBe(accepted)
+      // The ordering state is never erased or advanced by an unsequenced answer.
+      expect(stored?.sequence, label).toBe(10)
+    }
+  })
+
   it('retries once past the second boundary when a same-second catalog conflicts', async () => {
     let persists = 0
     const service = new BootstrapService(

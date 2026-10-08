@@ -47,6 +47,8 @@ if (process.env.PW_WRAPPED !== '1') {
     PW_CHROME_PATH: process.env.PW_CHROME_PATH ?? '',
     // Optional: the backend tree the disposable sandbox runs from (see support/paths.mjs).
     PW_BACKEND_ROOT: process.env.PW_BACKEND_ROOT ?? '',
+    // Platform Phase 6 compatibility journey (p6compat): the older backend tree it starts on.
+    PW_OLD_BACKEND_ROOT: process.env.PW_OLD_BACKEND_ROOT ?? '',
     // Optional: the audit folder journey evidence is written to (see support/paths.mjs).
     PW_EVIDENCE_ROOT: process.env.PW_EVIDENCE_ROOT ?? '',
     // Opt-in: serve the disposable backend through the guarded HTTP router (see support/sandbox.mjs).

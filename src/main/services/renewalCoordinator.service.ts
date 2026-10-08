@@ -1,4 +1,5 @@
 import type { LicenseStatus } from '@shared/contracts/license.contract'
+import { StaleAccessResponseError } from './accessOrdering'
 import { OwnerChangedError, renewalOwnerKey, type RenewalOwner } from './renewalOwner'
 
 /**
@@ -205,7 +206,10 @@ export class RenewalCoordinator {
       return { kind: 'renewed', status }
     } catch (error) {
       if (error instanceof OwnerChangedError) {
-        this.log(`license leg (${reason}): owner changed in flight; result discarded`)
+        // Phase 6 (C3): an older or unsequenced-relaxing access answer is discarded the same way; name it in the log.
+        this.log(
+          `license leg (${reason}): ${error instanceof StaleAccessResponseError ? error.message : 'owner changed in flight; result discarded'}`
+        )
         this.reschedule()
         return { kind: 'owner-changed' }
       }

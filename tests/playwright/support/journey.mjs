@@ -12,9 +12,13 @@ export const MANAGER = { email: 'manager@desktop-mvp.test', password: 'Password1
 
 export async function openSandboxAndApp(
   ctx,
-  { flags = {}, profile = 'profile', proxy: withProxy = false } = {}
+  { flags = {}, profile = 'profile', proxy: withProxy = false, backendRoot = undefined } = {}
 ) {
-  const sandbox = await startSandbox({ runDir: ctx.runDir, flags })
+  const sandbox = await startSandbox({
+    runDir: ctx.runDir,
+    flags,
+    ...(backendRoot ? { backendRoot } : {})
+  })
   ctx.step('disposable backend ready', { origin: sandbox.origin, database: sandbox.databasePath })
   const proxy = withProxy ? await startProxy(sandbox.origin) : null
   if (proxy) ctx.step('network proxy ready', { origin: proxy.origin })

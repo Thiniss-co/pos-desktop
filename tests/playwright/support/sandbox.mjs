@@ -49,8 +49,12 @@ export async function startSandbox({
   name = 'backend',
   flags = {},
   port = null,
-  guardHttp = process.env.POS_SANDBOX_GUARD_HTTP === '1'
+  guardHttp = process.env.POS_SANDBOX_GUARD_HTTP === '1',
+  backendRoot = BACKEND_ROOT
 } = {}) {
+  // The backend tree serving this sandbox; `useBackend()` switches it (same database, same port), e.g. an older
+  // backend first, then an upgrade (Platform Phase 6 compatibility journey `p6compat`).
+  let root = backendRoot
   const dir = join(runDir, name)
   mkdirSync(dir, { recursive: true })
   const databasePath = join(realpathSync(dir), 'sandbox.sqlite')
@@ -71,7 +75,7 @@ export async function startSandbox({
   }
 
   const php = (args) => {
-    const result = spawnSync('php', args, { cwd: BACKEND_ROOT, env, encoding: 'utf8' })
+    const result = spawnSync('php', args, { cwd: root, env, encoding: 'utf8' })
     if (result.status !== 0) {
       throw new Error(
         `php ${args.slice(1).join(' ')} failed (${result.status}):\n${result.stdout}\n${result.stderr}`
@@ -80,13 +84,8 @@ export async function startSandbox({
     return result.stdout
   }
 
-  php([join(SANDBOX_SUPPORT, 'guardedArtisan.php'), BACKEND_ROOT, 'migrate'])
-  php([
-    join(SANDBOX_SUPPORT, 'guardedArtisan.php'),
-    BACKEND_ROOT,
-    'db:seed',
-    'DesktopMvpSmokeSeeder'
-  ])
+  php([join(SANDBOX_SUPPORT, 'guardedArtisan.php'), root, 'migrate'])
+  php([join(SANDBOX_SUPPORT, 'guardedArtisan.php'), root, 'db:seed', 'DesktopMvpSmokeSeeder'])
 
   const listenPort = port ?? (await freePort())
   const origin = `http://127.0.0.1:${listenPort}`
@@ -99,13 +98,21 @@ export async function startSandbox({
     origin,
     port: listenPort,
     guardHttp,
+    get backendRoot() {
+      return root
+    },
+    /**
+     * Serves the same sandbox database from another backend tree: stop, switch, optionally migrate (an upgrade), start
+     * again on the same port. Fixture operations run against the current tree as well.
+     */
+    async useBackend(nextRoot, { migrate = false } = {}) {
+      await sandbox.stop()
+      root = nextRoot
+      if (migrate) php([join(SANDBOX_SUPPORT, 'guardedArtisan.php'), root, 'migrate'])
+      await sandbox.start()
+    },
     fixture(operation, argument = '') {
-      const output = php([
-        join(SANDBOX_SUPPORT, 'guiFixture.php'),
-        BACKEND_ROOT,
-        operation,
-        argument
-      ])
+      const output = php([join(SANDBOX_SUPPORT, 'guiFixture.php'), root, operation, argument])
       const line = output.trim().split('\n').pop()
       return JSON.parse(line)
     },
@@ -121,13 +128,13 @@ export async function startSandbox({
             '-S',
             `127.0.0.1:${listenPort}`,
             '-t',
-            join(BACKEND_ROOT, 'public'),
+            join(root, 'public'),
             join(SANDBOX_SUPPORT, 'guardedHttpRouter.php')
           ]
         : ['artisan', 'serve', '--host=127.0.0.1', `--port=${listenPort}`, '--no-reload']
       server = spawn('php', args, {
-        cwd: BACKEND_ROOT,
-        env: { ...env, PHP_CLI_SERVER_WORKERS: '1', POS_SANDBOX_BACKEND_ROOT: BACKEND_ROOT },
+        cwd: root,
+        env: { ...env, PHP_CLI_SERVER_WORKERS: '1', POS_SANDBOX_BACKEND_ROOT: root },
         detached: true,
         stdio: ['ignore', logFd, logFd]
       })

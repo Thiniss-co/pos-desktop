@@ -4,7 +4,9 @@ import { DesktopApiClient } from '../../../src/main/http/desktopApiClient'
 import {
   ACCESS_SEQUENCE_SETTING_KEY,
   admitAccessAnswer,
-  SettingsAccessSequenceStore
+  bootstrapRelaxes,
+  SettingsAccessSequenceStore,
+  storedBootstrapAccess
 } from '../../../src/main/services/accessOrdering'
 import { LicenseService } from '../../../src/main/services/license.service'
 import { captureRenewalOwner } from '../../../src/main/services/renewalOwner'
@@ -216,6 +218,48 @@ databaseTest(
     await validate({ canSell: true, sequence: 2, serverTime: '2026-10-01T11:00:00Z' })
     equal(repositories.licenseMetadata.getStatus()?.canSell, true)
     equal(store.get()?.sequence, 2)
+    closeDatabase(database)
+  }
+)
+
+databaseTest(
+  'an unsequenced bootstrap after a sequenced answer applies restrictions and refuses relaxations, keeping the order',
+  async (sandbox) => {
+    const database = openTestDatabase(sandbox)
+    const { repositories, store, owner, signIn, validate } = harness(database)
+    signIn()
+    await validate({ canSell: false, sequence: 20, serverTime: '2026-10-01T10:00:00Z' })
+    const stored = (): ReturnType<typeof storedBootstrapAccess> =>
+      storedBootstrapAccess({
+        license: repositories.licenseMetadata,
+        snapshot: repositories.bootstrapSnapshot
+      })
+    const admit = (answer: Parameters<typeof bootstrapRelaxes>[0]): void =>
+      database.transaction(() =>
+        admitAccessAnswer(store, owner(), null, bootstrapRelaxes(answer, stored()))
+      )()
+
+    // An older backend's bootstrap that keeps selling off and opens nothing: admitted, the order is kept.
+    admit({ license: { can_sell: false, can_sync: false }, features: {}, permissions: [] })
+    equal(store.get()?.sequence, 20)
+
+    // The same backend answering that selling is allowed again, or enabling a feature: refused, nothing written.
+    const relaxations: Array<Parameters<typeof bootstrapRelaxes>[0]> = [
+      { license: { can_sell: true, can_sync: false }, features: {}, permissions: [] },
+      { license: { can_sell: false, can_sync: false }, features: { pos: true }, permissions: [] },
+      { license: { can_sell: false, can_sync: false }, features: {}, permissions: ['sales.create'] }
+    ]
+    for (const answer of relaxations) {
+      let refused = false
+      try {
+        admit(answer)
+      } catch (error) {
+        refused = discarded(error as { code?: string })
+      }
+      ok(refused, `an unsequenced relaxation was admitted: ${JSON.stringify(answer)}`)
+    }
+    equal(store.get()?.sequence, 20)
+    equal(repositories.licenseMetadata.getStatus()?.canSell, false)
     closeDatabase(database)
   }
 )
