@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
+import { rendererIndexUrl } from '../security/securityPolicy'
 import { syncStatusSchema } from '@shared/contracts/sync.contract'
 import {
   syncGetStatusInputSchema,
@@ -59,7 +60,7 @@ const CONFLICT_ISSUE = {
 }
 
 /** A frame the allow-list accepts: no dev renderer URL is set, so `file:` is the trusted origin. */
-const trustedEvent = { senderFrame: { parent: null, url: 'file:///app/index.html' } }
+const trustedEvent = { senderFrame: { parent: null, url: rendererIndexUrl().href } }
 const untrustedEvent = { senderFrame: { parent: null, url: 'https://evil.example/index.html' } }
 const subframeEvent = {
   senderFrame: { parent: { url: 'file:///app/index.html' }, url: 'file:///app/index.html' }

@@ -26,7 +26,7 @@ import type { PosWorkspaceReadResult } from '@shared/contracts/posWorkspace.cont
 import type { ApplicationServices } from '../app/applicationServices'
 import { isPublicAppError } from '../http/apiError'
 import { assertTrustedSender } from './assertTrustedSender'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleIpcRequest, handleTrustedIpcRequest } from './handleIpcRequest'
 
 const LOCALE_SETTING_KEY = 'ui.locale'
 const FALLBACK_LOCALE: LocaleCode = 'en'
@@ -68,8 +68,8 @@ function readStoredPosCartWidth(stored: string | null): PosCartWidthPreference {
 }
 
 export function registerPreferencesIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.preferencesGetLocale, (_event, input: unknown) =>
-    handleIpcRequest(input, preferencesGetLocaleInputSchema, () => {
+  ipcMain.handle(IPC_CHANNELS.preferencesGetLocale, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, preferencesGetLocaleInputSchema, () => {
       const storedLocale = services.appSettings.get(LOCALE_SETTING_KEY)
 
       if (storedLocale === null) {
@@ -79,14 +79,14 @@ export function registerPreferencesIpcHandlers(services: ApplicationServices): v
       return localeCodeSchema.safeParse(storedLocale).data ?? FALLBACK_LOCALE
     })
   )
-  ipcMain.handle(IPC_CHANNELS.preferencesSetLocale, (_event, input: unknown) =>
-    handleIpcRequest(input, preferencesSetLocaleInputSchema, (locale) => {
+  ipcMain.handle(IPC_CHANNELS.preferencesSetLocale, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, preferencesSetLocaleInputSchema, (locale) => {
       services.appSettings.set(LOCALE_SETTING_KEY, locale)
       return locale
     })
   )
-  ipcMain.handle(IPC_CHANNELS.preferencesGetTheme, (_event, input: unknown) =>
-    handleIpcRequest(input, preferencesGetThemeInputSchema, () => {
+  ipcMain.handle(IPC_CHANNELS.preferencesGetTheme, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, preferencesGetThemeInputSchema, () => {
       const storedTheme = services.appSettings.get(THEME_SETTING_KEY)
 
       if (storedTheme === null) {
@@ -96,8 +96,8 @@ export function registerPreferencesIpcHandlers(services: ApplicationServices): v
       return themePreferenceSchema.safeParse(storedTheme).data ?? FALLBACK_THEME
     })
   )
-  ipcMain.handle(IPC_CHANNELS.preferencesSetTheme, (_event, input: unknown) =>
-    handleIpcRequest(input, preferencesSetThemeInputSchema, (theme) => {
+  ipcMain.handle(IPC_CHANNELS.preferencesSetTheme, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, preferencesSetThemeInputSchema, (theme) => {
       services.appSettings.set(THEME_SETTING_KEY, theme)
       return theme
     })

@@ -1,10 +1,24 @@
-import { BrowserWindow } from 'electron'
-import { is } from '@electron-toolkit/utils'
+import type { BrowserWindow } from 'electron'
+import { join } from 'path'
+import { pathToFileURL } from 'url'
+
+/** The packaged renderer page: the only `file:` page the main window may show or invoke IPC from. */
+export function rendererIndexUrl(): URL {
+  return pathToFileURL(join(__dirname, '../renderer/index.html'))
+}
+
+function samePath(left: string, right: string): boolean {
+  // Windows file URLs may differ only in drive-letter case.
+  return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+}
 
 export function getDevelopmentRendererUrl(): URL | undefined {
   const rendererUrl = process.env['ELECTRON_RENDERER_URL']
 
-  if (!is.dev || !rendererUrl) {
+  // Only an `electron-vite dev` build (the only one that sets ELECTRON_RENDERER_URL) may load the
+  // development server. A production build never does, packaged or not. This deliberately avoids
+  // importing Electron, so every module that checks a sender stays loadable outside the app.
+  if (import.meta.env?.DEV !== true || !rendererUrl) {
     return undefined
   }
 
@@ -15,7 +29,11 @@ export function getDevelopmentRendererUrl(): URL | undefined {
   }
 }
 
-export function isAllowedNavigation(url: string, developmentRendererUrl: URL | undefined): boolean {
+export function isAllowedNavigation(
+  url: string,
+  developmentRendererUrl: URL | undefined,
+  indexUrl: URL = rendererIndexUrl()
+): boolean {
   try {
     const target = new URL(url)
 
@@ -23,7 +41,8 @@ export function isAllowedNavigation(url: string, developmentRendererUrl: URL | u
       return target.origin === developmentRendererUrl.origin
     }
 
-    return target.protocol === 'file:'
+    // The app's own page only (any hash route of it), never another local file.
+    return target.protocol === 'file:' && samePath(target.pathname, indexUrl.pathname)
   } catch {
     return false
   }

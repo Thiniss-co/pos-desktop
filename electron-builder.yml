@@ -49,6 +49,16 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+# Release fuses: the packaged binary cannot be turned into a Node interpreter (ELECTRON_RUN_AS_NODE,
+# NODE_OPTIONS, --inspect) and loads only its own, integrity-checked app.asar (the integrity check is
+# enforced on Windows and macOS). Remote debugging is not a fuse; the packaged-app journey drives the
+# real artifact through it.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 publish:
   provider: generic
   url: https://example.com/auto-updates

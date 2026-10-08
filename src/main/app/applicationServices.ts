@@ -233,7 +233,7 @@ export interface ApplicationServices {
 }
 
 export function createApplicationServices(): ApplicationServices {
-  const runtimeConfig = loadRuntimeConfig()
+  const runtimeConfig = loadRuntimeConfig(import.meta.env, { packaged: app.isPackaged })
   const database = openDatabase()
 
   try {

@@ -7,22 +7,28 @@ import {
   authRefreshSessionInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleTrustedIpcRequest } from './handleIpcRequest'
 
 export function registerAuthIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.authGetSessionSummary, (_event, input: unknown) =>
-    handleIpcRequest(input, authGetSessionSummaryInputSchema, () => services.session.getSummary())
+  ipcMain.handle(IPC_CHANNELS.authGetSessionSummary, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, authGetSessionSummaryInputSchema, () =>
+      services.session.getSummary()
+    )
   )
 
-  ipcMain.handle(IPC_CHANNELS.authLogin, (_event, input: unknown) =>
-    handleIpcRequest(input, authLoginInputSchema, (value) => services.auth.login(value))
+  ipcMain.handle(IPC_CHANNELS.authLogin, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, authLoginInputSchema, (value) =>
+      services.auth.login(value)
+    )
   )
 
-  ipcMain.handle(IPC_CHANNELS.authRefreshSession, (_event, input: unknown) =>
-    handleIpcRequest(input, authRefreshSessionInputSchema, () => services.auth.refreshSession())
+  ipcMain.handle(IPC_CHANNELS.authRefreshSession, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, authRefreshSessionInputSchema, () =>
+      services.auth.refreshSession()
+    )
   )
 
-  ipcMain.handle(IPC_CHANNELS.authLogout, (_event, input: unknown) =>
-    handleIpcRequest(input, authLogoutInputSchema, () => services.auth.logout())
+  ipcMain.handle(IPC_CHANNELS.authLogout, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, authLogoutInputSchema, () => services.auth.logout())
   )
 }

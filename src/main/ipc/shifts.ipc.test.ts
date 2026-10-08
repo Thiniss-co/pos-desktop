@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
+import { rendererIndexUrl } from '../security/securityPolicy'
 import type { ApplicationServices } from '../app/applicationServices'
 import type { DesktopApiClient } from '../http/desktopApiClient'
 import type { CommercialAccessService } from '../services/commercialAccess.service'
@@ -22,6 +23,9 @@ vi.mock('electron', () => ({
 }))
 
 import { registerShiftIpcHandlers } from './shifts.ipc'
+
+// The application's own main frame: the only sender the handlers answer.
+const trustedEvent = { senderFrame: { parent: null, url: rendererIndexUrl().href } }
 
 describe('shift IPC authorization', () => {
   it('enforces main-process permissions for a direct IPC invocation', async () => {
@@ -51,20 +55,17 @@ describe('shift IPC authorization', () => {
 
     expect(handler).toBeDefined()
     await expect(
-      handler?.(
-        {},
-        {
-          openingCashAmount: 1000,
-          shiftUuid: '11111111-1111-4111-8111-111111111111',
-          status: 'open',
-          sessionEpoch: 999
-        }
-      )
+      handler?.(trustedEvent, {
+        openingCashAmount: 1000,
+        shiftUuid: '11111111-1111-4111-8111-111111111111',
+        status: 'open',
+        sessionEpoch: 999
+      })
     ).resolves.toMatchObject({
       ok: false,
       error: { category: 'validation' }
     })
-    await expect(handler?.({}, { openingCashAmount: 1000 })).resolves.toMatchObject({
+    await expect(handler?.(trustedEvent, { openingCashAmount: 1000 })).resolves.toMatchObject({
       ok: false,
       error: {
         category: 'authorization',

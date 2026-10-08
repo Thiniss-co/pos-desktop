@@ -9,7 +9,7 @@ import {
   connectivityGetStateInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleTrustedIpcRequest } from './handleIpcRequest'
 
 export function broadcastConnectivityChanged(snapshot: ConnectivitySnapshot): void {
   const payload = connectivitySnapshotSchema.parse(snapshot)
@@ -29,13 +29,13 @@ export function broadcastConnectivityChanged(snapshot: ConnectivitySnapshot): vo
 }
 
 export function registerConnectivityIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.connectivityGetState, (_event, input: unknown) =>
-    handleIpcRequest(input, connectivityGetStateInputSchema, () =>
+  ipcMain.handle(IPC_CHANNELS.connectivityGetState, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, connectivityGetStateInputSchema, () =>
       connectivitySnapshotSchema.parse(services.connectivity.getSnapshot())
     )
   )
-  ipcMain.handle(IPC_CHANNELS.connectivityCheckNow, (_event, input: unknown) =>
-    handleIpcRequest(input, connectivityCheckNowInputSchema, async () =>
+  ipcMain.handle(IPC_CHANNELS.connectivityCheckNow, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, connectivityCheckNowInputSchema, async () =>
       connectivitySnapshotSchema.parse(await services.connectivity.checkNow())
     )
   )

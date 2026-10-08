@@ -11,53 +11,53 @@ import {
   companyUsersUpdateInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleTrustedIpcRequest } from './handleIpcRequest'
 
 export function registerCompanyUsersIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.companyUsersGetAccess, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersGetAccessInputSchema, () =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersGetAccess, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersGetAccessInputSchema, () =>
       services.companyUsers.getAccess()
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersList, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersListInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersList, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersListInputSchema, (value) =>
       services.companyUsers.list(value)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersGet, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersGetInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersGet, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersGetInputSchema, (value) =>
       services.companyUsers.get(value.uuid)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersCreate, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersCreateInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersCreate, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersCreateInputSchema, (value) =>
       services.companyUsers.create(value)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersUpdate, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersUpdateInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersUpdate, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersUpdateInputSchema, (value) =>
       services.companyUsers.update(value)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersSetRoles, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersSetRolesInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersSetRoles, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersSetRolesInputSchema, (value) =>
       services.companyUsers.setRoles(value)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersSetEnabled, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersSetEnabledInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersSetEnabled, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersSetEnabledInputSchema, (value) =>
       services.companyUsers.setEnabled(value)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.companyUsersListAssignableRoles, (_event, input: unknown) =>
-    handleIpcRequest(input, companyUsersListAssignableRolesInputSchema, () =>
+  ipcMain.handle(IPC_CHANNELS.companyUsersListAssignableRoles, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, companyUsersListAssignableRolesInputSchema, () =>
       services.companyUsers.listAssignableRoles()
     )
   )

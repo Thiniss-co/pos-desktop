@@ -5,17 +5,17 @@ import {
   bootstrapRefreshInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleTrustedIpcRequest } from './handleIpcRequest'
 
 export function registerBootstrapIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.bootstrapGetStatus, (_event, input: unknown) =>
-    handleIpcRequest(input, bootstrapGetStatusInputSchema, () =>
+  ipcMain.handle(IPC_CHANNELS.bootstrapGetStatus, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, bootstrapGetStatusInputSchema, () =>
       services.bootstrapState.getStatus()
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.bootstrapRefresh, (_event, input: unknown) =>
-    handleIpcRequest(input, bootstrapRefreshInputSchema, async () => {
+  ipcMain.handle(IPC_CHANNELS.bootstrapRefresh, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, bootstrapRefreshInputSchema, async () => {
       await services.auth.ensureCatalogReadContext()
       const revision = services.commercialAccessPublisher.begin()
       const result = await services.bootstrap.refresh()

@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from '../ipc/registerIpcHandlers'
 import { createApplicationServices, type ApplicationServices } from './applicationServices'
@@ -15,6 +15,17 @@ export function bootstrapApp(): void {
     .then(() => {
       // Set app user model id for windows
       electronApp.setAppUserModelId('com.electron')
+
+      // A packaged till has no default menu: its View menu offers Reload and Toggle Developer Tools
+      // (Alt shows the auto-hidden bar). macOS keeps only the app and Edit menus, which carry the
+      // clipboard shortcuts there.
+      if (app.isPackaged) {
+        Menu.setApplicationMenu(
+          process.platform === 'darwin'
+            ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }])
+            : null
+        )
+      }
 
       // Default open or close DevTools by F12 in development
       // and ignore CommandOrControl + R in production.

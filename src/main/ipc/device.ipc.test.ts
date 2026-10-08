@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { IPC_CHANNELS } from '@shared/constants/ipcChannels'
+import { rendererIndexUrl } from '../security/securityPolicy'
 import type { ApplicationServices } from '../app/applicationServices'
 
 const { handlers } = vi.hoisted(() => ({
@@ -17,6 +18,9 @@ vi.mock('electron', () => ({
 }))
 
 import { registerDeviceIpcHandlers } from './device.ipc'
+
+// The application's own main frame: the only sender the handlers answer.
+const trustedEvent = { senderFrame: { parent: null, url: rendererIndexUrl().href } }
 
 describe('device identity IPC', () => {
   it('projects the authoritative persisted registration status without changing device identity', async () => {
@@ -38,7 +42,7 @@ describe('device identity IPC', () => {
     } as unknown as ApplicationServices)
     const handler = handlers.get(IPC_CHANNELS.deviceGetIdentitySummary)
 
-    await expect(handler?.({}, undefined)).resolves.toEqual({
+    await expect(handler?.(trustedEvent, undefined)).resolves.toEqual({
       ok: true,
       data: {
         deviceUuid: '00000000-0000-4000-8000-000000000001',

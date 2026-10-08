@@ -9,7 +9,7 @@ import {
   licenseValidateInputSchema
 } from '@shared/validators/ipc.validators'
 import type { ApplicationServices } from '../app/applicationServices'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleTrustedIpcRequest } from './handleIpcRequest'
 
 interface CommercialAccessDescriber {
   describe(): CommercialAccessSnapshot
@@ -88,8 +88,8 @@ export class CommercialAccessPublisher {
 }
 
 export function registerLicenseIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.licenseValidate, (_event, input: unknown) =>
-    handleIpcRequest(input, licenseValidateInputSchema, async () => {
+  ipcMain.handle(IPC_CHANNELS.licenseValidate, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, licenseValidateInputSchema, async () => {
       const revision = services.commercialAccessPublisher.begin()
       // Rev 4 §7: every validation goes through the renewal coordinator (single-flight, owner-checked).
       await services.renewal.validateLicense('ipc')
@@ -98,7 +98,9 @@ export function registerLicenseIpcHandlers(services: ApplicationServices): void 
     })
   )
 
-  ipcMain.handle(IPC_CHANNELS.licenseGetAccess, (_event, input: unknown) =>
-    handleIpcRequest(input, licenseGetAccessInputSchema, () => services.commercialAccess.describe())
+  ipcMain.handle(IPC_CHANNELS.licenseGetAccess, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, licenseGetAccessInputSchema, () =>
+      services.commercialAccess.describe()
+    )
   )
 }

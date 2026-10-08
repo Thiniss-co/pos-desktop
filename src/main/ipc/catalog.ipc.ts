@@ -16,7 +16,7 @@ import type { ApplicationServices } from '../app/applicationServices'
 import { isPublicAppError } from '../http/apiError'
 import { ipcFailure } from '@shared/contracts/ipc.contract'
 import { assertTrustedSender } from './assertTrustedSender'
-import { handleIpcRequest } from './handleIpcRequest'
+import { handleIpcRequest, handleTrustedIpcRequest } from './handleIpcRequest'
 
 const unexpectedError = {
   category: 'unexpected',
@@ -57,8 +57,10 @@ export function broadcastCatalogChanged(payload: CatalogChangedPayload): void {
 }
 
 export function registerCatalogIpcHandlers(services: ApplicationServices): void {
-  ipcMain.handle(IPC_CHANNELS.catalogGetStatus, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogGetStatusInputSchema, () => services.catalog.getStatus())
+  ipcMain.handle(IPC_CHANNELS.catalogGetStatus, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogGetStatusInputSchema, () =>
+      services.catalog.getStatus()
+    )
   )
   // `catalog:refresh` is the only catalog channel that changes durable state and reaches the
   // network, so it is the only one that carries the trusted-sender check — asserted *before* the
@@ -77,44 +79,44 @@ export function registerCatalogIpcHandlers(services: ApplicationServices): void 
     )
   })
 
-  ipcMain.handle(IPC_CHANNELS.catalogListCategories, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogListCategoriesInputSchema, () =>
+  ipcMain.handle(IPC_CHANNELS.catalogListCategories, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogListCategoriesInputSchema, () =>
       services.catalog.listCategories()
     )
   )
-  ipcMain.handle(IPC_CHANNELS.catalogSearchProducts, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogSearchProductsInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.catalogSearchProducts, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogSearchProductsInputSchema, (value) =>
       services.stockView.searchPage(value)
     )
   )
-  ipcMain.handle(IPC_CHANNELS.catalogGetProduct, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogGetProductInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.catalogGetProduct, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogGetProductInputSchema, (value) =>
       services.catalog.getProduct(value.uuid)
     )
   )
-  ipcMain.handle(IPC_CHANNELS.catalogGetProductForSale, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogGetProductForSaleInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.catalogGetProductForSale, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogGetProductForSaleInputSchema, (value) =>
       services.stockView.productForSale(value.uuid)
     )
   )
 
-  ipcMain.handle(IPC_CHANNELS.catalogFindByBarcode, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogFindByBarcodeInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.catalogFindByBarcode, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogFindByBarcodeInputSchema, (value) =>
       services.stockView.barcodeForSale(value.barcode)
     )
   )
-  ipcMain.handle(IPC_CHANNELS.catalogListPaymentMethods, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogListPaymentMethodsInputSchema, () =>
+  ipcMain.handle(IPC_CHANNELS.catalogListPaymentMethods, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogListPaymentMethodsInputSchema, () =>
       services.catalog.listPaymentMethods()
     )
   )
-  ipcMain.handle(IPC_CHANNELS.catalogSearchCustomers, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogSearchCustomersInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.catalogSearchCustomers, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogSearchCustomersInputSchema, (value) =>
       services.catalog.searchCustomers(value)
     )
   )
-  ipcMain.handle(IPC_CHANNELS.catalogGetCustomer, (_event, input: unknown) =>
-    handleIpcRequest(input, catalogGetCustomerInputSchema, (value) =>
+  ipcMain.handle(IPC_CHANNELS.catalogGetCustomer, (event, input: unknown) =>
+    handleTrustedIpcRequest(event, input, catalogGetCustomerInputSchema, (value) =>
       services.catalog.getCustomer(value.uuid)
     )
   )

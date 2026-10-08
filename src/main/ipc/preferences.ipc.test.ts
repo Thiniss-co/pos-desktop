@@ -286,7 +286,7 @@ describe('preferences IPC — POS cart width (layout-only preference)', () => {
     expect(settings.set).not.toHaveBeenCalled()
   })
 
-  it('leaves the existing locale/theme handlers unguarded, exactly as before', async () => {
+  it('refuses the locale/theme handlers to an untrusted sender, like every other channel', async () => {
     assertTrustedSender.mockImplementation(() => {
       throw { category: 'authorization', message: 'untrusted', retryable: false }
     })
@@ -295,11 +295,12 @@ describe('preferences IPC — POS cart width (layout-only preference)', () => {
 
     await expect(
       handler(IPC_CHANNELS.preferencesGetTheme)(fakeEvent(), undefined)
-    ).resolves.toEqual({ ok: true, data: 'dark' })
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authorization' } })
     await expect(
-      handler(IPC_CHANNELS.preferencesGetLocale)(fakeEvent(), undefined)
-    ).resolves.toEqual({ ok: true, data: 'ar' })
-    expect(assertTrustedSender).not.toHaveBeenCalled()
+      handler(IPC_CHANNELS.preferencesSetLocale)(fakeEvent(), 'en')
+    ).resolves.toMatchObject({ ok: false, error: { category: 'authorization' } })
+    expect(stored.get('ui.locale')).toBe('ar')
+    expect(assertTrustedSender).toHaveBeenCalledTimes(2)
   })
 })
 
