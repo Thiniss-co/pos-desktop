@@ -27,6 +27,7 @@ import { receiptSnapshotsMigration } from './0030_receipt_snapshots'
 import { receiptSnapshotV2Migration } from './0031_receipt_snapshot_v2'
 import { catalogOffersMigration } from './0032_catalog_offers'
 import { userWorkspaceLayoutsMigration } from './0033_user_workspace_layouts'
+import { dispositionProofResultsBackendContractMigration } from './0034_disposition_proof_results_backend_contract'
 
 export const databaseMigrations = [
   foundationMigration,
@@ -57,5 +58,6 @@ export const databaseMigrations = [
   receiptSnapshotsMigration,
   receiptSnapshotV2Migration,
   catalogOffersMigration,
-  userWorkspaceLayoutsMigration
+  userWorkspaceLayoutsMigration,
+  dispositionProofResultsBackendContractMigration
 ] as const

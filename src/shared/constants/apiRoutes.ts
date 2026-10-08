@@ -178,6 +178,14 @@ export const DESKTOP_API_ROUTES = Object.freeze({
     requiresAuth: true,
     requiresDeviceUuid: true
   },
+  // PS5b: the read-only fate of this device's own uploads (1–50 idempotency keys, sent as
+  // `idempotency_keys[]` query parameters by `dispositionStatus.client.ts`). Same gate as the upload.
+  invoicesSyncStatus: {
+    path: '/invoices/sync-status',
+    method: 'GET',
+    requiresAuth: true,
+    requiresDeviceUuid: true
+  },
   // POS improvements, Stage 2: register quick-create (durable, keyed, replayed verbatim by the server).
   quickCreateCustomers: {
     path: '/quick-create/customers',

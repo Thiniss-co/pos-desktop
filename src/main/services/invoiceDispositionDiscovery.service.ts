@@ -7,6 +7,7 @@ import {
 } from '@shared/contracts/dispositionDiscovery.contract'
 import type { SqliteDatabase } from '../database/connection'
 import { runSerializedWrite } from '../database/serializedWrite'
+import { allocationItemLineUuid } from './allocationJournal'
 import { invoiceRequestHash, isPhysicalPresenceContractVersion } from './invoiceRequestHash'
 
 /** The exact quarantine reasons a disposition may act on (§7.3a.2). Closed on purpose. */
@@ -17,6 +18,61 @@ export const ELIGIBLE_QUARANTINE_REASONS: ReadonlySet<string> = new Set([
   'allocation_insufficient_rights',
   'allocation_expired_at_sale_time'
 ])
+
+/**
+ * The backend's `DispositionOverrideReason` cases: the five classification failures, plus
+ * `prefix_broken` (every later proof on an identity whose prefix already broke) and
+ * `permanent_rejection` (every proof of a `reject_permanently` decision).
+ */
+const CLASSIFICATION_OVERRIDE_REASONS: ReadonlySet<string> = ELIGIBLE_QUARANTINE_REASONS
+
+/**
+ * PHP `json_encode($value)` with its default flags, which is what the backend hashes
+ * (`DesktopInvoiceDisposition::canonicalResultHash()`).
+ *
+ * Key order is NOT taken from the wire. On MySQL the `result_snapshot` JSON column re-sorts object
+ * keys on read, while the backend stamped the hash over its in-memory insertion order. The caller
+ * therefore passes the strictly parsed result, whose keys Zod emits in schema order, and the schema
+ * declares the backend's insertion order field for field. What remains is the escaping PHP applies by
+ * default and `JSON.stringify` does not: `/` becomes `\/`, and every non-ASCII UTF-16 code unit
+ * becomes a lowercase `\uXXXX` escape (a surrogate pair as two escapes, as PHP writes it).
+ */
+export function phpJsonEncode(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/\//g, '\\/')
+    .replace(/[\u0080-￿]/g, (unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`)
+}
+
+interface ExpectedProof {
+  readonly line_index: number
+  readonly proof_index: number
+  readonly allocation_uuid: string
+  readonly rights_generation: number
+  readonly consumption_sequence: number
+  readonly local_consumption_uuid: string
+  readonly item_line_uuid: string
+  readonly quantity_milli: number
+  readonly request_hash: string
+}
+
+const PROOF_IDENTITY_FIELDS = [
+  'line_index',
+  'proof_index',
+  'allocation_uuid',
+  'rights_generation',
+  'consumption_sequence',
+  'local_consumption_uuid',
+  'item_line_uuid',
+  'quantity_milli',
+  'request_hash'
+] as const satisfies ReadonlyArray<keyof ExpectedProof>
+
+function identityKey(proof: {
+  readonly allocation_uuid: string
+  readonly rights_generation: number
+}): string {
+  return `${proof.allocation_uuid}#${proof.rights_generation}`
+}
 
 export interface DispositionDiscoveryOwner {
   readonly companyUuid: string
@@ -255,7 +311,7 @@ export class InvoiceDispositionDiscoveryService {
         return { kind: 'noop' as const, invoiceLocalUuid: candidate.invoiceLocalUuid }
       }
 
-      const verification = this.verify(candidate, envelope, invoice)
+      const verification = this.verify(candidate, envelope, invoice, entry)
 
       if (verification !== null) {
         return this.conflict(candidate, envelope.id, verification.code, verification.detail)
@@ -274,22 +330,57 @@ export class InvoiceDispositionDiscoveryService {
   private verify(
     candidate: DispositionCandidate,
     envelope: DispositionEnvelope,
-    invoice: Record<string, unknown>
+    invoice: Record<string, unknown>,
+    entry: SyncStatusEntry
   ): { code: DispositionConflictCode; detail: Record<string, unknown> } | null {
     const result = envelope.result
 
-    // 1. The result hash covers the canonical result excluding itself.
-    if (sha256(JSON.stringify(result)) !== envelope.result_hash) {
+    // 1. The result hash covers the canonical result excluding itself, encoded exactly as the
+    //    backend encodes it (see `phpJsonEncode`). The envelope repeats the decision and its time;
+    //    both copies must agree.
+    if (sha256(phpJsonEncode(result)) !== envelope.result_hash) {
       return { code: 'result-hash-mismatch', detail: { dispositionUuid: envelope.id } }
+    }
+
+    if (envelope.decision !== result.decision || envelope.decided_at !== result.decided_at) {
+      return { code: 'binding-mismatch', detail: { reason: 'envelope-disagrees-with-result' } }
+    }
+
+    let payload: Record<string, unknown>
+
+    try {
+      payload = JSON.parse(candidate.payloadJson) as Record<string, unknown>
+    } catch {
+      return { code: 'payload-hash-mismatch', detail: { reason: 'payload-unparseable' } }
     }
 
     // 2. Exact identity binding. A decision about a different sale must never reach this one.
     if (
       result.binding.idempotency_key !== candidate.idempotencyKey ||
       result.binding.local_invoice_uuid !== candidate.invoiceLocalUuid ||
+      result.binding.client_contract_version !== payload.client_contract_version ||
       result.binding.offline_sale_authority_uuid !== invoice.offline_sale_authority_uuid
     ) {
       return { code: 'binding-mismatch', detail: { binding: result.binding } }
+    }
+
+    // The status read must tell the same story as the decision: an acceptance processed the upload
+    // into exactly the decided invoice, a permanent rejection left it quarantined with none.
+    const accepting = result.decision === 'accept_without_proof'
+
+    if (
+      entry.idempotency_key !== candidate.idempotencyKey ||
+      (entry.local_invoice_uuid !== undefined &&
+        entry.local_invoice_uuid !== candidate.invoiceLocalUuid) ||
+      entry.status !== (accepting ? 'processed' : 'quarantined') ||
+      (accepting ? result.invoice === null : result.invoice !== null) ||
+      (entry.invoice !== undefined &&
+        (entry.invoice?.invoice_uuid ?? null) !== (result.invoice?.invoice_uuid ?? null))
+    ) {
+      return {
+        code: 'binding-mismatch',
+        detail: { status: entry.status, decision: result.decision }
+      }
     }
 
     // 3. Recomputed from the IMMUTABLE payload, not from the stored request hash: this proves the
@@ -297,7 +388,7 @@ export class InvoiceDispositionDiscoveryService {
     let recomputed: string
 
     try {
-      recomputed = invoiceRequestHash(JSON.parse(candidate.payloadJson) as never)
+      recomputed = invoiceRequestHash(payload as never)
     } catch {
       return { code: 'payload-hash-mismatch', detail: { reason: 'payload-unparseable' } }
     }
@@ -309,85 +400,168 @@ export class InvoiceDispositionDiscoveryService {
       }
     }
 
-    // 4. Complete set-and-order equality between the frozen payload's proofs and `proof_results[]`.
-    //    Duplicates, omissions and additions are all invalid.
-    const frozen = this.frozenProofs(candidate.payloadJson)
+    // 4. Complete set-and-order equality between the frozen payload's proofs and `proof_results[]`,
+    //    in the order the backend enumerates them. Duplicates, omissions and additions are invalid.
+    const expected = this.expectedProofs(candidate, payload, recomputed)
 
-    if (frozen.length !== result.proof_results.length) {
+    if (expected.length !== result.proof_results.length) {
       return {
         code: 'proof-set-mismatch',
-        detail: { frozen: frozen.length, reported: result.proof_results.length }
+        detail: { frozen: expected.length, reported: result.proof_results.length }
       }
     }
 
-    for (let index = 0; index < frozen.length; index += 1) {
-      const expected = frozen[index]
+    for (let index = 0; index < expected.length; index += 1) {
+      const want = expected[index]
       const actual = result.proof_results[index]
+      const field = PROOF_IDENTITY_FIELDS.find((name) => want[name] !== actual[name])
 
-      if (
-        expected.lineIndex !== actual.line_index ||
-        expected.proofIndex !== actual.proof_index ||
-        expected.allocationUuid !== actual.allocation_uuid ||
-        expected.rightsGeneration !== actual.rights_generation ||
-        expected.consumptionSequence !== actual.consumption_sequence ||
-        expected.localConsumptionUuid !== actual.local_consumption_uuid ||
-        expected.quantityMilli !== actual.quantity_milli
-      ) {
-        return { code: 'proof-set-mismatch', detail: { index, expected, actual } }
+      if (field !== undefined) {
+        return { code: 'proof-set-mismatch', detail: { index, field } }
       }
     }
 
-    // 5. Accepted implies a server consumption; overridden implies none. Both directions.
-    for (const proof of result.proof_results) {
-      if (proof.outcome === 'accepted' && proof.server_consumption_uuid === null) {
-        return {
-          code: 'accepted-proof-missing-server-consumption',
-          detail: { sequence: proof.consumption_sequence }
-        }
-      }
+    // ...and every frozen proof is still this invoice's own row in the immutable local journal.
+    const journalMismatch = this.journalMismatch(candidate.invoiceLocalUuid, expected)
 
-      if (proof.outcome === 'overridden' && proof.server_consumption_uuid !== null) {
-        return { code: 'proof-set-mismatch', detail: { sequence: proof.consumption_sequence } }
+    if (journalMismatch !== null) {
+      return { code: 'proof-set-mismatch', detail: journalMismatch }
+    }
+
+    // 5. Outcome shape. An overridden proof never has a server consumption and always names one of
+    //    the backend's override reasons; an accepted one names none. The backend does not report the
+    //    server consumption UUID of an accepted proof (it stores `null`; DesktopInvoiceDisposition
+    //    Test asserts it), so an accepted proof may carry `null` or a UUID — it is acknowledged
+    //    later through ordinary verified coverage, never by this step.
+    for (const proof of result.proof_results) {
+      const shapeValid =
+        proof.outcome === 'accepted'
+          ? proof.override_reason === null
+          : proof.server_consumption_uuid === null &&
+            proof.override_reason !== null &&
+            (accepting
+              ? proof.override_reason === 'prefix_broken' ||
+                CLASSIFICATION_OVERRIDE_REASONS.has(proof.override_reason)
+              : proof.override_reason === 'permanent_rejection')
+
+      if (!shapeValid) {
+        return {
+          code: 'proof-set-mismatch',
+          detail: { sequence: proof.consumption_sequence, outcome: proof.outcome }
+        }
       }
     }
 
     // 6. A permanent rejection may contain no accepted proof at all.
-    if (
-      result.decision === 'reject_permanently' &&
-      result.proof_results.some((proof) => proof.outcome === 'accepted')
-    ) {
+    if (!accepting && result.proof_results.some((proof) => proof.outcome === 'accepted')) {
       return { code: 'rejection-contains-accepted-proof', detail: {} }
     }
 
-    // 7. Every overridden identity has a hold instruction, and no unrelated instruction is present.
-    const overriddenIdentities = new Set(
-      result.proof_results
-        .filter((proof) => proof.outcome === 'overridden')
-        .map((proof) => `${proof.allocation_uuid}#${proof.rights_generation}`)
-    )
-    const instructedIdentities = new Set(
-      result.required_holds.map((hold) => `${hold.allocation_uuid}#${hold.rights_generation}`)
-    )
+    // 7. The per-identity prefix rule, and the coverage and hold instructions it implies. Within one
+    //    identity (in sequence order) accepted proofs form a prefix; the first overridden proof is
+    //    the hold's `first_overridden_sequence` and every later one is `prefix_broken`. Coverage is
+    //    the accepted prefix of THIS invoice, captured at decision time.
+    const identities = new Map<
+      string,
+      {
+        allocationUuid: string
+        rightsGeneration: number
+        acceptedSequence: number | null
+        acceptedQuantityMilli: number
+        firstOverriddenSequence: number | null
+      }
+    >()
+
+    for (const proof of result.proof_results) {
+      const key = identityKey(proof)
+      const state = identities.get(key) ?? {
+        allocationUuid: proof.allocation_uuid,
+        rightsGeneration: proof.rights_generation,
+        acceptedSequence: null,
+        acceptedQuantityMilli: 0,
+        firstOverriddenSequence: null
+      }
+
+      if (proof.outcome === 'accepted') {
+        if (state.firstOverriddenSequence !== null) {
+          return { code: 'coverage-prefix-unverified', detail: { identity: key } }
+        }
+
+        state.acceptedSequence = proof.consumption_sequence
+        state.acceptedQuantityMilli += proof.quantity_milli
+      } else if (state.firstOverriddenSequence === null) {
+        if (accepting && proof.override_reason === 'prefix_broken') {
+          return { code: 'proof-set-mismatch', detail: { identity: key, reason: 'prefix_broken' } }
+        }
+
+        state.firstOverriddenSequence = proof.consumption_sequence
+      } else if (accepting && proof.override_reason !== 'prefix_broken') {
+        return { code: 'proof-set-mismatch', detail: { identity: key, reason: 'after-break' } }
+      }
+
+      identities.set(key, state)
+    }
+
+    const expectedCoverage = [...identities.values()]
+      .filter((state) => state.acceptedSequence !== null)
+      .map((state) => ({
+        allocation_uuid: state.allocationUuid,
+        rights_generation: state.rightsGeneration,
+        accepted_consumption_sequence: state.acceptedSequence,
+        accepted_consumed_quantity_milli: state.acceptedQuantityMilli
+      }))
 
     if (
-      overriddenIdentities.size !== instructedIdentities.size ||
-      [...overriddenIdentities].some((identity) => !instructedIdentities.has(identity))
+      expectedCoverage.length !== result.coverage.length ||
+      expectedCoverage.some((want, index) => {
+        const actual = result.coverage[index]
+
+        return (
+          want.allocation_uuid !== actual.allocation_uuid ||
+          want.rights_generation !== actual.rights_generation ||
+          want.accepted_consumption_sequence !== actual.accepted_consumption_sequence ||
+          want.accepted_consumed_quantity_milli !== actual.accepted_consumed_quantity_milli
+        )
+      })
+    ) {
+      return {
+        code: 'coverage-prefix-unverified',
+        detail: { expected: expectedCoverage.length, reported: result.coverage.length }
+      }
+    }
+
+    const expectedHolds = [...identities.values()]
+      .filter((state) => state.firstOverriddenSequence !== null)
+      .map((state) => ({
+        allocation_uuid: state.allocationUuid,
+        rights_generation: state.rightsGeneration,
+        first_overridden_sequence: state.firstOverriddenSequence
+      }))
+
+    // Every overridden identity has exactly its hold instruction, and no unrelated one is present.
+    if (
+      expectedHolds.length !== result.required_holds.length ||
+      expectedHolds.some((want, index) => {
+        const actual = result.required_holds[index]
+
+        return (
+          want.allocation_uuid !== actual.allocation_uuid ||
+          want.rights_generation !== actual.rights_generation ||
+          want.first_overridden_sequence !== actual.first_overridden_sequence
+        )
+      })
     ) {
       return {
         code: 'hold-instruction-mismatch',
         detail: {
-          overridden: [...overriddenIdentities],
-          instructed: [...instructedIdentities]
+          overridden: expectedHolds.map(identityKey),
+          instructed: result.required_holds.map(identityKey)
         }
       }
     }
 
     // 8. An accepted decision's invoice UUID must not already belong to another local invoice.
-    if (result.decision === 'accept_without_proof') {
-      if (result.invoice === null) {
-        return { code: 'binding-mismatch', detail: { reason: 'accepted-without-invoice' } }
-      }
-
+    if (accepting && result.invoice !== null) {
       const clash = this.dependencies.database
         .prepare('SELECT local_uuid FROM local_invoices WHERE remote_uuid = ? AND local_uuid <> ?')
         .get(result.invoice.invoice_uuid, candidate.invoiceLocalUuid) as
@@ -401,44 +575,83 @@ export class InvoiceDispositionDiscoveryService {
     return null
   }
 
-  /** The frozen payload's proofs, flattened in the same order the server enumerates them. */
-  private frozenProofs(payloadJson: string): ReadonlyArray<{
-    lineIndex: number
-    proofIndex: number
-    allocationUuid: string
-    rightsGeneration: number
-    consumptionSequence: number
-    localConsumptionUuid: string
-    quantityMilli: number
-  }> {
-    const payload = JSON.parse(payloadJson) as { items?: Array<Record<string, unknown>> }
-    const proofs: Array<{
-      lineIndex: number
-      proofIndex: number
-      allocationUuid: string
-      rightsGeneration: number
-      consumptionSequence: number
-      localConsumptionUuid: string
-      quantityMilli: number
-    }> = []
+  /**
+   * The frozen payload's proofs exactly as the backend enumerates them in `proof_results[]`
+   * (`DispositionProofEvaluator`): flattened line by line, grouped by allocation identity in order of
+   * first appearance, and ordered by consumption sequence within each identity (PHP's `usort` is
+   * stable). UUIDs are lowercased and `item_line_uuid` re-derived, as the backend does.
+   */
+  private expectedProofs(
+    candidate: DispositionCandidate,
+    payload: Record<string, unknown>,
+    requestHash: string
+  ): readonly ExpectedProof[] {
+    const groups = new Map<string, ExpectedProof[]>()
+    const items = (Array.isArray(payload.items) ? payload.items : []) as Array<
+      Record<string, unknown>
+    >
 
-    ;(payload.items ?? []).forEach((line, lineIndex) => {
-      const allocations = (line.allocations ?? []) as Array<Record<string, unknown>>
+    items.forEach((line, lineIndex) => {
+      const allocations = (Array.isArray(line.allocations) ? line.allocations : []) as Array<
+        Record<string, unknown>
+      >
 
       allocations.forEach((allocation, proofIndex) => {
-        proofs.push({
-          lineIndex,
-          proofIndex,
-          allocationUuid: String(allocation.allocation_uuid),
-          rightsGeneration: Number(allocation.rights_generation),
-          consumptionSequence: Number(allocation.consumption_sequence),
-          localConsumptionUuid: String(allocation.local_consumption_uuid),
-          quantityMilli: Number(allocation.quantity_milli)
-        })
+        const proof: ExpectedProof = {
+          line_index: lineIndex,
+          proof_index: proofIndex,
+          allocation_uuid: String(allocation.allocation_uuid).toLowerCase(),
+          rights_generation: Number(allocation.rights_generation),
+          consumption_sequence: Number(allocation.consumption_sequence),
+          local_consumption_uuid: String(allocation.local_consumption_uuid).toLowerCase(),
+          item_line_uuid: allocationItemLineUuid(candidate.idempotencyKey, lineIndex),
+          quantity_milli: Number(allocation.quantity_milli),
+          request_hash: requestHash
+        }
+        const group = groups.get(identityKey(proof)) ?? []
+        group.push(proof)
+        groups.set(identityKey(proof), group)
       })
     })
 
-    return proofs
+    return [...groups.values()].flatMap((group) =>
+      [...group].sort((left, right) => left.consumption_sequence - right.consumption_sequence)
+    )
+  }
+
+  /**
+   * Each frozen proof must still be this invoice's own consumption row, with the same identity,
+   * sequence and quantity. Columns added by migration 0009 are compared when present; a historical
+   * row that never recorded them keeps NULLs and is not invented here.
+   */
+  private journalMismatch(
+    invoiceLocalUuid: string,
+    expected: readonly ExpectedProof[]
+  ): Record<string, unknown> | null {
+    const read = this.dependencies.database.prepare(
+      `SELECT allocation_uuid, consumption_sequence, invoice_local_uuid, quantity_milli,
+              rights_generation, item_line_uuid
+         FROM local_stock_allocation_consumptions
+        WHERE lower(local_uuid) = ?`
+    )
+
+    for (const proof of expected) {
+      const row = read.get(proof.local_consumption_uuid) as Record<string, unknown> | undefined
+
+      if (
+        !row ||
+        String(row.allocation_uuid).toLowerCase() !== proof.allocation_uuid ||
+        row.consumption_sequence !== proof.consumption_sequence ||
+        row.invoice_local_uuid !== invoiceLocalUuid ||
+        row.quantity_milli !== proof.quantity_milli ||
+        (row.rights_generation !== null && row.rights_generation !== proof.rights_generation) ||
+        (row.item_line_uuid !== null && row.item_line_uuid !== proof.item_line_uuid)
+      ) {
+        return { reason: 'local-journal', localConsumptionUuid: proof.local_consumption_uuid }
+      }
+    }
+
+    return null
   }
 
   /**

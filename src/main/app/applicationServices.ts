@@ -53,7 +53,11 @@ import { SyncQueueRepository } from '../repositories/syncQueue.repository'
 import { InvoiceUploadFailureReader } from '../sync/invoiceUploadFailures'
 import { subscribeInvoiceUploadTriggers } from '../sync/invoiceUploadTriggers'
 import { InvoiceUploadOutcomeRecorder } from '../sync/invoiceUploadOutcome'
-import { InvoiceUploadWorker } from '../sync/invoiceUploadWorker'
+import { INVOICE_UPLOAD_PERMISSION, InvoiceUploadWorker } from '../sync/invoiceUploadWorker'
+import { fetchDispositionStatuses } from '../sync/dispositionStatus.client'
+import { InvoiceDispositionConvergenceService } from '../services/invoiceDispositionConvergence.service'
+import { InvoiceDispositionDiscoveryService } from '../services/invoiceDispositionDiscovery.service'
+import { DispositionDiscoveryTrigger } from '../services/invoiceDispositionDiscovery.trigger'
 import { ServerTimeEstimator } from '../sync/serverTimeEstimator'
 import { UploadDependencyRepository } from '../repositories/uploadDependency.repository'
 import { uploadInvoice } from '../sync/invoiceUpload.client'
@@ -1237,6 +1241,56 @@ export function createApplicationServices(): ApplicationServices {
   const unsubscribePreparationTrigger = commercialAccessPublisher.onPublished(() => {
     void runPreparationCycle().catch(() => undefined)
   })
+  // PS6b §7.3a.5: disposition discovery and convergence for this device's quarantined v3 sales.
+  //
+  // Main-owned and bounded: one attempt at startup, then on the same authoritative access-change
+  // point as the workers above (connectivity, licence validation, bootstrap refresh), at most once a
+  // minute. `canRun` re-checks sync access, the upload permission, connectivity and a resolved owner
+  // before every run. A run is a pure read (`GET invoices/sync-status`) followed by verified,
+  // atomic local application; it never resends an upload and never creates a payload or key.
+  const dispositionOwner = (): { companyUuid: string; deviceUuid: string } | null => {
+    const context = sessionMetadata.getContext()
+
+    return context.isAuthenticated && context.companyUuid && context.deviceUuid
+      ? { companyUuid: context.companyUuid, deviceUuid: context.deviceUuid }
+      : null
+  }
+  const dispositionConvergence = new InvoiceDispositionConvergenceService({
+    discovery: new InvoiceDispositionDiscoveryService({ database }),
+    fetchStatuses: (keys) => fetchDispositionStatuses(apiClient, keys),
+    owner: dispositionOwner,
+    onConverged: () => {
+      // An accepted sale is now synced (its receipt snapshot may be due), and a new hold releases
+      // dependent uploads into their own ordinary attempt and changes spendable stock.
+      broadcastSyncChanged(invoiceUploads.getStatus())
+      invoiceUploads.requestRun()
+      void receiptSnapshotUploads.sweep()
+      broadcastCatalogChanged({ reason: 'stock', revision: null })
+    }
+  })
+  const dispositionTrigger = new DispositionDiscoveryTrigger({
+    run: async () => {
+      await dispositionConvergence.run()
+    },
+    minimumIntervalMs: 60_000,
+    canRun: () => {
+      if (connectivity.getSnapshot().status !== 'online' || dispositionOwner() === null) {
+        return false
+      }
+
+      try {
+        commercialAccess.assertAllowed('sync')
+      } catch {
+        return false
+      }
+
+      return bootstrapSnapshot.hasPermission(INVOICE_UPLOAD_PERMISSION)
+    }
+  })
+  const unsubscribeDispositionTrigger = commercialAccessPublisher.onPublished(() => {
+    void dispositionTrigger.request('reconnect')
+  })
+  void dispositionTrigger.request('startup')
   const saleCompletion = new SaleCompletionService({
     localSale,
     acquisition: allocationAcquisition,
@@ -1371,6 +1425,7 @@ export function createApplicationServices(): ApplicationServices {
       powerMonitor.off('resume', invalidateServerTime)
       unsubscribeRecoveryAccessTrigger()
       unsubscribePreparationTrigger()
+      unsubscribeDispositionTrigger()
       heartbeat.dispose()
       renewal.stop()
       allocationDispatchReconciler.stop()
