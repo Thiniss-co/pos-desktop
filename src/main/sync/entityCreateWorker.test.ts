@@ -21,6 +21,7 @@ function worker(options: { claims: Array<OutboxRow | null>; online?: boolean }) 
       return true
     }),
     reclaimExpired: vi.fn(() => 0),
+    reclaimInterrupted: vi.fn(() => 0),
     nextRetryAt: vi.fn(() => null)
   }
   const dispatch = vi.fn(async () => ({
@@ -64,6 +65,14 @@ describe('EntityCreateWorker', () => {
     await instance.run()
     expect(repository.claimNext).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it("takes back a previous process's interrupted leases on its first drain only", async () => {
+    const { instance, repository } = worker({ claims: [] })
+    await instance.run()
+    await instance.run()
+    expect(repository.reclaimInterrupted).toHaveBeenCalledTimes(1)
+    expect(repository.reclaimExpired).toHaveBeenCalledTimes(2)
   })
 
   it('backs off unknown outcomes up to five minutes', () => {

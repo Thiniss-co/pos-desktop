@@ -238,6 +238,47 @@ databaseTest(
 )
 
 databaseTest(
+  'a lease left by a killed process is taken back at the next process start, not when it expires',
+  (sandbox) => {
+    const h = harness(sandbox)
+    const key = h.service(CASHIER_A).createCustomer({ name: 'Interrupted' }).requestKey
+    const cashier = { companyUuid: COMPANY, deviceUuid: DEVICE, userUuid: CASHIER_A }
+    const claimedAt = '2026-01-02T00:00:00.000Z'
+    const claimed = h.repository.claimNext(
+      cashier,
+      claimedAt,
+      'lease-of-dead-process',
+      '2026-01-02T00:01:00.000Z',
+      []
+    )
+    equal(claimed?.requestKey, key)
+    const frozenBefore = h.database
+      .prepare('SELECT canonical_payload_json FROM entity_create_outbox WHERE request_key = ?')
+      .get(key) as { canonical_payload_json: string }
+
+    // Ten seconds later the lease has not expired: the expiry sweep leaves it alone...
+    const restartedAt = '2026-01-02T00:00:10.000Z'
+    equal(h.repository.reclaimExpired(cashier, restartedAt), 0)
+    // ...the start-of-process reclaim takes it back at once, to be replayed with the same bytes.
+    equal(h.repository.reclaimInterrupted(cashier, restartedAt), 1)
+    const row = h.database
+      .prepare(
+        'SELECT state, result_code, lease_id, dispatch_count, canonical_payload_json FROM entity_create_outbox WHERE request_key = ?'
+      )
+      .get(key) as Record<string, unknown>
+    equal(row.state, 'unknown')
+    equal(row.result_code, 'INTERRUPTED')
+    equal(row.lease_id, null)
+    equal(row.dispatch_count, 1)
+    equal(row.canonical_payload_json, frozenBefore.canonical_payload_json)
+    equal(h.repository.reclaimInterrupted(cashier, restartedAt), 0, 'idempotent')
+    // Another company's rows on this device are never touched.
+    equal(h.repository.reclaimInterrupted({ ...cashier, companyUuid: CASHIER_B }, restartedAt), 0)
+    closeDatabase(h.database)
+  }
+)
+
+databaseTest(
   'the triggers and CHECKs enforce the state machine and the dispatch evidence',
   (sandbox) => {
     const h = harness(sandbox)

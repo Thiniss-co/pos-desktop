@@ -15,7 +15,7 @@ const RETRY_MAX_MS = 5 * 60_000
 export interface EntityCreateWorkerDependencies {
   readonly repository: Pick<
     QuickCreateRepository,
-    'claimNext' | 'settle' | 'reclaimExpired' | 'nextRetryAt'
+    'claimNext' | 'settle' | 'reclaimExpired' | 'reclaimInterrupted' | 'nextRetryAt'
   >
   readonly access: { access(): QuickCreateAccess }
   readonly session: {
@@ -65,6 +65,8 @@ export class EntityCreateWorker {
   private rerunRequested = false
   private cancelTimer: (() => void) | null = null
   private stopped = false
+  /** Owners whose interrupted leases this process already took back (once per owner). */
+  private readonly reclaimedAtStart = new Set<string>()
 
   constructor(private readonly dependencies: EntityCreateWorkerDependencies) {
     this.now = dependencies.now ?? ((): Date => new Date())
@@ -131,7 +133,16 @@ export class EntityCreateWorker {
     if (owner === null) {
       return
     }
-    const reclaimed = this.dependencies.repository.reclaimExpired(owner, this.now().toISOString())
+    // The first drain for an owner in this process takes back what a previous process left
+    // `dispatching` (a crash or a killed till); later drains only reclaim expired leases.
+    const ownerKey = `${owner.companyUuid}:${owner.deviceUuid}`
+    const nowIso = this.now().toISOString()
+    let reclaimed = 0
+    if (!this.reclaimedAtStart.has(ownerKey)) {
+      this.reclaimedAtStart.add(ownerKey)
+      reclaimed += this.dependencies.repository.reclaimInterrupted(owner, nowIso)
+    }
+    reclaimed += this.dependencies.repository.reclaimExpired(owner, nowIso)
     if (reclaimed > 0) {
       this.log(`entity-create-reclaimed ${reclaimed}`)
     }

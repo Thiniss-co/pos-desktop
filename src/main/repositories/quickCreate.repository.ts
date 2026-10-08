@@ -314,26 +314,49 @@ export class QuickCreateRepository {
    * have reached the server, so it is replayed with the same key and bytes, never assumed failed.
    */
   reclaimExpired(owner: QuickCreateOwner, now: string): number {
+    return this.reclaim(owner, now, true)
+  }
+
+  /**
+   * At process start every `dispatching` row of this device was left by a process that is gone: one
+   * till process owns the database at a time (single-instance lock), so no live lease can exist yet.
+   * They become `unknown` at once (replayed with the same key and bytes) instead of waiting for their
+   * lease to expire and for some later trigger.
+   */
+  reclaimInterrupted(owner: QuickCreateOwner, now: string): number {
+    return this.reclaim(owner, now, false)
+  }
+
+  private reclaim(owner: QuickCreateOwner, now: string, expiredOnly: boolean): number {
+    const leaseCondition = expiredOnly ? ' AND lease_expires_at < ?' : ''
+    const code = expiredOnly ? 'LEASE_EXPIRED' : 'INTERRUPTED'
+    const note = expiredOnly ? 'lease expired' : 'process ended while dispatching'
     return runSerializedWrite(this.database, () => {
       const rows = this.database
         .prepare(
           `SELECT request_key FROM entity_create_outbox
-           WHERE company_uuid = ? AND device_uuid = ? AND state = 'dispatching' AND lease_expires_at < ?`
+           WHERE company_uuid = ? AND device_uuid = ? AND state = 'dispatching'${leaseCondition}`
         )
-        .all(owner.companyUuid, owner.deviceUuid, now) as Array<{ request_key: string }>
+        .all(
+          ...(expiredOnly
+            ? [owner.companyUuid, owner.deviceUuid, now]
+            : [owner.companyUuid, owner.deviceUuid])
+        ) as Array<{ request_key: string }>
       let reclaimed = 0
       for (const row of rows) {
         const changed = this.database
           .prepare(
             `UPDATE entity_create_outbox
                SET state = 'unknown', lease_id = NULL, lease_expires_at = NULL,
-                   result_code = 'LEASE_EXPIRED', next_attempt_at = NULL, updated_at = ?
-             WHERE request_key = ? AND state = 'dispatching' AND lease_expires_at < ?`
+                   result_code = ?, next_attempt_at = NULL, updated_at = ?
+             WHERE request_key = ? AND state = 'dispatching'${leaseCondition}`
           )
-          .run(now, row.request_key, now).changes
+          .run(
+            ...(expiredOnly ? [code, now, row.request_key, now] : [code, now, row.request_key])
+          ).changes
         if (changed === 1) {
           reclaimed += 1
-          this.audit(row.request_key, null, 'dispatching', 'unknown', 'lease expired', null, now)
+          this.audit(row.request_key, null, 'dispatching', 'unknown', note, null, now)
         }
       }
       return reclaimed
