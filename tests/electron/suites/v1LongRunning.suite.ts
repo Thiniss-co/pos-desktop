@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import type { DesktopApiRoute } from '@shared/constants/apiRoutes'
 import type { RefundR4LineInput } from '@shared/contracts/refund.contract'
 import { calculateRefund, calculateRefundLine } from '@shared/pos/refundCalculator'
+import { realRepositories } from '../support/realRepositories'
 import { closeDatabase, type SqliteDatabase } from '../../../src/main/database/connection'
 import { databaseMigrations } from '../../../src/main/database/migrations'
 import {
@@ -11,7 +12,7 @@ import {
   type ReceiptPrintingDependencies
 } from '../../../src/main/receipt/receiptPrinting.service'
 import {
-  ReceiptPrintJobRepository,
+  type ReceiptPrintJobRepository,
   type NewPrintJob
 } from '../../../src/main/repositories/receiptPrintJob.repository'
 import { allocationItemLineUuid } from '../../../src/main/services/allocationJournal'
@@ -724,7 +725,7 @@ function immutable(row: Record<string, unknown> | undefined): Record<string, unk
 function restartAndReconcile(sandbox: DatabaseSandbox, at: string): SqliteDatabase {
   const database = openExistingTestDatabase(sandbox)
   const printing = new ReceiptPrintingService({
-    jobs: new ReceiptPrintJobRepository(database),
+    jobs: realRepositories(database).receiptPrintJobs,
     now: () => new Date(at)
   } as unknown as ReceiptPrintingDependencies)
   printing.reconcileStartup()
@@ -736,7 +737,7 @@ databaseTest(
   (sandbox) => {
     // The previous process: jobs left mid-flight by a crash or power loss.
     const previous = migrated(sandbox)
-    const seedJobs = new ReceiptPrintJobRepository(previous)
+    const seedJobs = realRepositories(previous).receiptPrintJobs
     seedJob(seedJobs, 1, 'manual', 'queued')
     seedJob(seedJobs, 2, 'auto', 'queued')
     seedJob(seedJobs, 3, 'manual', 'preparing')
@@ -797,7 +798,7 @@ databaseTest(
     )
     equal(timedOut.window_released_at, PRINT_RESTART_AT)
 
-    const jobs = new ReceiptPrintJobRepository(database)
+    const jobs = realRepositories(database).receiptPrintJobs
 
     for (const index of [1, 2, 3, 4, 5, 6]) {
       const uuid = jobUuid(index)
@@ -838,7 +839,7 @@ databaseTest(
 
     // A late OS success for an interrupted-after-dispatch job is still recorded (T14), with its
     // original token; the job is not dispatched again to get there.
-    const finalJobs = new ReceiptPrintJobRepository(again)
+    const finalJobs = realRepositories(again).receiptPrintJobs
     equal(finalJobs.markSubmitted(jobUuid(5), 'token-5', PRINT_SECOND_RESTART_AT), 1)
     const lateSuccess = finalJobs.findByJobUuid(jobUuid(5))!
     equal(lateSuccess.status, 'submitted')
