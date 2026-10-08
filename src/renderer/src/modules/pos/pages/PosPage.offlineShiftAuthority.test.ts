@@ -14,7 +14,7 @@
  * the main process would still have admitted the sale.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import type {
@@ -230,11 +230,28 @@ function harness(overrides: Partial<Harness> = {}): Harness {
 
 type PosWrapper = ReturnType<typeof mount<typeof PosPage>>
 
+/**
+ * Every page a test renders is unmounted after it. A page left mounted keeps its timers and async
+ * callbacks, and a store resolved outside component setup uses the ACTIVE pinia -- the next test's --
+ * so under load a late callback from one test changed another test's cart or shift state.
+ */
+const mounted: PosWrapper[] = []
+
+afterEach(() => {
+  for (const wrapper of mounted.splice(0)) {
+    // Some tests unmount their page themselves (to assert teardown); never unmount twice.
+    if (!wrapper.vm.$.isUnmounted) {
+      wrapper.unmount()
+    }
+  }
+})
+
 async function renderPos(bus: Harness): Promise<PosWrapper> {
   installPosApi(bus)
   const pinia = createPinia()
   setActivePinia(pinia)
   const wrapper = mount(PosPage, { global: { plugins: [pinia, i18n] } })
+  mounted.push(wrapper)
   await flushPromises()
   await flushPromises()
   return wrapper
