@@ -22,6 +22,45 @@ import {
   scanInField,
   setContentViewport
 } from '../support/workspace.mjs'
+import { installIpcBarrier } from '../support/ipcBarrier.mjs'
+
+const BARCODE_LOOKUP_CHANNEL = 'catalog:find-by-barcode'
+
+/** Tags the current scan result element; the next result is a NEW element (keyed by sequence). */
+async function markScanResult(page) {
+  const marker = `pw-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  await page.evaluate((value) => {
+    for (const element of document.querySelectorAll('.scan-entry__result')) {
+      element.dataset.pwSeen = value
+    }
+  }, marker)
+  return marker
+}
+
+/** Waits for a scan result rendered after `marker` for `code`, and returns its text. */
+async function waitForNewScanResult(page, marker, code) {
+  const handle = await page.waitForFunction(
+    ([value, scanned]) => {
+      const fresh = [...document.querySelectorAll('.scan-entry__result')].find(
+        (element) => element.dataset.pwSeen !== value && element.textContent.includes(scanned)
+      )
+      return fresh?.textContent.replace(/\s+/g, ' ').trim() ?? null
+    },
+    [marker, code],
+    { timeout: 15_000 }
+  )
+  return await handle.jsonValue()
+}
+
+/** A keyboard-wedge burst with no field focused that does not wait for any cart change. */
+async function scanUnfocused(page, code) {
+  await page.evaluate(() => {
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== document.body) active.blur()
+  })
+  await page.keyboard.type(code, { delay: 5 })
+  await page.keyboard.press('Enter')
+}
 
 /**
  * POS workspace — selling through layout changes, and scanner safety while editing.
@@ -34,7 +73,9 @@ import {
  *  C. While the layout editor is open, with focus on Apply / Restore defaults / Cancel: a scan ending
  *     in Enter, Tab, Space-inside or no suffix, F9, Shift+F9 and a scan racing the editor's opening
  *     never change the cart, never open payment, never activate the focused control and never write
- *     the layout (the stored row is compared byte for byte).
+ *     the layout (the stored row is compared byte for byte). The race is ordered by a barrier on the
+ *     real lookup channel (support/ipcBarrier.mjs): answer held → editor opens → answer released →
+ *     cart unchanged; and the control case, answer released before editing → line added and kept.
  *  D. Payment is unavailable from the layout editor; after Apply, exact cash works from the page
  *     (Shift+F9 with the panel closed) and from the payment dialog (F9 → Shift+F9): two sales upload.
  */
@@ -247,31 +288,71 @@ export async function run(ctx) {
     await page.getByTestId('workspace-edit-bar').waitFor({ state: 'detached' })
     ctx.step('C: Enter activated Restore (draft only); Esc cancelled')
 
-    // A scan racing the editor's opening: the lookup is in flight when editing starts.
-    const raceBefore = await cartSignatureOf(page)
-    // In ONE renderer task: a scanner burst (keyboard-wedge events) completes, its lookup starts, and
-    // the editor opens on the next macrotask — while that lookup is still awaiting main. (The page's
-    // own Customize control refuses to open while an add is pending; this simulates the race itself.)
-    await page.evaluate((code) => {
-      document.activeElement instanceof HTMLElement && document.activeElement.blur()
-      for (const key of [...code, 'Enter']) {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
-        window.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true }))
+    // A scan racing the editor's opening, made deterministic by a barrier on the real lookup
+    // channel: the main-process lookup runs, its ANSWER is held, the editor opens, then the answer is
+    // released. The late answer must not reach the cart.
+    const lookups = await installIpcBarrier(session.app, BARCODE_LOOKUP_CHANNEL)
+    try {
+      const raceBefore = await cartSignatureOf(page)
+      const raceCode = namedBarcode(8)
+      const marker = await markScanResult(page)
+      await scanUnfocused(page, raceCode)
+      await lookups.until((state) => state.held === 1, 'C: the lookup answer was never held')
+      const inFlight = {
+        cartUnchanged: (await cartSignatureOf(page)) === raceBefore,
+        // The page's own Customize control refuses while an add is pending.
+        customizeDisabled: await page.evaluate(
+          () => document.querySelector('[data-testid="workspace-customize"]')?.disabled ?? null
+        )
       }
-      const store = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('posWorkspace')
-      setTimeout(() => store.beginEdit(), 0)
-    }, namedBarcode(8))
-    await page.waitForTimeout(800)
-    const raceChanged = (await cartSignatureOf(page)) !== raceBefore
-    ctx.step('C: scan racing the editor', { raceChanged })
-    if (raceChanged)
-      throw new Error('C: a lookup that finished after editing began reached the cart')
-    await page.keyboard.press('Escape')
-    await page.getByTestId('workspace-edit-bar').waitFor({ state: 'detached' })
-    if (diffSnapshots(before, await businessSnapshot(page)))
-      throw new Error('C: business state changed')
+      if (!inFlight.cartUnchanged || inFlight.customizeDisabled === false)
+        throw new Error(`C: the held lookup was not in flight: ${JSON.stringify(inFlight)}`)
+      // The race itself: an editor opened anyway while the answer is held.
+      await pinia(page, 'posWorkspace', 's.beginEdit()')
+      await page.getByTestId('workspace-edit-bar').waitFor()
+      await lookups.releaseOne()
+      await lookups.until((state) => state.answered === 1, 'C: the held answer was not delivered')
+      const lateResult = await waitForNewScanResult(page, marker, raceCode)
+      const pausedMessage = await t(page, 'pos.workspace.edit.scannerPaused')
+      const raceChanged = (await cartSignatureOf(page)) !== raceBefore
+      ctx.step('C: held lookup released after editing began', {
+        inFlight,
+        lateResult,
+        raceChanged
+      })
+      if (raceChanged)
+        throw new Error('C: a lookup that finished after editing began reached the cart')
+      if (!lateResult.includes(pausedMessage))
+        throw new Error(`C: the late answer was not refused as paused: ${lateResult}`)
+      await page.keyboard.press('Escape')
+      await page.getByTestId('workspace-edit-bar').waitFor({ state: 'detached' })
+      if (diffSnapshots(before, await businessSnapshot(page)))
+        throw new Error('C: business state changed')
+
+      // The control case: the same held lookup, answered BEFORE editing begins, is added normally
+      // and stays in the cart when the editor then opens.
+      const addBefore = await cartSignatureOf(page)
+      const addCode = namedBarcode(8)
+      const addMarker = await markScanResult(page)
+      await scanUnfocused(page, addCode)
+      await lookups.until((state) => state.held === 1, 'C: the second lookup answer was not held')
+      if ((await cartSignatureOf(page)) !== addBefore)
+        throw new Error('C: the cart changed before the held answer was released')
+      await lookups.releaseOne()
+      await lookups.until((state) => state.answered === 2, 'C: the second answer was not delivered')
+      const addResult = await waitForNewScanResult(page, addMarker, addCode)
+      const added = (await cartSignatureOf(page)) !== addBefore
+      await pinia(page, 'posWorkspace', 's.beginEdit()')
+      await page.getByTestId('workspace-edit-bar').waitFor()
+      const keptWhileEditing = (await cartSignatureOf(page)) !== addBefore
+      ctx.step('C: lookup answered before editing began', { addResult, added, keptWhileEditing })
+      if (!added || !keptWhileEditing)
+        throw new Error('C: a lookup answered before editing began was not added and kept')
+      await page.keyboard.press('Escape')
+      await page.getByTestId('workspace-edit-bar').waitFor({ state: 'detached' })
+    } finally {
+      await lookups.restore()
+    }
 
     // --- D. Exact cash from the page and from the payment dialog -----------------------------------
     await page.evaluate(
