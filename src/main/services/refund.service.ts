@@ -93,6 +93,20 @@ export interface RefundServiceDependencies {
   readonly fiscalContext?: Pick<FiscalContextService, 'captureForRefund'>
 }
 
+interface RefundOwner {
+  readonly companyUuid: string
+  readonly deviceUuid: string
+  readonly userUuid: string
+}
+
+function sameOwner(left: RefundOwner, right: RefundOwner): boolean {
+  return (
+    left.companyUuid === right.companyUuid &&
+    left.deviceUuid === right.deviceUuid &&
+    left.userUuid === right.userUuid
+  )
+}
+
 function validationError(
   message: string,
   backendCode: string,
@@ -252,6 +266,16 @@ export class RefundService {
     const invoiceResponse = await this.dependencies.apiClient.request(
       invoiceShowRoute(local.remoteUuid)
     )
+
+    // The session may have changed while the invoice was read (sign-out, another cashier): a
+    // preview is never built, stored or returned for an owner who is no longer signed in.
+    if (!sameOwner(owner, this.dependencies.shiftAuthority.captureContext())) {
+      throw validationError(
+        'The signed-in cashier changed while this refund was being reviewed. Review it again.',
+        'refund_preview_not_found'
+      )
+    }
+
     const invoice = desktopInvoiceShowResourceSchema.parse(invoiceResponse)
 
     const itemsByUuid = new Map(invoice.items.map((item) => [item.uuid, item]))
@@ -441,7 +465,13 @@ export class RefundService {
 
     const preview = this.previews.get(input.previewId)
 
-    if (!preview || preview.invoiceLocalUuid !== input.invoiceLocalUuid) {
+    // A preview belongs to the cashier, company and device that reviewed it: another session can
+    // never submit it (it reads as unavailable, exactly like an expired one).
+    if (
+      !preview ||
+      preview.invoiceLocalUuid !== input.invoiceLocalUuid ||
+      !sameOwner(preview.owner, owner)
+    ) {
       throw validationError(
         'This refund preview is no longer available. Review the refund again.',
         'refund_preview_not_found'
@@ -674,7 +704,15 @@ export class RefundService {
   async resumeRefund(localRefundUuid: string): Promise<RefundOutcome> {
     const local = this.dependencies.localRefunds.findByLocalUuid(localRefundUuid)
 
-    if (!local) {
+    // Another cashier of the same company on this till may resume it (the invoice stays blocked
+    // until it resolves, and the frozen request keeps its original cashier and key); a refund of
+    // another company or device is never visible here.
+    const current = this.dependencies.shiftAuthority.captureContext()
+    if (
+      !local ||
+      local.companyUuid !== current.companyUuid ||
+      local.deviceUuid !== current.deviceUuid
+    ) {
       throw validationError('This refund could not be found.', 'refund_not_found')
     }
 

@@ -866,6 +866,120 @@ liveTest(
 )
 
 liveTest(
+  'a cashier change during a delayed preview or dispatch never crosses owners; the refund keeps its original owner, key and bytes',
+  async (context) => {
+    const scenario = scenarioOf('owner_switch')
+    const { invoiceLocalUuid } = context.seedLocalInvoice(scenario)
+    const line = [{ invoiceItemRemoteUuid: scenario.invoice_item_uuid, quantityMilli: 1000 }]
+    const base = context.refundDependencies
+    const ownerA = base.shiftAuthority.captureContext()
+    const ownerB = { ...ownerA, userUuid: randomUUID() }
+    let current = ownerA
+    let switchAfterRead = false
+    let switchAfterDispatch = false
+    const shiftAuthority = {
+      ...(base.shiftAuthority as unknown as Record<string, unknown>),
+      captureContext: () => current
+    } as unknown as ShiftAuthorityService
+    // The real client and server; the signed-in owner changes exactly when the read/dispatch returns.
+    const apiClient = Object.create(base.apiClient) as DesktopApiClient
+    apiClient.request = async <T>(...args: Parameters<DesktopApiClient['request']>): Promise<T> => {
+      const answer = await base.apiClient.request<T>(...args)
+      if (switchAfterRead) current = ownerB
+      return answer
+    }
+    const refunds = new RefundService({
+      ...base,
+      apiClient,
+      shiftAuthority,
+      uploadRefund: async (_client, requestJson) => {
+        const outcome = await uploadRefund(base.apiClient, requestJson)
+        if (switchAfterDispatch) current = ownerB
+        return outcome
+      }
+    })
+    const uploadsBefore = refundUploadAttempts(context.spy).length
+
+    // 1. The cashier changes while the invoice is read: no preview is built, stored or returned.
+    switchAfterRead = true
+    let previewError: unknown = null
+    try {
+      await refunds.previewRefund({ invoiceLocalUuid, lines: line, stockReturned: false })
+    } catch (error) {
+      previewError = error
+    }
+    equal(
+      (previewError as { backendCode?: string } | null)?.backendCode,
+      'refund_preview_not_found'
+    )
+    switchAfterRead = false
+    current = ownerA
+
+    // 2. Cashier B cannot submit cashier A's preview: no local refund, no upload.
+    const previewA = await refunds.previewRefund({
+      invoiceLocalUuid,
+      lines: line,
+      stockReturned: false
+    })
+    current = ownerB
+    let submitError: unknown = null
+    try {
+      await refunds.submitRefund({
+        previewId: previewA.previewId,
+        invoiceLocalUuid,
+        lines: line,
+        stockReturned: false,
+        paymentMethodUuid: null
+      })
+    } catch (error) {
+      submitError = error
+    }
+    equal((submitError as { backendCode?: string } | null)?.backendCode, 'refund_preview_not_found')
+    equal(context.repositories.localRefunds.findOpenForInvoice(invoiceLocalUuid), null)
+    equal(refundUploadAttempts(context.spy).length, uploadsBefore, 'nothing was sent for B')
+
+    // 3. A submits; B signs in while the dispatch answer is on its way. The refund stays A's.
+    current = ownerA
+    const previewA2 = await refunds.previewRefund({
+      invoiceLocalUuid,
+      lines: line,
+      stockReturned: false
+    })
+    switchAfterDispatch = true
+    const outcome = await refunds.submitRefund({
+      previewId: previewA2.previewId,
+      invoiceLocalUuid,
+      lines: line,
+      stockReturned: false,
+      paymentMethodUuid: null
+    })
+    switchAfterDispatch = false
+    equal(outcome.state, 'accepted')
+    const row = context.repositories.localRefunds.findByLocalUuid(outcome.localRefundUuid)
+    ok(row !== null)
+    equal(row?.companyUuid, ownerA.companyUuid)
+    equal(row?.deviceUuid, ownerA.deviceUuid)
+    equal(row?.userUuid, ownerA.userUuid, 'the refund keeps the cashier who submitted it')
+    const frozen = JSON.parse(row?.requestJson ?? '{}') as { idempotency_key?: string }
+    equal(frozen.idempotency_key, outcome.localRefundUuid, 'the original key')
+    const effects = readRefundEffects(scenario.invoice_uuid)
+    equal(effects.refunds.length, 1, 'exactly one refund on the server')
+    equal(row?.remoteUuid, effects.refunds[0].uuid)
+
+    // 4. Another company on this device never sees (or resumes) it.
+    current = { ...ownerA, companyUuid: randomUUID() }
+    let resumeError: unknown = null
+    try {
+      await refunds.resumeRefund(outcome.localRefundUuid)
+    } catch (error) {
+      resumeError = error
+    }
+    equal((resumeError as { backendCode?: string } | null)?.backendCode, 'refund_not_found')
+    equal(readRefundEffects(scenario.invoice_uuid).refunds.length, 1)
+  }
+)
+
+liveTest(
   'a refund left DISPATCHED at process death is swept to unresolved in a fresh process and resumes',
   async (context) => {
     const scenario = scenarioOf('restart_control')

@@ -191,6 +191,51 @@ describe('refunds store', () => {
     expect(store.error).not.toBeNull()
   })
 
+  it('never shows a preview, outcome or error that arrives after the session ended', async () => {
+    let answerPreview!: (value: unknown) => void
+    let failSubmit!: (error: unknown) => void
+    let answerSubmit!: (value: unknown) => void
+    const service = fakeService({
+      preview: vi.fn(() => new Promise((resolve) => (answerPreview = resolve))),
+      submit: vi
+        .fn()
+        .mockImplementationOnce(() => new Promise((_resolve, reject) => (failSubmit = reject)))
+        .mockImplementationOnce(() => new Promise((resolve) => (answerSubmit = resolve)))
+    } as unknown as Partial<RefundsService>)
+    const store = useRefundsStore()
+
+    // Cashier A's preview is in flight when A signs out.
+    store.invoiceLocalUuid = UUID_A
+    store.setLineQuantity(UUID_B, 1000)
+    const previewing = store.requestPreview(service)
+    store.reset()
+    answerPreview({ previewId: 'preview-of-a', lines: [] })
+    await previewing
+    expect(store.preview).toBeNull()
+    expect(store.isPreviewing).toBe(false)
+
+    // A's submission is in flight when the session ends: its failure is not shown to the next one.
+    store.invoiceLocalUuid = UUID_A
+    store.setLineQuantity(UUID_B, 1000)
+    store.preview = { previewId: 'preview-of-a' } as never
+    const failing = store.submit(service)
+    store.reset()
+    failSubmit({ category: 'transport', message: 'late', retryable: true })
+    await failing
+    expect(store.error).toBeNull()
+
+    // ...nor its outcome.
+    store.invoiceLocalUuid = UUID_A
+    store.setLineQuantity(UUID_B, 1000)
+    store.preview = { previewId: 'preview-of-a' } as never
+    const submitting = store.submit(service)
+    store.reset()
+    answerSubmit({ localRefundUuid: UUID_A, state: 'accepted' })
+    await submitting
+    expect(store.outcome).toBeNull()
+    expect(store.isSubmitting).toBe(false)
+  })
+
   it('reset clears selection, preview, and outcome', () => {
     const store = useRefundsStore()
     store.setLineQuantity(UUID_B, 1000)

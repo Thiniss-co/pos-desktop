@@ -733,6 +733,13 @@ try {
         $cp3g5Operation = 'refund-scenario-restart-control';
         $restartControl = $mintRefundSale(['unitPrice' => 1500, 'taxMode' => ProductTaxMode::None, 'trackStock' => false, 'quantity' => '2.000', 'subtotal' => 3000, 'tax' => 0, 'total' => 3000]);
 
+        // V1 Windows readiness: a refund whose cashier changes mid-flight, and a fractional partial refund.
+        $cp3g5Operation = 'refund-scenario-owner-switch';
+        $ownerSwitch = $mintRefundSale(['unitPrice' => 1000, 'taxMode' => ProductTaxMode::None, 'trackStock' => false, 'quantity' => '3.000', 'subtotal' => 3000, 'tax' => 0, 'total' => 3000]);
+
+        $cp3g5Operation = 'refund-scenario-fractional';
+        $fractional = $mintRefundSale(['unitPrice' => 2000, 'taxMode' => ProductTaxMode::None, 'trackStock' => false, 'quantity' => '1.250', 'subtotal' => 2500, 'tax' => 0, 'total' => 2500]);
+
         $cp3g5Operation = 'refund-scenario-restart-second';
         $restartSecond = $mintRefundSale(['unitPrice' => 1200, 'taxMode' => ProductTaxMode::None, 'trackStock' => true, 'quantity' => '1.000', 'subtotal' => 1200, 'tax' => 0, 'total' => 1200, 'unitCost' => 500, 'totalCost' => 500]);
 
@@ -828,6 +835,8 @@ try {
                 'lost_response' => ['invoice_uuid' => $lostResponse['invoice_uuid'], 'invoice_item_uuid' => $lostResponse['invoice_item_uuid'], 'product_uuid' => $lostResponse['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 1200, 'tax_amount' => 0, 'total_amount' => 1200],
                 'unclassified_failure' => ['invoice_uuid' => $unclassifiedFailure['invoice_uuid'], 'invoice_item_uuid' => $unclassifiedFailure['invoice_item_uuid'], 'product_uuid' => $unclassifiedFailure['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 1200, 'tax_amount' => 0, 'total_amount' => 1200],
                 'restart_control' => ['invoice_uuid' => $restartControl['invoice_uuid'], 'invoice_item_uuid' => $restartControl['invoice_item_uuid'], 'product_uuid' => $restartControl['product_uuid'], 'quantity' => '2.000', 'subtotal_amount' => 3000, 'tax_amount' => 0, 'total_amount' => 3000],
+                'owner_switch' => ['invoice_uuid' => $ownerSwitch['invoice_uuid'], 'invoice_item_uuid' => $ownerSwitch['invoice_item_uuid'], 'product_uuid' => $ownerSwitch['product_uuid'], 'quantity' => '3.000', 'subtotal_amount' => 3000, 'tax_amount' => 0, 'total_amount' => 3000],
+                'fractional' => ['invoice_uuid' => $fractional['invoice_uuid'], 'invoice_item_uuid' => $fractional['invoice_item_uuid'], 'product_uuid' => $fractional['product_uuid'], 'quantity' => '1.250', 'subtotal_amount' => 2500, 'tax_amount' => 0, 'total_amount' => 2500],
                 'restart_second' => ['invoice_uuid' => $restartSecond['invoice_uuid'], 'invoice_item_uuid' => $restartSecond['invoice_item_uuid'], 'product_uuid' => $restartSecond['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 1200, 'tax_amount' => 0, 'total_amount' => 1200],
                 'accepted_replay' => ['invoice_uuid' => $acceptedReplay['invoice_uuid'], 'invoice_item_uuid' => $acceptedReplay['invoice_item_uuid'], 'product_uuid' => $acceptedReplay['product_uuid'], 'quantity' => '2.000', 'subtotal_amount' => 3000, 'tax_amount' => 0, 'total_amount' => 3000],
                 'stale_confirmation' => ['invoice_uuid' => $staleConfirmation['invoice_uuid'], 'invoice_item_uuid' => $staleConfirmation['invoice_item_uuid'], 'product_uuid' => $staleConfirmation['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 2000, 'tax_amount' => 200, 'total_amount' => 2200],

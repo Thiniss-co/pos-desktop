@@ -49,6 +49,10 @@ export const useRefundsStore = defineStore('refunds', () => {
 
   const errorRef = createLocalizedErrorRef()
 
+  // Advanced by reset() (sign-out, session end, device recovery, closing the dialog): an answer that
+  // arrives for an earlier generation belongs to another session or dialog and is never shown.
+  let generation = 0
+
   const selectedLines = computed<RefundLineSelection[]>(() =>
     Array.from(selection.entries())
       .filter(([, milli]) => milli > 0)
@@ -70,6 +74,7 @@ export const useRefundsStore = defineStore('refunds', () => {
     nextInvoiceLocalUuid: string,
     service: RefundsService = new RefundsService()
   ): Promise<void> {
+    const issued = ++generation
     invoiceLocalUuid.value = nextInvoiceLocalUuid
     refundable.value = null
     selection.clear()
@@ -79,11 +84,12 @@ export const useRefundsStore = defineStore('refunds', () => {
     isLoadingRefundable.value = true
 
     try {
-      refundable.value = await service.getRefundable(nextInvoiceLocalUuid)
+      const answer = await service.getRefundable(nextInvoiceLocalUuid)
+      if (issued === generation) refundable.value = answer
     } catch (error) {
-      reportError(error)
+      if (issued === generation) reportError(error)
     } finally {
-      isLoadingRefundable.value = false
+      if (issued === generation) isLoadingRefundable.value = false
     }
   }
 
@@ -107,20 +113,24 @@ export const useRefundsStore = defineStore('refunds', () => {
       return
     }
 
+    const issued = generation
     isPreviewing.value = true
     errorRef.clear()
 
     try {
-      preview.value = await service.preview({
+      const answer = await service.preview({
         invoiceLocalUuid: invoiceLocalUuid.value,
         lines: selectedLines.value,
         stockReturned: stockReturned.value
       })
+      if (issued === generation) preview.value = answer
     } catch (error) {
-      preview.value = null
-      reportError(error)
+      if (issued === generation) {
+        preview.value = null
+        reportError(error)
+      }
     } finally {
-      isPreviewing.value = false
+      if (issued === generation) isPreviewing.value = false
     }
   }
 
@@ -130,11 +140,12 @@ export const useRefundsStore = defineStore('refunds', () => {
       return
     }
 
+    const issued = generation
     isSubmitting.value = true
     errorRef.clear()
 
     try {
-      outcome.value = await service.submit({
+      const answer = await service.submit({
         previewId: preview.value.previewId,
         invoiceLocalUuid: invoiceLocalUuid.value,
         lines: selectedLines.value,
@@ -144,10 +155,12 @@ export const useRefundsStore = defineStore('refunds', () => {
         reason: reason.value || null,
         notes: notes.value || null
       })
+      // Main recorded the outcome for the cashier who submitted it; it is shown only to them.
+      if (issued === generation) outcome.value = answer
     } catch (error) {
-      reportError(error)
+      if (issued === generation) reportError(error)
     } finally {
-      isSubmitting.value = false
+      if (issued === generation) isSubmitting.value = false
     }
   }
 
@@ -159,15 +172,17 @@ export const useRefundsStore = defineStore('refunds', () => {
       return
     }
 
+    const issued = generation
     isSubmitting.value = true
     errorRef.clear()
 
     try {
-      outcome.value = await service.resume(localRefundUuid)
+      const answer = await service.resume(localRefundUuid)
+      if (issued === generation) outcome.value = answer
     } catch (error) {
-      reportError(error)
+      if (issued === generation) reportError(error)
     } finally {
-      isSubmitting.value = false
+      if (issued === generation) isSubmitting.value = false
     }
   }
 
@@ -185,6 +200,10 @@ export const useRefundsStore = defineStore('refunds', () => {
   }
 
   function reset(): void {
+    generation += 1
+    isLoadingRefundable.value = false
+    isPreviewing.value = false
+    isSubmitting.value = false
     invoiceLocalUuid.value = null
     refundable.value = null
     selection.clear()

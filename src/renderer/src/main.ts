@@ -20,6 +20,7 @@ import { startBrandingClient } from './modules/branding/store'
 import { startQuickCreateClient } from './modules/quickCreate/store'
 import { startUserPreferencesClient } from './modules/preferences/userPreferences.store'
 import { startWorkspaceLayoutClient } from './modules/preferences/posWorkspace.store'
+import { useRefundsStore } from './modules/refunds/store'
 
 const pinia = createPinia()
 
@@ -30,6 +31,7 @@ configureSessionTransition({
     useCartStore(pinia).resetDraft('session-ended')
     usePaymentStore(pinia).resetPayment()
     useCatalogStore(pinia).resetCatalog()
+    useRefundsStore(pinia).reset()
     useAuthStore(pinia).setSessionEndedMessage(message)
   }
 })
@@ -41,6 +43,7 @@ configureDeviceTransition({
     useCartStore(pinia).resetDraft('device-recovery')
     usePaymentStore(pinia).resetPayment()
     useCatalogStore(pinia).resetCatalog()
+    useRefundsStore(pinia).reset()
     useDeviceStore(pinia).setDeviceRecoveryMessage()
   }
 })

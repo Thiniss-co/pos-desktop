@@ -243,7 +243,10 @@ function refundService(h: Harness): RefundService {
     localSale: h.repositories.localSale,
     localRefunds: h.repositories.localRefunds,
     access: undefined as never,
-    shiftAuthority: undefined as never,
+    // Resume checks the refund belongs to the signed-in company and this device.
+    shiftAuthority: {
+      captureContext: () => ({ companyUuid: COMPANY, deviceUuid: DEVICE, userUuid: USER })
+    } as never,
     catalog: { listPaymentMethods: () => [] },
     now: () => new Date(h.clock.now),
     uploadRefund

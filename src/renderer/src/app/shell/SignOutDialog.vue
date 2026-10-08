@@ -17,6 +17,7 @@ import { useCartStore } from '@renderer/modules/pos/cart.store'
 import { usePaymentStore } from '@renderer/modules/pos/payment.store'
 import { useCatalogStore } from '@renderer/modules/pos/catalog.store'
 import { useSyncStore } from '@renderer/modules/sync/store'
+import { useRefundsStore } from '@renderer/modules/refunds/store'
 import { getStartupRouteName } from '../router/guards'
 
 defineProps<{ open: boolean }>()
@@ -41,6 +42,7 @@ async function confirm(): Promise<void> {
     cart.resetDraft('logout')
     payment.resetPayment()
     catalog.resetCatalog()
+    useRefundsStore().reset()
     await startup.refresh()
     emit('close')
     await router.push({ name: getStartupRouteName(startup.state) })

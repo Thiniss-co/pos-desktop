@@ -118,6 +118,8 @@ export interface RefundLiveContext {
     readonly lost_response: RefundLiveScenario
     readonly unclassified_failure: RefundLiveScenario
     readonly restart_control: RefundLiveScenario
+    readonly owner_switch: RefundLiveScenario
+    readonly fractional: RefundLiveScenario
     readonly restart_second: RefundLiveScenario
     readonly accepted_replay: RefundLiveScenario
     readonly stale_confirmation: RefundLiveScenario
