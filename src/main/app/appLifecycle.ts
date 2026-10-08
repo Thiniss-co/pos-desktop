@@ -13,8 +13,9 @@ export function bootstrapApp(): void {
   app
     .whenReady()
     .then(() => {
-      // Set app user model id for windows
-      electronApp.setAppUserModelId('com.electron')
+      // Windows taskbar/notification identity: must equal electron-builder.yml `appId`
+      // (verify:cp3g5-package checks it; both are still the template value, pending the real one).
+      electronApp.setAppUserModelId('com.electron.app')
 
       // A packaged till has no default menu: its View menu offers Reload and Toggle Developer Tools
       // (Alt shows the auto-hidden bar). macOS keeps only the app and Edit menus, which carry the

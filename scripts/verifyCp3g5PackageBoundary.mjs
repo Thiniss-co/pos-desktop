@@ -62,6 +62,14 @@ for (const exclusion of requiredExclusions) {
   if (!config.includes(exclusion)) fail(`electron-builder configuration lacks ${exclusion}`)
 }
 
+// Windows groups the taskbar and notifications by the AppUserModelId set in main; it must be the
+// packaged appId, or the installed shortcut and the running window are two different apps.
+const appId = /^appId:\s*(\S+)\s*$/m.exec(config)?.[1]
+const lifecycle = readFileSync(join(PROJECT_ROOT, 'src/main/app/appLifecycle.ts'), 'utf8')
+if (!appId || !lifecycle.includes(`setAppUserModelId('${appId}')`)) {
+  fail(`main must set the AppUserModelId to the packaged appId (${appId ?? 'missing'})`)
+}
+
 if (!existsSync(DIST_ROOT)) fail('dist does not exist; run npm run build:unpack first')
 
 const artifacts = filesUnder(DIST_ROOT)

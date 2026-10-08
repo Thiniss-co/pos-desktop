@@ -29,23 +29,21 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+# macOS: the till uses no camera, microphone, Documents or Downloads access, so it declares none
+# (the template's usage strings and its missing build/entitlements.mac.plist are gone). Signing and
+# notarization are pending a certificate.
 mac:
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
+  # No snap: it needs snapcraft, and strict confinement blocks the keyring (safeStorage) and CUPS
+  # printing the till depends on.
   target:
     - AppImage
-    - snap
     - deb
   maintainer: electronjs.org
-  category: Utility
+  category: Office
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
