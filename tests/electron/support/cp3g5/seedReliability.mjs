@@ -38,28 +38,23 @@ const SANDBOX_PREFIX = 'pos-desktop-cp3g5-'
 const ELECTRON_TEMP_PREFIX = 'pos-desktop-electron-node-'
 const MAX_ITERATIONS = 500
 
-function argument(name, fallback = null) {
-  const index = process.argv.indexOf(name)
+// Every `--name value` pair, parsed once; the first occurrence of a name wins.
+const options = new Map(
+  process.argv
+    .slice(2)
+    .flatMap((value, index, all) => (index + 1 < all.length ? [[value, all[index + 1]]] : []))
+    .reverse()
+)
 
-  return index === -1 || index + 1 >= process.argv.length ? fallback : process.argv[index + 1]
-}
-
-const iterations = Number(argument('--iterations', '0'))
+const iterations = Number(options.get('--iterations') ?? '0')
 const seedOnly = process.argv.includes('--seed-only')
 const stopOnFailure = process.argv.includes('--stop-on-failure')
-const payloads = argument('--payloads', '21')
-const logPath = argument('--log', null)
+const payloads = options.get('--payloads') ?? '21'
+const logPath = options.get('--log') ?? null
 
 if (!Number.isInteger(iterations) || iterations < 1 || iterations > MAX_ITERATIONS) {
   console.error(`[cp3g5-reliability] --iterations must be an integer in 1..${MAX_ITERATIONS}`)
   process.exit(2)
-}
-
-/** Anything matching the harness's own temporary-name shapes, left behind by anyone. */
-function strayTemporaryDirectories() {
-  return readdirSync(tmpdir()).filter(
-    (entry) => entry.startsWith(SANDBOX_PREFIX) || entry.startsWith(ELECTRON_TEMP_PREFIX)
-  )
 }
 
 const DIAGNOSTIC_LINE = /\[cp3g5\] diagnostic (\{[^\n]*\})/g
@@ -71,10 +66,15 @@ if (!existsSync(WRAPPER)) {
   process.exit(2)
 }
 
-const strayBefore = strayTemporaryDirectories()
+// Anything matching the harness's own temporary-name shapes, left behind by anyone.
+const strayBefore = readdirSync(tmpdir()).filter(
+  (entry) => entry.startsWith(SANDBOX_PREFIX) || entry.startsWith(ELECTRON_TEMP_PREFIX)
+)
 
 if (strayBefore.length > 0) {
-  console.error(`[cp3g5-reliability] refusing to start: ${strayBefore.length} pre-existing harness temporary directories`)
+  console.error(
+    `[cp3g5-reliability] refusing to start: ${strayBefore.length} pre-existing harness temporary directories`
+  )
   process.exit(2)
 }
 
@@ -126,7 +126,9 @@ for (let iteration = 1; iteration <= iterations; iteration++) {
 
   // A leftover here is attributable to the iteration that just ended: the driver refused to start
   // with any pre-existing directory, and it checks after every single run.
-  const stray = strayTemporaryDirectories()
+  const stray = readdirSync(tmpdir()).filter(
+    (entry) => entry.startsWith(SANDBOX_PREFIX) || entry.startsWith(ELECTRON_TEMP_PREFIX)
+  )
 
   if (stray.length > 0) leftovers += stray.length
 
@@ -150,9 +152,11 @@ for (let iteration = 1; iteration <= iterations; iteration++) {
   }
 
   const summary = diagnostics
-    .map((entry) => [entry.phase, entry.operation, entry.code, entry.exception, entry.sqlstate, entry.identifier]
-      .filter(Boolean)
-      .join('/'))
+    .map((entry) =>
+      [entry.phase, entry.operation, entry.code, entry.exception, entry.sqlstate, entry.identifier]
+        .filter(Boolean)
+        .join('/')
+    )
     .join(' | ')
 
   console.log(
@@ -175,7 +179,9 @@ console.log(`[cp3g5-reliability] mode                : ${seedOnly ? 'seed-only' 
 console.log(`[cp3g5-reliability] iterations executed : ${executed}`)
 console.log(`[cp3g5-reliability] passed              : ${passed}`)
 console.log(`[cp3g5-reliability] failed              : ${failed}`)
-console.log(`[cp3g5-reliability] unique identities   : ${identities.size} (duplicate: ${duplicateIdentity})`)
+console.log(
+  `[cp3g5-reliability] unique identities   : ${identities.size} (duplicate: ${duplicateIdentity})`
+)
 console.log(`[cp3g5-reliability] unique ports        : ${ports.size} (duplicate: ${duplicatePort})`)
 console.log(`[cp3g5-reliability] leftover temp dirs  : ${leftovers}`)
 
