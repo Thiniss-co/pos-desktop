@@ -1,5 +1,7 @@
 appId: com.electron.app
-productName: pos-desktop
+# Display name (shortcuts, installer, window). The data folder does not follow it: a packaged till keeps
+# its database under `pos-desktop` (src/main/app/instanceLocation.ts).
+productName: Thinis POS
 directories:
   buildResources: build
 # An allowlist: only the production bundles and runtime resources are packaged (electron-builder
@@ -22,13 +24,27 @@ files:
   - '!**/cp3g5-fixture.json'
 asarUnpack:
   - resources/**
+# V1 target: Windows 10 22H2 / Windows 11, x64 only (no ia32/arm64 build). See docs/release/windows.md.
 win:
   executableName: pos-desktop
+  target:
+    - target: nsis
+      arch:
+        - x64
+# Per-user install (%LOCALAPPDATA%\Programs\Thinis POS): a cashier account installs and updates the till
+# without an administrator. One-click; an upgrade replaces the program in place. Uninstall removes the
+# program and shortcuts only: the till's data (%APPDATA%\pos-desktop: database, settings, protected
+# credentials) is kept, so pending sales and refunds are never deleted by an uninstall or reinstall.
 nsis:
+  oneClick: true
+  perMachine: false
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  createStartMenuShortcut: true
 # macOS: the till uses no camera, microphone, Documents or Downloads access, so it declares none
 # (the template's usage strings and its missing build/entitlements.mac.plist are gone). Signing and
 # notarization are pending a certificate.
@@ -37,6 +53,8 @@ mac:
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
+  # Stable command and install path whatever the display name (/usr/bin/pos-desktop).
+  executableName: pos-desktop
   # No snap: it needs snapcraft, and strict confinement blocks the keyring (safeStorage) and CUPS
   # printing the till depends on.
   target:
@@ -62,6 +80,8 @@ deb:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+# Puts (Windows, when cross-built) and verifies the target-platform better-sqlite3 binary.
+afterPack: ./scripts/electronBuilderAfterPack.mjs
 # Release fuses: the packaged binary cannot be turned into a Node interpreter (ELECTRON_RUN_AS_NODE,
 # NODE_OPTIONS, --inspect) and loads only its own, integrity-checked app.asar (the integrity check is
 # enforced on Windows and macOS). Remote debugging is not a fuse; the packaged-app journey drives the

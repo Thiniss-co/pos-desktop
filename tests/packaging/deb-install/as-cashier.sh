@@ -23,4 +23,5 @@ grep -iE "FATAL|sandbox" /tmp/app.log | head -5
 echo "-- app log head:"
 head -8 /tmp/app.log
 echo "browser userns: $(readlink /proc/self/ns/user)  (this shell; a sandboxed child shows a different value or hidden)"
+echo "user data folders: $(ls ~/.config 2>/dev/null | tr "\n" " ")"
 kill $APP 2>/dev/null

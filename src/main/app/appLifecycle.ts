@@ -3,9 +3,24 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from '../ipc/registerIpcHandlers'
 import { createApplicationServices, type ApplicationServices } from './applicationServices'
 import { createMainWindow } from './createMainWindow'
+import { holdSingleInstance, pinPackagedUserData } from './instanceLocation'
 
 export function bootstrapApp(): void {
   let services: ApplicationServices | null = null
+  let mainWindow: BrowserWindow | null = null
+
+  // Before anything opens userData (the SQLite database, safeStorage): a stable data folder, and one
+  // till process per folder.
+  pinPackagedUserData(app)
+  const holdsInstance = holdSingleInstance(app, () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  })
+  if (!holdsInstance) {
+    return
+  }
 
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
@@ -63,12 +78,12 @@ export function bootstrapApp(): void {
         void services?.connectivity.ensureFresh()
       })
 
-      createMainWindow()
+      mainWindow = createMainWindow()
 
       app.on('activate', function () {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
-        if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+        if (BrowserWindow.getAllWindows().length === 0) mainWindow = createMainWindow()
       })
     })
     .catch((error: unknown) => {
