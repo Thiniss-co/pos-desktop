@@ -43,7 +43,7 @@ const EMPTY: DispositionConvergenceSummary = {
  */
 const CANDIDATE_SCAN_LIMIT = 500
 
-const DEFAULT_PER_ROW_INTERVAL_MS = 10 * 60 * 1000
+const DEFAULT_PER_ROW_INTERVAL_MS = 2 * 60 * 1000
 
 /**
  * PS6b — the main-owned convergence run behind `DispositionDiscoveryTrigger`.

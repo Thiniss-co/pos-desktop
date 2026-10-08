@@ -7,6 +7,7 @@ import {
   phpJsonEncode
 } from '../../../src/main/services/invoiceDispositionDiscovery.service'
 import { allocationItemLineUuid } from '../../../src/main/services/allocationJournal'
+import { payloadHash as canonicalPayloadHash } from '../../../src/main/services/localSale.fingerprint'
 import { invoiceRequestHash } from '../../../src/main/services/invoiceRequestHash'
 import { realRepositories } from '../support/realRepositories'
 import { databaseTest } from '../support/sandbox'
@@ -230,7 +231,9 @@ function seedRejectedInvoice(
   const payload = frozenPayload()
   overrides.mutatePayload?.(payload)
   const payloadJson = JSON.stringify(payload)
-  const payloadHash = sha256(payloadJson)
+  // Exactly what LocalSaleService stores and the upload worker verifies (canonical JSON), not a
+  // hash of the raw bytes.
+  const payloadHash = canonicalPayloadHash(payload)
 
   insertRow(database, 'sync_queue', {
     local_queue_uuid: QUEUE_UUID,

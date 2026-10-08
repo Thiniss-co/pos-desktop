@@ -8,6 +8,7 @@ import {
 import type { SqliteDatabase } from '../database/connection'
 import { runSerializedWrite } from '../database/serializedWrite'
 import { allocationItemLineUuid } from './allocationJournal'
+import { payloadHash } from './localSale.fingerprint'
 import { invoiceRequestHash, isPhysicalPresenceContractVersion } from './invoiceRequestHash'
 
 /** The exact quarantine reasons a disposition may act on (§7.3a.2). Closed on purpose. */
@@ -214,17 +215,18 @@ export class InvoiceDispositionDiscoveryService {
 
       const payloadJson = row.payload_json as string
 
-      // The frozen payload must still be the bytes that produced the stored hash, and must still
-      // declare v3 with an authority. A payload that no longer verifies is not evidence.
-      if (sha256(payloadJson) !== row.payload_hash) {
-        continue
-      }
-
       let payload: Record<string, unknown>
 
       try {
         payload = JSON.parse(payloadJson) as Record<string, unknown>
       } catch {
+        continue
+      }
+
+      // The frozen payload must still verify against its stored hash — the same canonical
+      // `payloadHash()` the upload worker checks before every send — and must still declare v3 with
+      // an authority. A payload that no longer verifies is not evidence.
+      if (payloadHash(payload) !== row.payload_hash) {
         continue
       }
 

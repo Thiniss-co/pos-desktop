@@ -111,6 +111,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Actions\CreateStockReceivingAction;
 use App\Modules\Tenancy\Data\CompanyContext;
 use App\Modules\Tenancy\Services\CurrentCompanyResolver;
+use App\Modules\Devices\Models\DesktopAccessToken;
 use App\Modules\Devices\Models\DesktopDevice;
 use App\Modules\Devices\Services\DeviceAssignmentFenceService;
 use App\Modules\Inventory\Actions\UpsertStockAllocationExposurePolicyAction;
@@ -134,7 +135,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change', 'subscription-lifecycle'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change', 'subscription-lifecycle', 'release-allocations', 'operator-token', 'disposition-report'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -255,7 +256,7 @@ if ($operation === 'product-image' && preg_match('/^[A-Z0-9-]{1,40}:(1|2|3|remov
 if ($operation === 'brand' && preg_match('/^(#[0-9a-f]{6}|none):(logo1|logo2|keep|nologo)$/', $argument) !== 1) {
     sandboxRefuse('brand needs <#rrggbb|none>:<logo1|logo2|keep|nologo>');
 }
-if (in_array($operation, ['assign-device', 'report', 'device', 'allocations', 'movements', 'revoke-device', 'assign-device-other', 'move-device-other'], true)
+if (in_array($operation, ['assign-device', 'report', 'device', 'allocations', 'movements', 'revoke-device', 'assign-device-other', 'move-device-other', 'release-allocations', 'operator-token', 'disposition-report'], true)
     && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $argument) !== 1) {
     sandboxRefuse('a device uuid is required');
 }
@@ -1050,6 +1051,47 @@ $result = match ($operation) {
                 ->select('uuid', 'status', 'granted_quantity_milli', 'consumed_quantity_milli', 'lifecycle_generation')
                 ->orderBy('id')->get()->all(),
             'requests' => DB::table('stock_allocation_requests')->where('desktop_device_id', $device->id)->count(),
+        ];
+    })(),
+    // PS6b: a labelled precondition. The server ends every grant the device still holds as `released` (a real
+    // lifecycle status) while the register, which is not told, keeps its local copy active, so its next proof on one
+    // is quarantined (`allocation_generation_mismatch`) — the server/register disagreement an operator disposes.
+    'release-allocations' => (function () use ($argument, $company): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+        $released = DB::table('stock_allocations')->where('desktop_device_id', $device->id)->where('status', 'active')
+            ->update(['status' => 'released', 'updated_at' => now()]);
+
+        return ['released' => $released];
+    })(),
+    // PS6b: the operator's credential for the real disposition endpoint, minted exactly as the backend's own
+    // `issueDesktopToken()` test helper does (the GUI admin on this device). Disposable sandbox only; never logged.
+    'operator-token' => (function () use ($argument, $company, $actor): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+        $token = $actor->createToken('ps6b-operator', ['desktop']);
+        DesktopAccessToken::create([
+            'token_id' => $token->accessToken->id,
+            'desktop_device_id' => $device->id,
+            'user_id' => $actor->id,
+            'company_id' => $device->company_id,
+            'issued_at' => now(),
+        ]);
+
+        return ['token' => $token->plainTextToken];
+    })(),
+    // PS6b: READ-ONLY. Every upload record of the device with its status, quarantine reason, stored decision and
+    // committed invoice.
+    'disposition-report' => (function () use ($argument, $company): array {
+        $device = DesktopDevice::query()->where('company_id', $company->id)->where('device_uuid', $argument)->firstOrFail();
+
+        return ['syncs' => DB::table('desktop_invoice_syncs as s')
+            ->leftJoin('desktop_invoice_dispositions as d', 'd.desktop_invoice_sync_id', '=', 's.id')
+            ->leftJoin('pos_invoices as i', 'i.id', '=', 's.pos_invoice_id')
+            ->where('s.desktop_device_id', $device->id)
+            ->orderBy('s.id')
+            ->get(['s.idempotency_key', 's.local_invoice_uuid', 's.status', 's.quarantine_reason', 's.client_contract_version',
+                'd.uuid as disposition_uuid', 'd.decision', 'd.result_hash', 'i.uuid as invoice_uuid', 'i.server_number'])
+            ->all(),
+            'quarantine_holds' => DB::table('stock_allocation_quarantines')->where('reason', 'invoice_disposition_chain_break')->count(),
         ];
     })(),
 };
