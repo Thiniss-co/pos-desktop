@@ -369,6 +369,7 @@
       "PAYMENT_NON_CASH_OVERPAYMENT": "Only cash payments may exceed the total. Reduce the non-cash amount.",
       "PAYMENT_TOTAL_LIMIT": "The total tendered exceeds the published monetary limit.",
       "CART_HOLD_LIMIT": "Too many held sales. Recall or discard one first.",
+      "CART_LINE_LIMIT": "A sale can have at most 100 lines. Complete this sale, then continue in a new one.",
       "CART_ATTEMPT_LOCKED": "This cart belongs to a payment that is still in progress. Resolve the payment first.",
       "FISCAL_SETUP_INCOMPLETE": "ZATCA receipts need the company's legal name, VAT number and seller address. Ask the owner to complete them, then refresh the workstation.",
       "CART_OFFERS_CHANGED": "Offers changed since this cart was priced. The cart has been updated; check the total and try again."

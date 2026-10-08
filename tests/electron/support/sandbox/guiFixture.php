@@ -135,7 +135,7 @@ if ($backendRoot === '' || ! is_file($backendRoot . '/artisan')) {
     sandboxRefuse('the backend root is missing');
 }
 
-if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change', 'subscription-lifecycle', 'release-allocations', 'operator-token', 'disposition-report'], true)) {
+if (! in_array($operation, ['assign-device', 'mode-physical-presence', 'mode-allocation', 'report', 'create-owner-product', 'receive-stock', 'stock', 'device', 'allocations', 'devices', 'set-tracking', 'adjust-stock', 'authorities', 'movements', 'owner-permission', 'company-feature', 'stock-position', 'record-opening-stock', 'product-image', 'brand', 'revoke-device', 'second-company', 'assign-device-other', 'move-device-other', 'quick-create-report', 'quick-create-grant', 'mixed-tax-catalog', 'mixed-tax-report', 'create-named-products', 'create-plain-products', 'create-bulk-products', 'receipt-snapshots', 'fiscal-zatca', 'offer-start', 'offer-end', 'offer-report', 'suspend-company', 'resume-company', 'inspect-suspension', 'subscription-lapse', 'subscription-request', 'inspect-subscription', 'subscription-end-soon', 'plan-capacity-change', 'subscription-lifecycle', 'release-allocations', 'operator-token', 'disposition-report'], true)) {
     sandboxRefuse('unknown fixture operation');
 }
 
@@ -937,6 +937,40 @@ $result = match ($operation) {
         }
 
         return ['products' => $products, 'precondition' => true];
+    })(),
+    // V1 closeout (journey `soak`): a large catalog through the same owner create path as
+    // create-plain-products. SKU BK-0001…, barcode 6293 + 9 digits; untracked stock; idempotent.
+    'create-bulk-products' => (function () use ($argument, $company, $actor): array {
+        $count = (int) $argument;
+        if ($count < 1 || $count > 5000) {
+            throw new InvalidArgumentException('create-bulk-products takes 1..5000');
+        }
+        $context = app(CurrentCompanyResolver::class)->resolve($actor);
+        app()->instance(CompanyContext::class, $context);
+        $category = Category::query()->where('company_id', $company->id)->orderBy('id')->firstOrFail();
+        $started = microtime(true);
+        $created = 0;
+
+        for ($index = 1; $index <= $count; $index++) {
+            $number = str_pad((string) $index, 4, '0', STR_PAD_LEFT);
+            $sku = "BK-{$number}";
+            if (Product::query()->where('company_id', $company->id)->where('sku', $sku)->exists()) {
+                continue;
+            }
+            $request = OwnerStoreProductRequest::create('/api/v1/company-owner/products', 'POST', [
+                'name' => "Bulk item {$number}", 'category_id' => $category->uuid, 'sku' => $sku,
+                'barcode' => '6293'.str_pad((string) $index, 9, '0', STR_PAD_LEFT),
+                'price' => 100 + $index, 'tax_mode' => 'none', 'track_stock' => false,
+            ]);
+            $request->setContainer(app())->setRedirector(app('redirect'));
+            $request->setUserResolver(fn () => $actor);
+            $request->validateResolved();
+            app(CreateProductAction::class)->execute(CreateProductData::fromRequest($request, $context));
+            $created++;
+        }
+
+        return ['created' => $created, 'total' => Product::query()->where('company_id', $company->id)->count(),
+            'seconds' => round(microtime(true) - $started, 1), 'precondition' => true];
     })(),
     'offer-start' => (function () use ($argument, $company, $actor): array {
         if (($company->timezone ?? null) === null) {

@@ -74,11 +74,14 @@ function duplicateIds(ids: readonly string[]): boolean {
  * or permissions — every one of those is re-resolved from main-owned state. `.strict()` at every
  * level makes an unknown key a rejection, not a silent drop.
  */
+/** The most lines one sale can carry (the cart refuses a new line beyond it: CART_LINE_LIMIT). */
+export const CHECKOUT_MAX_LINES = 100
+
 export const checkoutIntentSchema = z
   .object({
     draftRevision: z.number().int().nonnegative(),
     catalogRevision: z.string().regex(/^[a-f0-9]{64}$/),
-    items: z.array(checkoutItemIntentSchema).min(1).max(100),
+    items: z.array(checkoutItemIntentSchema).min(1).max(CHECKOUT_MAX_LINES),
     invoiceDiscount: z.object(discountShape).strict().superRefine(checkDiscountBounds),
     customerUuid: z.uuid().nullable(),
     payments: z.array(checkoutPaymentIntentSchema).min(1).max(20)

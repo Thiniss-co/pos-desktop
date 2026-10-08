@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { CatalogContract, CatalogProduct } from '@shared/contracts/catalog.contract'
+import { CHECKOUT_MAX_LINES } from '@shared/contracts/checkout.contract'
 import {
   addQuantity,
   calculateCart,
@@ -42,7 +43,8 @@ export interface HeldDraft {
 
 export const MAX_HELD_DRAFTS = 20
 
-export type CartErrorCode = CartCalculationErrorCode | 'CART_HOLD_LIMIT' | 'CART_ATTEMPT_LOCKED'
+export type CartErrorCode =
+  CartCalculationErrorCode | 'CART_HOLD_LIMIT' | 'CART_ATTEMPT_LOCKED' | 'CART_LINE_LIMIT'
 
 export type CartState =
   | { readonly kind: 'empty' }
@@ -314,6 +316,12 @@ export const useCartStore = defineStore('cart', () => {
           line.id === existing.id ? { ...line, quantity: nextQuantity.value } : line
         )
       )
+    }
+
+    // A sale carries at most CHECKOUT_MAX_LINES lines: refuse the next new line here, with a clear
+    // message, rather than letting checkout fail with a generic invalid request.
+    if (lines.value.length >= CHECKOUT_MAX_LINES) {
+      return reject('CART_LINE_LIMIT')
     }
 
     const initialQuantity = formatQuantity(quantityMilli)

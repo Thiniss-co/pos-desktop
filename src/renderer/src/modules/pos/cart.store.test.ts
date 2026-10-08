@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import type { CatalogContract, CatalogProduct } from '@shared/contracts/catalog.contract'
+import { CHECKOUT_MAX_LINES } from '@shared/contracts/checkout.contract'
 import { i18n } from '@renderer/i18n'
 import { MAX_HELD_DRAFTS, useCartStore } from './cart.store'
 
@@ -17,6 +18,10 @@ const contract: CatalogContract = {
   maximumLineTotal: 900_000_000_000_000,
   maximumInvoiceTotal: 900_000_000_000_000,
   mixedTaxModePolicy: 'single_invoice_mode'
+}
+
+function lineProductUuid(index: number): string {
+  return `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`
 }
 
 function product(overrides: Partial<CatalogProduct> = {}): CatalogProduct {
@@ -288,6 +293,28 @@ describe('useCartStore', () => {
     expect(store.cartState).toMatchObject({ kind: 'invalid', code: 'CART_CATALOG_CHANGED' })
     expect(store.canEdit).toBe(false)
     expect(store.lines[0].product.price.amount).toBe(1000)
+  })
+
+  it('refuses a new line beyond the checkout line limit with a clear message, and keeps the cart', () => {
+    const store = useCartStore()
+    store.setContract(contract)
+
+    for (let index = 1; index <= CHECKOUT_MAX_LINES; index += 1) {
+      expect(
+        store.addProduct(product({ uuid: lineProductUuid(index), name: `Item ${index}` }))
+      ).toBe(true)
+    }
+
+    expect(
+      store.addProduct(
+        product({ uuid: lineProductUuid(CHECKOUT_MAX_LINES + 1), name: 'One too many' })
+      )
+    ).toBe(false)
+    expect(store.error).toBe(i18n.global.t('pos.errors.CART_LINE_LIMIT'))
+    expect(store.lines).toHaveLength(CHECKOUT_MAX_LINES)
+    // More of a product already in the cart is still fine.
+    expect(store.addProduct(product({ uuid: lineProductUuid(1), name: 'Item 1' }))).toBe(true)
+    expect(store.lines[0].quantity).toBe('2.000')
   })
 
   it('discards held drafts on resetDraft and caps the held list', () => {
