@@ -90,7 +90,14 @@ async function rendererPage(browser) {
   throw new Error('the packaged renderer window never appeared')
 }
 
-export async function launchPackagedApp({ runDir, profileDir, width = 1366, height = 850 }) {
+export async function launchPackagedApp({
+  runDir,
+  profileDir,
+  width = 1366,
+  height = 850,
+  // A run-local HOME (e.g. with an isolated NSS trust store, see tlsBackend.mjs); never the real one.
+  home = process.env.HOME
+}) {
   if (profileDir.includes('/.config/pos-desktop')) {
     throw new Error('refusing to use a real workstation profile')
   }
@@ -114,7 +121,7 @@ export async function launchPackagedApp({ runDir, profileDir, width = 1366, heig
       cwd: runDir,
       env: {
         PATH: process.env.PATH,
-        HOME: process.env.HOME,
+        HOME: home,
         DISPLAY: process.env.DISPLAY ?? ':0',
         XAUTHORITY: process.env.XAUTHORITY ?? '',
         XDG_CONFIG_HOME: profileDir,
