@@ -8,7 +8,11 @@ import type { SafeStorageAdapter } from '../../../src/main/services/secureStorag
 export function fakeSafeStorage(): SafeStorageAdapter {
   return {
     isEncryptionAvailable: () => true,
-    getSelectedStorageBackend: () => 'electron-test-storage',
+    // Stands in for a PROTECTED Linux key store, the precondition production enforces before any
+    // credential is persisted (SecureStorageService.assertCanPersistSecrets). The fail-closed paths
+    // (basic_text, unknown, unavailable) are covered by secureStorage/auth/license unit tests and the
+    // `keystore` journey.
+    getSelectedStorageBackend: () => 'gnome_libsecret',
     encryptString: (value) => Buffer.from(`electron-test:${value}`, 'utf8'),
     decryptString: (value) => {
       const prefix = 'electron-test:'
