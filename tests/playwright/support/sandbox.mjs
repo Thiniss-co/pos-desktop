@@ -44,6 +44,20 @@ function assertDisposable(databasePath) {
   }
 }
 
+/** Every sandbox a journey started; the runner stops the survivors after each journey (stopAll). */
+const liveSandboxes = new Set()
+
+/** Stops every sandbox server still running; returns how many were left running. */
+export async function stopAllSandboxes() {
+  let leftRunning = 0
+  for (const sandbox of [...liveSandboxes]) {
+    if (sandbox.running()) leftRunning += 1
+    await sandbox.stop().catch(() => undefined)
+  }
+  liveSandboxes.clear()
+  return leftRunning
+}
+
 export async function startSandbox({
   runDir,
   name = 'backend',
@@ -149,6 +163,9 @@ export async function startSandbox({
       }
       throw new Error('sandbox backend never became ready')
     },
+    running() {
+      return Boolean(server) && server.exitCode === null && server.signalCode === null
+    },
     async stop() {
       if (!server || server.exitCode !== null || server.signalCode !== null) return
       // A restart must wait for the exit event itself, not only for `/up` to stop answering.
@@ -172,5 +189,6 @@ export async function startSandbox({
   }
 
   await sandbox.start()
+  liveSandboxes.add(sandbox)
   return sandbox
 }

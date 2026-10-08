@@ -16,6 +16,19 @@
 import { createServer, request as httpRequest } from 'node:http'
 import { freePort } from './sandbox.mjs'
 
+/** Every proxy a journey started; the runner stops the survivors after each journey. */
+const liveProxies = new Set()
+
+/** Stops every proxy a journey left listening; returns how many there were. */
+export async function stopAllProxies() {
+  const leftListening = liveProxies.size
+  for (const proxy of [...liveProxies]) {
+    await proxy.stop().catch(() => undefined)
+  }
+  liveProxies.clear()
+  return leftListening
+}
+
 export async function startProxy(targetOrigin, port = null, { preserveHost = false } = {}) {
   const listenPort = port ?? (await freePort())
   const target = new URL(targetOrigin)
@@ -161,7 +174,7 @@ export async function startProxy(targetOrigin, port = null, { preserveHost = fal
 
   await listen()
 
-  return {
+  const proxy = {
     origin: `http://127.0.0.1:${listenPort}`,
     port: listenPort,
     log,
@@ -218,6 +231,9 @@ export async function startProxy(targetOrigin, port = null, { preserveHost = fal
     },
     async stop() {
       await this.offline()
+      liveProxies.delete(this)
     }
   }
+  liveProxies.add(proxy)
+  return proxy
 }

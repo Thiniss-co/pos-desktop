@@ -17,6 +17,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EVIDENCE_ROOT } from './support/paths.mjs'
+import { stopAllPackagedApps } from './support/packagedApp.mjs'
+import { stopAllProxies } from './support/proxy.mjs'
+import { stopAllSandboxes } from './support/sandbox.mjs'
 
 const SELF = fileURLToPath(import.meta.url)
 const journeys = process.argv.slice(2)
@@ -106,6 +109,19 @@ for (const name of journeys) {
       .slice(-150)
     console.error(`[pw:${name}] FAILED\n${facts.error}`)
   } finally {
+    // Nothing a journey started may outlive it: a sandbox server is a detached process group and a
+    // packaged till a spawned child. Survivors are stopped here and recorded.
+    const leftovers = {
+      sandboxes: await stopAllSandboxes(),
+      proxies: await stopAllProxies(),
+      packagedApps: stopAllPackagedApps()
+    }
+    if (leftovers.sandboxes + leftovers.packagedApps > 0) {
+      facts.cleanup = leftovers
+      console.warn(
+        `[pw:${name}] stopped what the journey left running: ${JSON.stringify(leftovers)}`
+      )
+    }
     facts.finishedAt = new Date().toISOString()
     writeFileSync(join(evidenceDir, `result-${stamp}.json`), JSON.stringify(facts, null, 2))
   }

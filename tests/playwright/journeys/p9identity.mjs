@@ -278,5 +278,7 @@ export async function run(ctx) {
     await ctx.shot(page, '06-other-company')
   } finally {
     await session.app.close().catch(() => undefined)
+    await session.proxy?.stop().catch(() => undefined)
+    await session.sandbox.stop()
   }
 }

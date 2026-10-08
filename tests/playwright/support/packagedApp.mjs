@@ -90,6 +90,21 @@ async function rendererPage(browser) {
   throw new Error('the packaged renderer window never appeared')
 }
 
+/** Every packaged till a journey started; the runner kills the survivors after each journey. */
+const livePackagedApps = new Set()
+
+export function stopAllPackagedApps() {
+  let leftRunning = 0
+  for (const child of livePackagedApps) {
+    if (child.exitCode === null && child.signalCode === null) {
+      leftRunning += 1
+      child.kill('SIGKILL')
+    }
+  }
+  livePackagedApps.clear()
+  return leftRunning
+}
+
 export async function launchPackagedApp({
   runDir,
   profileDir,
@@ -136,6 +151,7 @@ export async function launchPackagedApp({
       stdio: ['ignore', 'pipe', 'pipe']
     }
   )
+  livePackagedApps.add(child)
   child.stdout.on('data', (chunk) => logs.push(String(chunk)))
   child.stderr.on('data', (chunk) => logs.push(String(chunk)))
   await waitForDebugger(port, child)

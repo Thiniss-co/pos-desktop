@@ -233,5 +233,7 @@ export async function run(ctx) {
     )
   } finally {
     await session.app.close().catch(() => undefined)
+    await session.proxy?.stop().catch(() => undefined)
+    await session.sandbox.stop()
   }
 }
