@@ -1,9 +1,10 @@
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, dialog, Menu } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from '../ipc/registerIpcHandlers'
 import { createApplicationServices, type ApplicationServices } from './applicationServices'
 import { createMainWindow } from './createMainWindow'
 import { holdSingleInstance, pinPackagedUserData } from './instanceLocation'
+import { startupFailureMessage } from './startupFailure'
 
 export function bootstrapApp(): void {
   let services: ApplicationServices | null = null
@@ -88,6 +89,9 @@ export function bootstrapApp(): void {
     })
     .catch((error: unknown) => {
       console.error('Application initialization failed', error)
+      // Never a silent quit: the cashier sees why, and that the data must be kept.
+      const message = startupFailureMessage(error, app.getPath('userData'))
+      dialog.showErrorBox(message.title, message.body)
       app.quit()
     })
 
