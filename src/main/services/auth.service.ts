@@ -35,7 +35,8 @@ export interface AuthSessionMetadataRepository {
 }
 
 export interface AuthSecureStorage {
-  getStatus(): { encryptionAvailable: boolean }
+  /** Throws a configuration error when credentials could not be stored protected (fail closed). */
+  assertCanPersistSecrets(): void
   getSecret(key: string): string | null
   setSecret(key: string, value: string): void
   deleteSecret(key: string): void
@@ -69,9 +70,9 @@ export class AuthService {
       throw configurationError('This workstation has not completed device activation')
     }
 
-    if (!this.secureStorage.getStatus().encryptionAvailable) {
-      throw configurationError('Encrypted secret storage is unavailable on this device')
-    }
+    // Before the password leaves this workstation: a token that could not be stored protected is
+    // never requested.
+    this.secureStorage.assertCanPersistSecrets()
 
     const response = await this.apiClient.request(DESKTOP_API_ROUTES.authLogin, {
       email: input.email,

@@ -960,6 +960,8 @@
     "generic": "Something went wrong. Please try again.",
     "transport": "The POS service is temporarily unavailable.",
     "configuration": "The POS backend is not configured.",
+    "SECURE_STORAGE_UNAVAILABLE": "This workstation cannot protect sign-in credentials. Start and unlock the system keyring (GNOME Keyring or KWallet), restart the app, then sign in again.",
+    "SECURE_STORAGE_INSECURE_BACKEND": "This workstation has no protected keyring, so sign-in credentials would be stored unprotected. Install and unlock GNOME Keyring or KWallet, restart the app, then sign in again.",
     "response_envelope_invalid": "The POS service returned an invalid response. No data was changed.",
     "response_body_not_json": "The POS service returned a response in an unsupported format. No data was changed.",
     "bootstrap_payload_contract_invalid": "The POS service returned bootstrap data this app cannot safely use. Update the app or contact support.",

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DesktopApiClient } from '../http/desktopApiClient'
 import { licenseStatusSchema, type LicenseStatus } from '@shared/contracts/license.contract'
 import { DESKTOP_LICENSE_JWT_KEY, LicenseService } from './license.service'
@@ -399,5 +399,36 @@ describe('LicenseService — Rev 4 renewal leg', () => {
     expect((h.observed[0] as { published: Record<string, unknown> }).published).not.toHaveProperty(
       'warehouse_uuid'
     )
+  })
+})
+
+describe('LicenseService secure storage', () => {
+  it('fails closed before the licence is requested when it could not be stored protected', async () => {
+    const fetchImplementation = vi.fn()
+    const apiClient = new DesktopApiClient({
+      apiOrigin: new URL('https://api.example.test'),
+      getAccessToken: () => 'token',
+      getDeviceUuid: () => 'device',
+      fetchImplementation: fetchImplementation as unknown as typeof fetch
+    })
+    const setValidatedStatus = vi.fn()
+    const setSecret = vi.fn()
+    const refusal = { category: 'configuration', backendCode: 'SECURE_STORAGE_INSECURE_BACKEND' }
+
+    await expect(
+      new LicenseService(
+        apiClient,
+        { getTrustedTimeAnchor: () => null, setValidatedStatus },
+        {
+          setSecret,
+          assertCanPersistSecrets: () => {
+            throw refusal
+          }
+        }
+      ).validate()
+    ).rejects.toBe(refusal)
+    expect(fetchImplementation).not.toHaveBeenCalled()
+    expect(setSecret).not.toHaveBeenCalled()
+    expect(setValidatedStatus).not.toHaveBeenCalled()
   })
 })

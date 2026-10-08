@@ -36,7 +36,14 @@ export function buildApp(origin) {
   return outDir
 }
 
-export async function launchApp({ outDir, profileDir, trace = true, extraEnv = {} }) {
+export async function launchApp({
+  outDir,
+  profileDir,
+  trace = true,
+  extraEnv = {},
+  // `basic` forces Chromium's unprotected fallback key store (journey `keystore`).
+  passwordStore = 'gnome-libsecret'
+}) {
   if (profileDir.includes('/.config/pos-desktop')) {
     throw new Error('refusing to use a real workstation profile')
   }
@@ -60,7 +67,7 @@ export async function launchApp({ outDir, profileDir, trace = true, extraEnv = {
     executablePath: require('electron'),
     args: [
       join(outDir, 'main', 'index.js'),
-      '--password-store=gnome-libsecret',
+      `--password-store=${passwordStore}`,
       '--ozone-platform=x11'
     ],
     env,

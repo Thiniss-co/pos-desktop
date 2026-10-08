@@ -24,6 +24,12 @@ export const DESKTOP_LICENSE_JWT_KEY = 'desktop_license_jwt'
 
 export interface LicenseSecureStorage {
   setSecret(key: string, value: string): void
+  /**
+   * Fails closed before the licence is requested, so no access answer is admitted (and no access
+   * sequence advanced) for a licence that could not then be stored protected. Production passes
+   * SecureStorageService, whose `setSecret` refuses in the same case.
+   */
+  assertCanPersistSecrets?(): void
 }
 
 export interface LicenseMetadataWriter {
@@ -164,6 +170,7 @@ export class LicenseService {
 
   async validate(): Promise<LicenseStatus> {
     const capturedOwner = this.options.owner?.() ?? null
+    this.secureStorage.assertCanPersistSecrets?.()
     const { response, meta, sentAtMono, receivedAtMono } = await this.requestValidation()
     const accessSequence = accessSequenceFromMeta(meta)
     let resource: ReturnType<typeof licenseResourceSchema.parse>

@@ -5,6 +5,11 @@ import type {
   SessionEstablishInput
 } from '../repositories/sessionMetadata.repository'
 import { AuthService, DESKTOP_ACCESS_TOKEN_KEY } from './auth.service'
+import {
+  SECURE_STORAGE_INSECURE_BACKEND,
+  SECURE_STORAGE_UNAVAILABLE,
+  SecureStorageService
+} from './secureStorage.service'
 import type { StoredDeviceIdentity } from './deviceIdentity.service'
 
 const identity: StoredDeviceIdentity = {
@@ -106,7 +111,7 @@ function userContextSuccessEnvelope(): Record<string, unknown> {
 
 interface FakeSecureStorage {
   encryptionAvailable: boolean
-  getStatus: () => { encryptionAvailable: boolean }
+  assertCanPersistSecrets: () => void
   getSecret: (key: string) => string | null
   setSecret: (key: string, value: string) => void
   deleteSecret: (key: string) => void
@@ -117,7 +122,7 @@ function createFakeSecureStorage(): FakeSecureStorage {
   const secrets = new Map<string, string>()
   return {
     encryptionAvailable: true,
-    getStatus: () => ({ encryptionAvailable: true }),
+    assertCanPersistSecrets: () => undefined,
     getSecret: (key: string) => secrets.get(key) ?? null,
     setSecret: (key: string, value: string) => {
       secrets.set(key, value)
@@ -274,6 +279,51 @@ describe('AuthService.login', () => {
     })
   })
 
+  it.each([
+    ['basic_text', true, SECURE_STORAGE_INSECURE_BACKEND],
+    ['gnome_libsecret', false, SECURE_STORAGE_UNAVAILABLE]
+  ] as const)(
+    'fails closed on the %s key store (encryption %s) before the password leaves the workstation',
+    async (backend, encryptionAvailable, backendCode) => {
+      const fetchImplementation = vi.fn()
+      const apiClient = new DesktopApiClient({
+        apiOrigin: new URL('https://api.example.test'),
+        getAccessToken: () => null,
+        getDeviceUuid: () => null,
+        fetchImplementation: fetchImplementation as unknown as typeof fetch
+      })
+      const stored = new Map<string, Buffer>()
+      const secureStorage = new SecureStorageService(
+        {
+          get: (key) => stored.get(key) ?? null,
+          set: (key, value) => void stored.set(key, value),
+          delete: (key) => void stored.delete(key)
+        },
+        {
+          isEncryptionAvailable: () => encryptionAvailable,
+          getSelectedStorageBackend: () => backend,
+          encryptString: (value) => Buffer.from(value),
+          decryptString: (value) => value.toString()
+        },
+        'linux'
+      )
+      const sessionMetadata = createFakeSessionMetadata()
+      const service = new AuthService(
+        apiClient,
+        { get: () => identity },
+        sessionMetadata,
+        secureStorage
+      )
+
+      await expect(
+        service.login({ email: 'cashier@example.test', password: 'hunter2' })
+      ).rejects.toMatchObject({ category: 'configuration', backendCode })
+      expect(fetchImplementation).not.toHaveBeenCalled()
+      expect(stored.size).toBe(0)
+      expect(sessionMetadata.getSummary().isAuthenticated).toBe(false)
+    }
+  )
+
   it('deletes the freshly-stored token if session metadata persistence fails (compensation)', async () => {
     const apiClient = new DesktopApiClient({
       apiOrigin: new URL('https://api.example.test'),
@@ -387,7 +437,7 @@ describe('AuthService.refreshSession', () => {
         }
       },
       {
-        getStatus: () => ({ encryptionAvailable: true }),
+        assertCanPersistSecrets: () => undefined,
         getSecret: () => null,
         setSecret: () => undefined,
         deleteSecret: () => undefined
@@ -441,7 +491,7 @@ describe('AuthService.refreshSession', () => {
         }
       },
       {
-        getStatus: () => ({ encryptionAvailable: true }),
+        assertCanPersistSecrets: () => undefined,
         getSecret: () => 'stored-token',
         setSecret: () => undefined,
         deleteSecret: () => {
@@ -499,7 +549,7 @@ describe('AuthService.refreshSession', () => {
         clear: () => undefined
       },
       {
-        getStatus: () => ({ encryptionAvailable: true }),
+        assertCanPersistSecrets: () => undefined,
         getSecret: () => 'stored-token',
         setSecret: () => undefined,
         deleteSecret: () => undefined
