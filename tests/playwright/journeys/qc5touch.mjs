@@ -24,6 +24,8 @@ import { queryLocal } from '../support/localDb.mjs'
  *  E. Touch-only keypads: an invoice percentage discount typed on the discount dialog's keypad, and a
  *     cash tender typed on the payment keypad (more than due, so change is given); the sale commits
  *     with exactly those values.
+ *  F. Touch-only shift cash: close the shift with counted cash, then open it with a float, each typed
+ *     on the shift dialog's keypad (the pre-filled amount is selected, so the first key replaces it).
  *  D. Layout matrix (16): EN/AR × light/dark × 1920×1080, 1366×768, 1024×768, 800×600, touch ON with a
  *     cart line. Per combination: no horizontal page overflow, every visible control ≥ 44×44, the
  *     top-bar navigation does not overlap the status area, and the quantity keypad dialog fits in the
@@ -308,6 +310,54 @@ export async function run(ctx) {
       keypadSale.change_due_amount !== hundred - keypadSale.grand_total_amount
     )
       throw new Error('E: the keypad tender was not recorded as typed')
+
+    // F. Shift cash by touch only: close with the counted cash and open again with an opening float,
+    //    each typed on the shift dialog's keypad. The pre-filled amount is selected, so the first key
+    //    replaces it.
+    const shiftDialogKeys = async (keys) => {
+      const dialog = page.getByRole('dialog')
+      await dialog.getByTestId('numeric-keypad').waitFor({ state: 'visible' })
+      for (const key of keys) await tap(cdp, dialog.locator(`[data-key="${key}"]`))
+      return dialog
+    }
+    await tap(cdp, page.getByRole('button', { name: await t(page, 'shell.shift.menuLabel') }))
+    await tap(cdp, page.getByRole('menuitem', { name: await t(page, 'pos.closeShift') }))
+    const closeDialog = await shiftDialogKeys(['2', '5', '0'])
+    await ctx.shot(page, 'F1-close-shift-keypad')
+    await tap(cdp, closeDialog.getByRole('button', { name: await t(page, 'pos.closeShift') }))
+    await page.waitForFunction(
+      () =>
+        document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('shift')
+          ?.currentShift?.status !== 'open',
+      null,
+      { timeout: 30_000 }
+    )
+    const closed = await pinia(page, 'shift', 's.currentShift')
+    ctx.step('F: shift closed with keypad cash', {
+      status: closed?.status ?? null,
+      actualCashAmount: closed?.actualCashAmount ?? null
+    })
+    if (closed && closed.actualCashAmount !== 25000)
+      throw new Error('F: the counted cash typed on the keypad was not recorded')
+
+    await tap(cdp, page.getByRole('button', { name: await t(page, 'shell.shift.menuLabel') }))
+    await tap(cdp, page.getByRole('menuitem', { name: await t(page, 'pos.openShift') }))
+    const openDialog = await shiftDialogKeys(['7', '5', '.', '5'])
+    await ctx.shot(page, 'F2-open-shift-keypad')
+    await tap(cdp, openDialog.getByRole('button', { name: await t(page, 'pos.openShift') }))
+    await page.waitForFunction(
+      () =>
+        document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('shift')
+          ?.currentShift?.status === 'open',
+      null,
+      { timeout: 30_000 }
+    )
+    const reopened = await pinia(page, 'shift', 's.currentShift')
+    ctx.step('F: shift opened with keypad float', {
+      openingCashAmount: reopened.openingCashAmount
+    })
+    if (reopened.openingCashAmount !== 7550)
+      throw new Error('F: the opening float typed on the keypad was not recorded')
 
     // A (continued). Per user: sign out → off; sign in again → on.
     await signOutViaMenu(ctx, page)

@@ -15,7 +15,9 @@ import AppDialog from '@renderer/shared/components/common/AppDialog.vue'
 import AppInlineError from '@renderer/shared/components/feedback/AppInlineError.vue'
 import AppInput from '@renderer/shared/components/forms/AppInput.vue'
 import AppTextarea from '@renderer/shared/components/forms/AppTextarea.vue'
+import NumericAmountInput from '@renderer/shared/components/pos/NumericAmountInput.vue'
 import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
+import { useUserPreferencesStore } from '@renderer/modules/preferences/userPreferences.store'
 import { useCartStore } from '../cart.store'
 import { useShiftStore } from '../shift.store'
 import { useShiftDialogStore } from '../shiftDialog.store'
@@ -25,6 +27,7 @@ const shift = useShiftStore()
 const dialog = useShiftDialogStore()
 const cart = useCartStore()
 const localeStore = useLocaleStore()
+const userPreferences = useUserPreferencesStore()
 const { currentShift, activeShiftUuid, mutation, error: shiftError } = storeToRefs(shift)
 const { mode } = storeToRefs(dialog)
 
@@ -34,6 +37,22 @@ const note = ref('')
 
 const currency = computed(() => cart.contract?.currency ?? 'EGP')
 const busy = computed(() => mutation.value !== null)
+// Touch mode: the opening/closing cash is entered on the same on-screen keypad as the tender.
+const keypadLabels = computed(() =>
+  userPreferences.preferences.touchMode
+    ? {
+        backspace: t('touch.keypad.backspace'),
+        clear: t('touch.keypad.clear'),
+        decimal: t('touch.keypad.decimal')
+      }
+    : null
+)
+const cashLabel = computed(() =>
+  mode.value === 'open' ? t('pos.openingCash') : t('pos.actualCash')
+)
+const cashHint = computed(() =>
+  mode.value === 'open' ? t('pos.shiftDialog.openHelp') : t('pos.shiftDialog.closeHelp')
+)
 
 const expectedCashLabel = computed(() => {
   const expected = currentShift.value?.expectedCashAmount
@@ -129,16 +148,29 @@ const submitLabel = computed(() =>
     <template #title>{{ mode ? t(`pos.dialog.${mode}`) : '' }}</template>
     <form id="shift-dialog-form" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
       <p v-if="mode === 'pause'" class="text-muted">{{ t('pos.shiftDialog.pauseBody') }}</p>
-      <AppInput
-        v-if="mode !== 'pause'"
+      <!-- The pre-filled amount is selected on focus, so the first keypad key replaces it. -->
+      <NumericAmountInput
+        v-if="mode !== 'pause' && keypadLabels"
         v-model="cashAmount"
-        :label="mode === 'open' ? t('pos.openingCash') : t('pos.actualCash')"
+        :label="cashLabel"
+        :prefix="currency"
+        autofocus
+        select-on-focus
+        :error="cashError ?? undefined"
+        :hint="cashHint"
+        :keypad-labels="keypadLabels"
+        :max-decimals="2"
+      />
+      <AppInput
+        v-else-if="mode !== 'pause'"
+        v-model="cashAmount"
+        :label="cashLabel"
         :prefix="currency"
         inputmode="decimal"
         size="lg"
         autofocus
         :error="cashError ?? undefined"
-        :hint="mode === 'open' ? t('pos.shiftDialog.openHelp') : t('pos.shiftDialog.closeHelp')"
+        :hint="cashHint"
       />
       <p v-if="expectedCashLabel" class="numeric -mt-2 text-sm text-muted">
         {{ expectedCashLabel }}

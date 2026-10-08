@@ -25,6 +25,8 @@ import AppInput from '../../../shared/components/forms/AppInput.vue'
 import AppSelect from '../../../shared/components/forms/AppSelect.vue'
 import AppSwitch from '../../../shared/components/forms/AppSwitch.vue'
 import AppInlineError from '../../../shared/components/feedback/AppInlineError.vue'
+import NumericAmountInput from '../../../shared/components/pos/NumericAmountInput.vue'
+import { useUserPreferencesStore } from '../../preferences/userPreferences.store'
 import { useQuickCreateStore } from '../store'
 
 const props = withDefaults(
@@ -42,6 +44,7 @@ const emit = defineEmits<{ close: []; created: [record: QuickCreateRecord] }>()
 
 const { t } = useI18n()
 const store = useQuickCreateStore()
+const userPreferences = useUserPreferencesStore()
 const busy = ref(false)
 const problem = ref<string | null>(null)
 const errors = ref<Record<string, string>>({})
@@ -128,6 +131,18 @@ const taxOptions = computed(() => [
     }
   ])
 ])
+
+// Touch mode: the price is entered on the same on-screen keypad as the tender, capped at the
+// catalog currency's minor-unit digits.
+const keypadLabels = computed(() =>
+  userPreferences.preferences.touchMode
+    ? {
+        backspace: t('touch.keypad.backspace'),
+        clear: t('touch.keypad.clear'),
+        decimal: t('touch.keypad.decimal')
+      }
+    : null
+)
 
 function input(): unknown {
   if (props.kind === 'customer') {
@@ -233,8 +248,19 @@ async function submit(): Promise<void> {
         data-testid="quick-create-name"
       />
       <template v-if="kind === 'product'">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4" :class="{ 'sm:grid-cols-2': !keypadLabels }">
+          <NumericAmountInput
+            v-if="keypadLabels"
+            v-model="form.price"
+            :label="t('quickCreate.field.price')"
+            :prefix="options?.currency"
+            :error="errors.price"
+            :keypad-labels="keypadLabels"
+            :max-decimals="options?.currencyExponent ?? 2"
+            data-testid="quick-create-price"
+          />
           <AppInput
+            v-else
             v-model="form.price"
             :label="t('quickCreate.field.price')"
             required

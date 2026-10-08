@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Tender amount field (V3): currency prefix, 48px bold tabular input, optional label action. */
-import { ref, useId } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { applyKeypadKey, type KeypadKey } from '@renderer/shared/utils/keypad'
 import NumericKeypad from './NumericKeypad.vue'
 
@@ -10,8 +10,15 @@ const props = withDefaults(
     label: string
     disabled?: boolean
     error?: string
+    /** Helper text under the field (the shift dialogs' guidance), announced with it. */
+    hint?: string
     prefix?: string
     autofocus?: boolean
+    /**
+     * Selects the whole value whenever the field gains focus, so the first key (typed or keypad)
+     * replaces a pre-filled amount such as a shift's "0.00" instead of being appended to it.
+     */
+    selectOnFocus?: boolean
     /** POS improvements, Stage 5: when set (touch mode), an on-screen keypad edits the field. */
     keypadLabels?: { backspace: string; clear: string; decimal: string } | null
     maxDecimals?: number
@@ -19,8 +26,10 @@ const props = withDefaults(
   {
     disabled: false,
     error: undefined,
+    hint: undefined,
     prefix: undefined,
     autofocus: false,
+    selectOnFocus: false,
     keypadLabels: null,
     maxDecimals: 2
   }
@@ -29,6 +38,7 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
 
 const inputId = useId()
+const hintId = useId()
 const errorId = useId()
 const inputRef = ref<HTMLInputElement | null>(null)
 
@@ -59,6 +69,19 @@ function press(key: KeypadKey): void {
   const base = wholeValueSelected() ? '' : props.modelValue
   emit('update:modelValue', applyKeypadKey(base, key, props.maxDecimals))
 }
+
+function handleFocus(): void {
+  if (props.selectOnFocus) {
+    inputRef.value?.select()
+  }
+}
+
+const describedBy = computed(
+  () =>
+    [props.hint && !props.error ? hintId : null, props.error ? errorId : null]
+      .filter(Boolean)
+      .join(' ') || undefined
+)
 
 defineExpose({ focus })
 </script>
@@ -93,7 +116,8 @@ defineExpose({ focus })
         :value="modelValue"
         :data-autofocus="autofocus || undefined"
         :aria-invalid="Boolean(error) || undefined"
-        :aria-describedby="error ? errorId : undefined"
+        :aria-describedby="describedBy"
+        @focus="handleFocus"
         @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
     </div>
@@ -107,6 +131,9 @@ defineExpose({ focus })
       :disabled="disabled"
       @press="press"
     />
+    <p v-if="hint && !error" :id="hintId" class="numeric-amount-input__hint text-xs text-muted">
+      {{ hint }}
+    </p>
     <p
       v-if="error"
       :id="errorId"
