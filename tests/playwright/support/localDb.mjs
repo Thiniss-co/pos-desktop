@@ -8,19 +8,23 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-export function localDatabasePath(profileDir) {
+/**
+ * `appDir` is the userData folder inside the profile: `Electron` for the harness build (launched as a
+ * script), `pos-desktop` (the productName) for the packaged app.
+ */
+export function localDatabasePath(profileDir, appDir = 'Electron') {
   if (profileDir.includes('/.config/pos-desktop')) {
     throw new Error('refusing to read a real workstation profile')
   }
-  const path = join(profileDir, 'Electron', 'pos-desktop.sqlite')
+  const path = join(profileDir, appDir, 'pos-desktop.sqlite')
   if (!existsSync(path)) {
     throw new Error(`no local POS database at ${path}`)
   }
   return path
 }
 
-export function queryLocal(profileDir, sql, params = []) {
-  const path = localDatabasePath(profileDir)
+export function queryLocal(profileDir, sql, params = [], appDir = 'Electron') {
+  const path = localDatabasePath(profileDir, appDir)
   const script = `
 import json, sqlite3, sys
 con = sqlite3.connect('file:' + sys.argv[1] + '?mode=ro', uri=True)
