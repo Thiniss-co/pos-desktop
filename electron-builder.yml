@@ -44,6 +44,21 @@ linux:
     - deb
   maintainer: electronjs.org
   category: Office
+# electron-builder's default Depends plus ALSA: Electron links libasound.so.2, and a minimal Ubuntu
+# 24.04 install has none, so the installed till could not start (found by the container install test).
+# Setting `depends` replaces the defaults, so they are restated.
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libasound2t64 | libasound2
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
