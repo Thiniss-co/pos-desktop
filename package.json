@@ -21,6 +21,8 @@
     "recover:rejected-invoice": "node scripts/runElectronNode.mjs scripts/requeueRejectedInvoice.ts --",
     "verify:cp3g5-package": "node scripts/verifyCp3g5PackageBoundary.mjs",
     "verify:print-boundary": "node scripts/verifyPrintBoundary.mjs",
+    "verify:release-inputs": "node scripts/verifyReleaseInputs.mjs",
+    "test:release-inputs": "node --test tests/releaseInputs.test.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "dev:linux": "electron-vite dev -- --ozone-platform=x11",

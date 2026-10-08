@@ -29,6 +29,16 @@ version.
 A per-machine install (all accounts, `Program Files`) would require an administrator for every install
 and update; there is no V1 reason for it.
 
+## Identity (appId / AUMID)
+
+`appId` in `electron-builder.yml` is still the template's `com.electron.app`, and main sets the same
+AppUserModelId (`npm run verify:cp3g5-package` keeps the two equal). **It must become a company-owned
+reverse-DNS ID before the first Windows install.** The NSIS installer derives its uninstall registry
+key from `appId`, and Windows groups the taskbar and notifications by the AUMID. Changing the ID after
+tills are installed makes the next installer a separate application: a second Apps-list entry and stale
+shortcuts. The till's data would not move, because the data folder is pinned to `pos-desktop`
+independently of the ID and the display name. The ID is a release input; this work does not invent one.
+
 ## Paths
 
 | What            | Where                                                                                                                                                                                                                                                                                              |
@@ -66,6 +76,9 @@ this is a hardware acceptance item (`tests/windows/README.md`).
   supplied). Unsigned installers trigger SmartScreen warnings and electron-updater cannot verify the
   publisher of an update. A release requires the company's signing certificate and process.
 - **Automatic updates:** see `docs/release/updates.md`.
+- **Release inputs gate:** `npm run verify:release-inputs` refuses while any company identity,
+  origin, feed, icon or signing input is a template value or missing. A package built while it fails
+  is a test package, never a release candidate.
 
 ## Status
 
