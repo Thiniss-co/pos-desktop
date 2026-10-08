@@ -42,6 +42,49 @@ export function buildPackagedApp(origin, { allowLoopback }) {
   return PACKAGED_BINARY
 }
 
+/**
+ * Two AppImages of the same source for an upgrade test: versions differ only in the packaged
+ * version (`extraMetadata.version`); both target the given API origin and the isolated loopback update
+ * feed (test opt-in). Returns each version's AppImage and the update metadata (latest-linux.yml).
+ */
+export function buildUpdateTestAppImages({ apiOrigin, feedUrl, versions, outputRoot }) {
+  const env = {
+    ...process.env,
+    MAIN_VITE_POS_API_ORIGIN: apiOrigin,
+    MAIN_VITE_POS_UPDATE_FEED_URL: feedUrl,
+    MAIN_VITE_POS_ALLOW_LOOPBACK_ORIGIN: 'true'
+  }
+  delete env.ELECTRON_RUN_AS_NODE
+  delete env.POS_PRINT_BOUNDARY
+  run('npx', ['electron-vite', 'build'], env)
+  const built = {}
+  for (const version of versions) {
+    const output = join(outputRoot, version)
+    run(
+      'npx',
+      [
+        'electron-builder',
+        '--linux',
+        'AppImage',
+        '--publish',
+        'never',
+        `-c.extraMetadata.version=${version}`,
+        `-c.directories.output=${output}`
+      ],
+      env
+    )
+    built[version] = {
+      dir: output,
+      appImage: join(output, `pos-desktop-${version}.AppImage`),
+      metadata: join(output, 'latest-linux.yml')
+    }
+    if (!existsSync(built[version].appImage) || !existsSync(built[version].metadata)) {
+      throw new Error(`the ${version} AppImage or its update metadata was not built`)
+    }
+  }
+  return built
+}
+
 /** The fuses actually written into the packaged binary, as `@electron/fuses read` reports them. */
 export function readFuses() {
   const output = run('npx', ['--no-install', '@electron/fuses', 'read', '--app', PACKAGED_BINARY], {
@@ -111,7 +154,10 @@ export async function launchPackagedApp({
   width = 1366,
   height = 850,
   // A run-local HOME (e.g. with an isolated NSS trust store, see tlsBackend.mjs); never the real one.
-  home = process.env.HOME
+  home = process.env.HOME,
+  // Another packaged binary (e.g. an AppImage under update test) and extra environment for it.
+  binary = PACKAGED_BINARY,
+  extraEnv = {}
 }) {
   if (profileDir.includes('/.config/pos-desktop')) {
     throw new Error('refusing to use a real workstation profile')
@@ -120,7 +166,7 @@ export async function launchPackagedApp({
   const port = await freePort()
   const logs = []
   const child = spawn(
-    PACKAGED_BINARY,
+    binary,
     [
       `--remote-debugging-port=${port}`,
       '--password-store=gnome-libsecret',
@@ -146,7 +192,8 @@ export async function launchPackagedApp({
         LANG: 'en_US.UTF-8',
         // No print job can leave this run: the CUPS client talks to a socket that does not exist.
         CUPS_SERVER: join(runDir, 'no-cups-server.sock'),
-        POS_API_TRACE: '1'
+        POS_API_TRACE: '1',
+        ...extraEnv
       },
       stdio: ['ignore', 'pipe', 'pipe']
     }
