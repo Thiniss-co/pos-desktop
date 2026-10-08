@@ -233,5 +233,6 @@ export async function run(ctx) {
     await ctx.shot(page, '06-ended')
   } finally {
     proxy?.clear()
+    await sandbox.stop()
   }
 }
