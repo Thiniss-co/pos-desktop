@@ -73,6 +73,31 @@ predates BE-3F-3. `routes/desktop.php`, `docs/api/desktop-api-contract.md` and t
 agree with the contract recorded above, and source wins. Recorded here rather than edited, because
 this repository never modifies pos-backend.
 
+## Quarantine and operator disposition (PS4/PS5/PS5b/PS6b, verified at pos-backend `b4c85cf`)
+
+- A v3-family upload (v3, v5 mixed tax, v7 offers: a physical-presence authority) whose attached
+  allocation proof the server refuses answers `DESKTOP_INVOICE_QUARANTINED` with exactly one
+  `errors.quarantine_reason`. The register records it terminal `rejected` with that reason. The sale
+  is not committed on the server; its upload record is kept with a verifiable request snapshot.
+- An operator decides through `POST /invoices/dispositions` (`desktop.context:sync,inventory,
+  inventory.manage`): `accept_without_proof` commits the sale under the ORIGINAL key and local UUID
+  (overridden proofs become physical-presence remainder) and leaves the upload `processed`;
+  `reject_permanently` commits nothing and leaves it `quarantined`. Both store one immutable result.
+  This desktop has no UI for that decision.
+- The register discovers the decision through `GET /invoices/sync-status?idempotency_keys[]=…`
+  (1–50 of its own keys; same gate as the upload; a foreign key is `not_found`). An undecided
+  quarantine returns `disposition: null`; a decided one returns the stored result verbatim.
+- What the backend actually stores, which the desktop verifies against (source wins over the plan):
+  - `result_hash` is SHA-256 of PHP `json_encode` (default flags) of the result in the backend's
+    insertion order. On MySQL the JSON column re-sorts keys on read, so the desktop re-encodes the
+    strictly parsed result in schema order with PHP's `\/` and `\uXXXX` escaping.
+  - `proof_results[]` is grouped by allocation identity (first appearance), then ordered by
+    consumption sequence — not frozen line order.
+  - An accepted proof carries `server_consumption_uuid: null` (the plan expected a UUID); desktop
+    migration 0034 accepts that. An overridden proof never carries one.
+  - `coverage[]` is this invoice's accepted prefix per identity (`accepted_chain_hash: null`) and
+    `required_holds[]` names each identity's first overridden sequence.
+
 ## Unknowns (`TODO`)
 
 - Heartbeat (`POST /api/v1/desktop/device/heartbeat`) payload/response and its relationship (if any) to

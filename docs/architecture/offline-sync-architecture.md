@@ -94,6 +94,24 @@ Stale-price and oversell responses are terminal `rejected` records after a 422 r
 the immutable local payload and guide staff to refresh data, reconcile the sale or inventory, and
 create a corrective follow-up rather than editing the original queue item.
 
+## Quarantine and operator disposition (PS6b)
+
+A physical-presence upload whose allocation proof the server refuses is `rejected` with
+`DESKTOP_INVOICE_QUARANTINED` and one quarantine reason. It is never resent. An operator decides it on
+the server; `InvoiceDispositionConvergenceService` (main) discovers the decision with a pure read of
+`GET /invoices/sync-status` at startup and on each access publish (at most once a minute, at most once
+per sale every two minutes, gated like the upload worker), and `InvoiceDispositionDiscoveryService`
+verifies it against the frozen payload and applies it in one `runSerializedWrite` transaction:
+
+- `accept_without_proof` → the one queue row and its invoice `rejected → synced`, under the server's
+  invoice UUID and number; `reject_permanently` → both stay `rejected`.
+- Both install `stock_allocation_disposition_holds` (no clearing path), which deny spend on the held
+  identity and release dependent uploads into their own attempt.
+- `local_stock_allocation_consumptions` is never touched; accepted rows are acknowledged only by
+  ordinary verified coverage.
+- A result that does not verify becomes a durable `invoice_disposition_conflicts` row and the sale is
+  never asked about again.
+
 ## License-Denial Pause
 
 A `FEATURE_NOT_ENABLED`, license-invalid, or subscription-denied response on any sync attempt

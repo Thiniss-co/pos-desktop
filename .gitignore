@@ -7,4 +7,9 @@ out
 .eslintcache
 *.log*
 !.env.example
-docs
+# docs/: markdown documentation is tracked; everything else under docs/ (screenshots, journey JSON,
+# logs, TAP output, run folders) is generated evidence and stays local. Evidence that must be kept in
+# git is added explicitly with `git add -f`, as the existing audit artifacts were.
+docs/**
+!docs/**/
+!docs/**/*.md
