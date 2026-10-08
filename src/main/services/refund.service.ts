@@ -333,6 +333,20 @@ export class RefundService {
       const priorRefundedQuantityMilli =
         Number(wholeP) * 1000 + Number(fracP.padEnd(3, '0').slice(0, 3))
 
+      // The backend's refundable limit (sold minus already refunded), checked here with a clear
+      // code; the R4 calculator below refuses it too, but only as an unexpected error.
+      if (
+        !Number.isSafeInteger(selection.quantityMilli) ||
+        selection.quantityMilli <= 0 ||
+        priorRefundedQuantityMilli + selection.quantityMilli > originalQuantityMilli
+      ) {
+        throw validationError(
+          'The refund quantity must be above zero and cannot exceed what is still refundable on this line.',
+          'refund_quantity_exceeds_refundable',
+          { [item.uuid]: [String(originalQuantityMilli - priorRefundedQuantityMilli)] }
+        )
+      }
+
       r4Inputs.push({
         invoiceItemRemoteUuid: item.uuid,
         productUuid: item.product_uuid,

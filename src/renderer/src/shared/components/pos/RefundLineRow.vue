@@ -7,6 +7,7 @@
  * V3: a table row with the − value + stepper; a selected line is tinted, a blocked line carries
  * its badge and is never selectable.
  */
+import AppIcon from '../common/AppIcon.vue'
 import AppStatusChip from '../feedback/AppStatusChip.vue'
 import AppStepper from '../forms/AppStepper.vue'
 
@@ -24,12 +25,14 @@ withDefaults(
     stepMilli?: number
     decreaseLabel: string
     increaseLabel: string
+    /** When set, a keypad button lets the cashier enter any quantity up to the refundable one. */
+    enterQuantityLabel?: string
     disabled?: boolean
   }>(),
-  { stepMilli: 1000, disabled: false }
+  { stepMilli: 1000, enterQuantityLabel: undefined, disabled: false }
 )
 
-const emit = defineEmits<{ 'update:quantityMilli': [number] }>()
+const emit = defineEmits<{ 'update:quantityMilli': [number]; enterQuantity: [] }>()
 
 function decrease(current: number, step: number): void {
   emit('update:quantityMilli', Math.max(0, current - step))
@@ -68,20 +71,32 @@ function displayQuantity(milli: number): string {
     <td class="numeric text-center">{{ quantityRefundedLabel }}</td>
     <td class="numeric text-center font-semibold">{{ quantityRefundableLabel }}</td>
     <td class="refund-line-row__quantity">
-      <AppStepper
-        v-if="feasibilityTier === 'ok'"
-        class="mx-auto"
-        width="md"
-        :value="displayQuantity(quantityMilli)"
-        :group-label="productName"
-        :decrease-label="decreaseLabel"
-        :increase-label="increaseLabel"
-        :disabled="disabled"
-        :decrease-disabled="quantityMilli <= 0"
-        :increase-disabled="quantityMilli >= maxQuantityMilli"
-        @decrease="decrease(quantityMilli, stepMilli)"
-        @increase="increase(quantityMilli, stepMilli, maxQuantityMilli)"
-      />
+      <div v-if="feasibilityTier === 'ok'" class="flex items-center justify-center gap-1.5">
+        <AppStepper
+          width="md"
+          :value="displayQuantity(quantityMilli)"
+          :group-label="productName"
+          :decrease-label="decreaseLabel"
+          :increase-label="increaseLabel"
+          :disabled="disabled"
+          :decrease-disabled="quantityMilli <= 0"
+          :increase-disabled="quantityMilli >= maxQuantityMilli"
+          @decrease="decrease(quantityMilli, stepMilli)"
+          @increase="increase(quantityMilli, stepMilli, maxQuantityMilli)"
+        />
+        <button
+          v-if="enterQuantityLabel"
+          type="button"
+          class="refund-line-row__enter inline-flex size-11 items-center justify-center rounded-md border border-control text-muted hover:text-ink disabled:opacity-50"
+          data-testid="refund-enter-quantity"
+          :aria-label="enterQuantityLabel"
+          :title="enterQuantityLabel"
+          :disabled="disabled"
+          @click="emit('enterQuantity')"
+        >
+          <AppIcon name="keyboard" :size="20" />
+        </button>
+      </div>
       <span v-else class="numeric block text-center text-muted">0</span>
     </td>
   </tr>

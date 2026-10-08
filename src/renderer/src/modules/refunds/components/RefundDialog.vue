@@ -22,6 +22,8 @@ import AppLoadingSkeleton from '@renderer/shared/components/feedback/AppLoadingS
 import AppSteps from '@renderer/shared/components/feedback/AppSteps.vue'
 import OrderTotals from '@renderer/shared/components/pos/OrderTotals.vue'
 import RefundLineRow from '@renderer/shared/components/pos/RefundLineRow.vue'
+import NumericAmountInput from '@renderer/shared/components/pos/NumericAmountInput.vue'
+import { parseRefundQuantityEntry } from '../quantityEntry'
 import ReceiptPreviewDialog from '@renderer/modules/printing/components/ReceiptPreviewDialog.vue'
 import type { ReceiptDocumentRef } from '@shared/contracts/printing.contract'
 import RefundStatePanel from './RefundStatePanel.vue'
@@ -137,6 +139,48 @@ function quantityMilliFor(value: string): number {
 
 function feasibilityBadge(tier: 'ok' | 'soft' | 'hard'): string {
   return tier === 'soft' ? t('refunds.tierBadgeSoft') : t('refunds.tierBadgeHard')
+}
+
+// Any quantity up to the line's refundable one (three decimals, like a cart quantity), entered on
+// the on-screen keypad or the keyboard. The stepper still moves whole units.
+interface QuantityEntryState {
+  readonly lineUuid: string
+  readonly productName: string
+  readonly maxMilli: number
+  draft: string
+  error: string | null
+}
+const quantityEntry = ref<QuantityEntryState | null>(null)
+const keypadLabels = computed(() => ({
+  backspace: t('touch.keypad.backspace'),
+  clear: t('touch.keypad.clear'),
+  decimal: t('touch.keypad.decimal')
+}))
+
+function openQuantityEntry(lineUuid: string, productName: string, maxMilli: number): void {
+  const current = selection.value.get(lineUuid) ?? 0
+  quantityEntry.value = {
+    lineUuid,
+    productName,
+    maxMilli,
+    draft: current > 0 ? quantityMilliLabel(current) : '',
+    error: null
+  }
+}
+
+function applyQuantityEntry(): void {
+  const entry = quantityEntry.value
+  if (!entry) return
+  const parsed = parseRefundQuantityEntry(entry.draft, entry.maxMilli)
+  if (!parsed.ok) {
+    entry.error =
+      parsed.reason === 'over_refundable'
+        ? t('refunds.quantityOverRefundable', { max: quantityMilliLabel(entry.maxMilli) })
+        : t('refunds.quantityInvalid')
+    return
+  }
+  store.setLineQuantity(entry.lineUuid, parsed.milli)
+  quantityEntry.value = null
 }
 
 const soldAtLabel = computed(() => {
@@ -269,13 +313,50 @@ function closeReceiptDialog(): void {
               :max-quantity-milli="quantityMilliFor(line.quantityRefundable)"
               :decrease-label="t('refunds.decreaseQuantity')"
               :increase-label="t('refunds.increaseQuantity')"
+              :enter-quantity-label="t('refunds.enterQuantity', { name: line.productName })"
               :disabled="isPreviewing"
               @update:quantity-milli="
                 (value) => store.setLineQuantity(line.invoiceItemRemoteUuid, value)
               "
+              @enter-quantity="
+                openQuantityEntry(
+                  line.invoiceItemRemoteUuid,
+                  line.productName,
+                  quantityMilliFor(line.quantityRefundable)
+                )
+              "
             />
           </tbody>
         </AppTable>
+
+        <div
+          v-if="quantityEntry"
+          class="refund-quantity-entry flex flex-col gap-3 rounded-md border border-line p-4"
+          data-testid="refund-quantity-entry"
+        >
+          <NumericAmountInput
+            v-model="quantityEntry.draft"
+            :label="t('refunds.quantityFor', { name: quantityEntry.productName })"
+            :error="quantityEntry.error ?? undefined"
+            :hint="t('refunds.quantityUpTo', { max: quantityMilliLabel(quantityEntry.maxMilli) })"
+            :keypad-labels="keypadLabels"
+            :max-decimals="3"
+            autofocus
+            select-on-focus
+          />
+          <div class="flex justify-end gap-2">
+            <AppButton variant="secondary" @click="quantityEntry = null">
+              {{ t('common.cancel') }}
+            </AppButton>
+            <AppButton
+              variant="primary"
+              data-testid="refund-quantity-apply"
+              @click="applyQuantityEntry"
+            >
+              {{ t('refunds.applyQuantity') }}
+            </AppButton>
+          </div>
+        </div>
 
         <AppBanner
           v-if="refundable.lines.some((line) => line.feasibility.tier !== 'ok')"

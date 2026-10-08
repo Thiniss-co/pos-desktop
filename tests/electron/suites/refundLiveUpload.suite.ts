@@ -980,6 +980,68 @@ liveTest(
 )
 
 liveTest(
+  'a fractional partial refund leaves the exact remainder refundable; more than that is refused; the rest refunds exactly',
+  async (context) => {
+    const scenario = scenarioOf('fractional')
+    const { invoiceLocalUuid } = context.seedLocalInvoice(scenario)
+    const lineOf = (
+      quantityMilli: number
+    ): { invoiceItemRemoteUuid: string; quantityMilli: number }[] => [
+      { invoiceItemRemoteUuid: scenario.invoice_item_uuid, quantityMilli }
+    ]
+    const refund = async (quantityMilli: number): Promise<{ state: string }> => {
+      const preview = await context.refunds.previewRefund({
+        invoiceLocalUuid,
+        lines: lineOf(quantityMilli),
+        stockReturned: false
+      })
+      return await context.refunds.submitRefund({
+        previewId: preview.previewId,
+        invoiceLocalUuid,
+        lines: lineOf(quantityMilli),
+        stockReturned: false,
+        paymentMethodUuid: null
+      })
+    }
+
+    // 0.5 of 1.250 sold for 25.00: 10.00 back.
+    equal((await refund(500)).state, 'accepted')
+    const afterFirst = readRefundEffects(scenario.invoice_uuid)
+    equal(afterFirst.refunds.length, 1)
+    equal(afterFirst.refunds[0].grand_total_amount, 1000)
+    const remaining = await context.refunds.getRefundableInvoice(invoiceLocalUuid)
+    equal(remaining.lines[0].quantityRefunded, '0.500')
+    equal(remaining.lines[0].quantityRefundable, '0.750')
+
+    // 0.8 is more than the 0.750 left: refused with its own code, nothing sent.
+    const uploadsBefore = refundUploadAttempts(context.spy).length
+    let overError: unknown = null
+    try {
+      await context.refunds.previewRefund({
+        invoiceLocalUuid,
+        lines: lineOf(800),
+        stockReturned: false
+      })
+    } catch (error) {
+      overError = error
+    }
+    equal(
+      (overError as { backendCode?: string } | null)?.backendCode,
+      'refund_quantity_exceeds_refundable'
+    )
+    equal(refundUploadAttempts(context.spy).length, uploadsBefore)
+
+    // Exactly the 0.750 left: the remaining 15.00; nothing refundable afterwards.
+    equal((await refund(750)).state, 'accepted')
+    const afterSecond = readRefundEffects(scenario.invoice_uuid)
+    equal(afterSecond.refunds.length, 2)
+    equal(afterSecond.refunds[1].grand_total_amount, 1500)
+    const settled = await context.refunds.getRefundableInvoice(invoiceLocalUuid)
+    equal(Number(settled.lines[0]?.quantityRefundable ?? '0'), 0)
+  }
+)
+
+liveTest(
   'a refund left DISPATCHED at process death is swept to unresolved in a fresh process and resumes',
   async (context) => {
     const scenario = scenarioOf('restart_control')

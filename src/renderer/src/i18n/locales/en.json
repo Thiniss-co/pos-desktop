@@ -1034,6 +1034,7 @@
     "refund_invoice_not_synced": "This sale hasn't synced yet. It can't be refunded until it has.",
     "refund_line_not_found": "One or more selected lines could not be found on this invoice.",
     "refund_line_infeasible": "One or more selected lines cannot be refunded because of an inconsistent refund history.",
+    "refund_quantity_exceeds_refundable": "This quantity is more than can still be refunded on this line. Review the quantities and try again.",
     "refund_no_lines_selected": "Select at least one item to refund.",
     "refund_amount_zero_not_postable": "There is no money to refund for this selection.",
     "refund_preview_not_found": "This refund preview is no longer available. Review the refund again.",
@@ -1168,6 +1169,12 @@
     }
   },
   "refunds": {
+    "enterQuantity": "Enter the quantity to refund for {name}",
+    "quantityFor": "Quantity to refund — {name}",
+    "quantityUpTo": "Up to {max} can be refunded on this line.",
+    "applyQuantity": "Apply quantity",
+    "quantityInvalid": "Enter a quantity above zero with at most three decimals.",
+    "quantityOverRefundable": "At most {max} can be refunded on this line.",
     "dialogTitle": "Return / Refund",
     "step": {
       "select": "Select items",

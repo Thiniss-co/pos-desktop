@@ -5,6 +5,7 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { i18n } from '@renderer/i18n'
 import { useLocaleStore } from '@renderer/modules/preferences/locale.store'
+import { useRefundsStore } from '../store'
 import RefundDialog from './RefundDialog.vue'
 
 /**
@@ -190,6 +191,35 @@ describe('RefundDialog', () => {
       (button) => button.textContent?.trim() === 'Review refund'
     ) as HTMLButtonElement
     expect(reviewButtonAfter.disabled).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('enters a fractional refund quantity on the keypad and refuses more than the refundable one', async () => {
+    const wrapper = await renderDialog()
+    const click = async (element: Element | null): Promise<void> => {
+      element?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+    }
+    const key = (name: string): Element | null =>
+      document.querySelector(`[data-testid="refund-quantity-entry"] [data-key="${name}"]`)
+    const store = useRefundsStore()
+
+    await click(document.querySelector('[data-testid="refund-enter-quantity"]'))
+    for (const name of ['0', '.', '5']) await click(key(name))
+    await click(document.querySelector('[data-testid="refund-quantity-apply"]'))
+    expect(store.selection.get(UUID_B)).toBe(500)
+    expect(document.querySelector('[data-testid="refund-quantity-entry"]')).toBeNull()
+
+    // 3.000 is refundable on this line: 3.5 is refused and the selection is unchanged.
+    await click(document.querySelector('[data-testid="refund-enter-quantity"]'))
+    await click(key('clear'))
+    for (const name of ['3', '.', '5']) await click(key(name))
+    await click(document.querySelector('[data-testid="refund-quantity-apply"]'))
+    expect(document.querySelector('[data-testid="refund-quantity-entry"]')?.textContent).toContain(
+      'At most 3 can be refunded on this line.'
+    )
+    expect(store.selection.get(UUID_B)).toBe(500)
 
     wrapper.unmount()
   })
