@@ -33,6 +33,23 @@ path.
 Hardware-dependent behavior (real barcode scanner, real receipt printer) stays in the manual smoke
 checklist.
 
+### Live, journey and packaging layers
+
+Above the layers in the diagram, every run uses an isolated Electron profile, a run-local keyring and a
+disposable Laravel database behind the sandbox guard (`tests/electron/support/sandbox/`):
+
+| Layer                 | Command                                                         | What it proves                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Live Electron–Laravel | `node scripts/cp3g5LiveUpload.mjs` (`CP3G5_*` contexts)         | Real uploads, refunds, receipt profiles and owner products against a real backend tree                                                                       |
+| Harness safety        | `npm run test:cp3g5-harness`                                    | The live harness refuses real databases and profiles and cleans up after itself                                                                              |
+| Playwright journeys   | `node tests/playwright/run.mjs <journey>`                       | The real app driven like a cashier (keyboard, touch via CDP), one journey per feature                                                                        |
+| Packaged app          | `node tests/playwright/run.mjs pkgapp`                          | The electron-builder `--dir` output (production bundle, OS print boundary, fuses, files allowlist) through activate → shift → sale → upload → print → refund |
+| Package boundary      | `npm run verify:cp3g5-package`, `npm run verify:print-boundary` | `app.asar` holds only production paths; production builds contain only the OS print boundary                                                                 |
+
+Every IPC channel's sender check is enforced by `src/main/ipc/ipcSenderCoverage.test.ts`. The
+packaged journey launches with `--no-sandbox` because an unpacked Electron on Ubuntu 24+ needs the
+.deb's AppArmor profile (or a root-owned setuid `chrome-sandbox`), which a test run cannot install.
+
 ## What Must Be Covered Before Considering a Feature Done
 
 | Feature area         | Minimum coverage                                                                                                 |

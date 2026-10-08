@@ -9,7 +9,8 @@ status. Full client-side behavior rules (state machine, review, worker pause):
 
 - Invoice and refund upload endpoints are implemented
   (`POST /api/v1/desktop/invoices/upload`, `POST /api/v1/desktop/refunds/upload`).
-- Shift and cash-drawer APIs are implemented (exact routes: `TODO`).
+- Shift APIs are implemented and consumed (`/shifts/current`, `/shifts/open`,
+  `/shifts/{uuid}[/pause|/resume|/close]`); cash-drawer routes are not consumed (`TODO`).
 - Bootstrap and license validation are implemented.
 - An offline sync contract is documented backend-side (governing idempotency, conflicts, and
   related behavior) — this repo has not yet imported that document verbatim; the rules below are
@@ -100,8 +101,9 @@ this repository never modifies pos-backend.
 
 ## Unknowns (`TODO`)
 
-- Heartbeat (`POST /api/v1/desktop/device/heartbeat`) payload/response and its relationship (if any) to
-  sync scheduling.
+- Heartbeat: resolved. No body, presence only, and independent of sync scheduling — see
+  [desktop-api-summary.md](desktop-api-summary.md) and
+  [connectivity.md](../architecture/connectivity.md#device-heartbeat).
 - Whether a successful upload response will ever carry acknowledged allocation-consumption
   identities. It does not today (`DesktopInvoiceResource` returns none), which is why
   `local_stock_allocation_consumptions` stays `pending` after a successful upload.

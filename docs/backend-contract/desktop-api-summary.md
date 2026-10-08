@@ -16,8 +16,10 @@ once imported here. Anything not explicitly given below is marked `TODO`.
   [auth-device-contract.md](auth-device-contract.md)).
 - Bootstrap implemented; consumed end-to-end by this app in Phase 2 (full shape confirmed, see
   [bootstrap-license-contract.md](bootstrap-license-contract.md)).
-- Invoice/refund upload implemented (not yet consumed — Phase 4+).
-- Shift/cash-drawer APIs implemented (not yet consumed — Phase 3+).
+- Invoice/refund upload implemented and consumed (`src/shared/constants/apiRoutes.ts`; refund
+  upload since Phase 5).
+- Shift APIs implemented and consumed (routes below). Cash-drawer APIs implemented backend-side; not
+  consumed by this app (no route in `apiRoutes.ts`), exact routes still `TODO`.
 - License validation implemented; consumed end-to-end by this app in Phase 2 (one-shot manual
   validate only — no timers yet, see [bootstrap-license-contract.md](bootstrap-license-contract.md)).
 
@@ -42,7 +44,8 @@ once imported here. Anything not explicitly given below is marked `TODO`.
 | `POST /api/v1/desktop/license/validate` | Protected | License/subscription check — confirmed shape, see [bootstrap-license-contract.md](bootstrap-license-contract.md) |
 | `POST /api/v1/desktop/invoices/upload` | Protected | Upload a completed local sale/invoice |
 | `POST /api/v1/desktop/refunds/upload` | Protected | Upload a refund (must follow its invoice — see sync contract) |
-| Shift endpoints | Protected | Open/pause/resume/close shift — exact route names `TODO` |
+| `GET /api/v1/desktop/shifts/current`, `POST /shifts/open`, `GET /shifts/{uuid}`, `POST /shifts/{uuid}/pause\|resume\|close` | Protected | Shift lifecycle, consumed by `ShiftService` (`src/main/services/shift.service.ts`) |
+| `GET /api/v1/desktop/invoices/sync-status` | Protected | PS5b: the fate of this device's own uploads (1–50 `idempotency_keys[]`), read by PS6b disposition discovery — see [sync-contract-summary.md](sync-contract-summary.md) |
 | Cash drawer endpoints | Protected | Cash movements/counts — exact route names `TODO` |
 | Catalog / customer / payment / tax / inventory / accounting / report endpoints | Protected | Exist per backend status; exact routes/shapes `TODO` until OpenAPI import |
 
