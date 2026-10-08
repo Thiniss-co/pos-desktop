@@ -19,6 +19,7 @@ import { useStartupStore } from '@renderer/app/startup/startup.store'
 import { usePrintingStore } from '@renderer/modules/printing/store'
 import { useReceiptProfileStore } from '@renderer/modules/receiptProfile/store'
 import TouchModeSwitch from '@renderer/modules/preferences/components/TouchModeSwitch.vue'
+import SoftwareUpdatePanel from '@renderer/modules/updates/components/SoftwareUpdatePanel.vue'
 import AutoPrintSwitch from '@renderer/modules/preferences/components/AutoPrintSwitch.vue'
 import WorkspaceLayoutControls from '@renderer/modules/preferences/components/WorkspaceLayoutControls.vue'
 import WorkspaceLayoutPreview from '@renderer/modules/preferences/components/WorkspaceLayoutPreview.vue'
@@ -344,6 +345,8 @@ function closeReceiptDialog(): void {
         <p class="mt-1 mb-3 text-sm text-muted">{{ t('touch.settingsDescription') }}</p>
         <TouchModeSwitch show-description />
       </AppPanel>
+
+      <SoftwareUpdatePanel />
 
       <AppPanel
         class="settings-page__printer flex-[2_1_520px]"

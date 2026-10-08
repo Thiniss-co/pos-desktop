@@ -5,6 +5,7 @@ import type { DesktopApiRoute } from '@shared/constants/apiRoutes'
 import type { RefundR4LineInput } from '@shared/contracts/refund.contract'
 import { calculateRefund, calculateRefundLine } from '@shared/pos/refundCalculator'
 import { realRepositories } from '../support/realRepositories'
+import { readRestartBlockers } from '../../../src/main/update/restartBlockers'
 import { closeDatabase, type SqliteDatabase } from '../../../src/main/database/connection'
 import { databaseMigrations } from '../../../src/main/database/migrations'
 import {
@@ -933,3 +934,37 @@ test('V1 refund calculator refuses an over-refund and accepts an exact fractiona
     grandTotalAmount: 2875
   })
 })
+
+databaseTest(
+  'V1 update restart blockers: an idle register has none; a receipt being printed, a sale on screen and a catalog install each block it',
+  (sandbox) => {
+    const database = migrated(sandbox)
+    let draftIdle = true
+    let paymentActive = false
+    let holdActive = false
+    const gate = {
+      draftIdle: () => draftIdle,
+      paymentActive: () => paymentActive,
+      isHoldActive: () => holdActive
+    }
+
+    // Every query runs against the real schema (a wrong column or state would throw here).
+    deepEqual(readRestartBlockers(database, gate), [])
+
+    seedJob(realRepositories(database).receiptPrintJobs, 1, 'auto', 'queued')
+    deepEqual(readRestartBlockers(database, gate), ['print_in_progress'])
+
+    draftIdle = false
+    holdActive = true
+    deepEqual(readRestartBlockers(database, gate), [
+      'sale_in_progress',
+      'print_in_progress',
+      'catalog_install'
+    ])
+
+    draftIdle = true
+    paymentActive = true
+    deepEqual(readRestartBlockers(database, gate).includes('sale_in_progress'), true)
+    closeDatabase(database)
+  }
+)

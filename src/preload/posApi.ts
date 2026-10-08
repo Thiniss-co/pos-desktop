@@ -75,6 +75,7 @@ import type {
   CatalogStatus
 } from '@shared/contracts/catalog.contract'
 import type { ConnectivitySnapshot } from '@shared/contracts/connectivity.contract'
+import type { UpdateRestartResult, UpdateStatus } from '@shared/contracts/update.contract'
 import type {
   PreparationCycleResult,
   PreparationReadiness
@@ -239,6 +240,13 @@ export interface PosApi {
     getState(): Promise<IpcResult<ConnectivitySnapshot>>
     checkNow(): Promise<IpcResult<ConnectivitySnapshot>>
     onChanged(listener: (snapshot: ConnectivitySnapshot) => void): () => void
+  }
+  /** V1 Windows readiness: automatic updates (status, a check now, the cashier's restart). */
+  readonly updates: {
+    getStatus(): Promise<IpcResult<UpdateStatus>>
+    checkNow(): Promise<IpcResult<UpdateStatus>>
+    restartToInstall(): Promise<IpcResult<UpdateRestartResult>>
+    onChanged(listener: (status: UpdateStatus) => void): () => void
   }
   readonly preferences: {
     getLocale(): Promise<IpcResult<LocaleCode | null>>
@@ -589,6 +597,20 @@ export const posApi: PosApi = Object.freeze({
 
       ipcRenderer.on(IPC_CHANNELS.connectivityChanged, subscription)
       return () => ipcRenderer.off(IPC_CHANNELS.connectivityChanged, subscription)
+    }
+  }),
+  updates: Object.freeze({
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.updatesGetStatus),
+    checkNow: () => ipcRenderer.invoke(IPC_CHANNELS.updatesCheckNow),
+    restartToInstall: () => ipcRenderer.invoke(IPC_CHANNELS.updatesRestartToInstall),
+    onChanged: (listener: (status: UpdateStatus) => void) => {
+      const subscription = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
+        // Main validates the status before broadcast (updates.ipc.ts).
+        listener(payload as UpdateStatus)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.updatesChanged, subscription)
+      return () => ipcRenderer.off(IPC_CHANNELS.updatesChanged, subscription)
     }
   }),
   preferences: Object.freeze({

@@ -1607,5 +1607,33 @@
       "apply": "Set quantity",
       "invalid": "Enter a quantity above 0, with at most 3 decimals."
     }
+  },
+  "updates": {
+    "title": "Software updates",
+    "description": "Thinis POS downloads updates in the background and installs one only when you restart it here.",
+    "unavailable": "Update status is unavailable.",
+    "progressLabel": "Update download progress",
+    "currentVersion": "Installed version",
+    "lastChecked": "Last checked",
+    "nextCheck": "Next check",
+    "checkNow": "Check now",
+    "restart": "Restart and install",
+    "blockedTitle": "Finish this before restarting:",
+    "pendingNote": "Sales, refunds and records waiting to upload are kept and continue after the update.",
+    "phase": {
+      "not_configured": "Automatic updates are not set up for this installation.",
+      "idle": "Thinis POS is up to date.",
+      "checking": "Checking for updates…",
+      "downloading": "Downloading version {version}: {percent}%",
+      "ready": "Version {version} is ready to install.",
+      "error": "Could not check for updates. It will try again automatically."
+    },
+    "blocker": {
+      "sale_in_progress": "the sale or payment on screen",
+      "refund_in_flight": "a refund that is being sent",
+      "print_in_progress": "a receipt that is printing",
+      "upload_in_flight": "a sale or record that is being uploaded",
+      "catalog_install": "the catalog update in progress"
+    }
   }
 }

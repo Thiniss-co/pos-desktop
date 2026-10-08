@@ -117,6 +117,11 @@ import { broadcastQuickCreateChanged } from '../ipc/quickCreate.ipc'
 import { RefundService } from '../services/refund.service'
 import { uploadRefund } from '../sync/refundUpload.client'
 import { SecureStorageService } from '../services/secureStorage.service'
+import { UpdateService } from '../update/updateService'
+import { resolveUpdateFeed } from '../update/updateFeed'
+import { createElectronUpdater } from '../update/electronUpdater'
+import { readRestartBlockers } from '../update/restartBlockers'
+import { broadcastUpdateStatus } from '../ipc/updates.ipc'
 import { SessionService } from '../services/session.service'
 import { ShiftAuthorityService } from '../services/shiftAuthority.service'
 import { ShiftService } from '../services/shift.service'
@@ -228,6 +233,7 @@ export interface ApplicationServices {
   readonly invoiceUploadFailures: InvoiceUploadFailureReader
   /** Read-only "needs attention" projection for the Sync page (dispatch/legacy/recovery evidence). */
   readonly supportIssues: SupportIssuesService
+  readonly updates: UpdateService
   getRuntimeInfo(): RuntimeInfo
   shutdown(): void
 }
@@ -1350,6 +1356,19 @@ export function createApplicationServices(): ApplicationServices {
   }
   const companyUsers = new CompanyUsersService(apiClient, bootstrapSnapshot)
 
+  // V1 Windows readiness: automatic updates. A packaged build with a feed baked in checks and
+  // downloads in the background; installing is the cashier's explicit restart, refused while work
+  // would be interrupted. Development and harness runs (not packaged) never update themselves.
+  const updateFeed = app.isPackaged ? resolveUpdateFeed() : null
+  const updates = new UpdateService({
+    updater: updateFeed ? createElectronUpdater(updateFeed) : null,
+    currentVersion: app.getVersion(),
+    isOnline: () => connectivity.getSnapshot().status === 'online',
+    restartBlockers: () => readRestartBlockers(database, installGate),
+    onStatus: (status) => broadcastUpdateStatus(status),
+    log: (line) => console.info(`[pos-update] ${line}`)
+  })
+
   return {
     runtimeConfig,
     database,
@@ -1409,6 +1428,7 @@ export function createApplicationServices(): ApplicationServices {
     runPreparationCycle,
     invoiceUploadFailures,
     supportIssues,
+    updates,
     getRuntimeInfo: () =>
       runtimeInfoSchema.parse({
         appVersion: app.getVersion(),
@@ -1420,6 +1440,7 @@ export function createApplicationServices(): ApplicationServices {
       }),
     shutdown: () => {
       unsubscribeAccessTrigger()
+      updates.stop()
       unsubscribeServerTimeTrigger()
       powerMonitor.off('suspend', invalidateServerTime)
       powerMonitor.off('resume', invalidateServerTime)

@@ -184,3 +184,8 @@ export const quickCreateNoInputSchema = z.undefined()
 
 /** POS improvements, Stage 3: `refunds:get-access` takes no input. */
 export const refundsGetAccessInputSchema = z.undefined()
+
+/** V1 Windows readiness: the update channels take no input. */
+export const updatesGetStatusInputSchema = z.undefined()
+export const updatesCheckNowInputSchema = z.undefined()
+export const updatesRestartToInstallInputSchema = z.undefined()

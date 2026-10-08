@@ -80,6 +80,8 @@ export function bootstrapApp(): void {
       })
 
       mainWindow = createMainWindow()
+      // Background update checks start after the window exists (status goes to Settings).
+      services.updates.start()
 
       app.on('activate', function () {
         // On macOS it's common to re-create a window in the app when the

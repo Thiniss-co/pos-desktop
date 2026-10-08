@@ -137,5 +137,10 @@ export const IPC_CHANNELS = Object.freeze({
   // mirrored `canManage` verdict inside `ReceiptProfileAdminService`.
   receiptProfileGet: 'receipt-profile:get',
   receiptProfileChooseLogo: 'receipt-profile:choose-logo',
-  receiptProfilePublish: 'receipt-profile:publish'
+  receiptProfilePublish: 'receipt-profile:publish',
+  // V1 Windows readiness: main-owned automatic updates.
+  updatesGetStatus: 'updates:get-status',
+  updatesCheckNow: 'updates:check-now',
+  updatesRestartToInstall: 'updates:restart-to-install',
+  updatesChanged: 'updates:changed'
 })
