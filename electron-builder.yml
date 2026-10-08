@@ -2,13 +2,17 @@ appId: com.electron.app
 productName: pos-desktop
 directories:
   buildResources: build
+# An allowlist: only the production bundles and runtime resources are packaged (electron-builder
+# adds package.json and the production node_modules itself). Everything else in the repository --
+# docs, tests, scripts, sources, and the Playwright harness build `out/pw-test` with its virtual
+# print boundary and fault seams -- stays out. `npm run verify:cp3g5-package` fails on any other path.
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - out/main/**
+  - out/preload/**
+  - out/renderer/**
+  - resources/**
+  - '!out/pw-test/**'
+  - '!**/*.map'
   # CP-3G-5 is a source-only live-test harness. Its database, private fixture and authorization
   # material must never cross the application packaging boundary.
   - '!scripts/cp3g5LiveUpload.mjs'

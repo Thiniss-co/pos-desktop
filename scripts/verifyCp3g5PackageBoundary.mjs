@@ -28,6 +28,19 @@ function filesUnder(root) {
   })
 }
 
+// Every path inside app.asar must belong to the production app: its three bundles, its runtime
+// resources, package.json and the production node_modules electron-builder adds itself.
+const ALLOWED_ASAR_PATH =
+  /^\/(?:package\.json|out\/(?:main|preload|renderer)(?:\/.*)?|out|resources(?:\/.*)?|node_modules(?:\/.*)?)$/
+
+function assertAllowedAsarPath(path) {
+  const normalized = path.replaceAll('\\', '/')
+
+  if (!ALLOWED_ASAR_PATH.test(normalized)) {
+    fail(`packaged app.asar contains a non-production path: ${normalized}`)
+  }
+}
+
 function assertNoForbiddenPath(path) {
   const normalized = path.replaceAll('\\', '/')
 
@@ -69,6 +82,7 @@ for (const asar of asars) {
 
   for (const packagedPath of listing.stdout.split('\n').filter(Boolean)) {
     assertNoForbiddenPath(packagedPath)
+    assertAllowedAsarPath(packagedPath)
   }
 }
 
