@@ -727,6 +727,9 @@ try {
         $cp3g5Operation = 'refund-scenario-lost-response';
         $lostResponse = $mintRefundSale(['unitPrice' => 1200, 'taxMode' => ProductTaxMode::None, 'trackStock' => true, 'quantity' => '1.000', 'subtotal' => 1200, 'tax' => 0, 'total' => 1200, 'unitCost' => 500, 'totalCost' => 500]);
 
+        $cp3g5Operation = 'refund-scenario-unclassified-failure';
+        $unclassifiedFailure = $mintRefundSale(['unitPrice' => 1200, 'taxMode' => ProductTaxMode::None, 'trackStock' => false, 'quantity' => '1.000', 'subtotal' => 1200, 'tax' => 0, 'total' => 1200]);
+
         $cp3g5Operation = 'refund-scenario-restart-control';
         $restartControl = $mintRefundSale(['unitPrice' => 1500, 'taxMode' => ProductTaxMode::None, 'trackStock' => false, 'quantity' => '2.000', 'subtotal' => 3000, 'tax' => 0, 'total' => 3000]);
 
@@ -823,6 +826,7 @@ try {
                 'free' => ['invoice_uuid' => $free['invoice_uuid'], 'invoice_item_uuid' => $free['invoice_item_uuid'], 'product_uuid' => $free['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 0, 'tax_amount' => 0, 'total_amount' => 0],
                 'infeasible' => ['invoice_uuid' => $infeasible['invoice_uuid'], 'invoice_item_uuid' => $infeasible['invoice_item_uuid'], 'product_uuid' => $infeasible['product_uuid'], 'quantity' => '4.000', 'subtotal_amount' => 1, 'tax_amount' => 1, 'total_amount' => 2],
                 'lost_response' => ['invoice_uuid' => $lostResponse['invoice_uuid'], 'invoice_item_uuid' => $lostResponse['invoice_item_uuid'], 'product_uuid' => $lostResponse['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 1200, 'tax_amount' => 0, 'total_amount' => 1200],
+                'unclassified_failure' => ['invoice_uuid' => $unclassifiedFailure['invoice_uuid'], 'invoice_item_uuid' => $unclassifiedFailure['invoice_item_uuid'], 'product_uuid' => $unclassifiedFailure['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 1200, 'tax_amount' => 0, 'total_amount' => 1200],
                 'restart_control' => ['invoice_uuid' => $restartControl['invoice_uuid'], 'invoice_item_uuid' => $restartControl['invoice_item_uuid'], 'product_uuid' => $restartControl['product_uuid'], 'quantity' => '2.000', 'subtotal_amount' => 3000, 'tax_amount' => 0, 'total_amount' => 3000],
                 'restart_second' => ['invoice_uuid' => $restartSecond['invoice_uuid'], 'invoice_item_uuid' => $restartSecond['invoice_item_uuid'], 'product_uuid' => $restartSecond['product_uuid'], 'quantity' => '1.000', 'subtotal_amount' => 1200, 'tax_amount' => 0, 'total_amount' => 1200],
                 'accepted_replay' => ['invoice_uuid' => $acceptedReplay['invoice_uuid'], 'invoice_item_uuid' => $acceptedReplay['invoice_item_uuid'], 'product_uuid' => $acceptedReplay['product_uuid'], 'quantity' => '2.000', 'subtotal_amount' => 3000, 'tax_amount' => 0, 'total_amount' => 3000],

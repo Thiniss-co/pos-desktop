@@ -72,6 +72,8 @@ interface LiveRefundContext {
   readonly spy: UploadTransportSpy
   readonly apiClient: DesktopApiClient
   readonly refunds: RefundService
+  /** The exact dependencies `refunds` was built from, for a scenario that wraps one of them. */
+  readonly refundDependencies: ConstructorParameters<typeof RefundService>[0]
   /** Persists a LOCAL invoice row mirroring one already-minted server scenario, real repository. */
   seedLocalInvoice(scenario: RefundLiveScenario): { readonly invoiceLocalUuid: string }
   close(): void
@@ -135,7 +137,7 @@ function createLiveRefundContext(sandbox: DatabaseSandbox): LiveRefundContext {
     ]
   }
 
-  const refunds = new RefundService({
+  const refundDependencies: ConstructorParameters<typeof RefundService>[0] = {
     apiClient,
     localSale: repositories.localSale,
     localRefunds: repositories.localRefunds,
@@ -143,7 +145,8 @@ function createLiveRefundContext(sandbox: DatabaseSandbox): LiveRefundContext {
     shiftAuthority,
     catalog,
     uploadRefund: (client, requestJson) => uploadRefund(client, requestJson)
-  })
+  }
+  const refunds = new RefundService(refundDependencies)
 
   return {
     sandbox,
@@ -152,6 +155,7 @@ function createLiveRefundContext(sandbox: DatabaseSandbox): LiveRefundContext {
     spy,
     apiClient,
     refunds,
+    refundDependencies,
     seedLocalInvoice(scenario) {
       const invoiceLocalUuid = randomUUID()
       const attemptKey = randomUUID()
@@ -781,6 +785,84 @@ liveTest(
 const REFUND_RECOVERY_WORKER = resolve(
   process.cwd(),
   'tests/electron/support/refundRecoveryWorker.ts'
+)
+
+liveTest(
+  'an unclassified failure after real acceptance is recorded unresolved, never stuck dispatched, and resumes to one refund',
+  async (context) => {
+    const scenario = scenarioOf('unclassified_failure')
+    const { invoiceLocalUuid } = context.seedLocalInvoice(scenario)
+    const line = [{ invoiceItemRemoteUuid: scenario.invoice_item_uuid, quantityMilli: 1000 }]
+
+    // The same real repositories, client and backend; only the uploader is wrapped. The request
+    // genuinely reaches Laravel and commits, then something the upload client never classified
+    // throws (a raw error from the transport stack or a listener). Nothing about the server's
+    // answer is visible to the desktop.
+    let throwAfterSend = true
+    const refunds = new RefundService({
+      ...context.refundDependencies,
+      uploadRefund: async (client, requestJson) => {
+        const outcome = await uploadRefund(client, requestJson)
+
+        if (throwAfterSend) {
+          throw new TypeError('an unclassified failure after the request was sent')
+        }
+
+        return outcome
+      }
+    })
+
+    const preview = await refunds.previewRefund({
+      invoiceLocalUuid,
+      lines: line,
+      stockReturned: false
+    })
+    const firstOutcome = await refunds.submitRefund({
+      previewId: preview.previewId,
+      invoiceLocalUuid,
+      lines: line,
+      stockReturned: false,
+      paymentMethodUuid: null
+    })
+
+    // Not `rejected` (nothing proves a refusal) and not left `dispatched` (unresumable).
+    equal(firstOutcome.state, 'unresolved')
+    const committed = readRefundEffects(scenario.invoice_uuid)
+    equal(committed.refunds.length, 1, 'the server really did commit exactly one refund')
+
+    const row = context.repositories.localRefunds.findByLocalUuid(firstOutcome.localRefundUuid)
+    ok(row !== null)
+    equal(row?.submissionState, 'unresolved')
+    equal(row?.dispatchCount, 1)
+
+    // While unresolved, the invoice still holds its one open refund: no replacement can start.
+    let replacementRefused = false
+
+    try {
+      await refunds.previewRefund({ invoiceLocalUuid, lines: line, stockReturned: false })
+    } catch {
+      replacementRefused = true
+    }
+
+    ok(replacementRefused, 'an unresolved refund keeps the invoice blocked for a new refund')
+
+    // Resume replays the identical frozen bytes under the same identity and converges.
+    throwAfterSend = false
+    const resumed = await refunds.resumeRefund(firstOutcome.localRefundUuid)
+
+    equal(resumed.state, 'accepted')
+    equal(resumed.remoteUuid, committed.refunds[0].uuid, 'the SAME remote refund, not a new one')
+
+    const after = context.repositories.localRefunds.findByLocalUuid(firstOutcome.localRefundUuid)
+    equal(
+      after?.requestJson,
+      row?.requestJson,
+      'frozen bytes are identical before and after resume'
+    )
+    equal(after?.requestSha256, row?.requestSha256)
+    equal(after?.dispatchCount, 2)
+    equal(readRefundEffects(scenario.invoice_uuid).refunds.length, 1, 'still exactly one refund')
+  }
 )
 
 liveTest(

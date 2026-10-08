@@ -116,6 +116,7 @@ export interface RefundLiveContext {
     readonly free: RefundLiveScenario
     readonly infeasible: RefundLiveScenario
     readonly lost_response: RefundLiveScenario
+    readonly unclassified_failure: RefundLiveScenario
     readonly restart_control: RefundLiveScenario
     readonly restart_second: RefundLiveScenario
     readonly accepted_replay: RefundLiveScenario

@@ -27,7 +27,11 @@ import type { LocalSaleRepository } from '../repositories/localSale.repository'
 import type { CatalogPaymentMethod } from '@shared/contracts/catalog.contract'
 import type { RefundAccessService } from './refundAccess.service'
 import type { ShiftAuthorityService } from './shiftAuthority.service'
-import type { uploadRefund as UploadRefundFn } from '../sync/refundUpload.client'
+import type {
+  RefundUploadOutcome,
+  uploadRefund as UploadRefundFn
+} from '../sync/refundUpload.client'
+import { isPublicAppError } from '../http/apiError'
 import type { ReceiptContextCaptureService } from '../receipt/receiptContextCapture.service'
 
 const PREVIEW_TTL_MS = 15 * 60 * 1000
@@ -694,6 +698,13 @@ export class RefundService {
   }
 
   private async dispatch(localRefundUuid: string): Promise<RefundOutcome> {
+    // Checked before the claim: a wiring fault must never leave a refund `dispatched` without any
+    // request having been attempted.
+    const uploader = this.dependencies.uploadRefund
+    if (!uploader) {
+      throw new Error('RefundService requires uploadRefund to be injected')
+    }
+
     const nowIso = this.now().toISOString()
     const claimed = this.dependencies.localRefunds.claimForDispatch(localRefundUuid, nowIso)
 
@@ -713,12 +724,35 @@ export class RefundService {
       throw validationError('This refund could not be found after claiming it.', 'refund_not_found')
     }
 
-    const uploader = this.dependencies.uploadRefund
-    if (!uploader) {
-      throw new Error('RefundService requires uploadRefund to be injected')
-    }
+    let outcome: RefundUploadOutcome
 
-    const outcome = await uploader(this.dependencies.apiClient, local.requestJson)
+    try {
+      outcome = await uploader(this.dependencies.apiClient, local.requestJson)
+    } catch (error) {
+      // The claim committed `dispatched` before the call, so a request may have reached the server
+      // and committed. A failure the upload client did not classify (an unexpected throw from the
+      // transport stack or a listener, or an unreadable frozen payload) proves nothing either way:
+      // it is recorded as `unresolved` — never `rejected`, and never left `dispatched`, where it
+      // could not be resumed and would keep the invoice blocked until the next restart's sweep.
+      // Resume replays the identical frozen bytes under the same identity; the server's duplicate
+      // short-circuit turns a refund that did commit into the original result, not a second one.
+      this.dependencies.localRefunds.markUnresolved(
+        localRefundUuid,
+        isPublicAppError(error)
+          ? (error.backendCode ?? 'refund_dispatch_failed')
+          : 'refund_dispatch_failed',
+        error instanceof Error ? error.message.slice(0, 500) : 'The refund dispatch failed.',
+        this.now().toISOString()
+      )
+
+      const unresolved = this.dependencies.localRefunds.findByLocalUuid(localRefundUuid)
+
+      if (!unresolved) {
+        throw validationError('This refund could not be found after dispatch.', 'refund_not_found')
+      }
+
+      return toOutcome(localRefundUuid, unresolved)
+    }
     const settledAt = this.now().toISOString()
 
     switch (outcome.kind) {
