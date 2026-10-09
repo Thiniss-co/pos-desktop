@@ -150,3 +150,18 @@ Describe 'Wait-Until and New-CheckResult' {
     (New-CheckResult -Phase 'install' -Name 'x' -Passed $false -Detail @{ a = 1 }).result | Should -Be 'FAIL'
   }
 }
+
+Describe 'Update-FeedManifest' {
+  It 'rewrites every sha512 and size of latest.yml for a re-signed installer and keeps the rest' {
+    $installer = Join-Path $script:Work 'pos-desktop-1.0.1-setup.exe'
+    [IO.File]::WriteAllBytes($installer, [Text.Encoding]::ASCII.GetBytes('re-signed installer bytes'))
+    $metadata = "version: 1.0.1`nfiles:`n  - url: pos-desktop-1.0.1-setup.exe`n    sha512: OLD==`n    size: 1`npath: pos-desktop-1.0.1-setup.exe`nsha512: OLD==`nreleaseDate: '2026-10-09T00:00:00.000Z'"
+    $updated = Update-FeedManifest -Metadata $metadata -Installer $installer
+    $expected = Get-FileSha512Base64 -Path $installer
+    $expected | Should -Be ([Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([Text.Encoding]::ASCII.GetBytes('re-signed installer bytes'))))
+    ([regex]::Matches($updated, [regex]::Escape("sha512: $expected"))).Count | Should -Be 2
+    $updated | Should -Match '    size: 25'
+    $updated | Should -Match "version: 1.0.1"
+    $updated | Should -Not -Match 'OLD=='
+  }
+}

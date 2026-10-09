@@ -1,112 +1,196 @@
 # Windows validation kit (V1)
 
-**Status: NOT RUN.** No Windows environment was available for the V1 Windows-readiness work, so no
-item below has been executed on Windows. Windows support is claimed for a version
-(`docs/release/windows.md`) only after this kit passes on it. Linux results (journeys, the .deb
-container test, the AppImage upgrade) are supporting evidence only.
+**Windows execution: BLOCKED.** No Windows machine, VM or image was available. The owner's lab VMs
+are not to be used, and a new Windows 11 VM needs a Microsoft download and licence acceptance by the
+owner. No item below has run on Windows. Windows support is claimed for a version
+(`docs/release/windows.md`) only after this kit passes on it.
 
-`Test-WindowsPackage.ps1` has not been executed. PowerShell is not available on the build host, so it
-has not even been parsed. Treat its first run as part of the validation.
+What _has_ been validated, on Linux:
 
-## What is needed
+| Part                                                                                                                         | Validation                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Test-WindowsPackage.ps1`, `Set-AcceptanceGuest.ps1`, `WindowsAcceptance.psm1`, `WindowsAcceptance.Tests.ps1`                | PowerShell 7.4.6 parser: 0 errors. PSScriptAnalyzer 1.23.0: 0 errors or warnings. ASCII only (Windows PowerShell 5.1)                                               |
+| Pure helpers (PE machine/signature, secrets scan, data snapshot, feed manifest)                                              | Pester 5.6.1 (13 tests), including the real NSIS build's `better_sqlite3.node` and unsigned `pos-desktop.exe`                                                       |
+| `tests/playwright/journeys/wintill.mjs` (sale, touch keypad price, offline kill/restart/reconnect, refund, AR/dark, restart) | Passes with the **local** controller against the Linux package. The **vbox** controller (`tests/playwright/support/tillController.mjs`) has not run: there is no VM |
+| Update signing policy and fail-closed Authenticode decision                                                                  | Unit tests (`src/main/update/*.test.ts`)                                                                                                                            |
 
-| Need                                           | Detail                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A **disposable** Windows VM                    | Windows 11 23H2+ x64 and/or Windows 10 22H2 x64, fresh, with a snapshot to revert to. **Never a real till or a cashier's machine.** The data folder is fixed at `%APPDATA%\pos-desktop`, so isolation comes from the disposable VM and account, not from a path                                                                                                                                                 |
-| A standard (non-administrator) Windows account | The "cashier". Per-user install needs no elevation; this proves it                                                                                                                                                                                                                                                                                                                                              |
-| Installers A and B                             | Two builds of the same commit with versions A < B (for example `1.0.0` and `1.0.1`), built by the release process with the test API origin and test feed below. A loopback-origin package is a **test package**, never a release candidate                                                                                                                                                                      |
-| A guarded disposable backend                   | `tests/playwright/support/sandbox.mjs` on the build host (disposable SQLite Laravel, guarded entry points; never a normal database), plus `proxy.mjs` in front of it for offline and lost-response simulation                                                                                                                                                                                                   |
-| Network between the VM and the host            | The test package's API origin is `http://127.0.0.1:<port>` (opt-in `MAIN_VITE_POS_ALLOW_LOOPBACK_ORIGIN=true`). In the VM, forward that port to the host's proxy, for example `ssh -N -L <port>:127.0.0.1:<port> <host>`. The same applies to the update feed port. The alternative is a TLS test origin with a test CA trusted only inside the VM (as `tests/playwright/support/tlsBackend.mjs` does on Linux) |
-| An isolated update feed                        | `tests/playwright/support/staticFeed.mjs` serving B's `pos-desktop-<B>-setup.exe`, `.blockmap` and `latest.yml`. Never a public or production feed                                                                                                                                                                                                                                                              |
-| A test printer (optional)                      | Only for the hardware items, and only with the operator's explicit authorization for each physical print                                                                                                                                                                                                                                                                                                        |
+## 1. A dedicated disposable Windows 11 VM
 
-Build the test installers on the build host (Linux cross-builds NSIS; the afterPack hook installs the
-Windows native module and fails the build if it does not match):
+The option names below were checked against `VBoxManage` 7.2.6 help on the build host. The commands
+have not been run.
 
+Run on the build host by the owner, after accepting Microsoft's licence for the ISO they supply
+(Windows 11 Enterprise evaluation or a licensed image). The name must start with
+`thinis-pos-win11-acceptance`: the journey's controller refuses any other VM. The lab VMs are never
+touched. It needs about 30 GB of disk (dynamic 64 GB disk) and 6 GB of RAM.
+
+```bash
+VM=thinis-pos-win11-acceptance
+VBoxManage createvm --name $VM --ostype Windows11_64 --register
+VBoxManage modifyvm $VM --memory 6144 --cpus 4 --firmware efi --tpm-type 2.0 \
+  --nic1 nat --graphicscontroller vboxsvga --vram 128 --clipboard-mode disabled --drag-and-drop disabled
+VBoxManage modifynvram $VM inituefivarstore
+VBoxManage modifynvram $VM enrollmssignatures
+VBoxManage modifynvram $VM enrollorclpk
+VBoxManage modifynvram $VM secureboot --enable
+VBoxManage modifyvm $VM --nat-pf1="cdp,tcp,127.0.0.1,9333,,9223"
+VBoxManage createmedium disk --filename "$HOME/VirtualBox VMs/$VM/$VM.vdi" --size 65536
+VBoxManage storagectl $VM --name SATA --add sata --controller IntelAhci
+VBoxManage storageattach $VM --storagectl SATA --port 0 --type hdd --medium "$HOME/VirtualBox VMs/$VM/$VM.vdi"
+# Administrator for setup only; the cashier is created below as a standard account.
+VBoxManage unattended install $VM --iso=/path/to/Win11.iso --user=setupadmin --user-password-file=<file> \
+  --full-user-name="Acceptance Setup" --locale=en_US --country=SA --time-zone=Arab_Standard_Time \
+  --install-additions --start-vm=gui
 ```
-MAIN_VITE_POS_API_ORIGIN=http://127.0.0.1:<apiPort> MAIN_VITE_POS_ALLOW_LOOPBACK_ORIGIN=true \
-MAIN_VITE_POS_UPDATE_FEED_URL=http://127.0.0.1:<feedPort>/ npx electron-vite build
-npx electron-builder --win nsis --x64 --publish never -c.extraMetadata.version=1.0.0 -c.directories.output=dist-win/1.0.0
-npx electron-builder --win nsis --x64 --publish never -c.extraMetadata.version=1.0.1 -c.directories.output=dist-win/1.0.1
+
+Inside the VM, as `setupadmin`:
+
+```powershell
+$p = Read-Host -AsSecureString 'cashier password'
+New-LocalUser -Name cashier -Password $p -PasswordNeverExpires   # a standard account (Users group only)
+Add-LocalGroupMember -Group Users -Member cashier
+Install-Language ar-SA     # optional: Arabic UI fonts for the AR checks
+```
+
+## 2. Test installers (build host)
+
+Pick two free host ports: `API` for the disposable backend's proxy and `FEED` for the isolated update
+feed. Then build A and B from the same commit:
+
+```bash
+export MAIN_VITE_POS_API_ORIGIN=http://127.0.0.1:$API MAIN_VITE_POS_ALLOW_LOOPBACK_ORIGIN=true \
+       MAIN_VITE_POS_UPDATE_FEED_URL=http://127.0.0.1:$FEED/
+npx electron-vite build
+for v in 1.0.0 1.0.1; do
+  npx electron-builder --win nsis --x64 --publish never -c.extraMetadata.version=$v -c.directories.output=dist-win/$v \
+    "-c.win.signtoolOptions.publisherName=CN=Thinis POS Acceptance Test Publisher"
+done
 sha256sum dist-win/*/pos-desktop-*-setup.exe
 ```
 
-Record the commit, both versions and both SHA-256s in the evidence.
+These are **internal test builds**: a loopback origin, unsigned binaries. `publisherName` names the VM's
+test certificate (section 6), so A requires every update to carry that publisher's valid signature.
+A build without `publisherName` would update only checksum-only, and only from its loopback test feed.
+Record the commit, the versions and the SHA-256s.
 
-## Procedure
+## 3. Guest setup (once, then snapshot)
 
-Run every step as the cashier account. Keep the evidence (the script's JSON, screenshots, the main
-log `%APPDATA%\pos-desktop\logs` if present, and the backend's report) in one folder per run. Mark
-each row PASS / FAIL / NOT RUN; never leave a failed or skipped row unmarked.
+Copy `tests/windows/` and the installers into the VM (for example
+`VBoxManage guestcontrol $VM copyto --username setupadmin ...`). As `setupadmin`:
 
+```powershell
+$env:POS_WINDOWS_ACCEPTANCE_DISPOSABLE = '1'
+.\Set-AcceptanceGuest.ps1 -CashierUser cashier -ApiPort <API> -FeedPort <FEED>
 ```
+
+The script makes three changes:
+
+- guest `127.0.0.1:<API>` and `127.0.0.1:<FEED>` reach the host (`10.0.2.2`);
+- the till's DevTools port is reachable from the host only (host `127.0.0.1:9333`, then guest `9223`,
+  then `127.0.0.1:9222`);
+- a scheduled task `ThinisPosTill` starts the till in the cashier's interactive session.
+
+Sign in as `cashier` and take the snapshot `clean`. Revert to it before every run.
+
+## 4. Install, credentials and data lifecycle (in the VM, as `cashier`)
+
+```powershell
 $env:POS_WINDOWS_ACCEPTANCE_DISPOSABLE = '1'
 $kit = 'C:\pos\tests\windows\Test-WindowsPackage.ps1'; $ev = 'C:\pos\evidence\<run>'
 ```
 
-### A. Install and identity
+| #   | Step                                                                                                               | Expected                                                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | `& $kit -Phase preflight -Installer A.exe -Evidence $ev`                                                           | x64, standard account, no existing `%APPDATA%\pos-desktop`; installer hash and signature recorded ("INTERNAL TEST BUILD" while unsigned)     |
+| A2  | Double-click A.exe; record the SmartScreen prompt                                                                  | Installs without a UAC prompt. SmartScreen warns about an unsigned build. Record it; never bypass it to claim a pass                         |
+| A3  | `& $kit -Phase install -Installer A.exe -Evidence $ev -ExpectedVersion 1.0.0` (on a fresh snapshot, instead of A2) | Program under `%LOCALAPPDATA%\Programs\Thinis POS`, Start menu and desktop shortcuts, one HKCU uninstall entry, `better_sqlite3.node` PE x64 |
+| A4  | Launch from the **Start menu shortcut**; launch again                                                              | "Thinis POS" window and taskbar group; the second launch focuses the first window                                                            |
+| B1  | Run the automated journey (section 5) up to step A, or activate and sign in by hand                                | Activation, sign-in, bootstrap, shift                                                                                                        |
+| B2  | Close the till; `& $kit -Phase profile -Evidence $ev -PlainSecrets 'ACTIVATE-DESKTOP-MVP','Password123!'`          | `%APPDATA%\pos-desktop\pos-desktop.sqlite` exists; no plain test credential in any profile file                                              |
+| B3  | (Optional) copy the profile to a second Windows account and start the till there                                   | Credentials do not decrypt (DPAPI is per user): sign-in asked again; no crash, no data loss                                                  |
+| E6  | `& $kit -Phase upgrade -Installer B.exe -Evidence $ev -ExpectedVersion 1.0.1`                                      | One uninstall entry; same profile files                                                                                                      |
+| E7  | `& $kit -Phase uninstall -Evidence $ev`                                                                            | Program and shortcuts removed; the database **kept, byte-identical**                                                                         |
+| E8  | `& $kit -Phase reinstall -Installer B.exe -Evidence $ev`, then start the till                                      | The kept database is used: same device; pending work intact                                                                                  |
 
-| #   | Step                                                                                                                       | Expected                                                                                                                                 |
-| --- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| A1  | `& $kit -Phase preflight -Installer A.exe -Evidence $ev`                                                                   | x64, standard account, no existing `%APPDATA%\pos-desktop`; hash and signature status recorded (unsigned today)                          |
-| A2  | Double-click A.exe as the cashier and note any SmartScreen prompt                                                          | Installs without a UAC prompt. Unsigned builds show SmartScreen; record it                                                               |
-| A3  | `& $kit -Phase install -Installer A.exe -Evidence $ev -ExpectedVersion 1.0.0` (or verify A2's result with the same checks) | Program in `%LOCALAPPDATA%\Programs\Thinis POS`, Start menu and desktop shortcuts, HKCU uninstall entry, `better_sqlite3.node` is PE x64 |
-| A4  | Launch from the **Start menu shortcut**                                                                                    | Window title and taskbar show "Thinis POS"; one taskbar group; a second launch focuses the first window (single instance)                |
-| A5  | Settings → About / runtime                                                                                                 | Version A; platform `win32`                                                                                                              |
+## 5. The cashier journey, automated (build host → VM)
 
-### B. Activation, credentials and the native database
+With the VM running from `clean`, the cashier signed in and A installed, run this on the build host.
+The disposable backend's proxy listens on `$API`, and the VM reaches it through the portproxy.
 
-| #   | Step                                                                                      | Expected                                                                                        |
-| --- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| B1  | Activate (`DESKTOP-MVP` / `ACTIVATE-DESKTOP-MVP`), sign in as the cashier fixture         | Bootstrap completes; the POS screen opens                                                       |
-| B2  | `& $kit -Phase profile -Evidence $ev -PlainSecrets 'ACTIVATE-DESKTOP-MVP','Password123!'` | `%APPDATA%\pos-desktop\pos-desktop.sqlite` exists; no plain test credential in any profile file |
-| B3  | Quit and relaunch                                                                         | Still signed in: the DPAPI-protected token decrypts for the same Windows user                   |
-| B4  | (Optional) copy the profile to a second Windows account and launch there                  | Cannot use the credentials (DPAPI is per user): asks to sign in; no crash, no data loss         |
+```bash
+PW_TILL_CONTROLLER=vbox PW_TILL_VM=thinis-pos-win11-acceptance PW_TILL_GUEST_USER=cashier \
+PW_TILL_GUEST_PASSWORD_FILE=<file> PW_TILL_CDP_URL=http://127.0.0.1:9333 PW_TILL_API_PORT=$API \
+PW_BACKEND_ROOT=<backend export> PW_EVIDENCE_ROOT=<dir> node tests/playwright/run.mjs wintill
+```
 
-### C. Selling (the cashier journey)
+It requires `platform: win32`, then covers:
 
-Use the fixture catalog (COLA `6221000000011` and the other fixture products). The proxy provides
-offline and lost-response conditions.
+- **A.** Activation, sign-in, bootstrap and shift.
+- **B.** An exact-cash sale online, on the server exactly once.
+- **C.** Touch mode switched on by touch, and a quick-created product priced on the on-screen keypad
+  (1250 minor units on the server).
+- **D.** An offline sale, a hard kill (`taskkill /F`) and a restart. The till must still be signed in
+  with the sale pending; back online, the sale must upload exactly once.
+- **E.** A refund of the first sale on the keypad: one refund on the server.
+- **F.** Arabic + dark: right-to-left, with screenshots.
+- **G.** A normal quit and restart: still signed in (DPAPI).
 
-| #   | Step                                                                                                                        | Expected                                                                    |
-| --- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| C1  | Open a shift                                                                                                                | Shift open; drawer amount recorded                                          |
-| C2  | Barcode: scan with a USB scanner (keyboard wedge) and with typed input + Enter                                              | Line added once per scan; no duplicate on fast scans                        |
-| C3  | Exact cash sale                                                                                                             | Completes; receipt preview shown; uploaded (backend report shows 1 invoice) |
-| C4  | Split payment (cash + card)                                                                                                 | Totals and change correct; uploads                                          |
-| C5  | Line and invoice discounts                                                                                                  | Within the cashier's limits; refused above them                             |
-| C6  | An offer product (fixture offer)                                                                                            | Offer applied and shown on the line and receipt                             |
-| C7  | Mixed tax rates in one sale                                                                                                 | Per-rate tax lines match the backend's                                      |
-| C8  | Touch only (touchscreen or Windows touch simulation): numeric keypad for quantity, cash tendered and the quick-create price | Every amount can be entered without a keyboard                              |
-| C9  | Catalog change while a cart is open (change a price on the backend, refresh)                                                | The cart is not repriced silently; the rebuild/clear choice appears         |
-| C10 | Held sale / workspace: put a sale on hold, quit, relaunch                                                                   | The held sale is still there                                                |
-| C11 | EN ↔ AR and light ↔ dark on POS, payment, refund and Settings                                                               | RTL layout correct, no clipped text, both themes legible                    |
+### Manual rows (not automated)
 
-### D. Offline and recovery
+| #   | Step                                                                                               | Expected                                                                      |
+| --- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| C2  | Barcode scanner (keyboard wedge) and typed input + Enter                                           | One line per scan; no duplicate on fast scans                                 |
+| C4  | Split payment (cash + card)                                                                        | Totals and change correct; uploads once                                       |
+| C5  | Line and invoice discounts                                                                         | Within the cashier's limits; refused above them                               |
+| C6  | An offer product                                                                                   | Offer applied on the line and the receipt                                     |
+| C7  | Mixed tax rates in one sale                                                                        | Per-rate tax lines match the backend's                                        |
+| C9  | Catalog change while a cart is open                                                                | Not repriced silently; the rebuild/clear choice appears                       |
+| C10 | Held sale; quit; start                                                                             | The held sale is still there                                                  |
+| C11 | EN ↔ AR, light ↔ dark on payment, refund and Settings                                              | No clipped text; both themes legible                                          |
+| D4  | Offline quick-create, `taskkill /F`, start online                                                  | Created once                                                                  |
+| D5  | Refund with the answer lost (proxy `dropResponse`)                                                 | One refund                                                                    |
+| D6  | Fractional refund on the keypad: part, the rest, then more than remains                            | Amounts correct; the over-refund is refused with a message                    |
+| S1  | Startup error: in a copy of the profile, follow `tests/playwright/journeys/startupfail.mjs` step 2 | The error box shows the steps, folder, version and reason; database unchanged |
 
-| #   | Step                                                                                                                       | Expected                                                                             |
-| --- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| D1  | Proxy offline; sell (physical-presence policy fixture)                                                                     | Sale completes locally; shown as pending upload                                      |
-| D2  | Kill the app during D1's pending state: `Stop-Process -Name pos-desktop -Force`                                            | Relaunch: sale still pending, same receipt number                                    |
-| D3  | Proxy online                                                                                                               | The sale uploads **exactly once** (backend report count)                             |
-| D4  | Offline quick-create of a product; kill (as D2); relaunch online                                                           | The request resumes and creates the product once                                     |
-| D5  | Refund with the response lost (proxy `dropResponse` on the refund upload)                                                  | The refund is not duplicated; it reconciles as one refund                            |
-| D6  | Refund with fractional quantities (weighed fixture product) via the keypad: partial, the remainder, then more than remains | Partial and remaining amounts are correct; the over-refund is refused with a message |
+## 6. Automatic update A → B, and signature handling
 
-### E. Upgrade, reinstall and uninstall
+As `setupadmin`, inside the VM only, once per snapshot:
 
-| #   | Step                                                                                                                                                      | Expected                                                                                                                                                  |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| E1  | Leave a pending offline sale (D1 without D3) and a held sale                                                                                              | —                                                                                                                                                         |
-| E2  | Serve B on the isolated feed; Settings → Software updates → Check now                                                                                     | Downloads B; "ready to install"                                                                                                                           |
-| E3  | Put an item in the cart; press Restart to update                                                                                                          | Refused: "the sale or payment on screen"                                                                                                                  |
-| E4  | Clear the cart; Restart to update                                                                                                                         | The app quits, the installer runs silently with no UAC prompt, and B starts on its own. Record whether B's relaunch kept the window and taskbar identity  |
-| E5  | In B                                                                                                                                                      | Version B; still signed in; the pending sale has the same receipt; going online uploads it exactly once; the held sale is still there; settings unchanged |
-| E6  | Manual upgrade: install B.exe over A with `& $kit -Phase upgrade -Installer B.exe -Evidence $ev -ExpectedVersion 1.0.1` (on a fresh snapshot after A3–B2) | One uninstall entry; same profile files                                                                                                                   |
-| E7  | `& $kit -Phase uninstall -Evidence $ev`                                                                                                                   | Program and shortcuts removed; `%APPDATA%\pos-desktop` and the database **kept, byte-identical**                                                          |
-| E8  | `& $kit -Phase reinstall -Installer B.exe -Evidence $ev`, then launch                                                                                     | The kept data is used: same device, pending work intact (sign in again if prompted)                                                                       |
+```powershell
+# A test code-signing certificate that only this disposable VM trusts.
+$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=Thinis POS Acceptance Test Publisher' -CertStoreLocation Cert:\CurrentUser\My
+foreach ($store in 'Root', 'TrustedPublisher') {
+  $s = New-Object Security.Cryptography.X509Certificates.X509Store($store, 'LocalMachine'); $s.Open('ReadWrite'); $s.Add($cert); $s.Close()
+}
+$other = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=Someone Else' -CertStoreLocation Cert:\CurrentUser\My
+```
 
-### F. Hardware (separate evidence; explicit authorization for every physical print)
+The host serves `C:\feed` through the isolated feed (`tests/playwright/support/staticFeed.mjs`
+listening on `$FEED`). For each case, prepare B in `C:\feed` as shown. Rewrite `latest.yml` after
+signing, because signing changes the installer's bytes and SHA-512:
+
+```powershell
+Import-Module C:\pos\tests\windows\WindowsAcceptance.psm1
+$b = 'C:\feed\pos-desktop-1.0.1-setup.exe'
+Set-AuthenticodeSignature -FilePath $b -Certificate $cert -HashAlgorithm SHA256   # or $other, or skip
+Set-Content C:\feed\latest.yml (Update-FeedManifest -Metadata (Get-Content C:\feed\latest.yml -Raw) -Installer $b) -Encoding ascii
+```
+
+| #   | B in the feed                                                                | Expected in A (Settings → Software updates; `[pos-update]` in the main log)                                  |
+| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| E2  | Signed by the trusted test publisher                                         | "Updates verified by: checksum and publisher signature"; downloads; ready                                    |
+| E3  | Item in the cart → Restart to update                                         | Refused: "the sale or payment on screen"                                                                     |
+| E4  | Cart empty (an offline sale pending) → Restart to update                     | Quits, installs silently (no UAC), B starts; version 1.0.1; signed in; the pending sale uploads exactly once |
+| E9  | Unsigned (revert to `clean`, reinstall A)                                    | **Refused**: `error` with `ERR_UPDATER_INVALID_SIGNATURE` (status not Valid); nothing installed              |
+| E10 | Signed by `CN=Someone Else`                                                  | **Refused**: another publisher                                                                               |
+| E11 | Signed by the test publisher, then one byte changed (`latest.yml` rewritten) | **Refused**: status HashMismatch                                                                             |
+| E12 | Signed, but `latest.yml` NOT rewritten after signing                         | **Refused**: sha512 checksum mismatch                                                                        |
+| E13 | A built **without** `publisherName` but with an https feed URL               | "Automatic updates are off: this build is not signed by its publisher"; no check is made                     |
+
+Never bypass SmartScreen, TLS or signature failures to make a row pass. These certificates are test
+fixtures of the disposable VM; delete the VM after the run.
+
+## 7. Hardware (separate evidence; explicit authorization for every physical print)
 
 | #   | Step                                                                | Expected                                                                                                                           |
 | --- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -118,6 +202,12 @@ offline and lost-response conditions.
 
 ## Recording the result
 
-Attach the run folder to the readiness report with the Windows version and build, the installer
-SHA-256s and signature status, and every row's result. Any FAIL or NOT RUN row keeps the verdict below
-READY FOR WINDOWS RELEASE.
+Keep one folder per run with:
+
+- the Windows version and build;
+- the installer SHA-256s and signature status;
+- every `windows-acceptance-<phase>.json`;
+- the journey's `result-*.json` and screenshots;
+- each row's result: PASS, FAIL or NOT RUN.
+
+Any FAIL or NOT RUN row keeps the verdict below READY FOR WINDOWS RELEASE.

@@ -120,4 +120,33 @@ function Wait-Until {
   return [bool](& $Condition)
 }
 
-Export-ModuleMember -Function Assert-DisposableMachine, Get-FileSha256, Get-PeMachine, Test-PeSigned, Find-PlainSecret, Get-DataSnapshot, New-CheckResult, Wait-Until
+function Get-FileSha512Base64 {
+  # The digest electron-updater compares with the feed metadata (base64 SHA-512).
+  [CmdletBinding()]
+  param([Parameter(Mandatory = $true)] [string] $Path)
+  $sha = [Security.Cryptography.SHA512]::Create()
+  $stream = [IO.File]::OpenRead($Path)
+  try { return [Convert]::ToBase64String($sha.ComputeHash($stream)) } finally { $stream.Dispose(); $sha.Dispose() }
+}
+
+function Update-FeedManifest {
+  # Rewrites the sha512 and size of $Installer in electron-builder's latest.yml text after the installer
+  # was re-signed for a test (signing changes its bytes). Returns the new text; writes nothing.
+  [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Returns text; changes no state')]
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)] [string] $Metadata,
+    [Parameter(Mandatory = $true)] [string] $Installer
+  )
+  $sha512 = Get-FileSha512Base64 -Path $Installer
+  $size = (Get-Item -LiteralPath $Installer).Length
+  $lines = $Metadata -split "`r?`n"
+  $out = foreach ($line in $lines) {
+    if ($line -match '^(\s*)sha512:\s') { '{0}sha512: {1}' -f $Matches[1], $sha512 }
+    elseif ($line -match '^(\s*)size:\s') { '{0}size: {1}' -f $Matches[1], $size }
+    else { $line }
+  }
+  return ($out -join "`n")
+}
+
+Export-ModuleMember -Function Assert-DisposableMachine, Get-FileSha256, Get-FileSha512Base64, Update-FeedManifest, Get-PeMachine, Test-PeSigned, Find-PlainSecret, Get-DataSnapshot, New-CheckResult, Wait-Until

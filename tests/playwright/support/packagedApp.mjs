@@ -115,7 +115,7 @@ async function waitForDebugger(port, child) {
   throw new Error('the packaged app never opened its debugging port')
 }
 
-async function rendererPage(browser) {
+export async function rendererPage(browser) {
   const deadline = Date.now() + 30_000
   while (Date.now() < deadline) {
     for (const context of browser.contexts()) {
