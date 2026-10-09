@@ -187,6 +187,12 @@ export async function run(ctx) {
       count: reconnected.device_invoice_count
     })
     if (reconnected.device_invoice_count !== 5) throw new Error('expected 5 server invoices')
+    // The server commits the last sale before its answer reaches the till: give the answer time to
+    // land, then every row must be synced.
+    const drainDeadline = Date.now() + 30_000
+    while (queue(session).some((row) => row.state !== 'synced') && Date.now() < drainDeadline) {
+      await page.waitForTimeout(250)
+    }
     if (queue(session).some((row) => row.state !== 'synced')) throw new Error('queue not drained')
     await page.waitForTimeout(1500)
     await ctx.shot(page, '04-sync-after-reconnect')

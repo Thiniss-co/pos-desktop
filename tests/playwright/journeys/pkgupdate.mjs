@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { store, t } from '../support/app.mjs'
 import {
@@ -293,5 +293,9 @@ export async function run(ctx) {
     await feed.stop()
     await proxy.stop().catch(() => undefined)
     await sandbox.stop()
+    // Two AppImage builds and the feed copy are ~1 GB in the (tmpfs) run directory; their hashes are
+    // in the evidence.
+    rmSync(join(ctx.runDir, 'builds'), { recursive: true, force: true })
+    rmSync(feedDir, { recursive: true, force: true })
   }
 }
