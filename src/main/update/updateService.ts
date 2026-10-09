@@ -2,7 +2,8 @@ import type {
   RestartBlocker,
   UpdatePhase,
   UpdateRestartResult,
-  UpdateStatus
+  UpdateStatus,
+  UpdateVerification
 } from '@shared/contracts/update.contract'
 
 /** The slice of electron-updater's AppUpdater this service drives (a fake in tests). */
@@ -16,8 +17,12 @@ export interface UpdaterLike {
 }
 
 export interface UpdateServiceDependencies {
-  /** null when this build has no update feed (no URL was configured at build time). */
+  /** null when this build has no update feed, or refuses automatic updates (see `refusal`). */
   readonly updater: UpdaterLike | null
+  /** How downloads are trusted when `updater` is set (updateSigning.ts). */
+  readonly verification?: UpdateVerification | null
+  /** Why a build with a feed still has no updater, e.g. UNSIGNED_BUILD (updateSigning.ts). */
+  readonly refusal?: string | null
   readonly currentVersion: string
   readonly isOnline: () => boolean
   /** What a restart would interrupt right now. */
@@ -71,6 +76,7 @@ export class UpdateService {
     this.now = dependencies.now ?? ((): Date => new Date())
     this.schedule = dependencies.schedule ?? defaultSchedule
     this.phase = dependencies.updater ? 'idle' : 'not_configured'
+    this.errorCode = dependencies.updater ? null : (dependencies.refusal ?? null)
   }
 
   start(): void {
@@ -127,6 +133,7 @@ export class UpdateService {
       lastCheckedAt: this.lastCheckedAt,
       nextCheckAt: this.nextCheckAt,
       errorCode: this.errorCode,
+      verification: this.dependencies.updater ? (this.dependencies.verification ?? null) : null,
       blockers: this.phase === 'ready' ? this.dependencies.restartBlockers() : []
     }
   }

@@ -12,7 +12,14 @@ class FakeUpdater extends EventEmitter {
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- local test fixture
-function harness(options: { updater?: FakeUpdater | null; online?: boolean } = {}) {
+function harness(
+  options: {
+    updater?: FakeUpdater | null
+    online?: boolean
+    verification?: 'publisher_signature' | 'checksum_only_test_build' | 'checksum_only' | null
+    refusal?: string | null
+  } = {}
+) {
   const updater = options.updater === undefined ? new FakeUpdater() : options.updater
   const timers: { callback: () => void; delayMs: number }[] = []
   const statuses: UpdateStatus[] = []
@@ -20,6 +27,8 @@ function harness(options: { updater?: FakeUpdater | null; online?: boolean } = {
   let online = options.online ?? true
   const service = new UpdateService({
     updater: updater as unknown as UpdaterLike | null,
+    verification: options.verification ?? null,
+    refusal: options.refusal ?? null,
     currentVersion: '1.0.0',
     isOnline: () => online,
     restartBlockers: () => blockers,
@@ -57,6 +66,28 @@ describe('UpdateService', () => {
     expect(h.service.status().phase).toBe('not_configured')
     expect(h.service.restartToInstall()).toEqual({ restarting: false, blockers: [] })
     expect(h.timers).toHaveLength(0)
+  })
+
+  it('reports an unsigned Windows build that refuses updates, and never checks', () => {
+    const h = harness({ updater: null, refusal: 'UNSIGNED_BUILD' })
+    h.service.start()
+
+    expect(h.service.status()).toMatchObject({
+      phase: 'not_configured',
+      errorCode: 'UNSIGNED_BUILD',
+      verification: null
+    })
+    expect(h.service.restartToInstall()).toEqual({ restarting: false, blockers: [] })
+    expect(h.timers).toHaveLength(0)
+  })
+
+  it('reports how downloads are verified', () => {
+    expect(harness({ verification: 'publisher_signature' }).service.status().verification).toBe(
+      'publisher_signature'
+    )
+    expect(
+      harness({ verification: 'checksum_only_test_build' }).service.status().verification
+    ).toBe('checksum_only_test_build')
   })
 
   it('downloads in the background but never installs on quit or downgrades', () => {

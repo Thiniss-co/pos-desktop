@@ -73,8 +73,10 @@ this is a hardware acceptance item (`tests/windows/README.md`).
 ## Signing and updates
 
 - **Code signing: not configured.** The installer and executable are unsigned (no certificate was
-  supplied). Unsigned installers trigger SmartScreen warnings and electron-updater cannot verify the
-  publisher of an update. A release requires the company's signing certificate and process.
+  supplied). Unsigned installers trigger SmartScreen warnings, which must
+  never be bypassed to pass a check. An unsigned build is an internal test build: it refuses
+  automatic updates from a real feed, because no publisher could be verified. A release requires the
+  company's signing certificate and process, and the publisher recorded as a full DN.
 - **Automatic updates:** see `docs/release/updates.md`.
 - **Release inputs gate:** `npm run verify:release-inputs` refuses while any company identity,
   origin, feed, icon or signing input is a template value or missing. A package built while it fails

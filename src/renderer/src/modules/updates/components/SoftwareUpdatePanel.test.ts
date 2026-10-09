@@ -16,6 +16,7 @@ function status(overrides: Partial<UpdateStatus>): UpdateStatus {
     lastCheckedAt: '2026-10-09T08:00:00.000Z',
     nextCheckAt: '2026-10-09T12:00:00.000Z',
     errorCode: null,
+    verification: 'publisher_signature',
     blockers: [],
     ...overrides
   }
@@ -61,6 +62,31 @@ describe('Settings: software updates', () => {
       'Automatic updates are not set up'
     )
     expect(view.find('[data-testid="update-check-now"]').exists()).toBe(false)
+  })
+
+  it('says an unsigned build refuses automatic updates', async () => {
+    const view = await render(
+      status({ phase: 'not_configured', errorCode: 'UNSIGNED_BUILD', verification: null })
+    )
+
+    expect(view.get('[data-testid="update-phase"]').text()).toContain(
+      'this build is not signed by its publisher'
+    )
+    expect(view.find('[data-testid="update-check-now"]').exists()).toBe(false)
+  })
+
+  it('shows how updates are verified, and labels an unsigned internal test build', async () => {
+    const signed = await render(status({}))
+    expect(signed.get('[data-testid="update-verification"]').text()).toBe(
+      'checksum and publisher signature'
+    )
+    signed.unmount()
+    wrapper = null
+
+    const testBuild = await render(status({ verification: 'checksum_only_test_build' }))
+    expect(testBuild.get('[data-testid="update-verification"]').text()).toBe(
+      'checksum only (internal test build)'
+    )
   })
 
   it('names what must finish first and keeps the restart disabled', async () => {

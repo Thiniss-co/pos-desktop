@@ -1612,8 +1612,15 @@
     "title": "Software updates",
     "description": "Thinis POS downloads updates in the background and installs one only when you restart it here.",
     "unavailable": "Update status is unavailable.",
+    "unsignedBuild": "Automatic updates are off: this build is not signed by its publisher, so an update could not be verified.",
     "progressLabel": "Update download progress",
     "currentVersion": "Installed version",
+    "verifiedBy": "Updates verified by",
+    "verification": {
+      "publisher_signature": "checksum and publisher signature",
+      "checksum_only_test_build": "checksum only (internal test build)",
+      "checksum_only": "checksum only"
+    },
     "lastChecked": "Last checked",
     "nextCheck": "Next check",
     "checkNow": "Check now",

@@ -50,13 +50,27 @@ production feed exists, and none has been published.
   mismatch is an `error` and is retried; it is never installed.
 - **TLS:** the feed is HTTPS, verified by Chromium's network stack. TLS verification is never
   turned off, and there is no option to turn it off.
-- **Windows publisher check, signed builds only:** for a signed build, electron-updater's NSIS
-  updater also compares the downloaded installer's Authenticode signature with the publisher name
-  recorded at build time (`publisherName` in `app-update.yml`). It refuses an installer signed by
-  anyone else. **The current builds are unsigned**, so this check does not apply yet. An unsigned
-  build's only protection is HTTPS plus SHA-512 from the same feed, which is not enough for a
-  release. The release process must sign the installer and set `win.signtoolOptions.publisherName`
-  (or sign with the certificate whose subject is that name).
+- **Windows publisher signature, required:** electron-updater compares a downloaded installer's
+  Authenticode signature with the publisher recorded at build time (`publisherName` in
+  `resources/app-update.yml`). electron-builder records it when the build is signed, or when
+  `win.signtoolOptions.publisherName` is set. electron-updater itself **skips** the check when no
+  publisher is recorded (an unsigned build) and **accepts** the update when PowerShell cannot run.
+  This app closes both gaps:
+  - `src/main/update/updateSigning.ts`: a Windows build with a real (HTTPS) feed and no recorded
+    publisher refuses automatic updates. Its status is `not_configured` with `UNSIGNED_BUILD`, and
+    Settings says the build is not signed. The only exception is an unsigned internal test build on
+    its explicitly opted-in loopback test feed, which Settings labels "checksum only (internal test
+    build)".
+  - `src/main/update/authenticode.ts`: the Windows signature check fails closed. It requires Status
+    Valid, the same file, and the recorded publisher: the full DN when one is recorded, otherwise the
+    CN. Any failure to run PowerShell, a timeout, stderr output or unreadable output refuses the
+    update (`ERR_UPDATER_INVALID_SIGNATURE`). Record the full DN as the publisher, not just the CN.
+  - Settings shows how updates are verified: "checksum and publisher signature", or "checksum only
+    (internal test build)".
+- **Unsigned packages are internal test builds.** They cannot update from a real feed. The current
+  packages are unsigned.
+- **Linux** (supporting evidence only): the AppImage updater has no publisher check, so it is
+  checksum-only and reported as such.
 - The metadata and the installer come from the same origin, so whoever controls the feed controls
   the update. The feed must be operated by the company, behind HTTPS, with write access limited to
   the release process.
@@ -88,12 +102,16 @@ refused.
 
 ## Evidence
 
-| Check                                                                                              | Status                                                                             |
-| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Service: background check, download, bounded retry, offline wait, no install on quit, restart gate | VERIFIED — `src/main/update/updateService.test.ts`                                 |
-| Feed URL rules (HTTPS only, loopback opt-in, no credentials)                                       | VERIFIED — `src/main/update/updateFeed.test.ts`                                    |
-| Restart blockers read from the real database and the draft/payment gate                            | VERIFIED — `tests/electron/suites/v1LongRunning.suite.ts`                          |
-| Settings panel (status, blockers, restart only on request)                                         | VERIFIED — `SoftwareUpdatePanel.test.ts`                                           |
-| Real packaged A→B upgrade with a pending offline sale (Linux AppImage, isolated feed)              | See `pkgupdate` journey results in the readiness report (supporting evidence only) |
-| Real packaged A→B upgrade on Windows (NSIS)                                                        | **NOT RUN** — no Windows environment (`tests/windows/README.md`)                   |
-| Signed-update publisher verification on Windows                                                    | **BLOCKED** — no signing certificate                                               |
+| Check                                                                                               | Status                                                                                     |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Service: background check, download, bounded retry, offline wait, no install on quit, restart gate  | VERIFIED — `src/main/update/updateService.test.ts`                                         |
+| Feed URL rules (HTTPS only, loopback opt-in, no credentials)                                        | VERIFIED — `src/main/update/updateFeed.test.ts`                                            |
+| Restart blockers read from the real database and the draft/payment gate                             | VERIFIED — `tests/electron/suites/v1LongRunning.suite.ts`                                  |
+| Settings panel (status, blockers, restart only on request)                                          | VERIFIED — `SoftwareUpdatePanel.test.ts`                                                   |
+| Real packaged A→B upgrade with a pending offline sale (Linux AppImage, isolated feed)               | See `pkgupdate` journey results in the readiness report (supporting evidence only)         |
+| Real packaged A→B upgrade on Windows (NSIS)                                                         | **NOT RUN** — no Windows environment (`tests/windows/README.md`)                           |
+| Unsigned Windows build refuses a real feed; test build labelled; status and Settings                | VERIFIED — `updateSigning.test.ts`, `updateService.test.ts`, `SoftwareUpdatePanel.test.ts` |
+| Fail-closed signature decision (Valid, path, CN/DN publisher, PowerShell failure, stderr)           | VERIFIED (logic) — `authenticode.test.ts`                                                  |
+| electron-builder records `publisherName` in the format the app reads                                | VERIFIED — NSIS build with `win.signtoolOptions.publisherName`; parser fixture             |
+| Signing a Windows binary on this host                                                               | **BLOCKED** — electron-builder's `osslsigncode` needs OpenSSL 1.1 (absent on Ubuntu 26.04) |
+| Signed-update verification running on Windows (accept; wrong publisher, unsigned, tampered refused) | **NOT RUN** — no Windows environment, no signing certificate (`tests/windows/README.md` E) |

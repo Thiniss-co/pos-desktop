@@ -119,7 +119,8 @@ import { uploadRefund } from '../sync/refundUpload.client'
 import { SecureStorageService } from '../services/secureStorage.service'
 import { UpdateService } from '../update/updateService'
 import { resolveUpdateFeed } from '../update/updateFeed'
-import { createElectronUpdater } from '../update/electronUpdater'
+import { createElectronUpdater, readPackagedUpdaterConfig } from '../update/electronUpdater'
+import { decideUpdateSigning, readUpdaterPublisherNames } from '../update/updateSigning'
 import { readRestartBlockers } from '../update/restartBlockers'
 import { broadcastUpdateStatus } from '../ipc/updates.ipc'
 import { SessionService } from '../services/session.service'
@@ -1359,9 +1360,27 @@ export function createApplicationServices(): ApplicationServices {
   // V1 Windows readiness: automatic updates. A packaged build with a feed baked in checks and
   // downloads in the background; installing is the cashier's explicit restart, refused while work
   // would be interrupted. Development and harness runs (not packaged) never update themselves.
+  // On Windows only a build that records its signing publisher accepts updates, so electron-updater
+  // always checks the installer's Authenticode signature (updateSigning.ts); an unsigned build is an
+  // internal test build and updates only from its loopback test feed.
   const updateFeed = app.isPackaged ? resolveUpdateFeed() : null
+  const updateSigning = updateFeed
+    ? decideUpdateSigning({
+        platform: process.platform,
+        feed: updateFeed,
+        publisherNames: readUpdaterPublisherNames(readPackagedUpdaterConfig())
+      })
+    : null
+  if (updateSigning && !updateSigning.allowed) {
+    console.warn(`[pos-update] automatic updates refused: ${updateSigning.reason}`)
+  }
   const updates = new UpdateService({
-    updater: updateFeed ? createElectronUpdater(updateFeed) : null,
+    updater:
+      updateFeed && updateSigning?.allowed
+        ? createElectronUpdater(updateFeed, (line) => console.info(`[pos-update] ${line}`))
+        : null,
+    verification: updateSigning?.allowed ? updateSigning.verification : null,
+    refusal: updateSigning && !updateSigning.allowed ? updateSigning.reason : null,
     currentVersion: app.getVersion(),
     isOnline: () => connectivity.getSnapshot().status === 'online',
     restartBlockers: () => readRestartBlockers(database, installGate),

@@ -14,6 +14,18 @@ export const updatePhaseSchema = z.enum([
   'error'
 ])
 
+/**
+ * How downloads are trusted: `publisher_signature` (Windows: SHA-512 from the feed AND the installer's
+ * Authenticode publisher, recorded at build time); `checksum_only_test_build` (an unsigned internal
+ * test build on its loopback test feed); `checksum_only` (a platform whose updater has no publisher
+ * check). null while not configured.
+ */
+export const updateVerificationSchema = z.enum([
+  'publisher_signature',
+  'checksum_only_test_build',
+  'checksum_only'
+])
+
 /** Work that a restart would interrupt. Queued offline work is NOT one: it survives the upgrade. */
 export const restartBlockerSchema = z.enum([
   'sale_in_progress',
@@ -31,8 +43,12 @@ export const updateStatusSchema = z
     percent: z.number().min(0).max(100).nullable(),
     lastCheckedAt: z.string().datetime({ offset: true }).nullable(),
     nextCheckAt: z.string().datetime({ offset: true }).nullable(),
-    /** A short, sanitized reason for `error` (never a URL, path or stack). */
+    /**
+     * A short, sanitized reason for `error` (never a URL, path or stack); with `not_configured`,
+     * `UNSIGNED_BUILD` when a Windows build without a signing publisher refuses automatic updates.
+     */
     errorCode: z.string().max(64).nullable(),
+    verification: updateVerificationSchema.nullable(),
     blockers: z.array(restartBlockerSchema)
   })
   .strict()
@@ -45,6 +61,7 @@ export const updateRestartResultSchema = z
   .strict()
 
 export type UpdatePhase = z.infer<typeof updatePhaseSchema>
+export type UpdateVerification = z.infer<typeof updateVerificationSchema>
 export type RestartBlocker = z.infer<typeof restartBlockerSchema>
 export type UpdateStatus = z.infer<typeof updateStatusSchema>
 export type UpdateRestartResult = z.infer<typeof updateRestartResultSchema>

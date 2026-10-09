@@ -26,6 +26,9 @@ onBeforeUnmount(() => store.disconnect())
 const phaseText = computed(() => {
   const current = status.value
   if (!current) return t('updates.unavailable')
+  if (current.phase === 'not_configured' && current.errorCode === 'UNSIGNED_BUILD') {
+    return t('updates.unsignedBuild')
+  }
   return t(`updates.phase.${current.phase}`, {
     version: current.availableVersion ?? '',
     percent: String(current.percent ?? 0)
@@ -93,6 +96,10 @@ function when(value: string | null | undefined): string {
       <dt class="text-muted">{{ t('updates.currentVersion') }}</dt>
       <dd class="numeric font-semibold" dir="ltr">{{ status.currentVersion }}</dd>
       <template v-if="status.phase !== 'not_configured'">
+        <dt class="text-muted">{{ t('updates.verifiedBy') }}</dt>
+        <dd data-testid="update-verification" :data-verification="status.verification ?? 'none'">
+          {{ status.verification ? t(`updates.verification.${status.verification}`) : '—' }}
+        </dd>
         <dt class="text-muted">{{ t('updates.lastChecked') }}</dt>
         <dd class="numeric">{{ when(status.lastCheckedAt) }}</dd>
         <dt class="text-muted">{{ t('updates.nextCheck') }}</dt>

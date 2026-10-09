@@ -177,11 +177,15 @@ export async function run(ctx) {
     ctx.step('1: B downloaded in the background', {
       phase: ready.phase,
       available: ready.availableVersion,
+      verification: ready.verification,
       errorCode: ready.errorCode,
       feedRequests: feed.requests
     })
     if (ready.phase !== 'ready' || ready.availableVersion !== '1.0.1')
       throw new Error('1: the update is not ready')
+    // Linux's updater has no publisher check: the status says so (Windows requires one).
+    if (ready.verification !== 'checksum_only')
+      throw new Error(`1: unexpected verification ${ready.verification}`)
 
     // 2. Offline sale (queued) and a cart line on screen.
     await setOnline(page, proxy, false)
