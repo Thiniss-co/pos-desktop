@@ -92,7 +92,7 @@ export function bootstrapApp(): void {
     .catch((error: unknown) => {
       console.error('Application initialization failed', error)
       // Never a silent quit: the cashier sees why, and that the data must be kept.
-      const message = startupFailureMessage(error, app.getPath('userData'))
+      const message = startupFailureMessage(error, app.getPath('userData'), app.getVersion())
       dialog.showErrorBox(message.title, message.body)
       app.quit()
     })

@@ -6,8 +6,12 @@ that money and those records for good, and a re-sent copy would carry new keys.
 
 ## When this applies
 
-After an update the till does not start and shows **"Thinis POS could not start"** with the data
-folder and a reason such as `FOREIGN KEY constraint failed` or `CHECK constraint failed`.
+After an update the till does not start. Instead of the POS window it shows one error box, **"Thinis POS
+could not start"**, in English and Arabic. The box gives the cashier's three steps (§1 below), the data
+folder, the app version and a reason such as `FOREIGN KEY constraint failed` or `CHECK constraint
+failed`. On Windows, Ctrl+C copies the box's text. Journey `tests/playwright/journeys/startupfail.mjs`
+reproduces this with a real blocked upgrade, on the harness build and on the packaged till, and checks
+that the failed start leaves every database file byte-identical.
 
 Each schema upgrade runs inside a single transaction. When a stored row cannot be carried into the new
 schema, the upgrade throws, everything is rolled back, and the database stays exactly as it was, at the
