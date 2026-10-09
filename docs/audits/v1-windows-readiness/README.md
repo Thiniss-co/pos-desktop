@@ -3,7 +3,8 @@
 **Verdict: BLOCKED.** V1 targets Windows. Nothing in this report was executed on Windows: no Windows
 environment was available. Linux results are supporting evidence only. The release inputs in §6 are
 missing, and no installer here is a release candidate. Nothing was pushed, published or deployed, and
-no update feed was published. Branch `feat/v1-windows-readiness` is left unmerged for review.
+no update feed was published. Branch `feat/v1-windows-readiness` is left unmerged for review. The
+follow-up (§11) keeps this verdict: Windows acceptance is still BLOCKED.
 
 ## 1. Identities
 
@@ -69,15 +70,12 @@ Full detail: [`docs/release/updates.md`](../../release/updates.md).
   - B then reported itself up to date.
 - **Windows NSIS upgrade: NOT RUN** (no Windows).
 
-## 5. Windows acceptance (Stage 6): NOT RUN
+## 5. Windows acceptance (Stage 6): BLOCKED
 
 There is no Windows machine, VM or image here. The VirtualBox VMs on this host are the owner's lab
-machines and were not touched; Wine is not acceptance. The kit is ready: `tests/windows/README.md`
-(procedure A–F covering every item the owner listed, with PASS/FAIL/NOT RUN per row) and
-`tests/windows/Test-WindowsPackage.ps1` (the installer lifecycle on a disposable VM: preflight,
-install, profile, upgrade, uninstall that keeps data, reinstall). The script has not been executed or
-parsed (no PowerShell on this host). Hardware rows (F) need the owner's authorization for each
-physical print.
+machines and were not touched; Wine is not acceptance. The kit, `tests/windows/`, was parsed,
+analyzed and unit-tested in the follow-up (§11). It has not run on Windows. Hardware rows need the
+owner's authorization for each physical print.
 
 ## 6. Release inputs (Stage 4): missing, none invented
 
@@ -147,14 +145,15 @@ this source: the other historical journeys (stage 4–10, `ws1measure`, `p4*`, `
    light/dark, or touch.
 2. **Release inputs missing** (§6): API origin, appId, publisher and support, homepage, icons, signing
    and the update feed.
-3. **Code signing.** The installers are unsigned. SmartScreen will warn, and the update publisher
-   check is not active.
+3. **Code signing.** The installers are unsigned. SmartScreen will warn. An unsigned build now refuses
+   automatic updates from a real feed (§11), so a release cannot update without signing.
 4. **Hardware**: receipt printer through the Windows spooler and its driver, barcode scanner,
    touchscreen and cash drawer (`tests/windows/README.md` F; every physical print needs explicit
    authorization).
 5. **Backend rollout**: the backend's normal database still lacks the pending migrations (backend
    checklist, outside this repository). Backend compatibility was verified against `b4c85cf` only.
-6. **Not exercised in a real app:** the startup error box (native dialog).
+6. **Stale notices after an offline start** (observed in §11, not fixed). Once the till reconnects,
+   the shift notice and a customer-search transport error stay on screen until the cashier refreshes.
 7. **Recorded limitations:** the refund quantity panel squeezes the line table at 1366×850. Operator
    dispositions reach an online till at its next renewal, refresh or reconnect.
 
@@ -165,3 +164,49 @@ this source: the other historical journeys (stage 4–10, `ws1measure`, `p4*`, `
 3. Run `tests/windows/` on disposable Windows 11 and Windows 10 VMs, then on the pilot hardware.
 4. Move the verdict to READY FOR WINDOWS PILOT only when rows A–E pass, and to READY FOR WINDOWS
    RELEASE only when F also passes and the installer is signed.
+
+## 11. Follow-up: focused Windows acceptance and remaining gaps (2026-10-09)
+
+The branch `feat/v1-windows-readiness` was verified at `d37fd78` with a clean tree, claimed in
+`WORKSPACES.md`. The only change after `64eba97` was the report (documentation only). The follow-up
+adds the commits from `5929bda` to `bf23e97`.
+
+| Item                      | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p8images`                | **Fixed; the defect was in the journey, not production code.** Since the cart-first workspace (`3c15546`), the default "Cart first" preset shows compact tiles, which have no image band by design; "Balanced" shows full cards. The images were downloaded and stored (HTTP 200). The journey now applies "Balanced" through the workspace editor; every image assertion is unchanged. **Pass** (`5929bda`)                                                                                                                      |
+| Startup-error screen      | **VERIFIED in the real app.** Journey `startupfail`: a real pending sale; a damaged derived row makes migration 0034 fail. The harness build and the **packaged** till show only the error box (screenshots): numbered EN/AR recovery steps, the data folder, the version (1.0.0 on the packaged till) and the reason. Every database file is byte-identical after the failed start. After support removes the row, the till upgrades and uploads the sale exactly once. The message gained the steps and the version (`47323e2`) |
+| Windows environment       | **BLOCKED.** The host has 40 GB free, 14 GB RAM and VirtualBox 7.2.6; its only VMs are the owner's four lab VMs, and there is no Windows image. A dedicated VM needs the owner to supply an ISO and accept Microsoft's licence. Nothing was downloaded or created                                                                                                                                                                                                                                                                 |
+| PowerShell kit            | **VERIFIED off Windows.** PowerShell 7.4.6 parser: 0 errors. PSScriptAnalyzer 1.23.0: 0 errors or warnings. Pester 5.6.1: 13/13, including the real NSIS build. Fixed: non-ASCII text (Windows PowerShell 5.1 reads BOM-less files as ANSI), a report merge bug, uninstall timing, analyzer findings (`50cafd7`)                                                                                                                                                                                                                  |
+| NSIS acceptance kit       | **Ready, NOT RUN.** `wintill`: sale, touch keypad price, offline sale with hard kill/restart/reconnect exactly once, keypad refund, Arabic/dark, restart still signed in. **Passes** with the local controller on the packaged Linux till; the vbox controller has not run. `Set-AcceptanceGuest.ps1`, VM provisioning (options checked against VBoxManage 7.2.6 help), lifecycle and signature rows: `tests/windows/README.md` (`293bba3`)                                                                                       |
+| Windows update signatures | **Gap found and fixed; Windows run NOT RUN.** electron-updater skips the Authenticode check when the build records no `publisherName` (every unsigned build), and accepts the update when PowerShell cannot run. Now an unsigned Windows build refuses a real feed (`UNSIGNED_BUILD`). The signature check fails closed: Status Valid, same file, publisher by DN or CN. Settings shows the verification ("checksum only (internal test build)" when unsigned). Unit-verified (`b4b0264`)                                         |
+| Test signing on this host | **BLOCKED.** electron-builder's `osslsigncode` needs OpenSSL 1.1 (absent on Ubuntu 26.04); no system package was installed. The throwaway test certificate was deleted. An NSIS build with `win.signtoolOptions.publisherName` records the publisher in the format the app reads (parser fixture)                                                                                                                                                                                                                                 |
+| Leaks                     | AppImage extractions (~320 MB each) were left in `/tmp` by signal-stopped runs and filled the per-user tmpfs quota. Removed, and the journey now uses a run-local `TMPDIR` (`bf23e97`)                                                                                                                                                                                                                                                                                                                                            |
+| Observed, not fixed       | After an offline restart and reconnect, two notices stay on screen: "shift could not be refreshed" and "POS service temporarily unavailable" (`wintill` F screenshots). Causes: nothing reloads the shift when connectivity returns (`loadCurrent` runs on mount or from the shift menu), and the catalog store's shared error slot keeps a customer-search transport failure. Proposed fix: reload when connectivity changes to online; this touches the shift-authority state that gates selling, so it is left for review      |
+
+**Gates on `293bba3`** (`followup/gates-293bba3/summary.txt`): typecheck and lint pass; vitest
+1983/1983; SQLite 489 pass, 0 fail, 65 skipped (live-only); harness 72/72; release-inputs tests,
+fixture parity and print boundary pass; the live CP-3G-5 gate passes (8 receipt-profile artifacts in
+the run directory). The committed receipt artifacts and the canonical backend were fingerprinted:
+unchanged.
+
+**Journeys on `293bba3`:** 14/15 pass: `smoke`, `qc5touch`, `qc5touchprice`, `qc2offline`, `qckill`,
+`refundfraction`, `refundkill`, `stage7upload`, `keystore`, `p8images`, `startupfail`, `wintill`
+(local), `pkgapp`, `pkgrelease`. **`pkgupdate` failed** (EDQUOT building B, see Leaks). It was fixed in
+`bf23e97` (test file only) and **passes** there, reporting `verification: checksum_only` on Linux.
+`bf23e97` changes only that journey.
+
+**Packages from `bf23e97`** (development `.env`: loopback origin, no feed; **unsigned internal test
+builds, not release candidates**):
+
+| Artifact                      | SHA-256                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `pos-desktop-1.0.0-setup.exe` | `7789953a57f29db8d7cd085fa818a8d809420746439b87a894a37aa152ab09a1` |
+| `pos-desktop-1.0.0.AppImage`  | `49ad1d88730cddfc71871fb2ea8d3861e6d3d23fda3472815e211d17238197f6` |
+| `pos-desktop_1.0.0_amd64.deb` | `cf36a32a1631e0d175123c1e7d3d4e6bae773d62778cfc6ac64132ffdebafa22` |
+
+In the NSIS package, `better_sqlite3.node` is PE x64, Authenticode is absent and `app-update.yml`
+records no publisher, so this build would refuse a real feed. `verify:cp3g5-package` passes.
+
+Evidence: `/var/www/html/thinis-pos/plans/v1-windows-readiness-evidence-20261009/followup/` (scanned
+for keys and tokens: none). No push, merge, deployment or feed publication. No backend edit, business
+database, real profile or physical print.
