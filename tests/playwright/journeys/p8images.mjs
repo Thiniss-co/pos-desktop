@@ -56,6 +56,29 @@ async function waitCard(page, name, predicate, label, timeout = 45_000) {
   throw new Error(`${label}: ${JSON.stringify(state)}`)
 }
 
+/**
+ * The default workspace ("Cart first") browses products as compact tiles, which have no image band by
+ * design (POS workspace, 2026-10-06); full product cards, which show the image, come with "Balanced".
+ * The layout is per user, so each user under test applies it through the real workspace editor.
+ */
+async function showFullProductCards(ctx, page, user) {
+  await page.locator('.pos-workspace-shell[data-preset]').waitFor()
+  const tile = await card(page, 'Cola Can')
+  if (tile && tile.monogram === null) {
+    throw new Error(`${user}: the default compact tile unexpectedly has an image band`)
+  }
+  await page.getByTestId('workspace-customize').click()
+  await page
+    .getByTestId('workspace-preset')
+    .getByRole('radio', { name: await t(page, 'pos.workspace.presets.balanced') })
+    .click()
+  await page.getByTestId('workspace-apply').click()
+  await page.getByTestId('workspace-apply').waitFor({ state: 'detached' })
+  const preset = await page.locator('.pos-workspace-shell[data-preset]').getAttribute('data-preset')
+  ctx.step(`${user}: full product cards (Balanced) applied`, { preset })
+  if (preset !== 'balanced') throw new Error(`${user}: the Balanced layout was not applied`)
+}
+
 async function connectivity(page) {
   return await page.evaluate(
     () =>
@@ -95,6 +118,7 @@ export async function run(ctx) {
     // 1. The owner set an image before the till's first bootstrap.
     ctx.step('COLA image set by the owner', sandbox.fixture('product-image', 'COLA-CAN:1'))
     const device = await setupPhysicalPresenceTill(ctx, session)
+    await showFullProductCards(ctx, page, 'cashier')
     const cola1 = await waitCard(page, 'Cola Can', (s) => s.image, '1: COLA image not shown')
     ctx.step('1: image shown after bootstrap', {
       cola: cola1,
@@ -229,6 +253,7 @@ export async function run(ctx) {
 
     await signIn(ctx, page, MANAGER)
     await waitForRoute(page, 'pos')
+    await showFullProductCards(ctx, page, 'manager')
     await refreshWorkstation(ctx, page)
     const chips = await waitCard(
       page,
