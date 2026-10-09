@@ -41,7 +41,6 @@ import { startStaticFeed } from '../support/staticFeed.mjs'
  * arguments, so the journey starts B itself.
  */
 const COLA = '6221000000011'
-const APPIMAGE_ENV = { APPIMAGE_EXTRACT_AND_RUN: '1' }
 
 async function updateStatus(page) {
   const result = await page.evaluate(async () => await window.posApi.updates.getStatus())
@@ -126,6 +125,12 @@ export async function run(ctx) {
   mkdirSync(feedDir, { recursive: true })
   const feed = await startStaticFeed(feedDir, await freePort())
   ctx.step('isolated backend, proxy and update feed', { api: proxy.origin, feed: feed.url })
+  // The AppImage runtime extracts each start (~320 MB) under TMPDIR and leaves it behind when the
+  // process is stopped by a signal; a run-local TMPDIR (inherited by the updater's relaunch of B) is
+  // removed with the journey.
+  const appImageTmp = join(ctx.runDir, 'appimage-tmp')
+  mkdirSync(appImageTmp, { recursive: true })
+  const APPIMAGE_ENV = { APPIMAGE_EXTRACT_AND_RUN: '1', TMPDIR: appImageTmp }
   let app = null
   let built = null
   try {
@@ -301,5 +306,6 @@ export async function run(ctx) {
     // in the evidence.
     rmSync(join(ctx.runDir, 'builds'), { recursive: true, force: true })
     rmSync(feedDir, { recursive: true, force: true })
+    rmSync(appImageTmp, { recursive: true, force: true })
   }
 }
